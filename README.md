@@ -35,7 +35,7 @@ Python interpreter. PyGlove is developed by Daiyi Peng and his colleagues in
 
 ## Hello PyGlove
 
-```
+```python
 import pyglove as pg
 
 @pg.symbolize
@@ -49,21 +49,23 @@ class Hello:
 
 hello = Hello('World')
 hello.greet()
-
+```
 > Hello, World!
 
+```python
 hello.rebind(subject='PyGlove')
 hello.greet()
-
+```
 > Hello, PyGlove!
 
+```python
 hello.rebind(subject=pg.oneof(['World', 'PyGlove']))
 for h in pg.iter(hello):
   h.greet()
-
-> Hello, World!
-> Hello, PyGlove!
 ```
+> Hello, World!<br>
+> Hello, PyGlove!
+
 
 ## Citing PyGlove
 
