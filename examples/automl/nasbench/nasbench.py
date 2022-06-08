@@ -217,12 +217,11 @@ def main(argv):
   else:
     search_model = default_search_space()
 
-  # Create algorithm.
-  algorithm = create_search_algorithm(FLAGS.algorithm)
-
   # Start search.
   for i in range(FLAGS.repeat_start, FLAGS.repeat_end):
     print(f'Repeat #{i}')
+    # Create algorithm.
+    algorithm = create_search_algorithm(FLAGS.algorithm)
     times, best_valid, best_test = search(
         nasbench, search_model, algorithm, i, FLAGS.max_train_hours)
 
