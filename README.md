@@ -1,5 +1,8 @@
 # PyGlove
 
+[![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
+![pytest](https://github.com/google/pyglove/actions/workflows/ci.yaml/badge.svg)
+
 PyGlove is a library for building Python programs that are easily evolvable,
 whether it be manually or automatically. For example, to find an optimal neural
 architecture for an image classifier, the architecture needs to be evolved by
