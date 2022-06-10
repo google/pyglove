@@ -70,10 +70,10 @@ for h in pg.iter(hello):
 ## Citing PyGlove
 
 ```
-@article{peng2020pyglove,
+@inproceedings{peng2020pyglove,
   title={PyGlove: Symbolic programming for automated machine learning},
   author={Peng, Daiyi and Dong, Xuanyi and Real, Esteban and Tan, Mingxing and Lu, Yifeng and Bender, Gabriel and Liu, Hanxiao and Kraft, Adam and Liang, Chen and Le, Quoc},
-  journal={Advances in Neural Information Processing Systems},
+  booktitle={Advances in Neural Information Processing Systems (NeurIPS)},
   volume={33},
   pages={96--108},
   year={2020}
