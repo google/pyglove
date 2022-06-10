@@ -1,3 +1,8 @@
+<div align="center">
+<img src="https://raw.githubusercontent.com/google/pyglove/main/docs/_static/logo_light.svg#gh-light-mode-only" width="320px" alt="logo"></img>
+<img src="https://raw.githubusercontent.com/google/pyglove/main/docs/_static/logo_dark.svg#gh-dark-mode-only" width="320px" alt="logo"></img>
+</div>
+
 # PyGlove
 
 [![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
