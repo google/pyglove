@@ -5,6 +5,7 @@
 
 # PyGlove
 
+[![PyPI version](https://badge.fury.io/py/pyglove.svg)](https://badge.fury.io/py/pyglove)
 [![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
 ![pytest](https://github.com/google/pyglove/actions/workflows/ci.yaml/badge.svg)
 
