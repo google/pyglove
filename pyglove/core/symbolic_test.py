@@ -326,7 +326,7 @@ class DictTest(unittest.TestCase):
     sd = symbolic.Dict()
     sd['x.y'] = symbolic.Dict(z=symbolic.List())
     self.assertIn('x.y', sd)
-    self.assertEqual(sd['x.y'].z.root_path, '[x.y].z')
+    self.assertEqual(sd['x.y'].z.sym_path, '[x.y].z')
     self.assertEqual(sd.rebind({'[x.y].z': 2}), {
         'x.y': {
             'z': 2
@@ -725,14 +725,14 @@ class ListTest(unittest.TestCase):
 
     # Old value is detached from object tree after reassignment.
     d = sl[0].d
-    self.assertIsNotNone(d.parent)
+    self.assertIsNotNone(d.sym_parent)
     sl[0].d = symbolic.List()
-    self.assertIsNone(d.parent)
+    self.assertIsNone(d.sym_parent)
 
     x = sl[0]
-    self.assertIsNotNone(x.parent)
+    self.assertIsNotNone(x.sym_parent)
     sl[0] = {'c': True, 'd': [1]}
-    self.assertIsNone(x.parent)
+    self.assertIsNone(x.sym_parent)
 
     # Test __getitem__.
     self.assertEqual(sl[0], {'c': True, 'd': [1]})
@@ -1313,7 +1313,7 @@ class ObjectTest(unittest.TestCase):
     # Test detached object has no parent.
     c = a.c
     a.rebind(c=symbolic.Dict(d='bar'))
-    self.assertIsNone(c.parent)
+    self.assertIsNone(c.sym_parent)
 
     a = A(a=0)
     a.set_accessor_writable(True)
@@ -1502,15 +1502,15 @@ class ObjectTest(unittest.TestCase):
 
     # Test parent of members set at __init__ time.
     b = B(x=A())
-    self.assertIs(b.x.parent, b)
+    self.assertIs(b.x.sym_parent, b)
 
     # Test parent of members set at __setitem__ time.
     b.x = A()
-    self.assertIs(b.x.parent, b)
+    self.assertIs(b.x.sym_parent, b)
 
     # Test parent of members set at rebind time.
     b.rebind(y=A())
-    self.assertIs(b.y.parent, b)
+    self.assertIs(b.y.sym_parent, b)
 
   def testWildcardKey(self):
     """Test wildcard key as object members."""
@@ -2634,7 +2634,7 @@ class RebindTest(unittest.TestCase):
     # Change value based on parent path.
     def modify_float_under_j(k, v, p):
       del k
-      if isinstance(v, float) and p.root_path.key == 'j':
+      if isinstance(v, float) and p.sym_path.key == 'j':
         return 2.0
       return v
 
@@ -3342,12 +3342,12 @@ class OriginTest(unittest.TestCase):
       z = y.clone()
       q = z.clone(deep=True)
 
-    self.assertIs(q.origin.source, z)
-    self.assertEqual(q.origin.tag, 'deepclone')
-    self.assertIsNotNone(q.origin.stacktrace)
+    self.assertIs(q.sym_origin.source, z)
+    self.assertEqual(q.sym_origin.tag, 'deepclone')
+    self.assertIsNotNone(q.sym_origin.stacktrace)
 
     # Test chain.
-    self.assertEqual(q.origin.chain(), [
+    self.assertEqual(q.sym_origin.chain(), [
         symbolic.Origin(z, tag='deepclone'),
         symbolic.Origin(y, tag='clone'),
         symbolic.Origin(x, tag='return'),
@@ -3355,7 +3355,7 @@ class OriginTest(unittest.TestCase):
         symbolic.Origin(None, tag='__init__')
     ])
 
-    self.assertEqual(q.origin.chain('return'), [
+    self.assertEqual(q.sym_origin.chain('return'), [
         symbolic.Origin(x, tag='return'),
         symbolic.Origin(p, tag='return')
     ])
@@ -3375,26 +3375,26 @@ class OriginTest(unittest.TestCase):
         p = f1()
         q = p()
 
-    self.assertIsNone(q.origin)
+    self.assertIsNone(q.sym_origin)
 
     # Set origin by user.
-    q.set_origin(p, 'builder')
-    self.assertIs(q.origin.source, p)
-    self.assertEqual(q.origin.tag, 'builder')
-    self.assertIsNone(q.origin.stack)
-    self.assertIsNone(q.origin.stacktrace)
+    q.sym_setorigin(p, 'builder')
+    self.assertIs(q.sym_origin.source, p)
+    self.assertEqual(q.sym_origin.tag, 'builder')
+    self.assertIsNone(q.sym_origin.stack)
+    self.assertIsNone(q.sym_origin.stacktrace)
 
     # Set origin with a different description.
-    q.set_origin(p, 'builder2', stacktrace=True)
-    self.assertIs(q.origin.source, p)
-    self.assertEqual(q.origin.tag, 'builder2')
-    self.assertIsNotNone(q.origin.stack)
-    self.assertIsNotNone(q.origin.stacktrace)
+    q.sym_setorigin(p, 'builder2', stacktrace=True)
+    self.assertIs(q.sym_origin.source, p)
+    self.assertEqual(q.sym_origin.tag, 'builder2')
+    self.assertIsNotNone(q.sym_origin.stack)
+    self.assertIsNotNone(q.sym_origin.stacktrace)
 
     # Set origin with a different source.
     with self.assertRaisesRegex(
         ValueError, 'Cannot set the origin with a different source value'):
-      q.set_origin(f1(), 'builder3')
+      q.sym_setorigin(f1(), 'builder3')
 
 
 class SerializationTest(unittest.TestCase):
@@ -3694,14 +3694,14 @@ class CopyTest(unittest.TestCase):
 
     # For non-symbolic members, shallow copy simple uses the same objects.
     self.assertEqual(id(sd.a2.b1.c1[0].d4), id(sd2.a2.b1.c1[0].d4))
-    self.assertEqual(sd.a2.b1.c1[0].d3.root_path, 'a2.b1.c1[0].d3')
+    self.assertEqual(sd.a2.b1.c1[0].d3.sym_path, 'a2.b1.c1[0].d3')
     self.assertIsNone(sd2.value_spec)
 
     # Check root_path and parent is correctly set.
     c1_copy = sd.a2.b1.c1.clone()
-    self.assertEqual(0, len(c1_copy.root_path))
-    self.assertIsNone(c1_copy.parent)
-    self.assertEqual(c1_copy[0].d3.root_path, '[0].d3')
+    self.assertEqual(0, len(c1_copy.sym_path))
+    self.assertIsNone(c1_copy.sym_parent)
+    self.assertEqual(c1_copy[0].d3.sym_path, '[0].d3')
 
     # For symbolic Dict.
     sd = symbolic.Dict.partial(
@@ -5114,8 +5114,8 @@ class LoadSaveHanlderTest(unittest.TestCase):
     with symbolic.track_origin():
       a = symbolic.load(path)
     self.assertEqual(a, A(a=1, b=[0, 1]))
-    self.assertEqual(a.origin.source, path)
-    self.assertEqual(a.origin.tag, 'load')
+    self.assertEqual(a.sym_origin.source, path)
+    self.assertEqual(a.sym_origin.tag, 'load')
 
   def testCustomLoadSave(self):
     """Test custom load/save handler."""

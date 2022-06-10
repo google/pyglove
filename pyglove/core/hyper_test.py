@@ -132,7 +132,7 @@ class ObjectTemplateTest(unittest.TestCase):
     self.assertEqual(t.encode(foo(a=0, b=4)), geno.DNA.parse([(0, 0), 1]))
 
     # Test template that operates on `foo.a`.
-    t = hyper.template(ssd, lambda v: v.root_path != 'b')
+    t = hyper.template(ssd, lambda v: v.sym_path != 'b')
     self.assertEqual(t.decode(geno.DNA(1)), foo(a=2, b=hyper.oneof([3, 4])))
     self.assertEqual(t.decode(geno.DNA.parse((0, 0))),
                      foo(a=0, b=hyper.oneof([3, 4])))
@@ -140,7 +140,7 @@ class ObjectTemplateTest(unittest.TestCase):
                      geno.DNA.parse((0, 1)))
 
     # Test template that operates on `foo.a.candidates[0]` (the nested oneof).
-    t = hyper.template(ssd, lambda v: len(v.root_path) == 3)
+    t = hyper.template(ssd, lambda v: len(v.sym_path) == 3)
     self.assertEqual(t.decode(geno.DNA(1)),
                      foo(a=hyper.oneof([1, 2]), b=hyper.oneof([3, 4])))
     self.assertEqual(t.encode(foo(a=hyper.oneof([0, 2]),
@@ -148,7 +148,7 @@ class ObjectTemplateTest(unittest.TestCase):
                      geno.DNA(0))
 
     # Test template that operates on `foo.b`.
-    t = hyper.template(ssd, lambda v: v.root_path == 'b')
+    t = hyper.template(ssd, lambda v: v.sym_path == 'b')
     self.assertEqual(t.decode(geno.DNA(0)),
                      foo(a=hyper.oneof([hyper.oneof([0, 1]), 2]), b=3))
 
@@ -688,9 +688,9 @@ class FloatTest(unittest.TestCase):
     sd.c = float_value
     sd.d = float_value
 
-    self.assertEqual(sd.b.root_path, 'b')
-    self.assertEqual(sd.c.root_path, 'c')
-    self.assertEqual(sd.d.root_path, 'd')
+    self.assertEqual(sd.b.sym_path, 'b')
+    self.assertEqual(sd.c.sym_path, 'c')
+    self.assertEqual(sd.d.sym_path, 'd')
     with self.assertRaisesRegex(
         TypeError, 'Source spec Float\\(\\) is not compatible with '
         'destination spec Int\\(\\)'):

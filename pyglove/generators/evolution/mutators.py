@@ -145,7 +145,7 @@ class Uniform(base.Mutator):
     child_nodes = list(results.values())
     parent_nodes = [n.parent_dna for n in child_nodes]
     child_indexes = [
-        n.root_path.key if n.parent_dna else None for n in child_nodes]
+        n.sym_path.key if n.parent_dna else None for n in child_nodes]
 
     return child_nodes, parent_nodes, child_indexes
 
@@ -153,7 +153,7 @@ class Uniform(base.Mutator):
     """Returns whether the branch contains mutateble values."""
     if not isinstance(obj, pg.DNA):
       return False
-    if (obj.parent is None and
+    if (obj.sym_parent is None and
         # `_immutable_root` is only set by unit tests.
         getattr(self, '_immutable_root', None)):
       return False

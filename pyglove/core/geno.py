@@ -258,14 +258,14 @@ class DNASpec(symbolic.Object):
   @property
   def parent_spec(self) -> Optional['DNASpec']:
     """Returns parent spec. None if spec is root."""
-    if self.parent is None:
+    if self.sym_parent is None:
       return None
     # NOTE(daiyip):
-    # For child specs of Space, `self.parent` points to `Space.elements`.
-    # For child specs of Choices, `self.parent` points to
+    # For child specs of Space, `self.sym_parent` points to `Space.elements`.
+    # For child specs of Choices, `self.sym_parent` points to
     #   `Choices.candidates` or `Choices._subchoice_specs`.
-    assert self.parent.parent is not None
-    return self.parent.parent  # pytype: disable=bad-return-type
+    assert self.sym_parent.sym_parent is not None
+    return self.sym_parent.sym_parent  # pytype: disable=bad-return-type
 
   @property
   def parent_choice(self) -> Optional['Choices']:
@@ -617,7 +617,7 @@ class DNA(symbolic.Object):
     """Returns parent DNA."""
     if self.sym_parent is None:
       return None
-    # NOTE(daiyip): `self.parent` is the `children` field of parent DNA,
+    # NOTE(daiyip): `self.sym_parent` is the `children` field of parent DNA,
     # its presence should always align with parent DNA.
     parent = self.sym_parent.sym_parent
     assert parent is not None

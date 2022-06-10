@@ -1297,11 +1297,11 @@ class Origin(object_utils.Formattable):
   stack information on where a symbolic value is created.
 
   Built-in tags are '__init__', 'clone', 'deepclone' and 'return'.
-  Users can pass custom tags to the `set_origin` method of a symbolic value
+  Users can pass custom tags to the `sym_setorigin` method of a symbolic value
   for tracking its source in their own scenarios.
 
   When origin tracking is enabled by calling `pg.track_origin(True)`, the
-  `set_origin` method of symbolic values will be automatically called during
+  `sym_setorigin` method of symbolic values will be automatically called during
   object creation, cloning or being returned from a functor. The stack
   information can be obtained by `origin.stack` or `origin.stacktrace`.
   """
@@ -1318,7 +1318,7 @@ class Origin(object_utils.Formattable):
       source: Source value for the origin.
       tag: A descriptive tag of the origin. Built-in tags are:
         '__init__', 'clone', 'deepclone', 'return'. Users can manually
-        call `set_origin` with custom tag value.
+        call `sym_setorigin` with custom tag value.
       stacktrace: If True, enable stack trace for the origin. If None, enable
         stack trace if `pg.tracek_origin()` is called. Otherwise stack trace is
         disabled.
@@ -1327,7 +1327,7 @@ class Origin(object_utils.Formattable):
         which is 10 by default.
       stacktop: A negative integer to indicate the stack top among the stack
         frames that we want to present to user, by default it's 2-level up from
-        the stack within current `set_origin` call.
+        the stack within current `sym_setorigin` call.
     """
     if not isinstance(tag, str):
       raise ValueError(f'`tag` must be a string. Encountered: {tag!r}.')
@@ -1381,7 +1381,7 @@ class Origin(object_utils.Formattable):
       if tag is None or tag == o.tag:
         origins.append(o)
       if isinstance(o.source, Symbolic):
-        o = o.source.origin
+        o = o.source.sym_origin
       else:
         o = None
     return origins
@@ -1760,7 +1760,42 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
       stacktrace: typing.Optional[bool] = None,
       stacklimit: typing.Optional[int] = None,
       stacktop: int = -1):
-    """Sets the symbolic origin of current object. See `set_origin`."""
+    """Sets the symbolic origin of current object.
+
+    Args:
+      source: Source value for current object.
+      tag: A descriptive tag of the origin. Built-in tags are:
+        `__init__`, `clone`, `deepclone`, `return`. Users can manually
+        call `sym_setorigin` with custom tag value.
+      stacktrace: If True, enable stack trace for the origin. If None, enable
+        stack trace if `pg.tracek_origin()` is called. Otherwise stack trace is
+        disabled.
+      stacklimit: An optional integer to limit the stack depth. If None, it's
+        determined by the value passed to `pg.set_stacktrace_limit`,
+        which is 10 by default.
+      stacktop: A negative or zero-value integer indicating the stack top among
+        the stack frames that we want to present to user, by default it's
+        1-level up from the stack within current `sym_setorigin` call.
+
+    Example::
+
+      def foo():
+        return bar()
+
+      def bar():
+        s = MyObject()
+        t = s.build()
+        t.sym_setorigin(s, 'builder',
+            stacktrace=True, stacklimit=5, stacktop=-1)
+
+    This example sets the origin of `t` using `s` as its source with tag
+    'builder'. We also record the callstack where the `sym_setorigin` is
+    called, so users can call `t.sym_origin.stacktrace` to get the call stack
+    later. The `stacktop` -1 indicates that we do not need the stack frame
+    within ``sym_setorigin``, so users will see the stack top within the
+    function `bar`. We also set the max number of stack frames to display to 5,
+    not including the stack frame inside ``sym_setorigin``.
+    """
     if self.sym_origin is not None:
       current_source = typing.cast(Origin, self.sym_origin).source
       if current_source is not None and current_source is not source:
@@ -1996,68 +2031,9 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
     return self.sym_rebind(
         path_value_pairs, raise_on_no_change, skip_notification, **kwargs)
 
-  @property
-  def parent(self) -> 'Symbolic':
-    """Alias for `sym_path`."""
-    return self.sym_parent
-
-  @property
-  def root_path(self) -> object_utils.KeyPath:
-    """Alias for `sym_path`."""
-    return self.sym_path
-
   def _set_parent(self, parent: 'Symbolic'):
     """Alias for `sym_setparent` to backward compatibility."""
     self.sym_setparent(parent)
-
-  @property
-  def origin(self) -> typing.Optional[Origin]:
-    """Alias for `sym_origin`."""
-    return self.sym_origin
-
-  def set_origin(self,
-                 source: typing.Any,
-                 tag: typing.Text,
-                 stacktrace: typing.Optional[bool] = None,
-                 stacklimit: typing.Optional[int] = None,
-                 stacktop: int = -1):
-    """Sets the origin of current object.
-
-    Args:
-      source: Source value for current object.
-      tag: A descriptive tag of the origin. Built-in tags are:
-        `__init__`, `clone`, `deepclone`, `return`. Users can manually
-        call `set_origin` with custom tag value.
-      stacktrace: If True, enable stack trace for the origin. If None, enable
-        stack trace if `pg.tracek_origin()` is called. Otherwise stack trace is
-        disabled.
-      stacklimit: An optional integer to limit the stack depth. If None, it's
-        determined by the value passed to `pg.set_stacktrace_limit`,
-        which is 10 by default.
-      stacktop: A negative or zero-value integer indicating the stack top among
-        the stack frames that we want to present to user, by default it's
-        1-level up from the stack within current `set_origin` call.
-
-    Example::
-
-      def foo():
-        return bar()
-
-      def bar():
-        s = MyObject()
-        t = s.build()
-        t.set_origin(s, 'builder',
-            stacktrace=True, stacklimit=5, stacktop=-1)
-
-    This example sets the origin of `t` using `s` as its source with tag
-    'builder'. We also record the callstack where the `set_origin` is
-    called, so users can call `t.origin.stacktrace` to get the call stack
-    later. The `stacktop` -1 indicates that we do not need the stack frame
-    within ``set_origin``, so users will see the stack top within the function
-    `bar`. We also set the max number of stack frames to display to 5, not
-    including the stack frame inside ``set_origin``.
-    """
-    self.sym_setorigin(source, tag, stacktrace, stacklimit, stacktop)
 
   def clone(
       self,
@@ -2573,7 +2549,7 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
     # is not None.
     pass_through = kwargs.pop('pass_through', False)
 
-    # If True, the parent of dict items should be set to `self.parent`,
+    # If True, the parent of dict items should be set to `self.sym_parent`,
     # This is useful when Dict is used as the field container of
     # pg.Object.
     self._set_raw_attr('_pass_through_parent',
