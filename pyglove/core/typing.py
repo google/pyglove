@@ -1994,6 +1994,8 @@ class ValueSpecBase(ValueSpec):
 
   def is_compatible(self, other: ValueSpec) -> bool:
     """Returns if current spec is compatible with the other value spec."""
+    if self is other:
+      return True
     if not isinstance(other, self.__class__):
       return False
     if not self.is_noneable and other.is_noneable:
@@ -2155,13 +2157,11 @@ class Str(PrimitiveType):
 
   def _is_compatible(self, other: 'Str') -> bool:
     """Str specific compatibility check."""
-    if not self._regex:
-      return True
-    # NOTE(daiyip): This is not an elegant solution to check regular expression
-    # compatibility. Reimplement it when required.
-    if self._regex.match(other.regex.pattern):
-      return True
-    return False
+    # NOTE(daiyip): loose the compatibility check for regular expressions,
+    # since there is not an easy way for checking the compatibility of two
+    # regular expressions. Returning True might lead to false-positives but
+    # we cannot afford false-negatives.
+    return True
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""

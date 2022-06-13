@@ -319,6 +319,7 @@ class ValueSpecTest(unittest.TestCase):
     self.assertIsNone(schema.Bool().noneable().apply(None))
 
     # Test is_compatible.
+    self.assertTrue(b.is_compatible(b))
     self.assertTrue(schema.Bool().is_compatible(schema.Bool()))
     self.assertTrue(schema.Bool().noneable().is_compatible(schema.Bool()))
     self.assertFalse(schema.Bool().is_compatible(schema.Bool().noneable()))
@@ -414,10 +415,12 @@ class ValueSpecTest(unittest.TestCase):
     self.assertTrue(schema.Str().is_compatible(schema.Str()))
     self.assertTrue(schema.Str().noneable().is_compatible(schema.Str()))
     self.assertTrue(
-        schema.Str(regex='.*').is_compatible(schema.Str(regex='foo.*')))
+        schema.Str(regex='.*').is_compatible(schema.Str(regex='.*')))
+    # This is a false-positive, but we don't have a good way to check the
+    # compatibility of two regular expressions.
+    self.assertTrue(
+        schema.Str(regex='abc.*').is_compatible(schema.Str(regex='xyz.*')))
     self.assertFalse(schema.Str().is_compatible(schema.Str().noneable()))
-    self.assertFalse(
-        schema.Str(regex='foo.*').is_compatible(schema.Str(regex='.*')))
     self.assertFalse(schema.Str().is_compatible(schema.Int()))
 
     # Test extends.
