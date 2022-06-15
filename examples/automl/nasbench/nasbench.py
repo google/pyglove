@@ -192,7 +192,7 @@ def create_search_algorithm(flag_value):
                 where=node_selector(hints=EDGE_HINTS)) ** 3  # pylint: disable=no-value-for-parameter
         ),
         population_size=50,
-        tournament_size=10)  # pytype: disable=wrong-arg-types  # gen-stub-imports
+        tournament_size=10)
   else:
     return pg.load(flag_value)
 

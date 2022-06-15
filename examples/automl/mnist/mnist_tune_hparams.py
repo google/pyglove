@@ -129,7 +129,7 @@ def tune(max_trials, num_epochs):
   # controller. `feedback_fn` also has a property `dna` to access the DNA value
   # of current example.
   for builder, feedback in pg.sample(
-      hyper_model_builder, pg.generators.Random(), max_trials):  # pytype: disable=wrong-arg-types  # gen-stub-imports
+      hyper_model_builder, pg.generators.Random(), max_trials):
     print('{}: DNA: {}'.format(feedback.id, feedback.dna))
     test_acc = train_and_eval(builder, input_data, num_epochs)
     results.append((feedback.id, feedback.dna, test_acc))

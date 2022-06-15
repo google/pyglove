@@ -400,7 +400,7 @@ class Sample(PointWise):
     self._parent_weights = []
 
   def _on_input(self, inputs: List[pg.DNA]) -> None:
-    super()._on_input(inputs)    # pytype: disable=attribute-error
+    super()._on_input(inputs)
     self._parent_weights = self._weights(inputs)
 
   def merge(
@@ -501,7 +501,7 @@ class WeightedAverage(Numeric):
     self._parent_weights = []
 
   def _on_input(self, inputs: List[pg.DNA]) -> None:
-    super()._on_input(inputs)     # pytype: disable=attribute-error
+    super()._on_input(inputs)
     self._parent_weights = self._weights(inputs)
 
   def merge(

@@ -143,7 +143,7 @@ class DNASpec(symbolic.Object):
 
   def _on_bound(self):
     """Event that is triggered when object is modified."""
-    super()._on_bound()   # pytype: disable=attribute-error
+    super()._on_bound()
     self._id = None
     self._named_decision_points_cache = None
     self._decision_point_by_id_cache = None
@@ -151,7 +151,7 @@ class DNASpec(symbolic.Object):
 
   def _on_path_change(self, old_path, new_path):
     """Event that is triggered when path changes."""
-    super()._on_path_change(old_path, new_path)  # pytype: disable=attribute-error
+    super()._on_path_change(old_path, new_path)
     # We invalidate the ID cache and decision_point_by_id cache
     # when the ancestor hierarchy changes, which will force the ID and
     # the cache to be recomputed upon usage.
@@ -1091,13 +1091,11 @@ class DNA(symbolic.Object):
               and (not multi_choice_use_parent_as_key
                    or (key_type != 'name_or_id' or choice_spec.name is None)))
 
-    def _key(spec: DNASpec):
+    def _key(spec: 'DecisionPoint'):
       if key_type == 'id':
         return spec.id.path
       elif key_type == 'name_or_id':
-        if isinstance(spec, DecisionPoint) and spec.name:
-          return spec.name
-        return spec.id.path
+        return spec.name if spec.name else spec.id.path
       else:
         return spec
 
@@ -1113,33 +1111,34 @@ class DNA(symbolic.Object):
 
     def _dump_node(dna: DNA):
       """Dump node value to dict representation."""
-      key = _key(dna.spec)
-      value = None
-      if isinstance(dna.spec, Choices) and dna.value is not None:
-        if value_type == 'dna':
-          value = dna
-        elif value_type == 'value':
-          value = dna.value
-        else:
-          value = dna.spec.format_candidate(
-              dna.value, display_format=value_type)
+      if isinstance(dna.spec, DecisionPoint):
+        key = _key(dna.spec)
+        value = None
+        if isinstance(dna.spec, Choices) and dna.value is not None:
+          if value_type == 'dna':
+            value = dna
+          elif value_type == 'value':
+            value = dna.value
+          else:
+            value = dna.spec.format_candidate(
+                dna.value, display_format=value_type)
 
-        if dna.spec.is_subchoice:
-          # Append multi-choice values into parent's key.
-          if multi_choice_use_parent_as_key:
-            _put(_key(dna.spec.parent_spec), value)
+          if dna.spec.is_subchoice:
+            # Append multi-choice values into parent's key.
+            if multi_choice_use_parent_as_key:
+              _put(_key(dna.spec.parent_spec), value)
 
-          # Insert subchoice in its own key.
-          if _needs_subchoice_key(dna.spec):
+            # Insert subchoice in its own key.
+            if _needs_subchoice_key(dna.spec):
+              _put(key, value)
+          else:
             _put(key, value)
-        else:
+        elif isinstance(dna.spec, (Float, CustomDecisionPoint)):
+          if value_type == 'dna':
+            value = dna
+          else:
+            value = dna.value
           _put(key, value)
-      elif isinstance(dna.spec, (Float, CustomDecisionPoint)):
-        if value_type == 'dna':
-          value = dna
-        else:
-          value = dna.value
-        _put(key, value)
 
       for child_dna in dna.children:
         _dump_node(child_dna)
@@ -1726,7 +1725,7 @@ class Space(DNASpec):
   """
 
   def _on_bound(self):
-    super()._on_bound()   # pytype: disable=attribute-error
+    super()._on_bound()
 
     # Fields that will be lazily computed.
     self._space_size = None
@@ -1949,7 +1948,7 @@ class Choices(DecisionPoint):
   """
 
   def _on_bound(self):
-    super()._on_bound()   # pytype: disable=attribute-error
+    super()._on_bound()
     if self.num_choices > 1 and self.subchoice_index is not None:
       raise ValueError(
           f'Multi-choice spec cannot be a subchoice. '

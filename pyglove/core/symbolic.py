@@ -36,6 +36,10 @@ from pyglove.core import object_utils
 from pyglove.core import typing as schema_lib
 
 
+SymbolicT = typing.TypeVar('SymbolicT', bound='Symbolic')
+SymbolicObjectT = typing.TypeVar('SymbolicObjectT', bound='Object')
+
+
 _TYPE_NAME_KEY = '_type'
 _ALLOW_EMPTY_FIELD_DESCRIPTION = True
 _ALLOW_REPEATED_CLASS_REGISTRATION = True
@@ -312,7 +316,7 @@ def members(
     metadata: typing.Optional[typing.Dict[typing.Text, typing.Any]] = None,
     init_arg_list: typing.Optional[typing.Sequence[typing.Text]] = None,
     **kwargs
-) -> typing.Callable[[typing.Type['Object']], typing.Type['Object']]:
+) -> schema_lib.Decorator:
   """Function/Decorator for declaring symbolic fields for ``pg.Object``.
 
   Example::
@@ -408,7 +412,7 @@ def members(
                   serialization_key=serialization_key,
                   additional_keys=additional_keys)
     return cls
-  return _decorator
+  return typing.cast(schema_lib.Decorator, _decorator)
 
 
 # Create an alias method for members.
@@ -5480,7 +5484,7 @@ def clone(
     x: typing.Any,
     deep: bool = False,
     memo: typing.Optional[typing.Any] = None,
-    overrides: typing.Optional[typing.Dict[typing.Text, typing.Any]] = None
+    override: typing.Optional[typing.Dict[typing.Text, typing.Any]] = None
 ) -> typing.Any:
   """Clones a value. Use symbolic clone if possible.
 
@@ -5508,8 +5512,8 @@ def clone(
     assert pg.ne(a, c)
     assert a.y is not c.y
 
-    # Copy with overrides
-    d = pg.clone(a, overrides={'x': 2})
+    # Copy with override
+    d = pg.clone(a, override={'x': 2})
     assert d.x == 2
     assert d.y is a.y
 
@@ -5517,15 +5521,15 @@ def clone(
     x: value to clone.
     deep: If True, use deep clone, otherwise use shallow clone.
     memo: Optional memo object for deep clone.
-    overrides: Value to override if value is symbolic.
+    override: Value to override if value is symbolic.
 
   Returns:
     Cloned instance.
   """
   if isinstance(x, Symbolic):
-    return x.sym_clone(deep, memo, overrides)
+    return x.sym_clone(deep, memo, override)
   else:
-    assert not overrides
+    assert not override
     return copy.deepcopy(x, memo) if deep else copy.copy(x)
 
 

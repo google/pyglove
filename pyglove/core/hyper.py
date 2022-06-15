@@ -556,16 +556,14 @@ class OneOf(Choices):
 
   def _decode(self) -> Any:
     """Decode a DNA into an object."""
-    # TODO(daiyip): file bug to buganizer.
-    # pytype issue: No attribute '_decode' on Type[symbolic.Object].
-    return super()._decode()[0]  # pytype: disable=attribute-error
+    return super()._decode()[0]
 
   def encode(self, value: Any) -> geno.DNA:
     """Encode a value into a DNA."""
     # NOTE(daiyip): Single choice DNA will automatically be pulled
     # up from children to current node. Thus we simply returns
     # encoded DNA from parent node.
-    return super().encode([value])  # pytype: disable=attribute-error
+    return super().encode([value])
 
   def custom_apply(
       self,
@@ -626,7 +624,7 @@ class Float(HyperPrimitive):
 
   def _on_bound(self):
     """Constructor."""
-    super()._on_bound()    # pytype: disable=attribute-error
+    super()._on_bound()
     if self.min_value > self.max_value:
       raise ValueError(
           f'\'min_value\' ({self.min_value}) is greater than \'max_value\' '
@@ -688,7 +686,7 @@ class Float(HyperPrimitive):
       allow_partial: bool = False,
       child_transform: Optional[Callable[
           [object_utils.KeyPath, schema.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'Choices']:
+      ) -> Tuple[bool, 'Float']:
     """Validate candidates during value_spec binding time."""
     del allow_partial
     del child_transform
@@ -2023,7 +2021,7 @@ def random_sample(
     Iterator of random examples.
   """
   return iterate(
-      value, num_examples, geno.Random(seed), where=where)  # pytype: disable=wrong-arg-types
+      value, num_examples, geno.Random(seed), where=where)
 
 #
 # Methods for dynamically evaluting hyper values.
