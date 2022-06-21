@@ -188,9 +188,6 @@ def get_algorithm(algorithm_str):
     return pg.evolution.regularized_evolution(
         mutator=pg.evolution.mutators.Uniform(),
         population_size=50, tournament_size=10)
-  elif algorithm_str == 'ppo':
-    return pg.generators.PPO(  # pytype: disable=module-attr  # gen-stub-imports
-        train_batch_size=20, update_batch_size=10, num_updates_per_feedback=10)
   else:
     return pg.load(algorithm_str)
 
