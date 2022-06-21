@@ -1,4 +1,14 @@
+<div align="center">
+<img src="https://raw.githubusercontent.com/google/pyglove/main/docs/_static/logo_light.svg#gh-light-mode-only" width="320px" alt="logo"></img>
+<img src="https://raw.githubusercontent.com/google/pyglove/main/docs/_static/logo_dark.svg#gh-dark-mode-only" width="320px" alt="logo"></img>
+</div>
+
 # PyGlove
+
+[![PyPI version](https://badge.fury.io/py/pyglove.svg)](https://badge.fury.io/py/pyglove)
+[![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
+![pytest](https://github.com/google/pyglove/actions/workflows/ci.yaml/badge.svg)
+
 
 PyGlove is a library for building Python programs that are easily evolvable,
 whether it be manually or automatically. For example, to find an optimal neural
@@ -32,6 +42,12 @@ be a general-purpose programming toolkit, and has no dependencies beyond the
 Python interpreter. PyGlove is developed by Daiyi Peng and his colleagues in
 [Google Research Brain team](https://research.google/teams/brain/).
 
+
+## Install
+
+```
+pip install pyglove
+```
 
 ## Hello PyGlove
 
