@@ -422,16 +422,27 @@ class SwapTest(CoverageTestCase):
 
   def testOriginalDNARemainsUnchanged(self):
     """Tests that a mutable root node is mutated."""
-    random.seed()
     dna_spec = pg.geno.manyof(
         3, [pg.geno.constant() for _ in range(10)],
         distinct=False, sorted=False)
-    mutator = mutators.Swap()
+    mutator = mutators.Swap(seed=1)
     dna = pg.DNA([1, 8, 9])
     dna.use_spec(dna_spec)
     expected = pg.DNA([1, 8, 9])
     _ = mutator.mutate(dna)
     self.assertEqual(dna, expected)
+
+  def testRandomSeed(self):
+    dna_spec = pg.geno.manyof(
+        3, [pg.geno.constant() for _ in range(10)],
+        distinct=False, sorted=False)
+    mutator = mutators.Swap(seed=1)
+    self.assertEqual(
+        mutator.mutate(pg.DNA([1, 8, 9], spec=dna_spec)),
+        pg.DNA([9, 8, 1]))
+    self.assertEqual(
+        mutator.mutate(pg.DNA([1, 8, 9], spec=dna_spec)),
+        pg.DNA([8, 1, 9]))
 
   def testCoverage(self):
     random.seed()

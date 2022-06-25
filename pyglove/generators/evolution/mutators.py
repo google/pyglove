@@ -36,9 +36,7 @@ def where_fn_spec():
      'all nodes are mutable. When writing a custom `where`, it can be '
      'assumed that the DNA arg has a `spec` field with its DNASpec.'),
     ('seed', pg.typing.Int().noneable(), 'Random seed for mutation.')
-], metadata={
-    'init_arg_list': ['where', 'seed']
-})
+], init_arg_list=['where', 'seed'])
 class Uniform(base.Mutator):
   """Mutates a DNA by randomizing a branch of the DNA.
 
@@ -167,24 +165,30 @@ class Uniform(base.Mutator):
     ('where', where_fn_spec(),
      'A callable to determine which nodes of the DNA are mutable. By default, '
      'all nodes are mutable. When writing a custom `where`, it can be '
-     'assumed that the DNA arg has a `spec` field with its DNASpec.')
-], metadata={
-    'init_arg_list': ['where']
-})
+     'assumed that the DNA arg has a `spec` field with its DNASpec.'),
+    ('seed', pg.typing.Int().noneable(), 'Random seed for mutation.')
+], init_arg_list=['where', 'seed'])
 class Swap(base.Mutator):
   """Specialized mutator that swaps DNA branches rooted at sibling nodes."""
+
+  def _on_bound(self):
+    super()._on_bound()
+    if self.seed is None:
+      self._random = random
+    else:
+      self._random = random.Random(self.seed)
 
   def mutate(self, dna: pg.DNA, step: int = 0) -> pg.DNA:
     """Mutates the DNA. If impossible, returns a clone."""
     dna = dna.clone(deep=True)  # Prevent overwriting argument.
     parent_node_candidates = self._get_candidate_nodes(dna)
-    random.shuffle(parent_node_candidates)
+    self._random.shuffle(parent_node_candidates)
     parent_node = None
     child_indexes = []
     for parent_node in parent_node_candidates:
       if not parent_node.spec.sorted:
         # If no sorting is required, any swap is valid.
-        child_indexes = random.sample(range(len(parent_node.children)), 2)
+        child_indexes = self._random.sample(range(len(parent_node.children)), 2)
         break  # Found a pair to swap.
 
     if child_indexes:
