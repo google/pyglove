@@ -2385,12 +2385,7 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
 
   def _error_message(self, message: typing.Text) -> typing.Text:
     """Create error message to include path information."""
-    # NOTE: error message may be called even before root_path is set.
-    try:
-      root_path = object.__getattribute__(self, '_root_path')
-    except AttributeError:
-      root_path = object_utils.KeyPath()
-    return object_utils.message_on_path(message, root_path)
+    return object_utils.message_on_path(message, self.sym_path)
 
 
 class Dict(dict, Symbolic, schema_lib.CustomTyping):
@@ -2876,7 +2871,14 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
     if self._value_spec and self._value_spec.schema:
       field = self._value_spec.schema.get_field(key)
       if not field:
-        raise KeyError(self._error_message(f'Key \'{key}\' is not allowed.'))
+        if (self.sym_parent is not None
+            and self.sym_parent.sym_path == self.sym_path):
+          container_cls = self.sym_parent.__class__
+        else:
+          container_cls = self.__class__
+        raise KeyError(
+            self._error_message(
+                f'Key \'{key}\' is not allowed for {container_cls}.'))
     new_value = self._formalized_value(key, field, value)
     old_value = self.get(key, schema_lib.MISSING_VALUE)
 

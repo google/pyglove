@@ -3174,7 +3174,8 @@ class ContextManagerTest(unittest.TestCase):
           ('x', schema.Int()),
           ('y', schema.Str()),
       ]))
-      with self.assertRaisesRegex(KeyError, 'Key \'z\' is not allowed.*'):
+      with self.assertRaisesRegex(
+          KeyError, 'Key \'z\' is not allowed for .*Dict'):
         d.z = True
 
     with self.assertRaisesRegex(
@@ -3192,7 +3193,7 @@ class ContextManagerTest(unittest.TestCase):
       f = Foo(x='foo')
       f.rebind(x=1.0)
       with self.assertRaisesRegex(
-          KeyError, 'Key .* is not allowed'):
+          KeyError, 'Key .* is not allowed for .*Foo'):
         f.rebind(y=None)
 
     with self.assertRaisesRegex(
