@@ -736,6 +736,19 @@ class DNATest(unittest.TestCase):
                     spec, use_ints_as_literals=(vt == 'literal')),
                 dna)
 
+    # Test DNA.from_dict with filter_fn.
+    self.assertEqual(
+        dna.to_dict(
+            value_type='dna',
+            multi_choice_key='parent',
+            include_inactive_decisions=True,
+            filter_fn=lambda x: isinstance(x, geno.CustomDecisionPoint)),
+        {
+            'a[=0/2].b[0][=3/4]': None,
+            'a[=0/2].b[1][=3/4]': None,
+            'a[=0/2].b[2][=3/4]': geno.DNA('abc'),
+        })
+
     with self.assertRaisesRegex(
         ValueError, '.* is not bound with a DNASpec'):
       geno.DNA(0).to_dict()

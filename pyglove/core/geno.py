@@ -1014,6 +1014,7 @@ class DNA(symbolic.Object):
       value_type='value',
       multi_choice_key='subchoice',
       include_inactive_decisions=False,
+      filter_fn: Optional[Callable[['DecisionPoint'], bool]] = None
       ) -> Dict[Union['DecisionPoint', Text],
                 Union[None, 'DNA', float, int, Text,
                       List['DNA'], List[int], List[Text]]]:
@@ -1055,6 +1056,9 @@ class DNA(symbolic.Object):
       include_inactive_decisions: If True, inactive decisions from the search
         space will be added to the dict with value None. Otherwise they will
         be absent in the dict.
+      filter_fn: Decision point filter. If None, all the decision points will be
+        included in the dict. Otherwise only the decision points that pass
+        the filter (returns True) will be included.
 
     Returns:
       A dictionary of requested key type to value type mapped from the DNA.
@@ -1082,6 +1086,7 @@ class DNA(symbolic.Object):
 
     multi_choice_use_parent_as_key = multi_choice_key != 'subchoice'
     multi_choice_use_subchoice_as_key = multi_choice_key != 'parent'
+    filter_fn = filter_fn or (lambda x: True)
 
     self._ensure_dna_spec()
     dict_repr = dict()
@@ -1111,7 +1116,7 @@ class DNA(symbolic.Object):
 
     def _dump_node(dna: DNA):
       """Dump node value to dict representation."""
-      if isinstance(dna.spec, DecisionPoint):
+      if isinstance(dna.spec, DecisionPoint) and filter_fn(dna.spec):
         key = _key(dna.spec)
         value = None
         if isinstance(dna.spec, Choices) and dna.value is not None:
@@ -1149,6 +1154,8 @@ class DNA(symbolic.Object):
 
     result = dict()
     for dp in self.spec.decision_points:
+      if not filter_fn(dp):
+        continue
       if isinstance(dp, Choices) and dp.is_subchoice:
         if multi_choice_use_parent_as_key:
           if dp.subchoice_index == 0:
@@ -1215,7 +1222,7 @@ class DNA(symbolic.Object):
     return dna
 
   def to_numbers(
-      self, flatten: bool = True
+      self, flatten: bool = True,
       ) -> Union[List[Union[int, float, Text]],
                  object_utils.Nestable[Union[int, float, Text]]]:
     """Returns a (maybe) nested structure of numbers as decisions.
