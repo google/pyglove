@@ -943,7 +943,6 @@ class DynamicEvaluationTest(unittest.TestCase):
   def testDynamicEvaluatedValues(self):
     """Test dynamically evaluated values."""
     with hyper.DynamicEvaluationContext().collect():
-      self.assertEqual(hyper.template('abc'), 'abc')
       self.assertEqual(hyper.oneof([0, 1]), 0)
       self.assertEqual(hyper.oneof([{'x': hyper.oneof(['a', 'b'])}, 1]),
                        {'x': 'a'})
@@ -991,7 +990,7 @@ class DynamicEvaluationTest(unittest.TestCase):
   def testIndependentDecisions(self):
     """Test the search space of independent decisions."""
     def fun():
-      x = hyper.oneof([1, 2, 3]) + hyper.template(1)
+      x = hyper.oneof([1, 2, 3]) + 1
       y = sum(hyper.manyof(2, [2, 4, 6, 8]))
       z = hyper.floatv(min_value=1.0, max_value=2.0)
       return x + y + z
@@ -1024,7 +1023,7 @@ class DynamicEvaluationTest(unittest.TestCase):
   def testIndependentDecisionsWithRequiringHyperName(self):
     """Test independent decisions with requiring hyper primitive name."""
     def fun():
-      x = hyper.oneof([1, 2, 3], name='a') + hyper.template(1)
+      x = hyper.oneof([1, 2, 3], name='a') + 1
       y = sum(hyper.manyof(2, [2, 4, 6, 8], name='b'))
       z = hyper.floatv(min_value=1.0, max_value=2.0, name='c')
       return x + y + z
@@ -1223,6 +1222,52 @@ class DynamicEvaluationTest(unittest.TestCase):
             'decision_0': hyper.oneof([-1, 0, 1]),
             'decision_1': hyper.oneof([-1, 0, 3])
         })
+
+  def testCustomHyper(self):
+    """Test dynamic evaluation with custom hyper."""
+
+    class IntList(hyper.CustomHyper):
+
+      def custom_decode(self, dna):
+        return [int(x) for x in dna.value.split(':')]
+
+      def first_dna(self):
+        return geno.DNA('0:1:2:3')
+
+    def fun():
+      return sum(IntList()) + hyper.oneof([0, 1]) + hyper.floatv(-1., 1.)
+
+    context = hyper.DynamicEvaluationContext()
+    with context.collect():
+      fun()
+
+    self.assertEqual(
+        context.hyper_dict,
+        {
+            'decision_0': IntList(),
+            'decision_1': hyper.oneof([0, 1]),
+            'decision_2': hyper.floatv(-1., 1.)
+        })
+    with context.apply(geno.DNA(['1:2:3:4', 1, 0.5])):
+      self.assertEqual(fun(), 1 + 2 + 3 + 4 + 1 + 0.5)
+
+    with self.assertRaisesRegex(
+        ValueError, 'Expect string-type decision for .*'):
+      with context.apply(geno.DNA([0, 1, 0.5])):
+        fun()
+
+    class IntListWithoutFirstDNA(hyper.CustomHyper):
+
+      def custom_decode(self, dna):
+        return [int(x) for x in dna.value.split(':')]
+
+    context = hyper.DynamicEvaluationContext()
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        '.* must implement method `first_dna` to be used in '
+        'dynamic evaluation mode'):
+      with context.collect():
+        IntListWithoutFirstDNA()
 
 
 class ValueReferenceTest(unittest.TestCase):

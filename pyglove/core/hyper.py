@@ -198,6 +198,44 @@ class HyperPrimitive(symbolic.Object, HyperValue):
     * :class:`pyglove.hyper.CustomHyper`
   """
 
+  def __new__(cls, *args, **kwargs) -> Any:
+    """Overrides __new__ for supporting dynamic evaluation mode.
+
+    Args:
+      *args: Positional arguments passed to init the custom hyper.
+      **kwargs: Keyword arguments passed to init the custom hyper.
+
+    Returns:
+      A dynamic evaluated value according to current `dynamic_evaluate` context.
+    """
+    dynamic_evaluate_fn = getattr(
+        _thread_local_state,
+        _TLS_KEY_DYNAMIC_EVALUATE_FN,
+        _global_dynamic_evaluate_fn)
+
+    if dynamic_evaluate_fn is None:
+      return super().__new__(cls)
+    else:
+      hyper_value = object.__new__(cls)
+      cls.__init__(hyper_value, *args, **kwargs)
+      return dynamic_evaluate_fn(hyper_value)  # pylint: disable=not-callable
+
+  def _sym_clone(self, deep: bool, memo=None) -> 'HyperPrimitive':
+    """Overrides _sym_clone to force no dynamic evaluation."""
+    kwargs = dict()
+    for k, v in self._sym_attributes.items():
+      if deep or isinstance(v, symbolic.Symbolic):
+        v = symbolic.clone(v, deep, memo)
+      kwargs[k] = v
+
+    # NOTE(daiyip): instead of calling self.__class__(...),
+    # we manually create a new instance without invoking dynamic
+    # evaluation.
+    new_value = object.__new__(self.__class__)
+    new_value.__init__(   # pylint: disable=unexpected-keyword-arg
+        allow_partial=self._allow_partial, sealed=self._sealed, **kwargs)
+    return new_value
+
 
 @symbolic.members([
     ('num_choices', schema.Int(min_value=0).noneable(),
@@ -811,6 +849,16 @@ class CustomHyper(HyperPrimitive):
     """Always returns CustomDecisionPoint for CustomHyper."""
     return geno.CustomDecisionPoint(
         hints=self.hints, name=self.name, location=location)
+
+  def first_dna(self) -> geno.DNA:
+    """Returns the first DNA of current sub-space.
+
+    Returns:
+      A string-valued DNA.
+    """
+    raise NotImplementedError(
+        f'{self.__class__!r} must implement method `first_dna` to be used in '
+        f'dynamic evaluation mode.')
 
   def custom_apply(
       self,
@@ -1433,8 +1481,7 @@ def oneof(candidates: Iterable[Any],
     If evaluated under a `pg.DynamicEvaluationContext.collect`
     scope, it will return the first candidate.
   """
-  return _maybe_dynamic_evaluate(
-      OneOf(candidates=list(candidates), name=name, hints=hints))   # pylint: disable=unexpected-keyword-arg
+  return OneOf(candidates=list(candidates), name=name, hints=hints)
 
 
 one_of = oneof
@@ -1538,13 +1585,13 @@ def manyof(k: int,
   """
   choices_distinct = kwargs.pop('choices_distinct', distinct)
   choices_sorted = kwargs.pop('choices_sorted', sorted)
-  return _maybe_dynamic_evaluate(
-      ManyOf(num_choices=k,   # pylint: disable=unexpected-keyword-arg
-             candidates=list(candidates),
-             choices_distinct=choices_distinct,
-             choices_sorted=choices_sorted,
-             name=name,
-             hints=hints))
+  return ManyOf(
+      num_choices=k,
+      candidates=list(candidates),
+      choices_distinct=choices_distinct,
+      choices_sorted=choices_sorted,
+      name=name,
+      hints=hints)
 
 
 sublist_of = manyof
@@ -1678,8 +1725,8 @@ def floatv(min_value: float,
     If evaluated under a `pg.DynamicEvaluationContext.collect`
     scope, it will return `min_value`.
   """
-  return _maybe_dynamic_evaluate(
-      Float(min_value=min_value, max_value=max_value, name=name, hints=hints))  # pylint: disable=unexpected-keyword-arg
+  return Float(
+      min_value=min_value, max_value=max_value, name=name, hints=hints)
 
 
 # For backward compatibility
@@ -1736,8 +1783,7 @@ def template(
   Returns:
     A template object.
   """
-  return _maybe_dynamic_evaluate(
-      ObjectTemplate(value, compute_derived=True, where=where))
+  return ObjectTemplate(value, compute_derived=True, where=where)
 
 
 #
@@ -2099,17 +2145,6 @@ def dynamic_evaluate(evaluate_fn: Optional[Callable[[HyperValue], Any]],
       exit_fn()
 
 
-def _maybe_dynamic_evaluate(hyper_value):
-  """Eagerly evaluate a hyper value if evaluate function is present in scope."""
-  dynamic_evaluate_fn = getattr(
-      _thread_local_state,
-      _TLS_KEY_DYNAMIC_EVALUATE_FN,
-      _global_dynamic_evaluate_fn)
-  if dynamic_evaluate_fn is not None:
-    return dynamic_evaluate_fn(hyper_value)  # pylint: disable=not-callable
-  return hyper_value
-
-
 class DynamicEvaluationContext:
   """Context for dynamic evaluation of hyper primitives.
 
@@ -2262,9 +2297,11 @@ class DynamicEvaluationContext:
             'candidates': list(candidates)
         })
         first_value = v[0] if isinstance(hyper_primitive, ChoiceValue) else v
-      else:
-        assert isinstance(hyper_primitive, Float), hyper_primitive
+      elif isinstance(hyper_primitive, Float):
         first_value = hyper_primitive.min_value
+      else:
+        assert isinstance(hyper_primitive, CustomHyper), hyper_primitive
+        first_value = hyper_primitive.decode(hyper_primitive.first_dna())
 
       if (name in self._name_to_hyper
           and hyper_primitive != self._name_to_hyper[name]):
@@ -2279,7 +2316,7 @@ class DynamicEvaluationContext:
         _register_hyper_primitive, hyper_dict, per_thread=self._per_thread)
 
   def apply(
-      self, decisions: Union[geno.DNA, List[Union[int, float]]]):
+      self, decisions: Union[geno.DNA, List[Union[int, float, str]]]):
     """Context manager for applying decisions.
 
       Example::
@@ -2296,8 +2333,8 @@ class DynamicEvaluationContext:
           print(fun())
 
     Args:
-      decisions: A DNA or a list of numbers as decisions for currrent search
-        space.
+      decisions: A DNA or a list of numbers or strings as decisions for currrent
+        search space.
 
     Returns:
       Context manager for applying decisions to the function that defines the
@@ -2348,6 +2385,14 @@ class DynamicEvaluationContext:
               f'Expect float-type decision for {hyper_primitive!r}, '
               f'encoutered {decision!r}.')
         return decision
+
+      if isinstance(hyper_primitive, CustomHyper):
+        decision = _next_decision(hyper_primitive)
+        if not isinstance(decision, str):
+          raise ValueError(
+              f'Expect string-type decision for {hyper_primitive!r}, '
+              f'encountered {decision!r}.')
+        return hyper_primitive.decode(geno.DNA(decision))
 
       assert isinstance(hyper_primitive, Choices)
       value = symbolic.List()
