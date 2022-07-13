@@ -3,7 +3,7 @@
 <img src="https://raw.githubusercontent.com/google/pyglove/main/docs/_static/logo_dark.svg#gh-dark-mode-only" width="320px" alt="logo"></img>
 </div>
 
-# PyGlove: ML, AutoML and Beyond
+# PyGlove: Manipulating Python Programs
 
 [![PyPI version](https://badge.fury.io/py/pyglove.svg)](https://badge.fury.io/py/pyglove)
 [![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
@@ -90,6 +90,7 @@ for h in pg.iter(hello):
   * [Neural Architecture Search on MNIST](https://github.com/google/pyglove/tree/main/examples/automl/mnist)
   * [NAS-Bench-101](https://github.com/google/pyglove/tree/main/examples/automl/nasbench)
   * [NATS-Bench](https://github.com/google/pyglove/tree/main/examples/automl/natsbench)
+  * [Evolving Reinforcement Learning Algorithms](https://github.com/google/brain_autorl/tree/main/evolving_rl)
 * Evolution
   * [Travelling Salesman Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/tsp.ipynb)
   * [One-Max Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/onemax.ipynb)
