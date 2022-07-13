@@ -781,8 +781,11 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertEqual(op(inputs), [pg.DNA(1)])
 
     # Test 'Operation.until_change'.
-    op = base.Choice([(NextValue(), 0.2)]).until_change()
+    op = base.Choice([(NextValue(), 0.01)], seed=1).until_change()
     self.assertEqual(op(inputs), [pg.DNA(1)])
+
+    op = base.Choice([(NextValue(), 0.01)], seed=1).until_change(max_attempts=1)
+    self.assertEqual(op(inputs), [pg.DNA(0)])
 
   def testPipeline(self):
     """Test the pipeline operator."""

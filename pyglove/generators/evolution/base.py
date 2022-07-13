@@ -865,6 +865,7 @@ class UntilChange(Operation):
       output = self._op(inputs, global_state=global_state, step=step)
       if output != inputs:
         break
+      attempts += 1
     return output
 
 
