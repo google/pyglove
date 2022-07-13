@@ -3,7 +3,7 @@
 <img src="https://raw.githubusercontent.com/google/pyglove/main/docs/_static/logo_dark.svg#gh-dark-mode-only" width="320px" alt="logo"></img>
 </div>
 
-# PyGlove
+# PyGlove: ML, AutoML and Beyond
 
 [![PyPI version](https://badge.fury.io/py/pyglove.svg)](https://badge.fury.io/py/pyglove)
 [![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
@@ -13,7 +13,7 @@
 PyGlove is a general-purpose library for Python object manipulation.
 It introduces symbolic object-oriented programming to Python, allowing
 direct manipulation of objects that makes meta-programs much easier to write.
-It has been used to handle complex machine learning scenarios, such as AutoML.
+It has been used to handle complex machine learning scenarios, such as AutoML,
 as well as facilitating daily programming tasks with extra flexibility.
 
 PyGlove is lightweight and has no dependencies beyond the Python interpreter.
@@ -82,6 +82,21 @@ for h in pg.iter(hello):
 ```
 > Hello, World!<br>
 > Hello, PyGlove!
+
+
+## Examples
+
+* AutoML
+  * [Neural Architecture Search on MNIST](https://github.com/google/pyglove/tree/main/examples/automl/mnist)
+  * [NAS-Bench-101](https://github.com/google/pyglove/tree/main/examples/automl/nasbench)
+  * [NATS-Bench](https://github.com/google/pyglove/tree/main/examples/automl/natsbench)
+* Evolution
+  * [Travelling Salesman Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/tsp.ipynb)
+  * [One-Max Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/onemax.ipynb)
+* Machine Learning
+  * [Symbolic Machine Learning](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/symbolic_ml.ipynb)
+  * [Symbolic Neural Modeling](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/neural_modeling.ipynb)
+
 
 
 ## Citing PyGlove
