@@ -24,6 +24,7 @@ from pyglove.generators import evolution
 geno = core.geno
 Sweeping = geno.Sweeping
 Random = geno.Random
+Dedupling = geno.Deduping
 
 # TODO(daiyip): The following exports are for backward compatibility only
 # Remove once the dependencies are removed.

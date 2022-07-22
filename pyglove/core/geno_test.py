@@ -19,6 +19,7 @@ import unittest
 from pyglove.core import geno
 from pyglove.core import object_utils
 from pyglove.core import symbolic
+from pyglove.core import typing
 
 
 class DNATest(unittest.TestCase):
@@ -2059,6 +2060,135 @@ class RandomTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, '\'random_dna\' for .* is not supported'):
       _ = geno.random_dna(geno.custom())
+
+
+@geno.dna_generator
+def dummy_generator(unused_dna_spec):
+  yield geno.DNA([0, 0])
+  yield geno.DNA([0, 0])
+  yield geno.DNA([1, 1])
+  yield geno.DNA([2, 2])
+  yield geno.DNA([1, 1])
+  yield geno.DNA([3, 0])
+
+
+@symbolic.members([
+    ('num_dups', typing.Int(min_value=1))
+])
+class DuplicatesGenerator(geno.DNAGenerator):
+
+  def _propose(self):
+    return geno.DNA(self.num_feedbacks // self.num_dups)
+
+  def _feedback(self, dna, reward):
+    pass
+
+
+class DedupingTest(unittest.TestCase):
+  """Tests for Deduping generator."""
+
+  def testDefaultHashFn(self):
+    dedup = geno.Deduping(dummy_generator.partial())
+    dedup.setup(None)
+    self.assertEqual(
+        list(iter(dedup)),
+        [geno.DNA([0, 0]), geno.DNA([1, 1]), geno.DNA([2, 2]),
+         geno.DNA([3, 0])])
+
+  def testCustomHashFn(self):
+    dedup = geno.Deduping(
+        dummy_generator.partial(),
+        hash_fn=lambda x: x.children[0].value - x.children[1].value)
+    dedup.setup(None)
+    self.assertEqual(
+        list(iter(dedup)),
+        [geno.DNA([0, 0]), geno.DNA([3, 0])])
+
+  def testCustomNumDuplicates(self):
+    dedup = geno.Deduping(
+        dummy_generator.partial(),
+        hash_fn=lambda x: x.children[0].value - x.children[1].value,
+        max_duplicates=2)
+    dedup.setup(None)
+    self.assertEqual(
+        list(iter(dedup)),
+        [geno.DNA([0, 0]), geno.DNA([0, 0]), geno.DNA([3, 0])])
+
+  def testGeneratorWithFeedback(self):
+    dedup = geno.Deduping(DuplicatesGenerator(2))
+    dedup.setup(None)
+    it = iter(dedup)
+    x1, f1 = next(it)
+    self.assertEqual(x1, geno.DNA(0))
+
+    # f1 is not yet called, so the hash is not in cache yet, the generator
+    # will return the same `geno.DNA(0)`.
+    x2, f2 = next(it)
+    self.assertEqual(x2, geno.DNA(0))
+    f1(0)
+    f2(0)
+
+    # Both f1, f2 are called, so the next proposal will be
+    # DNA(num_feedbacks / 2), which is DNA(1)
+    x3, f3 = next(it)
+    self.assertEqual(x3, geno.DNA(1))
+
+    self.assertEqual(dedup.generator.num_proposals, 3)
+    self.assertEqual(dedup.generator.num_feedbacks, 2)
+
+    # Once f3 is called, the next proposal will still be DNA(3 // 2) == DNA(1)
+    # Since all subsequent call will return the same DNA, which is already
+    # duplicated with x3, so StopIteration will be raised.
+    f3(0)
+    with self.assertRaises(StopIteration):
+      _ = next(it)
+
+    # The inner generator of dedup should have made another proposals for
+    # `max_proposal_attempts` times.
+    self.assertEqual(dedup.generator.num_proposals,
+                     3 + dedup.max_proposal_attempts)
+    self.assertEqual(dedup.generator.num_feedbacks, 3)
+
+  def testAutoReward(self):
+    dedup = geno.Deduping(DuplicatesGenerator(4),
+                          hash_fn=lambda x: x.value,
+                          auto_reward_fn=sum)
+    dedup.setup(None)
+
+    for i, (x, f) in enumerate(dedup):
+      if i == 13:
+        break
+      # NOTE(daiyi): This logic will be taken care of by `pg.sample`.
+      reward = x.value if 'reward' not in x.metadata else x.metadata['reward']
+      f(reward)
+    self.assertEqual(
+        dedup._cache,
+        {
+            0: [0, 0, 0, 0],
+            1: [1, 1, 2, 4],
+            2: [2, 2, 4, 8],
+            3: [3]
+        })
+
+  def testRecover(self):
+    dedup = geno.Deduping(geno.Random(seed=1))
+    dna_spec = geno.floatv(0.1, 0.5)
+    dedup.setup(dna_spec)
+
+    history = []
+    for i, x in enumerate(dedup):
+      history.append((x, None))
+      if i == 10:
+        break
+
+    dedup2 = dedup.clone(deep=True)
+    dedup2.setup(dna_spec)
+    dedup2.recover(history)
+    self.assertEqual(
+        dedup2._cache, dedup._cache)
+    self.assertEqual(
+        dedup2.generator._random.getstate(),
+        dedup.generator._random.getstate())
 
 
 if __name__ == '__main__':

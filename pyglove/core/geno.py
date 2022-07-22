@@ -2993,6 +2993,29 @@ class DNAGenerator(symbolic.Object):
     if reward is not None:
       self._feedback(dna, reward)
 
+  def __iter__(self) -> Iterator[
+      Union[DNA,
+            Tuple[DNA, Callable[[Union[float, Tuple[float]]], None]]]]:
+    """Iterates DNA generated from current DNAGenerator.
+
+    NOTE(daiyip): `setup` needs to be called first before a DNAGenerator can
+    be iterated.
+
+    Yields:
+      A tuple of (DNA, feedback) if current DNAGenerator requires feedback,
+        otherwise DNA.
+    """
+    while True:
+      try:
+        dna = self.propose()
+        if self.needs_feedback:
+          feedback = lambda r: self.feedback(dna, r)
+          yield (dna, feedback)
+        else:
+          yield dna
+      except StopIteration:
+        break
+
 
 class Sweeping(DNAGenerator):
   """Sweeping (Grid Search) DNA generator."""
@@ -3039,6 +3062,127 @@ class Random(DNAGenerator):
     # generation process.
     if self.seed is not None:
       random_dna(self._dna_spec, self._random)
+
+
+@symbolic.members([
+    ('generator', schema.Object(DNAGenerator),
+     'Inner generator, whose proposal will be deduped.'),
+    ('hash_fn', schema.Callable(
+        [schema.Object(DNA)], returns=schema.Int()).noneable(),
+     'Hashing function. If None, the hash will be based on DNA values.'),
+    ('auto_reward_fn', schema.Callable(
+        [schema.List(
+            schema.Union([schema.Float(), schema.Tuple(schema.Float())]))],
+        returns=schema.Union(
+            [schema.Float(), schema.Tuple(schema.Float())])).noneable(),
+     ('If None, duplicated proposals above the `max_duplicates` limit will be '
+      'dropped. Otherwise, its reward will be automatically computed from the '
+      'rewards of previous duplicates, without the client to evaluate it.')),
+    ('max_duplicates', schema.Int(min_value=1, default=1),
+     'Max number of duplicates allowed per entry.'),
+    ('max_proposal_attempts', schema.Int(min_value=1, default=100),
+     'Max number of attempts if duplicated entries are encountered.')
+])
+class Deduping(DNAGenerator):
+  """Deduping generator.
+
+  A deduping generator can be applied on another generator to dedup its
+  proposed DNAs.
+
+  **Hash function**
+
+  By default, the hash function is the symbolic hash of the DNA, which returns
+  the same hash when the decisions from the DNA are the same.
+
+  For example::
+
+    pg.geno.Deduping(pg.geno.Random())
+
+  will only generate unique DNAs. When `hash_fn` is specified, it allows the
+  user to compute the hash for a DNA.
+
+  For example::
+
+    pg.geno.Deduping(pg.geno.Random(),
+                     hash_fn=lambda dna: sum(dna.to_numbers()))
+
+  will dedup based on the sum of all decision values.
+
+  **Number of duplicates**
+
+  An optional `max_duplicates` can be provided by the user to allow a few
+  duplicates.
+
+  For example::
+
+    pg.geno.Deduping(pg.geno.Random(), max_duplicates=5)
+
+  Note: for inner DNAGenerators that requires user feedback, duplication
+  accounting is based on DNAs that are fed back to the DNAGenerator, not
+  proposed ones.
+
+  **Automatic reward computation**
+
+  Automatic reward computation will be enabled when `auto_reward_fn` is
+  provided AND when the inner generator takes feedback. It allows users to
+  compute the reward for new duplicates (which exceed the `max_duplicates`
+  limit) by aggregating rewards from previous duplicates. Such DNAs will be
+  fed back to the DNAGenerator without client's evaluation (supported by
+  `pg.sample` through the 'reward' metadata).
+
+  For example::
+
+    pg.geno.Deduping(pg.evolution.regularized_evolution(),
+                     auto_reward_fn=lambda rs: sum(rs) / len(rs))
+  """
+
+  @property
+  def needs_feedback(self) -> bool:
+    return self.generator.needs_feedback
+
+  def _setup(self):
+    self.generator.setup(self.dna_spec)
+    self._hash_fn = self.hash_fn or symbolic.sym_hash
+    self._cache = {}
+    self._enables_auto_reward = (
+        self.needs_feedback and self.auto_reward_fn is not None)
+
+  def _propose(self):
+    """Proposes a deduped DNA."""
+    attempts = 0
+    while attempts < self.max_proposal_attempts:
+      dna = self.generator.propose()
+      hash_key = self._hash_fn(dna)
+      history = self._cache.get(hash_key, [])
+      dna.set_metadata('dedup_key', hash_key)
+      if len(history) < self.max_duplicates:
+        break
+      elif self._enables_auto_reward:
+        reward = self.auto_reward_fn(history)
+        dna.set_metadata('reward', reward)
+        break
+      attempts += 1
+    if attempts == self.max_proposal_attempts:
+      raise StopIteration()
+    if not self.needs_feedback:
+      self._add_dna_to_cache(dna, None)
+    return dna
+
+  def _feedback(self, dna: DNA, reward: Union[float, Tuple[float]]) -> None:
+    self.generator.feedback(dna, reward)
+    self._add_dna_to_cache(dna, reward)
+
+  def _replay(self, trial_id: int, dna: DNA, reward: Any) -> None:
+    self.generator._replay(trial_id, dna, reward)  # pylint: disable=protected-access
+    self._add_dna_to_cache(dna, reward)
+
+  def _add_dna_to_cache(
+      self, dna: DNA, reward: Union[None, float, Tuple[float]]) -> None:
+    hash_key = dna.metadata.get('dedup_key', None)
+    assert hash_key is not None, dna
+    if hash_key not in self._cache:
+      self._cache[hash_key] = []
+    self._cache[hash_key].append(reward)
 
 
 def random_dna(
