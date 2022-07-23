@@ -39,7 +39,7 @@ class BasicScalarTest(unittest.TestCase):
     self.assertEqual(sv(10), 10)
 
   def testCurrentStep(self):
-    sv = scalars.current_step * 2
+    sv = scalars.STEP * 2
     self.assertEqual(sv(0), 0)
     self.assertEqual(sv(10), 20)
 
@@ -90,7 +90,7 @@ class UnaryOpTest(unittest.TestCase):
   """Tests for unary scalar operators."""
 
   def testNegation(self):
-    sv = -scalars.current_step
+    sv = -scalars.STEP
     self.assertEqual(sv(1), -1)
     self.assertEqual(sv(2), -2)
 
@@ -166,32 +166,32 @@ class MathScalarTest(unittest.TestCase):
     assert abs(x - y) < 1e-15, (x, y)
 
   def testSqrt(self):
-    sv = scalars.sqrt(scalars.current_step)
+    sv = scalars.sqrt(scalars.STEP)
     self.assertEqual(sv(0), 0)
     self.assertEqual(sv(4), 2)
 
   def testExp(self):
-    sv = scalars.exp(scalars.current_step)
+    sv = scalars.exp(scalars.STEP)
     self.assertEqual(sv(0), 1)
     self.assertEqual(sv(1), math.e)
 
   def testLog(self):
-    sv = scalars.log(scalars.current_step, 2)
+    sv = scalars.log(scalars.STEP, 2)
     self.assertEqual(sv(1), 0)
     self.assertEqual(sv(4), 2)
 
-    sv = scalars.log(16, scalars.current_step)
+    sv = scalars.log(16, scalars.STEP)
     self.assertEqual(sv(2), 4)
     self.assertEqual(sv(4), 2)
 
   def testCos(self):
-    sv = scalars.cos(scalars.current_step * math.pi / 4)
+    sv = scalars.cos(scalars.STEP * math.pi / 4)
     self.assertIsClose(sv(0), 1)
     self.assertIsClose(sv(1), math.sqrt(2) / 2)
     self.assertIsClose(sv(2), 0)
 
   def testSin(self):
-    sv = scalars.sin(scalars.current_step * math.pi / 4)
+    sv = scalars.sin(scalars.STEP * math.pi / 4)
     self.assertIsClose(sv(0), 0)
     self.assertIsClose(sv(1), math.sqrt(2) / 2)
     self.assertIsClose(sv(2), 1)
@@ -203,11 +203,11 @@ class StepWiseScalarTest(unittest.TestCase):
   def testStepsAsPhaseLength(self):
     sv = scalars.StepWise([
         (2, 1),
-        (2, scalars.current_step),
-        (3, scalars.current_step ** 2)
+        (2, scalars.STEP),
+        (3, scalars.STEP ** 2)
     ])
     self.assertEqual([sv(i) for i in range(10)], [
-        # For each phase, scalars.current_step
+        # For each phase, scalars.STEP
         # is evaluated to 0 when phase starts.
         1, 1,         # Phase 1
         0, 1,         # Phase 2
@@ -218,11 +218,11 @@ class StepWiseScalarTest(unittest.TestCase):
   def testProportionAsPhaseLength(self):
     sv = scalars.StepWise([
         (0.2, 1),
-        (0.2, scalars.current_step),
-        (0.3, scalars.current_step ** 2)
+        (0.2, scalars.STEP),
+        (0.3, scalars.STEP ** 2)
     ], total_steps=8)
     self.assertEqual([sv(i) for i in range(10)], [
-        # For each phase, scalars.current_step
+        # For each phase, scalars.STEP
         # is evaluated to 0 when phase starts.
         1, 1,         # Phase 1
         0, 1,         # Phase 2
@@ -236,16 +236,16 @@ class StepWiseScalarTest(unittest.TestCase):
         '`total_steps` must be specified when float is used as the value'):
       _ = scalars.StepWise([
           (0.2, 1),
-          (0.2, scalars.current_step),
-          (0.3, scalars.current_step ** 2)])
+          (0.2, scalars.STEP),
+          (0.3, scalars.STEP ** 2)])
 
     with self.assertRaisesRegex(
         ValueError,
         'The sum of all proportions must be greater than 0'):
       _ = scalars.StepWise([
           (0.0, 1),
-          (0.0, scalars.current_step),
-          (0.0, scalars.current_step ** 2)
+          (0.0, scalars.STEP),
+          (0.0, scalars.STEP ** 2)
       ], total_steps=10)
 
     with self.assertRaisesRegex(
@@ -253,8 +253,8 @@ class StepWiseScalarTest(unittest.TestCase):
         'The phase length should be a float as a proportion of the'):
       _ = scalars.StepWise([
           (1, 1),
-          (2, scalars.current_step),
-          (3, scalars.current_step ** 2)
+          (2, scalars.STEP),
+          (3, scalars.STEP ** 2)
       ], total_steps=10)
 
 

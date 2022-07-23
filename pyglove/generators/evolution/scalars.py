@@ -176,7 +176,7 @@ class _Step(Scalar):
     return step
 
 
-current_step = _Step()
+STEP = _Step()
 
 
 #
@@ -571,20 +571,20 @@ class StepWise(Scalar):
 
 def linear(total_steps: int, start: float = 1.0, end: float = 0.0):
   """Returns a linear scalar from start to end."""
-  return start + current_step * ((end - start) / total_steps)
+  return start + STEP * ((end - start) / total_steps)
 
 
 def cosine_decay(total_steps: int, start: float = 1.0, end: float = 0.0):
   """Returns a cosine decayed scalar from start to end."""
   return 0.5 * (start - end) * (
-      1 + cos(math.pi * current_step / total_steps)) + end
+      1 + cos(math.pi * STEP / total_steps)) + end
 
 
 def exponential_decay(
     decay_rate: float, decay_interval: int,
     start: float = 1.0, staircase: bool = True):
   """Returns a scalar that exponentially decays from start to end."""
-  exponent = current_step / float(decay_interval)
+  exponent = STEP / float(decay_interval)
   if staircase:
     exponent = exponent.floor()
   return start * (decay_rate ** exponent)
@@ -594,4 +594,4 @@ def cyclic(cycle: int, initial_radiant: float = 0.0,
            high: float = 1.0, low: float = 0.0):
   """Returns a cyclic scalar using sin/cos."""
   return 0.5 * (high - low) * (
-      1 + cos(initial_radiant + math.pi * 2 * current_step / cycle)) + low
+      1 + cos(initial_radiant + math.pi * 2 * STEP / cycle)) + low
