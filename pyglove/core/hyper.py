@@ -2315,6 +2315,105 @@ class DynamicEvaluationContext:
     return dynamic_evaluate(
         _register_hyper_primitive, hyper_dict, per_thread=self._per_thread)
 
+  def _decision_getter_and_evaluation_finalizer(
+      self, decisions: Union[geno.DNA, List[Union[int, float, str]]]):
+    """Returns decision getter based on input decisions."""
+    # NOTE(daiyip): when hyper primitives are required to carry names, we do
+    # decision lookup from the DNA dict. This allows the decision points
+    # to appear in any order other than strictly following the order of their
+    # appearences during the search space inspection.
+    if self._require_hyper_name:
+      if isinstance(decisions, list):
+        dna = geno.DNA.from_numbers(decisions, self.dna_spec)
+      else:
+        dna = decisions
+        dna.use_spec(self.dna_spec)
+      decision_dict = dna.to_dict(
+          key_type='name_or_id', multi_choice_key='parent')
+
+      used_decision_names = set()
+      def get_decision_from_dict(
+          hyper_primitive, sub_index: Optional[int] = None
+          ) -> Union[int, float, str]:
+        name = hyper_primitive.name
+        assert name is not None, hyper_primitive
+        if name not in decision_dict:
+          raise ValueError(
+              f'Hyper primitive {hyper_primitive!r} is not defined during '
+              f'search space inspection (pg.hyper.DynamicEvaluationContext.'
+              f'collect()). Please make sure `collect` and `apply` are applied '
+              f'to the same function.')
+
+        # We use assertion here since DNA is validated with `self.dna_spec`.
+        # User errors should be caught by `dna.use_spec`.
+        decision = decision_dict[name]
+        used_decision_names.add(name)
+        if (not isinstance(hyper_primitive, Choices)
+            or hyper_primitive.num_choices == 1):
+          return decision
+        assert isinstance(decision, list), (hyper_primitive, decision)
+        assert len(decision) == hyper_primitive.num_choices, (
+            hyper_primitive, decision)
+        return decision[sub_index]
+
+      def err_on_unused_decisions():
+        if len(used_decision_names) != len(decision_dict):
+          remaining = {k: v for k, v in decision_dict.items()
+                       if k not in used_decision_names}
+          raise ValueError(
+              f'Found extra decision values that are not used. {remaining!r}')
+      return get_decision_from_dict, err_on_unused_decisions
+    else:
+      if isinstance(decisions, geno.DNA):
+        decision_list = decisions.to_numbers()
+      else:
+        decision_list = decisions
+      value_context = dict(pos=0, value_cache={})
+
+      def get_decision_by_position(
+          hyper_primitive, sub_index: Optional[int] = None
+          ) -> Union[int, float, str]:
+        if sub_index is None or hyper_primitive.name is None:
+          name = hyper_primitive.name
+        else:
+          name = f'{hyper_primitive.name}:{sub_index}'
+        if name is None or name not in value_context['value_cache']:
+          if value_context['pos'] >= len(decision_list):
+            raise ValueError(
+                f'No decision is provided for {hyper_primitive!r}.')
+          decision = decision_list[value_context['pos']]
+          value_context['pos'] += 1
+          if name is not None:
+            value_context['value_cache'][name] = decision
+        else:
+          decision = value_context['value_cache'][name]
+
+        if (isinstance(hyper_primitive, Float)
+            and not isinstance(decision, float)):
+          raise ValueError(
+              f'Expect float-type decision for {hyper_primitive!r}, '
+              f'encoutered {decision!r}.')
+        if (isinstance(hyper_primitive, CustomHyper)
+            and not isinstance(decision, str)):
+          raise ValueError(
+              f'Expect string-type decision for {hyper_primitive!r}, '
+              f'encountered {decision!r}.')
+        if (isinstance(hyper_primitive, Choices)
+            and not (isinstance(decision, int)
+                     and decision < len(hyper_primitive.candidates))):
+          raise ValueError(
+              f'Expect int-type decision in range '
+              f'[0, {len(hyper_primitive.candidates)}) for choice {sub_index} '
+              f'of {hyper_primitive!r}, encountered {decision!r}.')
+        return decision
+
+      def err_on_unused_decisions():
+        if value_context['pos'] != len(decision_list):
+          remaining = decision_list[value_context['pos']:]
+          raise ValueError(
+              f'Found extra decision values that are not used: {remaining!r}')
+      return get_decision_by_position, err_on_unused_decisions
+
   def apply(
       self, decisions: Union[geno.DNA, List[Union[int, float, str]]]):
     """Context manager for applying decisions.
@@ -2340,12 +2439,12 @@ class DynamicEvaluationContext:
       Context manager for applying decisions to the function that defines the
       search space.
     """
-    if isinstance(decisions, geno.DNA):
-      decisions = decisions.to_numbers()
-    elif not isinstance(decisions, list):
+    if not isinstance(decisions, (geno.DNA, list)):
       raise ValueError('`decisions` should be a DNA or a list of numbers.')
 
-    value_context = dict(pos=0, value_cache={})
+    get_decision, evaluation_finalizer = (
+        self._decision_getter_and_evaluation_finalizer(decisions))
+
     def _apply_child(c):
       if isinstance(c, types.LambdaType):
         s = schema.get_signature(c)
@@ -2353,75 +2452,35 @@ class DynamicEvaluationContext:
           return c()
       return c
 
-    def _next_decision(hyper_primitive, sub_index: Optional[int] = None):
-      if sub_index is None or hyper_primitive.name is None:
-        name = hyper_primitive.name
-      else:
-        name = f'{hyper_primitive.name}:{sub_index}'
-      if name is None or name not in value_context['value_cache']:
-        if value_context['pos'] >= len(decisions):
-          raise ValueError(f'No decision is provided for {hyper_primitive!r}.')
-        decision = decisions[value_context['pos']]
-        value_context['pos'] += 1
-        if name is not None:
-          value_context['value_cache'][name] = decision
-      else:
-        decision = value_context['value_cache'][name]
-      return decision
-
-    def _apply_decision(hyper_primitive):
+    def _apply_decision(hyper_primitive: HyperPrimitive):
       """Apply a decision value to an hyper_primitive object."""
       if self._where and not self._where(hyper_primitive):
         # Skip hyper primitives that do not pass the `where` predicate.
         return hyper_primitive
 
-      if isinstance(hyper_primitive, Template):
-        return hyper_primitive.value
-
       if isinstance(hyper_primitive, Float):
-        decision = _next_decision(hyper_primitive)
-        if not isinstance(decision, float):
-          raise ValueError(
-              f'Expect float-type decision for {hyper_primitive!r}, '
-              f'encoutered {decision!r}.')
-        return decision
+        return get_decision(hyper_primitive)
 
       if isinstance(hyper_primitive, CustomHyper):
-        decision = _next_decision(hyper_primitive)
-        if not isinstance(decision, str):
-          raise ValueError(
-              f'Expect string-type decision for {hyper_primitive!r}, '
-              f'encountered {decision!r}.')
-        return hyper_primitive.decode(geno.DNA(decision))
+        return hyper_primitive.decode(geno.DNA(get_decision(hyper_primitive)))
 
       assert isinstance(hyper_primitive, Choices)
       value = symbolic.List()
       for i in range(hyper_primitive.num_choices):
-        decision = _next_decision(hyper_primitive, i)
-        if not (isinstance(decision, int)
-                and decision < len(hyper_primitive.candidates)):
-          raise ValueError(
-              f'Expect int-type decision in range '
-              f'[0, {len(hyper_primitive.candidates)}) for choice {i} '
-              f'of {hyper_primitive!r}, encountered {decision!r}.')
-
         # NOTE(daiyip): during registering the hyper primitives when
         # constructing the search space, we will need to evaluate every
         # candidate in order to pick up sub search spaces correctly, which is
         # not necessary for `pg.DynamicEvaluationContext.apply`.
-        value.append(_apply_child(hyper_primitive.candidates[decision]))
+        value.append(_apply_child(
+            hyper_primitive.candidates[get_decision(hyper_primitive, i)]))
       if isinstance(hyper_primitive, ChoiceValue):
         assert len(value) == 1
         value = value[0]
       return value
-
-    def _end_apply():
-      if value_context['pos'] != len(decisions):
-        remaining = decisions[value_context['pos']:]
-        raise ValueError(
-            f'Found extra decision values that are not used: {remaining!r}')
     return dynamic_evaluate(
-        _apply_decision, exit_fn=_end_apply, per_thread=self._per_thread)
+        _apply_decision,
+        exit_fn=evaluation_finalizer,
+        per_thread=self._per_thread)
 
 
 def trace(

@@ -991,7 +991,7 @@ class DynamicEvaluationTest(unittest.TestCase):
     """Test the search space of independent decisions."""
     def fun():
       x = hyper.oneof([1, 2, 3]) + 1
-      y = sum(hyper.manyof(2, [2, 4, 6, 8]))
+      y = sum(hyper.manyof(2, [2, 4, 6, 8], name='y'))
       z = hyper.floatv(min_value=1.0, max_value=2.0)
       return x + y + z
 
@@ -1006,19 +1006,18 @@ class DynamicEvaluationTest(unittest.TestCase):
     self.assertEqual(result, 9.0)
     self.assertEqual(hyper_dict, {
         'decision_0': hyper.oneof([1, 2, 3]),
-        'decision_1': hyper.manyof(2, [2, 4, 6, 8]),
-        'decision_2': hyper.floatv(min_value=1.0, max_value=2.0),
-        'decision_3': hyper.oneof([1, 2, 3]),
-        'decision_4': hyper.manyof(2, [2, 4, 6, 8]),
-        'decision_5': hyper.floatv(min_value=1.0, max_value=2.0)
+        'y': hyper.manyof(2, [2, 4, 6, 8], name='y'),
+        'decision_1': hyper.floatv(min_value=1.0, max_value=2.0),
+        'decision_2': hyper.oneof([1, 2, 3]),
+        'decision_3': hyper.floatv(min_value=1.0, max_value=2.0),
     })
 
     with context.apply(geno.DNA.parse(
-        [1, [0, 2], 1.5, 0, [1, 3], 1.8])):
+        [1, [0, 2], 1.5, 0, 1.8])):
       # 2 + 1 + 2 + 6 + 1.5
       self.assertEqual(fun(), 12.5)
-      # 1 + 1 + 4 + 8 + 1.8
-      self.assertEqual(fun(), 15.8)
+      # 1 + 1 + 2 + 6 + 1.8
+      self.assertEqual(fun(), 11.8)
 
   def testIndependentDecisionsWithRequiringHyperName(self):
     """Test independent decisions with requiring hyper primitive name."""
@@ -1136,7 +1135,7 @@ class DynamicEvaluationTest(unittest.TestCase):
       return hyper.oneof([
           lambda: sum(hyper.manyof(2, [2, 4, 6, 8], name='a1')),
           lambda: hyper.oneof([3, 7], name='a2'),
-          lambda: hyper.floatv(min_value=1.0, max_value=2.0, name='a3'),
+          lambda: hyper.floatv(min_value=1.0, max_value=2.0, name='a3.xx'),
           10], name='a') + hyper.oneof([11, 22], name='b')
 
     context = hyper.DynamicEvaluationContext(require_hyper_name=True)
@@ -1152,7 +1151,7 @@ class DynamicEvaluationTest(unittest.TestCase):
             # form of list.
             {'a1': hyper.manyof(2, [2, 4, 6, 8], name='a1')},
             {'a2': hyper.oneof([3, 7], name='a2')},
-            {'a3': hyper.floatv(min_value=1.0, max_value=2.0, name='a3')},
+            {'a3.xx': hyper.floatv(min_value=1.0, max_value=2.0, name='a3.xx')},
             10,
         ], name='a'),
         'b': hyper.oneof([11, 22], name='b')
@@ -1192,24 +1191,34 @@ class DynamicEvaluationTest(unittest.TestCase):
         fun()
 
     with self.assertRaisesRegex(
-        ValueError, 'No decision is provided for .*'):
+        ValueError, 'DNA value type mismatch'):
       with context.apply(geno.DNA.parse(3)):
         fun()
 
     with self.assertRaisesRegex(
-        ValueError, 'Expect float-type decision for .*'):
-      with context.apply([2, 0, 1]):
-        fun()
+        ValueError, 'Found extra decision values that are not used'):
+      with context.apply(context.dna_spec.first_dna()):
+        # Do not consume any decision points from the search space.
+        _ = 1
 
     with self.assertRaisesRegex(
-        ValueError, 'Expect int-type decision in range .*'):
-      with context.apply([5, 0.5, 0]):
-        fun()
+        ValueError,
+        'Hyper primitive .* is not defined during search space inspection'):
+      with context.apply(context.dna_spec.first_dna()):
+        # Do not consume any decision points from the search space.
+        _ = hyper.oneof(range(5), name='uknown')
 
-    with self.assertRaisesRegex(
-        ValueError, 'Found extra decision values that are not used.*'):
-      with context.apply(geno.DNA.parse([(1, 1), 1, 1])):
-        fun()
+  def testWhereStatement(self):
+    """Test `where`."""
+    context = hyper.DynamicEvaluationContext(
+        where=lambda x: getattr(x, 'name') != 'x')
+    with context.collect():
+      self.assertEqual(hyper.oneof(range(10)), 0)
+      self.assertIsInstance(hyper.oneof(range(5), name='x'), hyper.OneOf)
+
+    with context.apply([1]):
+      self.assertEqual(hyper.oneof(range(10)), 1)
+      self.assertIsInstance(hyper.oneof(range(5), name='x'), hyper.OneOf)
 
   def testTrace(self):
     """Test `trace`."""
