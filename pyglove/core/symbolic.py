@@ -1866,9 +1866,9 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
     """Alias for `sym_nondefault`."""
     return self.sym_nondefault(flatten)
 
-  def seal(self, is_seal: bool = True) -> 'Symbolic':
+  def seal(self, sealed: bool = True) -> 'Symbolic':
     """Alias for `sym_seal`."""
-    return self.sym_seal(is_seal)
+    return self.sym_seal(sealed)
 
   @property
   def is_sealed(self) -> bool:
@@ -2269,7 +2269,8 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
         current object.
     """
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def _subscribes_field_updates(self) -> bool:
     """Returns True if current object subscribes field updates in `on_change`.
 
@@ -2378,7 +2379,7 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
                                   key=lambda x: x[0].sym_path,
                                   reverse=True):
       # Reset content-based cache for the object being notified.
-      target._set_raw_attr('_sym_puresymbolic', None)           # pylint: disable=protected-access
+      target._set_raw_attr('_sym_puresymbolic', None)       # pylint: disable=protected-access
       target._set_raw_attr('_sym_missing_values', None)     # pylint: disable=protected-access
       target._set_raw_attr('_sym_nondefault_values', None)  # pylint: disable=protected-access
       target._on_change(updates)   # pylint: disable=protected-access

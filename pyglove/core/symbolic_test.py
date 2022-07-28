@@ -1348,10 +1348,10 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, 'Unsupported keyword arguments'):
 
-      @symbolic.members([        # pylint: disable=unused-variable
+      @symbolic.members([
           ('x', schema.Int())
       ], unsupported_keyword=1)
-      class C(symbolic.Object):
+      class C(symbolic.Object):  # pylint: disable=unused-variable
         pass
 
     # Test missing description for pg.members.
@@ -1467,11 +1467,11 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, 'Argument \'z\' from `init_arg_list` is not defined.'):
 
-      @symbolic.members([  # pylint: disable=unused-variable
+      @symbolic.members([
           ('x', schema.Int()),
           ('y', schema.Int())
       ], init_arg_list=['x', 'z'])
-      class K(symbolic.Object):
+      class K(symbolic.Object):  # pylint: disable=unused-variable
         pass
 
     # Bad variable positional argument.
@@ -1480,11 +1480,11 @@ class ObjectTest(unittest.TestCase):
         'Variable positional argument \'y\' should be declared '
         'with `pg.typing.List'):
 
-      @symbolic.members([  # pylint: disable=unused-variable
+      @symbolic.members([
           ('x', schema.Int()),
           ('y', schema.Int())
       ], init_arg_list=['x', '*y'])
-      class L(symbolic.Object):
+      class L(symbolic.Object):  # pylint: disable=unused-variable
         pass
 
   def testParentOfMembers(self):
