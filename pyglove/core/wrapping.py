@@ -204,7 +204,8 @@ class ClassWrapper(symbolic.Object, metaclass=ClassWrapperMeta):
   Please see :func:`pyglove.wrap` for details.
   """
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def sym_wrapped(self):
     """Returns symbolically wrapped object."""
 

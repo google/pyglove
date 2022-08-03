@@ -197,7 +197,8 @@ class DNASpec(symbolic.Object):
   def validate(self, dna: 'DNA') -> bool:
     """Validate whether a DNA value conforms to this spec."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def decision_points(self) -> List['DecisionPoint']:
     """Returns all decision points in their declaration order."""
 
@@ -212,7 +213,8 @@ class DNASpec(symbolic.Object):
     """Returns all named decision points in their declaration order."""
     return self._named_decision_points
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def space_size(self) -> int:
     """Returns the size of the search space. Use -1 for infinity."""
 

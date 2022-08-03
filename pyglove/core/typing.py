@@ -488,7 +488,8 @@ class ValueSpec(object_utils.Formattable):
   accept None.
   """
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def value_type(self) -> typing.Union[
       typing.Type[typing.Any],
       typing.Tuple[typing.Type[typing.Any], ...]]:  # pyformat: disable
@@ -498,7 +499,8 @@ class ValueSpec(object_utils.Formattable):
   def noneable(self) -> 'ValueSpec':
     """Marks none-able and returns `self`."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def is_noneable(self) -> bool:
     """Returns True if current value spec accepts None."""
 
@@ -521,7 +523,8 @@ class ValueSpec(object_utils.Formattable):
         is set to True.
     """
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def default(self) -> typing.Any:
     """Returns the default value.
 
@@ -560,15 +563,18 @@ class ValueSpec(object_utils.Formattable):
         value is not specified.
     """
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def frozen(self) -> bool:
     """Returns True if current value spec is frozen."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def annotation(self) -> typing.Any:
     """Returns PyType annotation. MISSING_VALUE if annotation is absent."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def user_validator(
       self) -> typing.Optional[typing.Callable[[typing.Any], None]]:
     """Returns a user validator which is used for custom validation logic."""

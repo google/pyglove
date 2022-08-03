@@ -149,23 +149,28 @@ class Trial(_DataEntity):
 class Result(object_utils.Formattable):
   """Interface for tuning result."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def metadata(self) -> Dict[Text, Any]:
     """Returns the metadata of current sampling."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def is_active(self) -> bool:
     """Returns whether the tuner task is active."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def last_updated(self) -> datetime.datetime:
     """Last updated time."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def trials(self) -> List[Trial]:
     """Retrieve all trials."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def best_trial(self) -> Optional[Trial]:
     """Get best trial so far."""
 
@@ -248,15 +253,18 @@ class Feedback(metaclass=abc.ABCMeta):
     self._metrics_to_optimize = metrics_to_optimize
     self._sample_time = time.time()
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def id(self) -> int:
     """Gets the ID of current trial."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def dna(self) -> geno.DNA:
     """Gets the DNA of the example used in current trial."""
 
-  @abc.abstractproperty
+  @property
+  @abc.abstractmethod
   def checkpoint_to_warm_start_from(self) -> Optional[Text]:
     """Gets checkpoint path to warm start from."""
 
