@@ -3581,9 +3581,10 @@ class List(list, Symbolic, schema_lib.CustomTyping):
       if isinstance(item, Symbolic):
         item.sym_setpath(object_utils.KeyPath(idx, new_path))
 
-  def _set_item_without_permission_check(self, index: int,
+  def _set_item_without_permission_check(self, key: int,
                                          value: typing.Any) -> FieldUpdate:
     """Set or add an item without permission check."""
+    index = key
     if index >= len(self):
       index = len(self)
     should_insert = False

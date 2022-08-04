@@ -4928,8 +4928,8 @@ class InspectionTest(unittest.TestCase):
 
     @symbolic.functor([
         ('a', schema.Int())
-    ])  # pylint: disable=keyword-arg-before-vararg
-    def foo(a=1, *b, c, **d):
+    ])
+    def foo(a=1, *b, c, **d):  # pylint: disable=keyword-arg-before-vararg
       del a, b, c, d
 
     signature = inspect.signature(foo.__init__)

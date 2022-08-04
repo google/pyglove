@@ -488,8 +488,8 @@ class SamplingTest(unittest.TestCase):
   def testPluggableBackend(self):
     """Test pluggable backend."""
 
-    @tuning.add_backend('test')   # pylint: disable=unused-variable
-    class TestBackendFactory(tuning._InMemoryBackendFactory):  # pylint: disable=protected-access
+    @tuning.add_backend('test')
+    class TestBackendFactory(tuning._InMemoryBackendFactory):  # pylint: disable=unused-variable
       """A backend factory for testing."""
 
     self.assertEqual(tuning.available_backends(), ['in-memory', 'test'])
@@ -503,8 +503,8 @@ class SamplingTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, '.* is not a BackendFactory subclass'):
 
-      @tuning.add_backend('bad')  # pylint: disable=unused-variable
-      class BadBackendFactory:
+      @tuning.add_backend('bad')
+      class BadBackendFactory:  # pylint: disable=unused-variable
         pass
 
 if __name__ == '__main__':
