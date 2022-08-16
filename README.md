@@ -92,12 +92,15 @@ for h in pg.iter(hello):
   * [NATS-Bench](https://github.com/google/pyglove/tree/main/examples/automl/natsbench)
   * [Evolving Reinforcement Learning Algorithms](https://github.com/google/brain_autorl/tree/main/evolving_rl)
 * Evolution
+ * Framework: [[Algorithm](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_algorithm.ipynb)]
+    [[Ops](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_ops.ipynb)]
+    [[Fine Control](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_scheduling.ipynb)]
   * [Travelling Salesman Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/tsp.ipynb)
   * [One-Max Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/onemax.ipynb)
+
 * Machine Learning
   * [Symbolic Machine Learning](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/symbolic_ml.ipynb)
   * [Symbolic Neural Modeling](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/neural_modeling.ipynb)
-
 
 
 ## Citing PyGlove
