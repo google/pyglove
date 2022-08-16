@@ -92,7 +92,7 @@ for h in pg.iter(hello):
   * [NATS-Bench](https://github.com/google/pyglove/tree/main/examples/automl/natsbench)
   * [Evolving Reinforcement Learning Algorithms](https://github.com/google/brain_autorl/tree/main/evolving_rl)
 * Evolution
- * Framework: [[Algorithm](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_algorithm.ipynb)]
+  * Framework: [[Algorithm](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_algorithm.ipynb)]
     [[Ops](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_ops.ipynb)]
     [[Fine Control](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_scheduling.ipynb)]
   * [Travelling Salesman Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/tsp.ipynb)
