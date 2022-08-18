@@ -31,6 +31,8 @@ import abc
 import collections
 import contextlib
 import datetime
+import inspect
+import re
 import threading
 import time
 import traceback
@@ -458,12 +460,60 @@ class Feedback(metaclass=abc.ABCMeta):
     self.done(metadata=metadata, related_links=related_links)
 
   @contextlib.contextmanager
-  def skip_on_exceptions(self, exceptions: Sequence[Type[Exception]]):
-    """Yield skip on exceptions."""
+  def skip_on_exceptions(
+      self, exceptions: Sequence[
+          Union[Type[Exception], Tuple[Exception, str]]]):
+    """Yield skip on exceptions.
+
+    Usages::
+
+      with feedback.skip_on_exceptions((ValueError, KeyError)):
+        ...
+
+      with feedback.skip_on_exceptions(((ValueError, 'bad value for .*'),
+                                        (ValueError, '.* invalid range'),
+                                        TypeError)):
+        ...
+
+    Args:
+      exceptions: A sequence of (exception type, or exception type plus regular
+        expression for error message).
+
+    Yields:
+      None.
+    """
+    error_mapping: Dict[Type[Exception], List[str]] = {}
+    for error_type in exceptions:
+      regex = None
+      if isinstance(error_type, tuple):
+        assert len(error_type) == 2, error_type
+        error_type, regex = error_type
+      if not (inspect.isclass(error_type)
+              and issubclass(error_type, Exception)):
+        raise TypeError(f'Exception contains non-except types: {error_type!r}.')
+      if error_type not in error_mapping:
+        error_mapping[error_type] = []
+      if regex is not None:
+        error_mapping[error_type].append(regex)
+
     try:
       yield
-    except tuple(exceptions):   # pylint: disable=catching-non-exception
-      self.skip(traceback.format_exc())
+    except tuple(error_mapping.keys()) as e:
+      error_type = e.__class__
+      assert error_type in error_mapping, error_type
+
+      error_message = str(e)
+      error_regexes = error_mapping[error_type]
+      found_match = bool(not error_regexes)
+      if error_regexes:
+        for regex in error_regexes:
+          if re.match(regex, error_message):
+            found_match = True
+            break
+      if found_match:
+        self.skip(traceback.format_exc())
+      else:
+        raise
 
 
 class Backend(metaclass=abc.ABCMeta):

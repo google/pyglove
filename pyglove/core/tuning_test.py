@@ -161,6 +161,67 @@ class SamplingTest(unittest.TestCase):
           }
         }'''))
 
+  def testSkipOnExceptions(self):
+    """Test various forms of `pg.tuning.skip_on_exceptions`."""
+    search_space = symbolic.Dict(x=hyper.oneof(range(10)))
+    algo = geno.Random(seed=1)
+    sample = tuning.sample(search_space, algo)
+    _, f = next(sample)
+
+    with f.skip_on_exceptions((ValueError,)):
+      # should succeed.
+      f(0)
+    self.assertEqual(algo.num_proposals, 1)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with f.skip_on_exceptions((ValueError,)):
+      # should skip.
+      raise ValueError
+    self.assertEqual(algo.num_proposals, 2)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with f.skip_on_exceptions((ValueError,)):
+      # should skip.
+      raise ValueError('abc')
+    self.assertEqual(algo.num_proposals, 3)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with f.skip_on_exceptions(((ValueError, '.*a'),)):
+      # should skip.
+      raise ValueError('abc')
+    self.assertEqual(algo.num_proposals, 4)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with self.assertRaisesRegex(
+        ValueError, 'bcd'):
+      with f.skip_on_exceptions(((ValueError, '.*a'),)):
+        # should skip.
+        raise ValueError('bcd')
+    self.assertEqual(algo.num_proposals, 5)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with f.skip_on_exceptions(((ValueError, '.*a'),
+                               (ValueError, '.*b'),
+                               KeyError)):
+      # should skip.
+      raise ValueError('bcd')
+    self.assertEqual(algo.num_proposals, 5)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with f.skip_on_exceptions(((ValueError, '.*a'),
+                               (ValueError, '.*b'),
+                               KeyError)):
+      # should skip.
+      raise KeyError
+    self.assertEqual(algo.num_proposals, 6)
+    self.assertEqual(algo.num_feedbacks, 1)
+
   def testSampleWithDefineByRunSearchSpace(self):
     """Test `pg.sample` with define-by-run search space definition."""
     def fun():
