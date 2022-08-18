@@ -2182,7 +2182,8 @@ class DynamicEvaluationContext:
   def __init__(self,
                where: Optional[Callable[[HyperPrimitive], bool]] = None,
                require_hyper_name: bool = False,
-               per_thread: bool = True) -> None:
+               per_thread: bool = True,
+               dna_spec: Optional[geno.DNASpec] = None) -> None:  # pylint: disable=redefined-outer-name
     """Create a dynamic evaluation context.
 
     Args:
@@ -2198,20 +2199,24 @@ class DynamicEvaluationContext:
         definition will not matter.
       per_thread: If True, the context manager will be applied to current thread
         only. Otherwise, it will be applied on current process.
-
+      dna_spec: External provided search space. If None, the dynamic evaluation
+        context can be used to create new search space via `colelct` context
+        manager. Otherwise, current context will use the provided DNASpec to
+        apply decisions.
     """
     self._where = where
     self._require_hyper_name: bool = require_hyper_name
     self._name_to_hyper: Dict[Text, HyperPrimitive] = dict()
     self._annoymous_hyper_name_accumulator: int = 0
-    self._hyper_dict = symbolic.Dict()
-    self._dna_spec: Optional[geno.DNASpec] = None
+    self._hyper_dict = symbolic.Dict() if dna_spec is None else None
+    self._dna_spec: Optional[geno.DNASpec] = dna_spec
     self._per_thread = per_thread
 
   @property
   def dna_spec(self) -> geno.DNASpec:
     """Returns the DNASpec of the search space defined so far."""
     if self._dna_spec is None:
+      assert self._hyper_dict is not None
       self._dna_spec = dna_spec(self._hyper_dict)
     return self._dna_spec
 
@@ -2228,8 +2233,16 @@ class DynamicEvaluationContext:
     return name
 
   @property
-  def hyper_dict(self) -> symbolic.Dict:
-    """Returns collected hyper primitives as a dict."""
+  def is_external(self) -> bool:
+    """Returns True if the search space is defined by an external DNASpec."""
+    return self._hyper_dict is None
+
+  @property
+  def hyper_dict(self) -> Optional[symbolic.Dict]:
+    """Returns collected hyper primitives as a dict.
+
+    None if current context is controlled by an external DNASpec.
+    """
     return self._hyper_dict
 
   @contextlib.contextmanager
@@ -2249,6 +2262,11 @@ class DynamicEvaluationContext:
     Yields:
       The hyper dict representing the search space.
     """
+    if self.is_external:
+      raise ValueError(
+          f'`collect` cannot be called on a dynamic evaluation context that is '
+          f'using an external DNASpec: {self._dna_spec}.')
+
     with self._collect() as sub_space:
       try:
         yield self._hyper_dict

@@ -1278,6 +1278,33 @@ class DynamicEvaluationTest(unittest.TestCase):
       with context.collect():
         IntListWithoutFirstDNA()
 
+  def testExternalDNASpec(self):
+    """Test dynamic evalaution with external DNASpec."""
+
+    def fun():
+      return hyper.oneof(range(5), name='x') + hyper.oneof(range(3), name='y')
+
+    context = hyper.trace(fun, require_hyper_name=True, per_thread=True)
+    self.assertFalse(context.is_external)
+    self.assertIsNotNone(context.hyper_dict)
+
+    search_space_str = symbolic.to_json_str(context.dna_spec)
+
+    context2 = hyper.DynamicEvaluationContext(
+        require_hyper_name=True, per_thread=True,
+        dna_spec=symbolic.from_json_str(search_space_str))
+    self.assertTrue(context2.is_external)
+    self.assertIsNone(context2.hyper_dict)
+
+    with self.assertRaisesRegex(
+        ValueError,
+        '`collect` cannot be called .* is using an external DNASpec'):
+      with context2.collect():
+        fun()
+
+    with context2.apply(geno.DNA([1, 2])):
+      self.assertEqual(fun(), 3)
+
 
 class ValueReferenceTest(unittest.TestCase):
   """Tests for hyper.ValueReference classes."""
