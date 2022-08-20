@@ -102,6 +102,10 @@ for h in pg.iter(hello):
   * [Symbolic Machine Learning](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/symbolic_ml.ipynb)
   * [Symbolic Neural Modeling](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/neural_modeling.ipynb)
 
+* Advanced Python Programming
+  * [Sticky Notes: A mini Domain-specific Language](https://github.com/google/pyglove/blob/main/docs/notebooks/python/sticky_notes.ipynb)
+  * [Interactive SVG: Components for Direct Manipulation](https://github.com/google/pyglove/blob/main/docs/notebooks/python/interactive_svg.ipynb)
+  * [Where is the Duck: Developing Context-aware Component](https://github.com/google/pyglove/blob/main/docs/notebooks/python/where_is_the_duck.ipynb)
 
 ## Citing PyGlove
 
