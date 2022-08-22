@@ -4110,6 +4110,8 @@ class Object(Symbolic, metaclass=ObjectMeta):
       KeyError: When required key(s) are missing.
       ValueError: When value(s) are not acceptable by their value spec.
     """
+    # Placeholder for Google-internal usage instrumentation.
+
     if sealed is None:
       sealed = not self.__class__.allow_symbolic_mutation
 
