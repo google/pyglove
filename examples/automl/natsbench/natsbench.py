@@ -152,7 +152,7 @@ def search(nats_api,
     (validation_accuracy, _, _, _) = nats_api.simulate_train_eval(
         spec, dataset=dataset, hp=VALIDATION_SET_REPORTING_EPOCH)
     time_spent = nats_api.used_time
-    more_info = nats_api.get_more_info(spec, dataset, hp=reporting_epoch)
+    more_info = nats_api.get_more_info(spec, dataset, hp=reporting_epoch)  # pytype: disable=wrong-arg-types  # dict-kwargs
     valid_models += 1
     feedback(validation_accuracy)
     if validation_accuracy > best_valids[-1]:
