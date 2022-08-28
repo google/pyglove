@@ -78,15 +78,20 @@ def detour(
   Detour destination can be a function, which allows users to intercept the
   arguments passed to the class constructor. For example::
 
-    class Foo():
+    class Foo:
       def __init__(self, value):
         self.value = value
 
-    def detoured_foo(value):
-      return Foo(value + 1)
+    class Bar:
+      def __init__(self, value):
+        self.value = value
+
+    def detoured_foo(cls, value):
+      # cls is the original class before detour.
+      return Bar(value + 1)
 
     with pg.detour([(Foo, detoured_foo)]):
-      f = Foo(1)   # f.value will be 2.
+      f = Foo(1)   # f will be Bar(2).
 
   Detour can be nested. The outer scope mappings take precedence over the
   mappings from the inner loop, allowing users to change object creation
@@ -110,8 +115,13 @@ def detour(
   Args:
     mappings: A sequence of tuple (src_cls, dest_cls_or_fn) as mappings for the
       detour - 'src_cls' is the source class to be detoured, while
-      'dest_cls_or_fn' is the destination class or function, which should
-      accepts the arguments passed to the original `src_cls.__new__`.
+      'dest_cls_or_fn' is the destination class or function. When it's a class,
+      its `__init__` method should have the same signature as the `__init__` of
+      the original class. When it's a function, it should accept a positional
+      argument `cls`, for passing the original class that is being detoured,
+      followed by all the arguments that the original class should accept. For
+      example, a class with `__init__(self, x, *args, y, **kwargs)` can be
+      detoured to a function with signature `(cls, x, *args, y, **kwargs)`.
 
   Yields:
     Resolved detour mappings.
@@ -368,7 +378,7 @@ def _maybe_detoured_new(cls, *args, **kwargs):
     # ```
     try:
       _global_detour_context.current_mappings[cls] = cls
-      return dest_cls_or_fn(*args, **kwargs)
+      return dest_cls_or_fn(cls, *args, **kwargs)
     finally:
       _global_detour_context.current_mappings[cls] = dest_cls_or_fn
 

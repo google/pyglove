@@ -33,7 +33,7 @@ class DetourTest(unittest.TestCase):
     class C:
       pass
 
-    def foo(unused_value):
+    def foo(unused_cls, unused_value):
       return A()
 
     with detouring.detour([(A, B), (B, A), (C, foo)]) as mappings:
@@ -132,7 +132,7 @@ class DetourTest(unittest.TestCase):
 
     A1 = wrapping.wrap(A)    # pylint: disable=invalid-name
 
-    def fun(x):
+    def fun(unused_cls, x):
       return A1(x + 1)
 
     with detouring.detour([(A, fun)]):
