@@ -2803,12 +2803,14 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
          tuple([sym_hash((k, v)) for k, v in self.sym_items()
                 if v != schema_lib.MISSING_VALUE])))
 
-  def _sym_getattr(self, key: typing.Text) -> typing.Any:
+  def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, key: typing.Text) -> typing.Any:
     """Gets symbolic attribute by key."""
     return self[key]
 
-  def _sym_rebind(self, path_value_pairs: typing.Dict[typing.Text, typing.Any],
-                  **kwargs) -> typing.List[FieldUpdate]:
+  def _sym_rebind(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, path_value_pairs: typing.Dict[typing.Text, typing.Any],
+      **kwargs) -> typing.List[FieldUpdate]:
     """Rebind child (and nested child) fields of this Dict with new values."""
     if path_value_pairs and kwargs:
       raise ValueError(
@@ -2861,8 +2863,8 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
       if isinstance(v, Symbolic):
         v.sym_setpath(object_utils.KeyPath(k, new_path))
 
-  def _set_item_without_permission_check(self, key: typing.Text,
-                                         value: typing.Any) -> FieldUpdate:
+  def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, key: typing.Text, value: typing.Any) -> FieldUpdate:
     """Set item without permission check."""
     if not isinstance(key, str):
       raise KeyError(self._error_message(
@@ -3487,7 +3489,8 @@ class List(list, Symbolic, schema_lib.CustomTyping):
     """Symbolically hashing."""
     return sym_hash((self.__class__, tuple([sym_hash(e) for e in self])))
 
-  def _sym_getattr(self, key: int) -> typing.Any:
+  def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, key: int) -> typing.Any:
     """Gets symbolic attribute by index."""
     return self[key]
 
@@ -3581,8 +3584,8 @@ class List(list, Symbolic, schema_lib.CustomTyping):
       if isinstance(item, Symbolic):
         item.sym_setpath(object_utils.KeyPath(idx, new_path))
 
-  def _set_item_without_permission_check(self, key: int,
-                                         value: typing.Any) -> FieldUpdate:
+  def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, key: int, value: typing.Any) -> FieldUpdate:
     """Set or add an item without permission check."""
     index = key
     if index >= len(self):
@@ -4307,11 +4310,12 @@ class Object(Symbolic, metaclass=ObjectMeta):
     if old_parent is not parent:
       self._on_parent_change(old_parent, parent)
 
-  def _sym_getattr(self, key: typing.Text) -> typing.Any:
+  def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, key: typing.Text) -> typing.Any:
     """Get symbolic field by key."""
     return self._sym_attributes[key]
 
-  def _sym_rebind(
+  def _sym_rebind(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, path_value_pairs: typing.Dict[typing.Text, typing.Any],
       **kwargs) -> typing.List[FieldUpdate]:
     """Rebind current object using object-form members."""
@@ -4356,8 +4360,8 @@ class Object(Symbolic, metaclass=ObjectMeta):
     self._sym_attributes.sym_setpath(new_path)
     self._on_path_change(old_path, new_path)
 
-  def _set_item_without_permission_check(self, key: typing.Text,
-                                         value: typing.Any) -> FieldUpdate:
+  def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, key: typing.Text, value: typing.Any) -> FieldUpdate:
     """Set item without permission check."""
     return self._sym_attributes._set_item_without_permission_check(key, value)  # pylint: disable=protected-access
 

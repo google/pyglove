@@ -99,7 +99,7 @@ class Sample(base.Selector):
     self._random = random if self.seed is None else random.Random(self.seed)
     self._weights = base.make_operation_compatible(self.weights)
 
-  def select(
+  def select(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, inputs: List[Any], global_state: pg.Dict, step: int) -> List[Any]:
     n = compute_num_output(self.n, len(inputs), step)
     weights = self._weights(inputs, global_state=global_state, step=step)
@@ -128,7 +128,7 @@ class Proportional(base.Selector):
     super()._on_bound()
     self._weights = base.make_operation_compatible(self.weights)
 
-  def select(
+  def select(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, inputs: List[Any], global_state: pg.Dict, step: int) -> List[Any]:
     n = compute_num_output(self.n, len(inputs), step)
     weights = self._weights(inputs, global_state=global_state, step=step)

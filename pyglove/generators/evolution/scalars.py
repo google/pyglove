@@ -406,7 +406,8 @@ class Division(BinaryOp):
 class Mod(BinaryOp):
   """Mod operation."""
 
-  def operate(self, x: int, y: int) -> int:
+  def operate(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+      self, x: int, y: int) -> int:
     return x % y
 
 
