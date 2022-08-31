@@ -339,6 +339,8 @@ class Patcher(symbolic.Functor):
 
   def patch(self, x: symbolic.Symbolic) -> Any:
     """Patches an input and return the input itself unless fully replaced."""
+    # Placeholder for Google-internal usage instrumentation.
+
     if not isinstance(x, symbolic.Symbolic):
       raise TypeError(
           f'The 1st argument of {self.__class__.__name__!r} must be a '
