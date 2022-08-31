@@ -130,6 +130,8 @@ def detour(
     TypeError: If the first item in each mapping is not a class, or the second
       item in each mapping is neither a class nor a function.
   """
+    # Placeholder for Google-internal usage instrumentation.
+
   for src, dest in mappings:
     if not inspect.isclass(src):
       raise TypeError(f'Detour source {src!r} is not a class.')
