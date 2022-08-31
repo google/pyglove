@@ -13,18 +13,29 @@
 # limitations under the License.
 """Setup for pip package."""
 
+import datetime
+import sys
 from setuptools import find_namespace_packages
 from setuptools import setup
 
 
 def _get_version():
+  """Gets current version of PyGlove package."""
   with open('pyglove/__init__.py') as fp:
+    version = None
     for line in fp:
       if line.startswith('__version__'):
         g = {}
         exec(line, g)  # pylint: disable=exec-used
-        return g['__version__']
+        version = g['__version__']
+        break
+  if version is None:
     raise ValueError('`__version__` not defined in `pyglove/__init__.py`')
+  if '--nightly' in sys.argv:
+    nightly_label = datetime.datetime.now().strftime('%Y%m%d')
+    version = f'{version}.dev{nightly_label}'
+    sys.argv.remove('--nightly')
+  return version
 
 
 def _parse_requirements(requirements_txt_path):

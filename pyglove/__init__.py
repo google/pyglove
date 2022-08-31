@@ -39,4 +39,4 @@ evolution = generators.evolution
 # pylint: enable=unused-import
 # pylint: enable=g-bad-import-order
 
-__version__ = "0.1.0-alpha"
+__version__ = "0.1.1"

@@ -50,6 +50,12 @@ PyGlove is developed by Daiyi Peng and colleagues in [Google Brain Team](https:/
 pip install pyglove
 ```
 
+Or install nightly build with:
+
+```
+pip install pyglove --pre
+```
+
 ## Hello PyGlove
 
 ```python
