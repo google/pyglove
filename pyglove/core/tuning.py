@@ -789,8 +789,6 @@ def sample(hyper_value: Any,
     ValueError: `hyper_value` is a fixed value, or requested `backend` is not
     available.
   """
-    # Placeholder for Google-internal usage instrumentation.
-
   # Create template based on the hyper value.
   if isinstance(hyper_value, hyper.DynamicEvaluationContext):
     dynamic_evaluation_context = hyper_value
