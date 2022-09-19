@@ -64,6 +64,7 @@ Hyper values map 1:1 to genotypes as the following:
 import abc
 import contextlib
 import copy
+import numbers
 import threading
 import types
 import typing
@@ -329,8 +330,12 @@ class Choices(HyperPrimitive):
         name=self.name,
         location=location or object_utils.KeyPath())
 
-  def _literal_value(self, candidate: Any, max_len: int = 120) -> Text:
+  def _literal_value(
+      self, candidate: Any, max_len: int = 120) -> Union[int, float, str]:
     """Returns literal value for candidate."""
+    if isinstance(candidate, numbers.Number):
+      return candidate
+
     literal = object_utils.format(candidate, compact=True,
                                   hide_default_values=True,
                                   hide_missing_values=True,

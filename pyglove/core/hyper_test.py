@@ -55,7 +55,7 @@ class ObjectTemplateTest(unittest.TestCase):
   def testSimpleTemplate(self):
     """Test simple template."""
     v = symbolic.Dict({
-        'a': hyper.oneof(candidates=[0, 1]),
+        'a': hyper.oneof(candidates=[0, 2.5]),
         'b': hyper.floatv(min_value=0.0, max_value=1.0)
     })
     t = hyper.ObjectTemplate(v)
@@ -69,12 +69,13 @@ class ObjectTemplateTest(unittest.TestCase):
                 location='a',
                 num_choices=1,
                 candidates=[geno.constant(), geno.constant()],
-                literal_values=['0', '1']),
+                literal_values=[0, 2.5]),
             geno.Float(location='b', min_value=0.0, max_value=1.0)
         ])))
 
     # Test decode.
     self.assertEqual(t.decode(geno.DNA.parse([0, 0.5])), {'a': 0, 'b': 0.5})
+    self.assertEqual(t.decode(geno.DNA.parse([1, 0.3])), {'a': 2.5, 'b': 0.3})
 
     with self.assertRaisesRegex(ValueError, 'Expect float value'):
       t.decode(geno.DNA.parse([0, 0]))
@@ -180,7 +181,7 @@ class ObjectTemplateTest(unittest.TestCase):
                 location='a',
                 num_choices=1,
                 candidates=[geno.constant(), geno.constant()],
-                literal_values=['0', '1']),
+                literal_values=[0, 1]),
             geno.Float(location='b', min_value=0.0, max_value=1.0)
         ])))
 
@@ -254,7 +255,7 @@ class ManyOfTest(unittest.TestCase):
             geno.constant(),
             geno.constant()
         ], literal_values=[
-            '\'foo\'', '1', '2', '\'bar\''
+            '\'foo\'', 1, 2, '\'bar\''
         ], sorted=True, distinct=True)))
 
     # Test complex choice list with nested encoders.
@@ -275,7 +276,7 @@ class ManyOfTest(unittest.TestCase):
                     geno.constant(),
                     geno.constant(),
                     geno.constant()
-                ], literal_values=['1', '2', '3'], location='b')
+                ], literal_values=[1, 2, 3], location='b')
             ]),
             geno.floatv(min_value=1.0, max_value=2.0, location='[0]')
         ], literal_values=[
@@ -481,7 +482,7 @@ class OneOfTest(unittest.TestCase):
                             geno.constant(),
                             geno.constant()
                         ],
-                        literal_values=['1', '2', '3'],
+                        literal_values=[1, 2, 3],
                         location='b'),
                 ]),
                 geno.Space(elements=[
@@ -792,10 +793,7 @@ class TunableValueHelpersTests(unittest.TestCase):
             geno.Choices(location='a', num_choices=1, candidates=[
                 geno.constant(),
                 geno.constant()
-            ], literal_values=[
-                '0',
-                '1',
-            ])
+            ], literal_values=[0, 1])
         ])))
 
   def testMaterialize(self):
