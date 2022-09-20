@@ -1544,6 +1544,7 @@ class DNASpecTest(unittest.TestCase):
     float_value = geno.floatv(min_value=0.0, max_value=1.0, location='a.b')
     self.assertEqual(float_value.location.keys, ['a', 'b'])
     self.assertTrue(float_value.is_leaf)
+    self.assertIsNone(float_value.scale)
     self.assertEqual(float_value.space_size, -1)
 
     self.assertEqual(float_value.first_dna(), geno.DNA(0.0))
@@ -1571,6 +1572,10 @@ class DNASpecTest(unittest.TestCase):
         'Argument \'min_value\' \\(.*\\) should be no greater than '
         '\'max_value\''):
       _ = geno.floatv(min_value=100.0, max_value=0.0)
+
+    with self.assertRaisesRegex(
+        ValueError, '\'min_value\' must be positive'):
+      _ = geno.floatv(min_value=0.0, max_value=1.0, scale='log')
 
   def testCustomDecisionPoint(self):
     """Test geno.CustomDecisionPoint."""

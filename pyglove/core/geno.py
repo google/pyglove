@@ -2413,12 +2413,32 @@ class Choices(DecisionPoint):
     return ''.join(s)
 
 
+def float_scale_spec(field_name):
+  """Returns value spec for the scale of a continuous range."""
+  return (field_name, schema.Enum(None, [None, 'linear', 'log', 'rlog']),
+          ('The scale of values within the range for the search algorithm '
+           'to explore. '
+           'If None, the feasible space is unscaled;'
+           'If `linear`, the feasible space is mapped to [0, 1] linearly.'
+           'If `log`, the feasible space is mapped to [0, 1] logarithmically '
+           'with formula: x -> log(x / min) / log(max / min). '
+           'if `rlog`, the feasible space is mapped to [0, 1] "reverse" '
+           'logarithmically, resulting in values close to `max_value` spread '
+           'out more than the points near the `min_value`, with formula: '
+           'x -> 1.0 - log((max + min - x) / min) / log (max / min). '
+           '`min_value` must be positive if `scale` is not None. '
+           'Also, it depends on the search algorithm to decide whether this '
+           'information is used.'))
+
+
 @symbolic.members(
     [
         ('min_value', schema.Float(), 'Minimum value.'),
         ('max_value', schema.Float(), 'Maximum value.'),
+        float_scale_spec('scale')
     ],
-    init_arg_list=['min_value', 'max_value', 'hints', 'location', 'name'],
+    init_arg_list=[
+        'min_value', 'max_value', 'scale', 'hints', 'location', 'name'],
     # TODO(daiyip): For backward compatibility.
     # Move this to additional keys later.
     serialization_key='pyglove.generators.geno.Float',
@@ -2441,6 +2461,10 @@ class Float(DecisionPoint):
       raise ValueError(
           f'Argument \'min_value\' ({self.min_value}) should be no greater '
           f'than \'max_value\' ({self.max_value}).')
+    if self.scale in ['log', 'rlog'] and self.min_value <= 0:
+      raise ValueError(
+          f'\'min_value\' must be positive when `scale` is {self.scale!r}. '
+          f'encountered: {self.min_value}.')
 
   @property
   def is_leaf(self) -> bool:
@@ -2516,6 +2540,7 @@ class Float(DecisionPoint):
         ('name', object_utils.quote_if_str(self.name), None),
         ('min_value', self.min_value, None),
         ('max_value', self.max_value, None),
+        ('scale', self.scale, None),
         ('hints', object_utils.quote_if_str(self.hints), None),
     ])
     return f'{self.__class__.__name__}({details})'
@@ -2760,6 +2785,7 @@ def oneof(candidates: List[DNASpec],
 
 def floatv(min_value: float,
            max_value: float,
+           scale: Optional[Text] = None,
            hints: Any = None,
            location: object_utils.KeyPath = object_utils.KeyPath(),
            name: Optional[Text] = None) -> Float:
@@ -2774,6 +2800,19 @@ def floatv(min_value: float,
   Args:
     min_value: The lower bound of decision.
     max_value: The upper bound of decision.
+    scale: An optional string as the scale of the range. Supported values
+      are None, 'linear', 'log', and 'rlog'.
+      If None, the feasible space is unscaled.
+      If `linear`, the feasible space is mapped to [0, 1] linearly.
+      If `log`, the feasible space is mapped to [0, 1] logarithmically with
+        formula `x -> log(x / min) / log(max / min)`.
+      If `rlog`, the feasible space is mapped to [0, 1] "reverse"
+        logarithmically, resulting in values close to `max_value` spread
+        out more than the points near the `min_value`, with formula:
+        x -> 1.0 - log((max + min - x) / min) / log (max / min).
+      `min_value` must be positive if `scale` is not None.
+      Also, it depends on the search algorithm to decide whether this
+      information is used or not.
     hints: An optional hint object.
     location: A ``pg.KeyPath`` object that indicates the location of the
       decision point.
@@ -2791,7 +2830,8 @@ def floatv(min_value: float,
     * :func:`pyglove.geno.manyof`
     * :func:`pyglove.geno.custom`
   """
-  return Float(min_value, max_value, hints=hints, location=location, name=name)
+  return Float(min_value, max_value, scale,
+               hints=hints, location=location, name=name)
 
 
 def custom(hints: Any = None,

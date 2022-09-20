@@ -266,7 +266,7 @@ class ManyOfTest(unittest.TestCase):
                 'a': hyper.floatv(min_value=0.0, max_value=1.0),
                 'b': hyper.oneof(candidates=[1, 2, 3]),
             },
-            [hyper.floatv(min_value=1.0, max_value=2.0), 1.0],
+            [hyper.floatv(min_value=1.0, max_value=2.0, scale='linear'), 1.0],
         ]).dna_spec('a.b'),
         geno.oneof([
             geno.constant(),
@@ -278,12 +278,12 @@ class ManyOfTest(unittest.TestCase):
                     geno.constant()
                 ], literal_values=[1, 2, 3], location='b')
             ]),
-            geno.floatv(min_value=1.0, max_value=2.0, location='[0]')
+            geno.floatv(1.0, 2.0, scale='linear', location='[0]')
         ], literal_values=[
             '\'foo\'',
             ('{a=Float(min_value=0.0, max_value=1.0), '
              'b=OneOf(candidates=[0: 1, 1: 2, 2: 3])}'),
-            '[0: Float(min_value=1.0, max_value=2.0), 1: 1.0]',
+            '[0: Float(min_value=1.0, max_value=2.0, scale=\'linear\'), 1: 1.0]',
         ], location='a.b')))
 
   def testDecode(self):
@@ -628,11 +628,18 @@ class FloatTest(unittest.TestCase):
     """Test Float basics."""
     self.assertEqual(self._float.min_value, 0.0)
     self.assertEqual(self._float.max_value, 1.0)
+    self.assertIsNone(self._float.scale)
     self.assertTrue(self._float.is_leaf)
 
     with self.assertRaisesRegex(
         ValueError, '\'min_value\' .* is greater than \'max_value\' .*'):
       hyper.floatv(min_value=1.0, max_value=0.0)
+
+  def testScale(self):
+    self.assertEqual(hyper.floatv(-1.0, 1.0, 'linear').scale, 'linear')
+    with self.assertRaisesRegex(
+        ValueError, '\'min_value\' must be positive'):
+      hyper.floatv(-1.0, 1.0, 'log')
 
   def testDNASpec(self):
     """Test Float.dna_spec()."""

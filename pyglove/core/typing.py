@@ -4311,11 +4311,12 @@ def create_schema(
     value = create_value_spec(maybe_value_spec)
     if (description is not None and
         not isinstance(description, str)):
-      raise TypeError('Description (the 3rd element) of field definition '
-                      'should be text type.')
+      raise TypeError(f'Description (the 3rd element) of field definition '
+                      f'should be text type. Encountered: {description}')
     if not isinstance(field_metadata, dict):
-      raise TypeError('Metadata (the 4th element) of field definition '
-                      'should be a dict of objects.')
+      raise TypeError(f'Metadata (the 4th element) of field definition '
+                      f'should be a dict of objects. '
+                      f'Encountered: {field_metadata}')
     fields.append(Field(key, value, description, field_metadata))
   return Schema(
       fields=fields,

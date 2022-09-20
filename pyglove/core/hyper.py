@@ -642,9 +642,10 @@ class OneOf(Choices):
 @symbolic.members(
     [
         ('min_value', schema.Float(), 'Minimum acceptable value.'),
-        ('max_value', schema.Float(), 'Maximum acceptable value.')
+        ('max_value', schema.Float(), 'Maximum acceptable value.'),
+        geno.float_scale_spec('scale'),
     ],
-    init_arg_list=['min_value', 'max_value', 'name', 'hints'],
+    init_arg_list=['min_value', 'max_value', 'scale', 'name', 'hints'],
     serialization_key='hyper.Float',
     additional_keys=['pyglove.generators.genetic.Float']
 )
@@ -672,6 +673,10 @@ class Float(HyperPrimitive):
       raise ValueError(
           f'\'min_value\' ({self.min_value}) is greater than \'max_value\' '
           f'({self.max_value}).')
+    if self.scale in ['log', 'rlog'] and self.min_value <= 0:
+      raise ValueError(
+          f'\'min_value\' must be positive when `scale` is {self.scale!r}. '
+          f'encountered: {self.min_value}.')
 
   def dna_spec(self,
                location: Optional[object_utils.KeyPath] = None) -> geno.Float:
@@ -679,6 +684,7 @@ class Float(HyperPrimitive):
     return geno.Float(
         min_value=self.min_value,
         max_value=self.max_value,
+        scale=self.scale,
         hints=self.hints,
         name=self.name,
         location=location or object_utils.KeyPath())
@@ -1420,6 +1426,7 @@ Template = ObjectTemplate
 
 
 def oneof(candidates: Iterable[Any],
+          *,
           name: Optional[Text] = None,
           hints: Optional[Any] = None) -> Any:
   """N choose 1.
@@ -1496,6 +1503,7 @@ def manyof(k: int,
            candidates: Iterable[Any],
            distinct: bool = True,
            sorted: bool = False,    # pylint: disable=redefined-builtin
+           *,
            name: Optional[Text] = None,
            hints: Optional[Any] = None,
            **kwargs) -> Any:
@@ -1686,6 +1694,8 @@ def permutate(candidates: Iterable[Any],
 
 def floatv(min_value: float,
            max_value: float,
+           scale: Optional[Text] = None,
+           *,
            name: Optional[Text] = None,
            hints: Optional[Any] = None) -> Any:
   """A continuous value within a range.
@@ -1713,6 +1723,19 @@ def floatv(min_value: float,
   Args:
     min_value: Minimum acceptable value (inclusive).
     max_value: Maximum acceptable value (inclusive).
+    scale: An optional string as the scale of the range. Supported values
+      are None, 'linear', 'log', and 'rlog'.
+      If None, the feasible space is unscaled.
+      If `linear`, the feasible space is mapped to [0, 1] linearly.
+      If `log`, the feasible space is mapped to [0, 1] logarithmically with
+        formula `x -> log(x / min) / log(max / min)`.
+      If `rlog`, the feasible space is mapped to [0, 1] "reverse"
+        logarithmically, resulting in values close to `max_value` spread
+        out more than the points near the `min_value`, with formula:
+        x -> 1.0 - log((max + min - x) / min) / log (max / min).
+      `min_value` must be positive if `scale` is not None.
+      Also, it depends on the search algorithm to decide whether this
+      information is used or not.
     name: A name that can be used to identify a decision point in the search
       space. This is needed when the code to instantiate the same hyper
       primitive may be called multiple times under a
@@ -1731,7 +1754,8 @@ def floatv(min_value: float,
     scope, it will return `min_value`.
   """
   return Float(
-      min_value=min_value, max_value=max_value, name=name, hints=hints)
+      min_value=min_value, max_value=max_value,
+      scale=scale, name=name, hints=hints)
 
 
 # For backward compatibility
