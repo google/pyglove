@@ -499,17 +499,17 @@ class Feedback(metaclass=abc.ABCMeta):
     try:
       yield
     except tuple(error_mapping.keys()) as e:
-      error_type = e.__class__
-      assert error_type in error_mapping, error_type
-
       error_message = str(e)
-      error_regexes = error_mapping[error_type]
-      found_match = bool(not error_regexes)
-      if error_regexes:
-        for regex in error_regexes:
-          if re.match(regex, error_message):
+      found_match = False
+      for error_type, error_regexes in error_mapping.items():
+        if isinstance(e, error_type):
+          if not error_regexes:
             found_match = True
-            break
+          else:
+            for regex in error_regexes:
+              if re.match(regex, error_message):
+                found_match = True
+                break
       if found_match:
         self.skip(traceback.format_exc())
       else:

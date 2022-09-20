@@ -189,19 +189,33 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(algo.num_feedbacks, 1)
 
     _, f = next(sample)
-    with f.skip_on_exceptions(((ValueError, '.*a'),)):
+    with f.skip_on_exceptions((Exception,)):
       # should skip.
       raise ValueError('abc')
     self.assertEqual(algo.num_proposals, 4)
     self.assertEqual(algo.num_feedbacks, 1)
 
     _, f = next(sample)
+    with f.skip_on_exceptions(((ValueError, '.*a'),)):
+      # should skip.
+      raise ValueError('abc')
+    self.assertEqual(algo.num_proposals, 5)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
+    with f.skip_on_exceptions(((Exception, '.*a'),)):
+      # should skip.
+      raise ValueError('abc')
+    self.assertEqual(algo.num_proposals, 6)
+    self.assertEqual(algo.num_feedbacks, 1)
+
+    _, f = next(sample)
     with self.assertRaisesRegex(
         ValueError, 'bcd'):
-      with f.skip_on_exceptions(((ValueError, '.*a'),)):
+      with f.skip_on_exceptions(((Exception, '.*a'),)):
         # should skip.
         raise ValueError('bcd')
-    self.assertEqual(algo.num_proposals, 5)
+    self.assertEqual(algo.num_proposals, 7)
     self.assertEqual(algo.num_feedbacks, 1)
 
     _, f = next(sample)
@@ -210,7 +224,7 @@ class SamplingTest(unittest.TestCase):
                                KeyError)):
       # should skip.
       raise ValueError('bcd')
-    self.assertEqual(algo.num_proposals, 5)
+    self.assertEqual(algo.num_proposals, 7)
     self.assertEqual(algo.num_feedbacks, 1)
 
     _, f = next(sample)
@@ -219,7 +233,7 @@ class SamplingTest(unittest.TestCase):
                                KeyError)):
       # should skip.
       raise KeyError
-    self.assertEqual(algo.num_proposals, 6)
+    self.assertEqual(algo.num_proposals, 8)
     self.assertEqual(algo.num_feedbacks, 1)
 
   def testSampleWithDefineByRunSearchSpace(self):
