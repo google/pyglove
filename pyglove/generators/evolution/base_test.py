@@ -14,6 +14,8 @@
 """Tests for hill climbing algorithm."""
 
 import math
+import threading
+import time
 import unittest
 import pyglove.core as pg
 from pyglove.generators.evolution import base
@@ -319,6 +321,81 @@ class EvolutionTest(unittest.TestCase):
     algo2.setup(ssd)
     algo2.recover(history)
     self.assertEqual(algo1.propose(), algo2.propose())
+
+  def testBadPopulationInit(self):
+    """Test bad population initializer."""
+    @pg.geno.dna_generator
+    def bad_init(unused_spec):
+      if True:  # pylint: disable=using-constant-test
+        raise ValueError('I am a bad initializer')
+      yield pg.DNA(0)
+
+    algo = base.Evolution(
+        LastN(1),
+        population_init=bad_init.partial())
+
+    algo.setup(search_space())
+
+    with self.assertRaisesRegex(ValueError, 'I am a bad initializer'):
+      algo.propose()
+
+    with self.assertRaisesRegex(ValueError, 'Error happened earlier'):
+      algo.propose()
+
+  def testThreadSafety(self):
+    """Test thread safety."""
+    def run_in_parallel(num_workers, evaluation_time):
+      algo = base.Evolution(
+          FirstAndLast() >> Average() >> NextValue(),
+          population_init=(pg.geno.Random(), 1),
+          population_update=LastN(5))
+
+      ssd = search_space()
+      algo.setup(ssd)
+      lock = threading.Lock()
+      errors = []
+
+      def thread_fun():
+        for _ in range(20):
+          try:
+            dna = algo.propose()
+            time.sleep(evaluation_time)
+            algo.feedback(dna, 1)
+          except Exception as e:  # pylint: disable=broad-except
+            with lock:
+              errors.append(e)
+            break
+
+      threads = [
+          threading.Thread(target=thread_fun)
+          for _ in range(num_workers)
+      ]
+      for t in threads:
+        t.start()
+      for t in threads:
+        t.join()
+      return errors
+
+    # Should run fine.
+    self.assertEqual(run_in_parallel(100, 0.01), [])
+
+  def testEmptyChildren(self):
+    """Test evolving before any reward is received."""
+    @pg.geno.dna_generator
+    def small_population(dna_spec):
+      yield dna_spec.first_dna()
+
+    algo = base.Evolution(
+        LastN(1) >> NextValue(),
+        population_init=small_population.partial(),
+        population_update=LastN(2))
+
+    algo.setup(search_space())
+
+    self.assertIsNotNone(algo.propose())
+    with self.assertRaisesRegex(
+        ValueError, 'There is no child reproduced'):
+      _ = algo.propose()
 
 
 class OperationInterfaceTest(unittest.TestCase):

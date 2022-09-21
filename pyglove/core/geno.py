@@ -3306,8 +3306,16 @@ def dna_generator(func: Callable[[DNASpec], Iterator[DNA]]):
 
     def _setup(self):
       self._iterator = func(self.dna_spec)
+      self._error = None
 
     def _propose(self) -> DNA:
-      return next(self._iterator)
+      if self._error is not None:
+        raise ValueError('Error happened earlier.') from self._error
+      try:
+        return next(self._iterator)
+      except Exception as e:
+        if not isinstance(e, StopIteration):
+          self._error = e
+        raise
 
   return SimpleDNAGenerator

@@ -15,6 +15,7 @@
 import abc
 import collections
 import random
+import threading
 import typing
 from typing import Any, Callable, Iterable, List, Text, Optional, Tuple, Type
 
@@ -674,6 +675,7 @@ class Evolution(pg.DNAGenerator):
     self._population_initialized = False
     self._population = []
     self._pending_proposals = collections.deque()
+    self._lock = threading.Lock()
 
   @property
   def multi_objective(self) -> bool:
@@ -696,23 +698,24 @@ class Evolution(pg.DNAGenerator):
 
   def _propose(self) -> pg.DNA:
     """Implementation of DNA proposal."""
-    if not self._pending_proposals:
-      if self._population_initialized:
-        # Propose new individuals using evolution.
-        self._pending_proposals.extend(self._evolve())
-      else:
-        # Propose initial population.
-        try:
-          dna = self._init_population_generator.propose()
-          set_proposal_id(dna, self.num_proposals + 1)
-          set_generation_id(dna, self.num_generations + 1)
-          _set_initial_population(dna, True)
-          self._pending_proposals.append(dna)
-        except StopIteration:
-          self._population_initialized = True
-          self._global_state.num_generations = 1
+    with self._lock:
+      if not self._pending_proposals:
+        if self._population_initialized:
+          # Propose new individuals using evolution.
           self._pending_proposals.extend(self._evolve())
-    return self._pending_proposals.popleft()
+        else:
+          # Propose initial population.
+          try:
+            dna = self._init_population_generator.propose()
+            set_proposal_id(dna, self.num_proposals + 1)
+            set_generation_id(dna, self.num_generations + 1)
+            _set_initial_population(dna, True)
+            self._pending_proposals.append(dna)
+          except StopIteration:
+            self._population_initialized = True
+            self._global_state.num_generations = 1
+            self._pending_proposals.extend(self._evolve())
+      return self._pending_proposals.popleft()
 
   def _evolve(self) -> List[pg.DNA]:
     """Performs a single round of evolution process."""
@@ -720,7 +723,14 @@ class Evolution(pg.DNAGenerator):
     current_step = self.num_proposals
     children = self._reproduction(
         self._population, global_state=self._global_state, step=current_step)
-
+    if not children:
+      raise ValueError(
+          'There is no child reproduced, which means that the population '
+          '(with reward) is empty. This is likely due to that no evaluation is '
+          'received from existing proposals at this point. Consider to specify '
+          'the initial population size (through the second item of the '
+          '`population_init` tuple) or reduce the number of parallel sampling '
+          'clients.')
     for i, child in enumerate(children):
       # NOTE(daiyip): If a child's feedback sequence number exists, it's
       # an existing DNA from the population, in such case, we should clone
@@ -745,28 +755,29 @@ class Evolution(pg.DNAGenerator):
     set_fitness(dna, reward)
     assert get_fitness(dna) is not None
 
-    # Feedback generation-zero DNA to the population initializer.
-    if is_initial_population(dna):
-      self._init_population_generator.feedback(dna, reward)
+    with self._lock:
+      # Feedback generation-zero DNA to the population initializer.
+      if is_initial_population(dna):
+        self._init_population_generator.feedback(dna, reward)
 
-    # We use `num_feedbacks` instead of `num_proposals` to determine
-    # initial population size to avoid starting the evolution process
-    # too early without enough feedbacks.
-    # `self.num_feedbacks` will be incremented after _feedback returns.
-    # Therefore, we compare it with initial population size - 1.
-    if (not self._population_initialized
-        and self._init_population_size is not None
-        and self.num_feedbacks >= self._init_population_size - 1):
-      self._population_initialized = True
-      self._global_state.num_generations = 1
+      # We use `num_feedbacks` instead of `num_proposals` to determine
+      # initial population size to avoid starting the evolution process
+      # too early without enough feedbacks.
+      # `self.num_feedbacks` will be incremented after _feedback returns.
+      # Therefore, we compare it with initial population size - 1.
+      if (not self._population_initialized
+          and self._init_population_size is not None
+          and self.num_feedbacks >= self._init_population_size - 1):
+        self._population_initialized = True
+        self._global_state.num_generations = 1
 
-    # Update the population if needed.
-    self._population.append(dna)
-    if self._population_update:
-      self._population = self._population_update(
-          self._population,
-          global_state=self._global_state,
-          step=self.num_feedbacks)
+      # Update the population if needed.
+      self._population.append(dna)
+      if self._population_update:
+        self._population = self._population_update(
+            self._population,
+            global_state=self._global_state,
+            step=self.num_feedbacks)
 
   def recover(
       self,

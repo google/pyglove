@@ -1996,6 +1996,24 @@ class DNAGeneraterTest(unittest.TestCase):
         dna_list,
         [geno.DNA(i) for i in range(8)])
 
+    # Test error preservation from early proposal.
+    @geno.dna_generator
+    def bad_generator(unused_spec):
+      if True:  # pylint: disable=using-constant-test
+        raise ValueError('I am a bad initializer')
+      yield geno.DNA(0)
+
+    algo = bad_generator.partial()
+    algo.setup(None)
+
+    with self.assertRaisesRegex(
+        ValueError, 'I am a bad initializer'):
+      algo.propose()
+
+    with self.assertRaisesRegex(
+        ValueError, 'Error happened earlier'):
+      algo.propose()
+
 
 class RandomTest(unittest.TestCase):
   """Test the random algorithms."""
