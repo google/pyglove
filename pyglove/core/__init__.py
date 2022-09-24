@@ -276,6 +276,14 @@ format = object_utils.format   # pylint: disable=redefined-builtin
 print = object_utils.printv    # pylint: disable=redefined-builtin
 
 
+#
+# Symbols from `logging.py`.
+#
+
+from pyglove.core import logging
+
+
+
 # pylint: enable=g-import-not-at-top
 # pylint: enable=reimported
 # pylint: enable=unused-import
