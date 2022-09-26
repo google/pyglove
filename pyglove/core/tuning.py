@@ -515,6 +515,57 @@ class Feedback(metaclass=abc.ABCMeta):
       else:
         raise
 
+  @contextlib.contextmanager
+  def ignore_race_condition(self):
+    """Context manager for ignoring RaceConditionError within the scope.
+
+    Race condition may happen when multiple workers are working on the same
+    trial (e.g. paired train/eval processes). Assuming there are two co-workers
+    (X and Y), common race conditions are:
+
+    1) Both X and Y call `feedback.done` or `feedback.skip` to the same trial.
+    2) X calls `feedback.done`/`feedback.skip`, then B calls
+     `feedback.add_measurement`.
+
+    Users can use this context manager to simplify the code for handling
+    multiple co-workers. (See the `group` argument of `pg.sample`)
+
+    Usages::
+      feedback = ...
+      def thread_fun():
+        with feedback.ignore_race_condition():
+          feedback.add_measurement(0.1)
+
+          # Multiple workers working on the same trial might trigger this code
+          # from different processes.
+          feedback.done()
+
+      x = threading.Thread(target=thread_fun)
+      x.start()
+      y = threading.Thread(target=thread_fun)
+      y.start()
+
+    Yields:
+      None.
+    """
+    try:
+      yield
+    except RaceConditionError:
+      pass
+
+
+class RaceConditionError(RuntimeError):
+  """Race condition error.
+
+  This error will be raisen when the operations made to `Feedback` indicates
+  a race condition. There are possible scenarios that may lead to such race
+  conditions, which happen among multiple co-workers (taking X and Y for
+  example) on the same trial:
+
+  * X calls `feedback.done`/`feedback.skip`, then B calls
+   `feedback.add_measurement`.
+  """
+
 
 class Backend(metaclass=abc.ABCMeta):
   """Interface for the tuning backend."""
@@ -826,7 +877,11 @@ def sample(hyper_value: Any,
       else:
         # Reward may be computed at the controller side, we can
         # short circuit the client-side evaluation for the current item.
-        feedback(reward, metadata=dict(client_evaluation_skipped=True))
+        # Also, there can be multiple co-workers working on the same trial,
+        # we ignore errors triggered by racing feedbacks, which will be
+        # considered as no-op.
+        with feedback.ignore_race_condition():
+          feedback(reward, metadata=dict(client_evaluation_skipped=True))
     except StopIteration:
       return
 
@@ -915,6 +970,10 @@ class _InMemoryFeedback(Feedback):
       checkpoint_path: Optional[Text],
       elapse_secs: float) -> None:
     """Adds a measurement to current trial."""
+    if self._trial.status != 'PENDING':
+      raise RaceConditionError(
+          f'Measurements can only be added to PENDING trials. '
+          f'Encountered: {self._trial}')
     self._trial.measurements.append(Measurement(
         step=step,
         reward=reward,
@@ -928,23 +987,25 @@ class _InMemoryFeedback(Feedback):
            related_links: Optional[Dict[Text, Text]] = None) -> None:
     """Marks current tuning trial as done, and export final object."""
     del related_links
-    if not self._trial.measurements:
-      raise ValueError(
-          f'At least one measurement should be added for trial {self.id}.')
-    self._trial.status = 'COMPLETED'
-    self._trial.final_measurement = self._trial.measurements[-1]
-    self._feedback_fn(self.dna, self._trial)
-    self._trial.metadata.update(metadata or {})
-    self._study._complete_trial(self._trial)  # pylint: disable=protected-access
+    if self._trial.status == 'PENDING':
+      if not self._trial.measurements:
+        raise ValueError(
+            f'At least one measurement should be added for trial {self.id}.')
+      self._trial.status = 'COMPLETED'
+      self._trial.final_measurement = self._trial.measurements[-1]
+      self._feedback_fn(self.dna, self._trial)
+      self._trial.metadata.update(metadata or {})
+      self._study._complete_trial(self._trial)  # pylint: disable=protected-access
 
   def skip(self, reason: Optional[Text] = None) -> None:
     """Skips current trial without providing feedback to the controller."""
     del reason
-    self._trial.status = 'COMPLETED'
-    self._trial.infeasible = True
-    self._trial.final_measurement = Measurement(
-        reward=0.0, step=0, elapse_secs=0.0)
-    self._study._complete_trial(self._trial)  # pylint: disable=protected-access
+    if self._trial.status == 'PENDING':
+      self._trial.status = 'COMPLETED'
+      self._trial.infeasible = True
+      self._trial.final_measurement = Measurement(
+          reward=0.0, step=0, elapse_secs=0.0)
+      self._study._complete_trial(self._trial)  # pylint: disable=protected-access
 
   def should_stop_early(self) -> bool:
     """Tells whether current trial should be stopped early.

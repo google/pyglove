@@ -236,6 +236,19 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(algo.num_proposals, 8)
     self.assertEqual(algo.num_feedbacks, 1)
 
+  def testSampleWithRaceCondition(self):
+    """Test `pg.sample` with race condition among co-workers."""
+    _, f = next(tuning.sample(hyper.oneof([1, 2, 3]), geno.Random(seed=1)))
+
+    f(1)
+    with self.assertRaisesRegex(
+        tuning.RaceConditionError,
+        '.*Measurements can only be added to PENDING trials.*'):
+      f.add_measurement(0.1)
+
+    with f.ignore_race_condition():
+      f.add_measurement(0.1)
+
   def testSampleWithDefineByRunSearchSpace(self):
     """Test `pg.sample` with define-by-run search space definition."""
     def fun():
