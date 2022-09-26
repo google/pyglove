@@ -3310,7 +3310,8 @@ def dna_generator(func: Callable[[DNASpec], Iterator[DNA]]):
 
     def _propose(self) -> DNA:
       if self._error is not None:
-        raise ValueError('Error happened earlier.') from self._error
+        raise ValueError(
+            f'Error happened earlier: {self._error}') from self._error
       try:
         return next(self._iterator)
       except Exception as e:

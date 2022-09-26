@@ -327,7 +327,7 @@ class EvolutionTest(unittest.TestCase):
     @pg.geno.dna_generator
     def bad_init(unused_spec):
       if True:  # pylint: disable=using-constant-test
-        raise ValueError('I am a bad initializer')
+        raise ValueError('bad initializer')
       yield pg.DNA(0)
 
     algo = base.Evolution(
@@ -336,10 +336,11 @@ class EvolutionTest(unittest.TestCase):
 
     algo.setup(search_space())
 
-    with self.assertRaisesRegex(ValueError, 'I am a bad initializer'):
+    with self.assertRaisesRegex(ValueError, 'bad initializer'):
       algo.propose()
 
-    with self.assertRaisesRegex(ValueError, 'Error happened earlier'):
+    with self.assertRaisesRegex(
+        ValueError, 'Error happened earlier: bad initializer'):
       algo.propose()
 
   def testThreadSafety(self):

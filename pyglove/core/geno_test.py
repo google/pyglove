@@ -2000,18 +2000,18 @@ class DNAGeneraterTest(unittest.TestCase):
     @geno.dna_generator
     def bad_generator(unused_spec):
       if True:  # pylint: disable=using-constant-test
-        raise ValueError('I am a bad initializer')
+        raise ValueError('bad initializer')
       yield geno.DNA(0)
 
     algo = bad_generator.partial()
     algo.setup(None)
 
     with self.assertRaisesRegex(
-        ValueError, 'I am a bad initializer'):
+        ValueError, 'bad initializer'):
       algo.propose()
 
     with self.assertRaisesRegex(
-        ValueError, 'Error happened earlier'):
+        ValueError, 'Error happened earlier: bad initializer'):
       algo.propose()
 
 
