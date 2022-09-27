@@ -28,18 +28,7 @@ from pyglove.core import typing
 class DummyEarlyStoppingPolicy(tuning.EarlyStoppingPolicy):
   """Early stopping policy for testing."""
 
-  def _on_bound(self):
-    super()._on_bound()
-    self._num_feedbacks = 0
-
-  @property
-  def num_feedbacks(self):
-    return self._num_feedbacks
-
-  def feedback(self, trial):
-    self._num_feedbacks += 1
-
-  def should_stop_early(self, trial):
+  def should_stop_early(self, trial, measurement):
     # NOTE(daiyip): stop trial 2, 4, 8 at step 1.
     if trial.id in [2, 4, 8]:
       if trial.measurements and trial.measurements[-1].step > 0:
@@ -514,8 +503,6 @@ class SamplingTest(unittest.TestCase):
       else:
         f.done()
 
-    # (10 - 3) * 3 + 3 * 2 = 27
-    self.assertEqual(early_stopping_policy.num_feedbacks, 27)
     self.assertEqual(
         stopped_trial_steps, [(2, 2), (4, 2), (8, 2)])
 

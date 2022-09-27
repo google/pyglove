@@ -36,7 +36,7 @@ import re
 import threading
 import time
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Sequence, Text, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Text, Tuple, Type, Union
 
 from pyglove.core import geno
 from pyglove.core import hyper
@@ -201,12 +201,26 @@ class EarlyStoppingPolicy(symbolic.Object):
     return getattr(self, '_dna_spec', None)
 
   @abc.abstractmethod
-  def feedback(self, trial: Trial) -> None:
-    """Feedback a newly updated/completed trial to the early stopping policy."""
-
-  @abc.abstractmethod
   def should_stop_early(self, trial: Trial) -> bool:
-    """Should stop the input trial early."""
+    """Should stop the input trial early based on its measurements."""
+
+  def recover(self, history: Iterable[Trial]) -> None:
+    """Recover states by replaying the trial history. Subclass can override.
+
+    NOTE: `recover` will always be called before the first `should_stop_early`
+    is called. It could be called multiple times if there are multiple source
+    of history, e.g: trials from a previous study and existing trials from
+    current study.
+
+    The default behavior is to replay `should_stop_early` on all intermediate
+    measurements on all trials.
+
+    Args:
+      history: An iterable object of trials.
+    """
+    for trial in history:
+      if trial.status in ['COMPLETED', 'PENDING', 'STOPPING']:
+        self.should_stop_early(trial)
 
 
 #
@@ -906,14 +920,12 @@ class _InMemoryFeedback(Feedback):
                study: '_InMemoryResult',
                trial: Trial,
                feedback_fn: Callable[[geno.DNA, Trial], None],
-               early_stopping_feedback_fn: Callable[[Trial], None],
                should_stop_early_fn: Callable[[Trial], bool],
                metrics_to_optimize: Sequence[Text]):
     super().__init__(metrics_to_optimize)
     self._study = study
     self._trial = trial
     self._feedback_fn = feedback_fn
-    self._early_stopping_feedback_fn = early_stopping_feedback_fn
     self._should_stop_early_fn = should_stop_early_fn
     self._sample_time = time.time()
 
@@ -980,7 +992,6 @@ class _InMemoryFeedback(Feedback):
         metrics=metrics,
         checkpoint_path=checkpoint_path,
         elapse_secs=elapse_secs))
-    self._early_stopping_feedback_fn(self._trial)
 
   def done(self,
            metadata: Optional[Dict[Text, Any]] = None,
@@ -1022,6 +1033,8 @@ class _InMemoryFeedback(Feedback):
     Returns:
       If current trial can be stopped early.
     """
+    if not self._trial.measurements:
+      return False
     return self._should_stop_early_fn(self._trial)
 
   def end_loop(self) -> None:
@@ -1222,7 +1235,7 @@ class _InMemoryBackend(Backend):
     """Creates a feedback object for input trial."""
     return _InMemoryFeedback(
         study, trial, self._feedback,
-        self._early_stopping_feedback, self._should_stop_early,
+        self._should_stop_early,
         self._metrics_to_optimize)
 
   def _feedback(self, dna: geno.DNA, trial: Trial):
@@ -1233,12 +1246,10 @@ class _InMemoryBackend(Backend):
 
   def _should_stop_early(self, trial: Trial) -> bool:
     if self._early_stopping_policy is not None:
-      return self._early_stopping_policy.should_stop_early(trial)
+      assert trial.measurements
+      return self._early_stopping_policy.should_stop_early(
+          trial, trial.measurements[-1])
     return False
-
-  def _early_stopping_feedback(self, trial: Trial) -> None:
-    if self._early_stopping_policy is not None:
-      self._early_stopping_policy.feedback(trial)
 
   def next(self) -> Feedback:
     """Get the feedback object for the next trial."""
