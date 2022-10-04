@@ -31,6 +31,7 @@ from pyglove.core import *
 from pyglove import generators
 
 evolution = generators.evolution
+early_stopping = generators.early_stopping
 
  # Placeholder for Google-internal imports.
 
