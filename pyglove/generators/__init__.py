@@ -19,6 +19,7 @@
 # pylint: disable=g-bad-import-order
 
 from pyglove import core
+from pyglove.generators import early_stopping
 from pyglove.generators import evolution
 
 geno = core.geno
