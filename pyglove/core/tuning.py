@@ -242,7 +242,7 @@ class Feedback(metaclass=abc.ABCMeta):
   * Methods to communicate with the search algorithm:
 
     * :meth:`add_measurement`: Add a measurement for current example.
-      Multiple measurments can be added as progressive evaluation of the
+      Multiple measurements can be added as progressive evaluation of the
       example, which can be used by the early stopping policy to suggest
       whether current evaluation can be stopped early.
     * :meth:`done`: Mark evaluation on current example as done, use the
@@ -698,7 +698,7 @@ def sample(hyper_value: Any,
       # Without `feedback.done` or `feedback.skip`, the same trial will be
       # iterated over and over again for failover handling purpose.
       # Besides the reward and the step, metrics and checkpoint can be added
-      # to each measurment. Additional meta-data and related links (URLs) can
+      # to each measurement. Additional meta-data and related links (URLs) can
       # be passed to `feedback.done` which can be retrieved via
       # `pg.poll_result` later.
       if example.x >= 0:
@@ -736,10 +736,10 @@ def sample(hyper_value: Any,
         algorithm=pg.generators.Random(),
         num_examples=10,
         name='my_search'):
-      # When hyper_value is a `pg.DefineByRunContext` object, the `example`
-      # yield at each iteration is a context manager under which the hyper
-      # primitives (e.g. pg.oneof) will be materialized into concrete values
-      # according to the controller decision.
+      # When hyper_value is a `pg.hyper.DynamicEvaluationContext` object,
+      # the `example` yielded at each iteration is a context manager under which
+      # the hyper primitives (e.g. pg.oneof) will be materialized into concrete
+      # values according to the controller decision.
       with example():
         reward = fun()
       feedback(reward)
@@ -803,8 +803,8 @@ def sample(hyper_value: Any,
   Args:
     hyper_value: A hyper value to sample from. A hyper value is an object with
       to-be-determined values specified by `pg.oneof`, `pg.manyof`, `pg.floatv`
-      and etc, representing a search space, or a `pg.hyper.DefineByRunContext`
-      object.
+      and etc, representing a search space, or a
+      `pg.hyper.DynamicEvaluationContext` object.
     algorithm: The search algorithm that samples the search space. For example:
       `pg.generators.Random()`, `pg.evolution.regularized_evolution(...)`, and
       etc.
