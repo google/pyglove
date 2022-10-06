@@ -73,10 +73,6 @@ as_sealed = symbolic.as_sealed
 Symbolic = symbolic.Symbolic
 PureSymbolic = symbolic.PureSymbolic
 
-# Alias for 'Symbolic' for backward compatibility.
-# TODO(daiyip): Remove this line once dependencies are cleared.
-Schematized = Symbolic
-
 Dict = symbolic.Dict
 dict = Dict   # pylint: disable=redefined-builtin
 

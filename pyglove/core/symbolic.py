@@ -3233,10 +3233,6 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
     return self.sym_hash()
 
 
-# Make an alias for backward compatibility.
-Schematized = Symbolic
-
-
 class List(list, Symbolic, schema_lib.CustomTyping):
   """Symbolic list.
 
