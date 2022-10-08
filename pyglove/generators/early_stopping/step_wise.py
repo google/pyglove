@@ -14,7 +14,7 @@
 """Step-wise early stopping policies."""
 
 import numbers
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 import pyglove.core as pg
 from pyglove.generators.early_stopping import base
 
@@ -106,7 +106,7 @@ def early_stop_by_value(
     step_values: List[Tuple[
         int,          # Gating step.
         float]],      # Value threshold.
-    metric: str = 'reward',
+    metric: Union[str, Callable[[pg.tuning.Measurement], float]] = 'reward',
     maximize: bool = True):
   """Step-wise early stopping policy based on the value of reward/metric.
 
@@ -125,7 +125,9 @@ def early_stop_by_value(
         gating step - At which step this rule will be triggered.
         value threshold - A float number indicating the threshold value for
           early stopping.
-    metric: Based on which metric the rank will be computed.
+    metric: Based on which metric the value should be compared against.
+      Use str for metric name or a callable object that takes a measurement
+      object at a given step as input and returns a float value.
     maximize: If True, reward or metric value below the threshold will be
       stopped, otherwise trials with values above the threshold will be stopped.
 
@@ -142,12 +144,18 @@ def early_stop_by_value(
           f'Invalid definition in `step_values`: {v}. '
           f'Expect a tuple of 2 elements: '
           f'(step: int, threshold: float).')
-  def _cmp(x, y):
+  def _cmp(x, y) -> bool:
     return x < y if maximize else x > y
 
-  def _make_predicate(threshold):
+  def _value(m: pg.tuning.Measurement) -> float:
+    if isinstance(metric, str):
+      return m.reward if metric == 'reward' else m.metrics[metric]
+    assert callable(metric), metric
+    return metric(m)
+
+  def _make_predicate(threshold: float):
     def _predicate(m: pg.tuning.Measurement, unused_history):
-      v = m.reward if metric == 'reward' else m.metrics[metric]
+      v = _value(m)
       return _cmp(v, threshold)
     return _predicate
 
@@ -163,8 +171,7 @@ def early_stop_by_rank(
         Union[float,    # Rank percentage in (0.0, 1.0).
               int],     # Absolute rank, below which will be stopped.
         int]],          # Min histogram size at the step to trigger stopping.
-
-    metric: str = 'reward',
+    metric: Union[str, Callable[[pg.tuning.Measurement], float]] = 'reward',
     maximize: bool = True) -> StepWise:
   """Step-wise early stopping policy based on the rank of reward/metric.
 
@@ -196,6 +203,8 @@ def early_stop_by_rank(
         trigger historgram size - The minimal number of historical trials
           repoted at current step for this rule to trigger.
     metric: Based on which metric the rank will be computed.
+      Use str for metric name or a callable object that takes a measurement
+      object at a given step as input and returns a float value.
     maximize: If True, reward or metric value below the threshold will be
       stopped, otherwise trials with values above the threshold will be stopped.
 
@@ -218,15 +227,20 @@ def early_stop_by_rank(
           f'Rank must be within range [0.0, 1.0] when it is percentage '
           f'(float). Encountered: {v[1]} in {v}.')
 
-  def _cmp(x, y):
+  def _cmp(x, y) -> bool:
     if y is None:
       return False
     return x < y if maximize else x > y
 
-  def _get_value(m):
-    return m.reward if metric == 'reward' else m.metrics[metric]
+  def _value(m: pg.tuning.Measurement) -> float:
+    if isinstance(metric, str):
+      return m.reward if metric == 'reward' else m.metrics[metric]
+    assert callable(metric), metric
+    return metric(m)
 
-  def _value_by_rank(h, threshold):
+  def _value_by_rank(
+      h: List[pg.tuning.Measurement],
+      threshold: Union[int, float]) -> Optional[float]:
     if isinstance(threshold, float):
       assert 0.0 <= threshold <= 1.0, threshold
       k = int((len(h) - 1) * threshold)
@@ -235,15 +249,15 @@ def early_stop_by_rank(
       k = threshold - 1
       if k < -len(h) or k >= len(h):
         return None
-    return sorted([_get_value(r) for r in h], reverse=maximize)[k]
+    return sorted([_value(r) for r in h], reverse=maximize)[k]
 
-  def _make_predicate(rank, trigger_size):
+  def _make_predicate(rank: Union[int, float], trigger_size: int):
     def _predicate(
         m: pg.tuning.Measurement,
         history: List[pg.tuning.Measurement]):
       if not history or len(history) < trigger_size:
         return False
-      return _cmp(_get_value(m), _value_by_rank(history, rank))
+      return _cmp(_value(m), _value_by_rank(history, rank))
     return _predicate
   return StepWise([(step, _make_predicate(rank, trigger_size))
                    for step, rank, trigger_size in step_ranks])

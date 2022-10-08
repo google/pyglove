@@ -130,6 +130,19 @@ class EarlyStopByValueTest(unittest.TestCase):
         get_stopping_steps(policy, 4, 5)[1],
         [(4, 1), (3, 3)])
 
+  def testCallableMetric(self):
+    policy = step_wise.early_stop_by_value([
+        # Gate 1 at step 1, stop when loss > 0.3.
+        (1, 0.3),
+
+        # Gate 2 at step 3, stop when loss > 0.8.
+        (3, 0.8),
+    ], maximize=False, metric=lambda m: m.metrics['loss'])()
+
+    self.assertEqual(
+        get_stopping_steps(policy, 4, 5)[1],
+        [(4, 1), (3, 3)])
+
 
 class EarlyStopByRankTest(unittest.TestCase):
   """Tests for early_stop_by_rank."""
@@ -213,6 +226,18 @@ class EarlyStopByRankTest(unittest.TestCase):
     # Trial 1, step 4, loss 0.40: should stop=False
     # STEP 5
     # Trial 1, step 5, loss 0.50: should stop=False
+    self.assertEqual(
+        get_stopping_steps(policy, 4, 5)[1],
+        [(4, 1), (2, 3), (3, 3)])
+
+  def testCallableMetric(self):
+    policy = step_wise.early_stop_by_rank([
+        # Gate 1 at step 1, stop when loss rank < top % 80 and len(hist) >= 3.
+        (1, 0.8, 3),
+
+        # Gate 2 at step 3, stop when loss rank < top 1.
+        (3, 1, 0),
+    ], maximize=False, metric=lambda m: m.metrics['loss'])()
     self.assertEqual(
         get_stopping_steps(policy, 4, 5)[1],
         [(4, 1), (2, 3), (3, 3)])
