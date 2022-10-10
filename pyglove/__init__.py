@@ -40,4 +40,4 @@ early_stopping = generators.early_stopping
 # pylint: enable=unused-import
 # pylint: enable=g-bad-import-order
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
