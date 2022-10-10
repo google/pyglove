@@ -1310,6 +1310,139 @@ class DynamicEvaluationTest(unittest.TestCase):
     with context2.apply(geno.DNA([1, 2])):
       self.assertEqual(fun(), 3)
 
+  def testNestedDynamicEvaluationSimple(self):
+    """Test nested dynamic evaluation context."""
+    def fun():
+      return sum([
+          hyper.oneof([1, 2, 3], hints='ssd1'),
+          hyper.oneof([4, 5], hints='ssd2'),
+      ])
+
+    context1 = hyper.DynamicEvaluationContext(
+        where=lambda x: x.hints == 'ssd1')
+    context2 = hyper.DynamicEvaluationContext(
+        where=lambda x: x.hints == 'ssd2')
+    with context1.collect():
+      with context2.collect():
+        self.assertEqual(fun(), 1 + 4)
+
+    self.assertEqual(
+        context1.hyper_dict, {
+            'decision_0': hyper.oneof([1, 2, 3], hints='ssd1')
+        })
+    self.assertEqual(
+        context2.hyper_dict, {
+            'decision_0': hyper.oneof([4, 5], hints='ssd2')
+        })
+    with context1.apply(geno.DNA(2)):
+      with context2.apply(geno.DNA(1)):
+        self.assertEqual(fun(), 3 + 5)
+
+  def testNestedDynamicEvaluationWithRequiredHyperName(self):
+    """Test nested dynamic evaluation context with required hyper name."""
+    def fun():
+      return sum([
+          hyper.oneof([1, 2, 3], name='x', hints='ssd1'),
+          hyper.oneof([4, 5], name='y', hints='ssd2'),
+      ])
+
+    context1 = hyper.DynamicEvaluationContext(
+        where=lambda x: x.hints == 'ssd1')
+    context2 = hyper.DynamicEvaluationContext(
+        where=lambda x: x.hints == 'ssd2')
+    with context1.collect():
+      with context2.collect():
+        self.assertEqual(fun(), 1 + 4)
+
+    self.assertEqual(
+        context1.hyper_dict, {
+            'x': hyper.oneof([1, 2, 3], name='x', hints='ssd1')
+        })
+    self.assertEqual(
+        context2.hyper_dict, {
+            'y': hyper.oneof([4, 5], name='y', hints='ssd2')
+        })
+    with context1.apply(geno.DNA(2)):
+      with context2.apply(geno.DNA(1)):
+        self.assertEqual(fun(), 3 + 5)
+
+  def testNestedSearchSpaceInNestedDynamicEvaluationContext(self):
+    """Test nested search space in nested dynamic evaluation context."""
+    def fun():
+      return sum([
+          hyper.oneof([
+              lambda: hyper.oneof([1, 2, 3], name='y', hints='ssd1'),
+              lambda: hyper.oneof([4, 5, 6], name='z', hints='ssd1'),
+          ], name='x', hints='ssd1'),
+          hyper.oneof([7, 8], name='p', hints='ssd2'),
+          hyper.oneof([9, 10], name='q', hints='ssd2'),
+      ])
+    context1 = hyper.DynamicEvaluationContext(
+        where=lambda x: x.hints == 'ssd1')
+    context2 = hyper.DynamicEvaluationContext(
+        where=lambda x: x.hints == 'ssd2')
+    with context1.collect():
+      with context2.collect():
+        self.assertEqual(fun(), 1 + 7 + 9)
+
+    self.assertEqual(
+        context1.hyper_dict, {
+            'x': hyper.oneof([
+                {'y': hyper.oneof([1, 2, 3], name='y', hints='ssd1')},
+                {'z': hyper.oneof([4, 5, 6], name='z', hints='ssd1')},
+            ], name='x', hints='ssd1')
+        })
+    self.assertEqual(
+        context2.hyper_dict, {
+            'p': hyper.oneof([7, 8], name='p', hints='ssd2'),
+            'q': hyper.oneof([9, 10], name='q', hints='ssd2')
+        })
+    with context1.apply(geno.DNA((1, 1))):
+      with context2.apply(geno.DNA([0, 1])):
+        self.assertEqual(fun(), 5 + 7 + 10)
+
+  def testNestedDynamicEvaluationWithDifferentPerThreadSetting(self):
+    """Test nested dynamic evaluation context with different per-thread."""
+    context1 = hyper.DynamicEvaluationContext(per_thread=True)
+    context2 = hyper.DynamicEvaluationContext(per_thread=False)
+
+    def fun():
+      return hyper.oneof([1, 2, 3])
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'Nested dynamic evaluation contexts must be either .*'):
+      with context1.collect():
+        with context2.collect():
+          fun()
+
+  def testDynamicEvaluationWithManualRegistry(self):
+    """Test dynamic evaluation context with manual registration."""
+    context = hyper.DynamicEvaluationContext()
+    self.assertEqual(
+        context.add_decision_point(hyper.oneof([1, 2, 3])), 1)
+    self.assertEqual(
+        context.add_decision_point(hyper.oneof(['a', 'b'], name='x')), 'a')
+    self.assertEqual(
+        context.add_decision_point(hyper.template(1)), 1)
+
+    with self.assertRaisesRegex(
+        ValueError, 'Found different hyper primitives under the same name'):
+      context.add_decision_point(hyper.oneof(['foo', 'bar'], name='x'))
+
+    self.assertEqual(context.hyper_dict, {
+        'decision_0': hyper.oneof([1, 2, 3]),
+        'x': hyper.oneof(['a', 'b'], name='x'),
+    })
+
+    with self.assertRaisesRegex(
+        ValueError, '`evaluate` needs to be called under the `apply` context'):
+      context.evaluate(hyper.oneof([1, 2, 3]))
+
+    with context.apply([1, 1]):
+      self.assertEqual(context.evaluate(context.hyper_dict['decision_0']), 2)
+      self.assertEqual(context.evaluate(context.hyper_dict['x']), 'b')
+
 
 class ValueReferenceTest(unittest.TestCase):
   """Tests for hyper.ValueReference classes."""
