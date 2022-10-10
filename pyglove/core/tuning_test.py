@@ -28,7 +28,7 @@ from pyglove.core import typing
 class DummyEarlyStoppingPolicy(tuning.EarlyStoppingPolicy):
   """Early stopping policy for testing."""
 
-  def should_stop_early(self, trial, measurement):
+  def should_stop_early(self, trial):
     # NOTE(daiyip): stop trial 2, 4, 8 at step 1.
     if trial.id in [2, 4, 8]:
       if trial.measurements and trial.measurements[-1].step > 0:

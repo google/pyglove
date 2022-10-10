@@ -1247,8 +1247,7 @@ class _InMemoryBackend(Backend):
   def _should_stop_early(self, trial: Trial) -> bool:
     if self._early_stopping_policy is not None:
       assert trial.measurements
-      return self._early_stopping_policy.should_stop_early(
-          trial, trial.measurements[-1])
+      return self._early_stopping_policy.should_stop_early(trial)
     return False
 
   def next(self) -> Feedback:
