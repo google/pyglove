@@ -9,22 +9,6 @@ on:
       - main
 
 jobs:
-  lint_and_typecheck:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Cancel previous
-        uses: styfle/cancel-workflow-action@0.10.1
-        with:
-          access_token: ${{ github.token }}
-        if: ${{github.ref != 'refs/head/main'}}
-      - uses: actions/checkout@v3
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.8
-      - uses: pre-commit/action@v3.0.0
-
   test-ubuntu:
     name: "pytest on ${{ matrix.python-version }} on ${{ matrix.os }}"
     runs-on: "${{ matrix.os }}"
