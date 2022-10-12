@@ -222,6 +222,25 @@ class KeyPathTest(unittest.TestCase):
         'KeyPath parse failed: unmatched close bracket at position 3'):
       object_utils.KeyPath.parse('[0]]')
 
+  def testFromValue(self):
+    """Test KeyPath.from_value."""
+    self.assertEqual(
+        object_utils.KeyPath.from_value('x.y'),
+        object_utils.KeyPath(['x', 'y']))
+
+    self.assertEqual(
+        object_utils.KeyPath.from_value(1),
+        object_utils.KeyPath([1]))
+
+    path = object_utils.KeyPath(['x'])
+    self.assertIs(
+        object_utils.KeyPath.from_value(path),
+        path)
+
+    with self.assertRaisesRegex(
+        ValueError, '.* is not a valid KeyPath equivalence'):
+      object_utils.KeyPath.from_value(0.1)
+
   def testArithmetics(self):
     """Test KeyPath arithmetics."""
 

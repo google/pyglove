@@ -655,13 +655,40 @@ class DictTest(unittest.TestCase):
   def testSymbolicOperations(self):
     """Tests for symbolic operations."""
     a = symbolic.Dict(x=1, y=symbolic.Dict(z=2))
+    self.assertTrue(a.sym_has('x'))
+    self.assertTrue(a.sym_has('y.z'))
+    self.assertTrue(a.sym_has(object_utils.KeyPath.parse('y.z')))
+    self.assertFalse(a.sym_has('x.z'))
+
+    self.assertEqual(a.sym_get('x'), 1)
+    self.assertEqual(a.sym_get('y.z'), 2)
+    self.assertIsNone(a.sym_get('x.z', None))
+    with self.assertRaisesRegex(
+        KeyError,
+        'Cannot query sub-key \'z\' of object.'):
+      a.sym_get('x.z')
+
     self.assertTrue(a.sym_hasattr('x'))
+    self.assertFalse(a.sym_hasattr('y.z'))
     self.assertFalse(a.sym_hasattr('a'))
     self.assertEqual(a.sym_getattr('x'), 1)
+    self.assertIsNone(a.sym_getattr('a', None))
     with self.assertRaisesRegex(
         AttributeError,
         '.* object has no symbolic attribute \'a\'.'):
       a.sym_getattr('a')
+
+    self.assertIsNone(a.sym_field)
+    self.assertIsNone(a.sym_attr_field('x'))
+
+    spec = schema.Dict([
+        ('x', schema.Int()),
+        ('y', schema.Dict())
+    ])
+    a.use_value_spec(spec)
+    self.assertIsNone(a.sym_field)
+    self.assertIs(a.sym_attr_field('x'), spec.schema.get_field('x'))
+    self.assertIs(a.sym_attr_field('y'), spec.schema.get_field('y'))
 
     self.assertIs(a.y.sym_parent, a)
     self.assertEqual(a.y.sym_path, 'y')
@@ -1133,14 +1160,42 @@ class ListTest(unittest.TestCase):
 
   def testSymbolicOperations(self):
     """Tests for symbolic operations."""
-    a = symbolic.List([symbolic.Dict(), 1])
+    a = symbolic.List([symbolic.Dict(x=2), 1])
+
+    self.assertTrue(a.sym_has(0))
+    self.assertTrue(a.sym_has('[0].x'))
+    self.assertTrue(a.sym_has(object_utils.KeyPath.parse('[0].x')))
+    self.assertTrue(a.sym_has(1))
+    self.assertFalse(a.sym_has(2))
+    self.assertFalse(a.sym_has('[0].y'))
+
+    self.assertEqual(a.sym_get(1), 1)
+    self.assertEqual(a.sym_get('[0].x'), 2)
+    self.assertIsNone(a.sym_get('[0].y', None))
+    with self.assertRaisesRegex(
+        KeyError, 'Path .* does not exist'):
+      a.sym_get(2)
+
     self.assertTrue(a.sym_hasattr(0))
     self.assertFalse(a.sym_hasattr(2))
     self.assertFalse(a.sym_hasattr('abc'))
     self.assertEqual(a.sym_getattr(1), 1)
+    self.assertIsNone(a.sym_getattr(2, None))
     with self.assertRaisesRegex(
         AttributeError, '.* object has no symbolic attribute 2.'):
       a.sym_getattr(2)
+
+    self.assertIsNone(a.sym_field)
+    self.assertIsNone(a.sym_attr_field(0))
+    self.assertIsNone(a.sym_attr_field(1))
+
+    spec = schema.List(schema.Any())
+    a.use_value_spec(spec)
+
+    self.assertIsNone(a.sym_field)
+    self.assertIs(a.sym_attr_field(0), spec.element)
+    self.assertIs(a[0].sym_field, spec.element)
+    self.assertIs(a.sym_attr_field(0), a.sym_attr_field(1))
 
     self.assertIs(a[0].sym_parent, a)
     self.assertEqual(a[0].sym_path, '[0]')
@@ -1152,12 +1207,12 @@ class ListTest(unittest.TestCase):
     self.assertEqual(a[1], 2)
     self.assertEqual(next(a.sym_keys()), 0)
     self.assertEqual(list(a.sym_keys()), [0, 1])
-    self.assertEqual(next(a.sym_values()), symbolic.Dict())
-    self.assertEqual(list(a.sym_values()), [symbolic.Dict(), 2])
-    self.assertEqual(list(a.sym_items()), [(0, symbolic.Dict()), (1, 2)])
+    self.assertEqual(next(a.sym_values()), symbolic.Dict(x=2))
+    self.assertEqual(list(a.sym_values()), [symbolic.Dict(x=2), 2])
+    self.assertEqual(list(a.sym_items()), [(0, symbolic.Dict(x=2)), (1, 2)])
 
     self.assertEqual(a.sym_clone(),
-                     symbolic.List([symbolic.Dict(), 2]))
+                     symbolic.List([symbolic.Dict(x=2), 2]))
     self.assertTrue(a.sym_eq(a.clone()))
     self.assertTrue(a.sym_ne(symbolic.List))
     self.assertEqual(a.sym_hash(),
@@ -2003,7 +2058,11 @@ class ObjectTest(unittest.TestCase):
 
     @symbolic.members([
         ('x', schema.Any(default=1)),
-        ('y', schema.List(schema.Str()))
+        ('y', schema.List(schema.Str())),
+        ('z', schema.Dict([
+            ('p', schema.Int()),
+            ('q', schema.Any())
+        ]))
     ])
     class A(symbolic.Object):
       pass
@@ -2012,22 +2071,51 @@ class ObjectTest(unittest.TestCase):
     self.assertTrue(A.partial().sym_abstract)
     self.assertEqual(A.partial(x=1).sym_missing(), {
         'y': schema.MISSING_VALUE,
+        'z.p': schema.MISSING_VALUE,
+        'z.q': schema.MISSING_VALUE
     })
-    self.assertEqual(A(x=1, y=['a']).sym_nondefault(), {
-        'y[0]': 'a'
+    self.assertEqual(A(x=1, y=['a'], z={'p': 1, 'q': 'foo'}).sym_nondefault(), {
+        'y[0]': 'a',
+        'z.p': 1,
+        'z.q': 'foo'
     })
 
-    a = A(x=1, y=['foo'])
+    a = A(x=1, y=['foo'], z={'p': 1, 'q': 2})
     self.assertFalse(a.sym_partial)
     self.assertFalse(a.sym_abstract)
     self.assertFalse(a.sym_sealed)
-    self.assertTrue(a.sym_hasattr('x'))
-    self.assertFalse(a.sym_hasattr('z'))
-    self.assertFalse(a.sym_hasattr(0))
-    self.assertEqual(a.sym_getattr('x'), 1)
+
+    self.assertTrue(a.sym_has(''))
+    self.assertTrue(a.sym_has('x'))
+    self.assertTrue(a.sym_has('y[0]'))
+    self.assertTrue(a.sym_has(object_utils.KeyPath.parse('y[0]')))
+    self.assertFalse(a.sym_has('a'))
+    self.assertFalse(a.sym_has('y[1]'))
+
+    self.assertEqual(a.sym_get('x'), 1)
+    self.assertEqual(a.sym_get('y[0]'), 'foo')
+    self.assertIsNone(a.sym_get('a', None))
+
     with self.assertRaisesRegex(
-        AttributeError, '.* object has no symbolic attribute \'z\'.'):
-      a.sym_getattr('z')
+        KeyError, 'Path .* does not exist.'):
+      a.sym_get('a')
+
+    self.assertTrue(a.sym_hasattr('x'))
+    self.assertFalse(a.sym_hasattr('a'))
+    self.assertFalse(a.sym_hasattr(0))
+
+    self.assertEqual(a.sym_getattr('x'), 1)
+    self.assertIsNone(a.sym_getattr('a', None))
+    with self.assertRaisesRegex(
+        AttributeError, '.* object has no symbolic attribute \'a\'.'):
+      a.sym_getattr('a')
+
+    self.assertIsNone(a.sym_field)
+    self.assertIs(a.sym_attr_field('x'), A.schema.get_field('x'))
+    self.assertIs(a.sym_attr_field('y'), A.schema.get_field('y'))
+    self.assertIs(a.z.sym_field, A.schema.get_field('z'))
+    self.assertIs(a.z.sym_attr_field('p'),
+                  A.schema.get_field('z').value.schema.get_field('p'))
 
     self.assertIs(a.y.sym_parent, a)
     self.assertEqual(a.y.sym_path, 'y')
@@ -2038,17 +2126,23 @@ class ObjectTest(unittest.TestCase):
     a.sym_rebind({'y[1]': 'bar'})
     self.assertEqual(a.y[1], 'bar')
     self.assertEqual(next(a.sym_keys()), 'x')
-    self.assertEqual(list(a.sym_keys()), ['x', 'y'])
+    self.assertEqual(list(a.sym_keys()), ['x', 'y', 'z'])
     self.assertEqual(next(a.sym_values()), 1)
-    self.assertEqual(list(a.sym_values()), [1, symbolic.List(['foo', 'bar'])])
+    self.assertEqual(
+        list(a.sym_values()),
+        [1, symbolic.List(['foo', 'bar']), symbolic.Dict(p=1, q=2)])
     self.assertEqual(list(a.sym_items()), [
-        ('x', 1), ('y', symbolic.List(['foo', 'bar']))])
+        ('x', 1),
+        ('y', symbolic.List(['foo', 'bar'])),
+        ('z', symbolic.Dict(p=1, q=2))
+    ])
     self.assertTrue(a.sym_contains('bar'))
     self.assertTrue(a.sym_contains(type=int))
 
-    self.assertEqual(a.sym_clone(), A(x=1, y=['foo', 'bar']))
+    self.assertEqual(a.sym_clone(),
+                     A(x=1, y=['foo', 'bar'], z={'p': 1, 'q': 2}))
     self.assertTrue(a.sym_eq(a.clone()))
-    self.assertTrue(a.sym_ne(A(x=2, y=['bar'])))
+    self.assertTrue(a.sym_ne(A(x=2, y=['bar'], z={'p': 1, 'q': 2})))
     self.assertEqual(a.sym_hash(),
                      a.sym_clone(deep=True).sym_hash())
 
@@ -2066,14 +2160,16 @@ class ObjectTest(unittest.TestCase):
           return self.z == other
         return isinstance(other, A) and self.z == other.z
 
-    self.assertEqual(A(x=B(z=1), y=['foo']), A(x=1, y=['foo']))
-    self.assertNotEqual(A(x=B(z=1), y=['foo']), A(x=1.0, y=['foo']))
+    self.assertEqual(A(x=B(z=1), y=['foo'], z={'p': 1, 'q': 2}),
+                     A(x=1, y=['foo'], z={'p': 1, 'q': 2}))
+    self.assertNotEqual(A(x=B(z=1), y=['foo'], z={'p': 1, 'q': 2}),
+                        A(x=1.0, y=['foo'], z={'p': 1, 'q': 2}))
     self.assertTrue(symbolic.eq(
-        A(x=B(z=1), y=['foo']),
-        A(x=1, y=['foo'])))
+        A(x=B(z=1), y=['foo'], z={'p': 1, 'q': 2}),
+        A(x=1, y=['foo'], z={'p': 1, 'q': 2})))
     self.assertFalse(symbolic.ne(
-        A(x=B(z=1), y=['foo']),
-        A(x=1, y=['foo'])))
+        A(x=B(z=1), y=['foo'], z={'p': 1, 'q': 2}),
+        A(x=1, y=['foo'], z={'p': 1, 'q': 2})))
 
 
 # NOTE(daiyip): when a function is converted into a functor, additional call is
@@ -2553,8 +2649,8 @@ class RebindTest(unittest.TestCase):
     sl.rebind({'[0]': schema.MISSING_VALUE})
     self.assertEqual(0, len(sl))
 
-  def testsymbolic(self):
-    """Test rebind on a symbolic object."""
+  def testSchematized(self):
+    """Test rebind on a schematized object."""
     b = self._B.partial(d=[{}])
     self.assertEqual(
         b,
@@ -2659,6 +2755,23 @@ class RebindTest(unittest.TestCase):
         TypeError, 'Rebinder function .* should accept 2 or 3 arguments'):
       b.rebind(lambda v: v)
 
+  def testRebindPathForms(self):
+    """Test different rebind path forms."""
+    l = symbolic.List([symbolic.Dict(x=1), 2])
+    self.assertEqual(l, [dict(x=1), 2])
+
+    # Rebind with index.
+    l.rebind({1: 3})
+    self.assertEqual(l, [dict(x=1), 3])
+
+    # Rebind with path string.
+    l.rebind({'[0].x': 4})
+    self.assertEqual(l, [dict(x=4), 3])
+
+    # Rebind with KeyPath object.
+    l.rebind({object_utils.KeyPath([0, 'x']): 5})
+    self.assertEqual(l, [dict(x=5), 3])
+
   def testRebindNothing(self):
     """Test rebind nothing."""
     b = self._B.partial()
@@ -2728,7 +2841,7 @@ class RebindTest(unittest.TestCase):
       symbolic.Dict().rebind({'a': 1}, a=1)
 
     with self.assertRaisesRegex(
-        TypeError, 'Argument \'path_value_pairs\' should be a dict.'):
+        ValueError, 'Argument \'path_value_pairs\' should be a dict.'):
       symbolic.Dict().rebind(1)
 
     with self.assertRaisesRegex(
@@ -2736,8 +2849,7 @@ class RebindTest(unittest.TestCase):
       symbolic.Dict().rebind({})
 
     with self.assertRaisesRegex(
-        KeyError,
-        'Keys in argument \'path_value_pairs\' of Dict.rebind must be string'):
+        KeyError, 'Key must be string type. Encountered 1'):
       symbolic.Dict().rebind({1: 1})
 
     d = symbolic.Dict(a=1, value_spec=schema.Dict([('a', schema.Int())]))
@@ -2748,13 +2860,12 @@ class RebindTest(unittest.TestCase):
     # List-specific invalid rebind.
     with self.assertRaisesRegex(
         ValueError,
-        'Argument \'path_value_pairs\' must be a non-empty dict'):
+        'Argument \'path_value_pairs\' should be a dict. Encountered 1'):
       symbolic.List().rebind(1)
 
     with self.assertRaisesRegex(
-        KeyError,
-        'Keys in argument \'path_value_paris\' of List.rebind must be either '
-        'int or string type'):
+        ValueError,
+        '<class.*> is not a valid KeyPath equivalence.'):
       symbolic.List().rebind({int: 1})
 
   def testResetSemantics(self):

@@ -451,6 +451,17 @@ class KeyPath(Formattable):
     self._path_str = None
 
   @classmethod
+  def from_value(cls, value: Union['KeyPath', Text, int]) -> 'KeyPath':
+    """Returns a KeyPath object from a KeyPath equivalence."""
+    if isinstance(value, str):
+      value = cls.parse(value)
+    elif isinstance(value, int):
+      value = cls(value)
+    elif not isinstance(value, KeyPath):
+      raise ValueError(f'{value!r} is not a valid KeyPath equivalence.')
+    return value
+
+  @classmethod
   def parse(cls,
             path_str: Text,
             parent: Optional['KeyPath'] = None) -> 'KeyPath':

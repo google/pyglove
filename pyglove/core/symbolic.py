@@ -1238,7 +1238,7 @@ class FieldUpdate(object_utils.Formattable):
   """Class that describes an update to a field in an object tree."""
 
   def __init__(self,
-               path: typing.Union[object_utils.KeyPath, typing.Text],
+               path: object_utils.KeyPath,
                target: 'Symbolic',
                field: typing.Optional[schema_lib.Field],
                old_value: typing.Any,
@@ -1252,9 +1252,7 @@ class FieldUpdate(object_utils.Formattable):
       old_value: Old value of the field.
       new_value: New value of the field.
     """
-    if isinstance(path, str):
-      path = object_utils.KeyPath.parse(path)
-    self.path = path  # type: object_utils.KeyPath
+    self.path = path
     self.target = target
     self.field = field
     self.old_value = old_value
@@ -1631,24 +1629,83 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
       nondefault = object_utils.flatten(nondefault)
     return nondefault
 
+  @property
+  def sym_field(self) -> typing.Optional[schema_lib.Field]:
+    """Returns the symbolic field for current object."""
+    if self.sym_parent is None:
+      return None
+    return self.sym_parent.sym_attr_field(self.sym_path.key)
+
+  @abc.abstractmethod
+  def sym_attr_field(
+      self, key: typing.Union[typing.Text, int]
+      ) -> typing.Optional[schema_lib.Field]:
+    """Returns the field definition for a symbolic attribute."""
+
+  def sym_has(
+      self,
+      path: typing.Union[object_utils.KeyPath, typing.Text, int]) -> bool:
+    """Returns True if a path exists in the sub-tree.
+
+    Args:
+      path: A KeyPath object or equivalence.
+
+    Returns:
+      True if the path exists in current sub-tree, otherwise False.
+    """
+    return object_utils.KeyPath.from_value(path).exists(self)
+
+  def sym_get(
+      self,
+      path: typing.Union[object_utils.KeyPath, typing.Text, int],
+      default: typing.Any = object_utils.MISSING_VALUE) -> typing.Any:
+    """Returns a sub-node by path.
+
+    NOTE: there is no `sym_set`, use `sym_rebind`.
+
+    Args:
+      path: A KeyPath object or equivalence.
+      default: Default value if path does not exists. If absent, `KeyError`
+        will be thrown.
+
+    Returns:
+      Value of symbolic attribute specified by path if found, otherwise the
+      default value if it's specified.
+
+    Raises:
+      KeyError if `path` does not exist and default value is `pg.MISSING_VALUE`.
+    """
+    path = object_utils.KeyPath.from_value(path)
+    if default == object_utils.MISSING_VALUE:
+      return path.query(self)
+    else:
+      return path.get(self, default)
+
   @abc.abstractmethod
   def sym_hasattr(self, key: typing.Union[typing.Text, int]) -> bool:
     """Returns if a symbolic attribute exists."""
 
-  def sym_getattr(self,
-                  key: typing.Union[typing.Text, int]) -> typing.Any:
+  def sym_getattr(
+      self,
+      key: typing.Union[typing.Text, int],
+      default: typing.Any = object_utils.MISSING_VALUE) -> typing.Any:
     """Gets a symbolic attribute.
 
     Args:
       key: Key of symbolic attribute.
+      default: Default value if attribute does not exist. If absent,
+        `AttributeError` will be thrown.
 
     Returns:
-      Value of symbolic attribute if found.
+      Value of symbolic attribute if found, otherwise the default value
+      if it's specified.
 
     Raises:
       AttributeError if `key` does not exist.
     """
     if not self.sym_hasattr(key):
+      if default != object_utils.MISSING_VALUE:
+        return default
       raise AttributeError(
           self._error_message(
               f'{self.__class__!r} object has no symbolic attribute {key!r}.'))
@@ -1702,15 +1759,35 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
 
   def sym_rebind(
       self,
-      path_value_pairs: typing.Optional[typing.Union[typing.Dict[typing.Union[
-          typing.Text, int], typing.Any], typing.Callable]] = None,  # pylint: disable=g-bare-generic
+      path_value_pairs: typing.Optional[typing.Union[
+          typing.Dict[
+              typing.Union[object_utils.KeyPath, typing.Text, int],
+              typing.Any],
+          typing.Callable]] = None,  # pylint: disable=g-bare-generic
       raise_on_no_change: bool = True,
       skip_notification: typing.Optional[bool] = None,
       **kwargs) -> 'Symbolic':
     """Mutates the sub-nodes of current object. Please see `rebind`."""
+    if path_value_pairs and kwargs:
+      raise ValueError(
+          self._error_message(
+              'Either argument \'path_value_pairs\' or \'**kwargs\' '
+              'shall be specified. Encountered both.'))
+
     if callable(path_value_pairs):
       path_value_pairs = get_rebind_dict(path_value_pairs, self)
-    updates = self._sym_rebind(path_value_pairs, **kwargs)
+    elif path_value_pairs is None:
+      path_value_pairs = kwargs
+
+    if not isinstance(path_value_pairs, dict):
+      raise ValueError(
+          self._error_message(
+              f'Argument \'path_value_pairs\' should be a dict. '
+              f'Encountered {path_value_pairs}'))
+
+    path_value_pairs = {object_utils.KeyPath.from_value(k): v
+                        for k, v in path_value_pairs.items()}
+    updates = self._sym_rebind(path_value_pairs)
     if not updates and raise_on_no_change:
       raise ValueError(self._error_message('There are no values to rebind.'))
     if skip_notification is None:
@@ -1718,6 +1795,29 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
     if not skip_notification:
       self._notify_field_updates(updates)
     return self
+
+  def _sym_rebind(
+      self,
+      path_value_pairs: typing.Dict[object_utils.KeyPath, typing.Any]
+      ) -> typing.List[FieldUpdate]:
+    """Subclass specific rebind implementation.
+
+    Args:
+      path_value_pairs: A dictionary of key path to new field value.
+
+    Returns:
+      A list of FieldUpdate from this rebind.
+
+    Raises:
+      WritePermissionError: If object is sealed.
+      KeyError: If update location specified by key or key path is not aligned
+        with the schema of the object tree.
+      TypeError: If updated field value type does not conform to field spec.
+      ValueError: If updated field value is not acceptable according to field
+        spec.
+    """
+    return [self._set_item_of_current_tree(k, v)
+            for k, v in path_value_pairs.items()]
 
   def sym_clone(self,
                 deep: bool = False,
@@ -1877,8 +1977,11 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
 
   def rebind(
       self,
-      path_value_pairs: typing.Optional[typing.Union[typing.Dict[typing.Union[
-          typing.Text, int], typing.Any], typing.Callable]] = None,  # pylint: disable=g-bare-generic
+      path_value_pairs: typing.Optional[typing.Union[
+          typing.Dict[
+              typing.Union[object_utils.KeyPath, typing.Text, int],
+              typing.Any],
+          typing.Callable]] = None,  # pylint: disable=g-bare-generic
       raise_on_no_change: bool = True,
       skip_notification: typing.Optional[bool] = None,
       **kwargs) -> 'Symbolic':
@@ -2213,29 +2316,6 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
     """Get symbolic attribute by key."""
 
   @abc.abstractmethod
-  def _sym_rebind(
-      self,
-      path_value_pairs: typing.Dict[typing.Union[typing.Text, int], typing.Any],
-      **kwargs) -> typing.List[FieldUpdate]:
-    """Subclass specific rebind implementation.
-
-    Args:
-      path_value_pairs: A dictionary of key/or key path to new field value.
-      **kwargs: Optional keyword arguments which is subclass specific.
-
-    Returns:
-      A list of FieldUpdate from this rebind.
-
-    Raises:
-      WritePermissionError: If object is sealed.
-      KeyError: If update location specified by key or key path is not aligned
-        with the schema of the object tree.
-      TypeError: If updated field value type does not conform to field spec.
-      ValueError: If updated field value is not acceptable according to field
-        spec.
-    """
-
-  @abc.abstractmethod
   def _sym_clone(self, deep: bool, memo=None) -> 'Symbolic':
     """Subclass specific clone implementation."""
 
@@ -2326,11 +2406,10 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
       value.set_accessor_writable(self.accessor_writable)
     return value
 
-  def _set_item_of_current_tree(self, path: typing.Text,
-                                value: typing.Any) -> FieldUpdate:
+  def _set_item_of_current_tree(
+      self, path: object_utils.KeyPath, value: typing.Any) -> FieldUpdate:
     """Set a field of current tree by key path and return its parent."""
-    assert isinstance(path, str)
-    path = object_utils.KeyPath.parse(path)
+    assert isinstance(path, object_utils.KeyPath), path
     if not path:
       raise KeyError(
           self._error_message(
@@ -2750,6 +2829,14 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
     super().seal(sealed)
     return self
 
+  def sym_attr_field(
+      self, key: typing.Union[typing.Text, int]
+      ) -> typing.Optional[schema_lib.Field]:
+    """Returns the field definition for a symbolic attribute."""
+    if self._value_spec is None or self._value_spec.schema is None:
+      return None
+    return self._value_spec.schema.get_field(key)
+
   def sym_hasattr(self, key: typing.Union[typing.Text, int]) -> bool:
     """Tests if a symbolic attribute exists."""
     return key in self
@@ -2808,33 +2895,6 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
     """Gets symbolic attribute by key."""
     return self[key]
 
-  def _sym_rebind(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
-      self, path_value_pairs: typing.Dict[typing.Text, typing.Any],
-      **kwargs) -> typing.List[FieldUpdate]:
-    """Rebind child (and nested child) fields of this Dict with new values."""
-    if path_value_pairs and kwargs:
-      raise ValueError(
-          self._error_message(
-              'Either argument \'path_value_pairs\' or \'**kwargs\' '
-              'shall be specified. Encountered both.'))
-    if not path_value_pairs:
-      path_value_pairs = kwargs
-
-    if not isinstance(path_value_pairs, dict):
-      raise TypeError(
-          self._error_message(
-              f'Argument \'path_value_pairs\' should be a dict. '
-              f'Encountered {path_value_pairs}'))
-    field_updates = []
-    for k, v in path_value_pairs.items():
-      if not isinstance(k, str):
-        raise KeyError(
-            self._error_message(
-                f'Keys in argument \'path_value_pairs\' of Dict.rebind '
-                f'must be string type. Encountered {k!r}.'))
-      field_updates.append(self._set_item_of_current_tree(k, v))
-    return field_updates
-
   def _sym_clone(self, deep: bool, memo=None) -> 'Dict':
     """Override Symbolic._sym_clone."""
     source = dict()
@@ -2868,7 +2928,7 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
     """Set item without permission check."""
     if not isinstance(key, str):
       raise KeyError(self._error_message(
-          f'Key must be string type. Encountered {type(key)}.'))
+          f'Key must be string type. Encountered {key!r}.'))
 
     field = None
     if self._value_spec and self._value_spec.schema:
@@ -3460,6 +3520,15 @@ class List(list, Symbolic, schema_lib.CustomTyping):
     """Returns value spec of this List."""
     return self._value_spec
 
+  def sym_attr_field(
+      self, key: typing.Union[typing.Text, int]
+      ) -> typing.Optional[schema_lib.Field]:
+    """Returns the field definition for a symbolic attribute."""
+    del key
+    if self._value_spec is None:
+      return None
+    return self._value_spec.element
+
   def sym_hasattr(self, key: typing.Union[typing.Text, int]) -> bool:
     """Tests if a symbolic attribute exists."""
     return isinstance(key, int) and key >= -len(self) and key < len(self)
@@ -3489,28 +3558,6 @@ class List(list, Symbolic, schema_lib.CustomTyping):
       self, key: int) -> typing.Any:
     """Gets symbolic attribute by index."""
     return self[key]
-
-  def _sym_rebind(
-      self,
-      path_value_pairs: typing.Dict[typing.Union[typing.Text, int], typing.Any]
-      ) -> typing.List[FieldUpdate]:
-    """Rebind child (and nested child) fields of this List with new values."""
-    if not isinstance(path_value_pairs, dict):
-      raise ValueError(
-          self._error_message(
-              'Argument \'path_value_pairs\' must be a non-empty dict.'))
-
-    updates = []
-    for k, v in path_value_pairs.items():
-      if isinstance(k, int):
-        k = f'[{k}]'
-      elif not isinstance(k, str):
-        raise KeyError(
-            self._error_message(
-                f'Keys in argument \'path_value_paris\' of List.rebind '
-                f'must be either int or string type. Encountered: {k!r}'))
-      updates.append(self._set_item_of_current_tree(k, v))
-    return updates
 
   def _sym_clone(self, deep: bool, memo=None) -> 'List':
     """Override Symbolic._clone."""
@@ -4273,6 +4320,12 @@ class Object(Symbolic, metaclass=ObjectMeta):
     return (isinstance(key, str)
             and not key.startswith('_') and key in self._sym_attributes)
 
+  def sym_attr_field(
+      self, key: typing.Union[typing.Text, int]
+      ) -> typing.Optional[schema_lib.Field]:
+    """Returns the field definition for a symbolic attribute."""
+    return self._sym_attributes.sym_attr_field(key)
+
   def sym_keys(self) -> typing.Iterator[typing.Text]:
     """Iterates the keys of symbolic attributes."""
     return self._sym_attributes.sym_keys()
@@ -4311,11 +4364,11 @@ class Object(Symbolic, metaclass=ObjectMeta):
     """Get symbolic field by key."""
     return self._sym_attributes[key]
 
-  def _sym_rebind(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
-      self, path_value_pairs: typing.Dict[typing.Text, typing.Any],
-      **kwargs) -> typing.List[FieldUpdate]:
+  def _sym_rebind(
+      self, path_value_pairs: typing.Dict[object_utils.KeyPath, typing.Any]
+      ) -> typing.List[FieldUpdate]:
     """Rebind current object using object-form members."""
-    return self._sym_attributes._sym_rebind(path_value_pairs, **kwargs)  # pylint: disable=protected-access
+    return self._sym_attributes._sym_rebind(path_value_pairs)  # pylint: disable=protected-access
 
   def _sym_clone(self, deep: bool, memo=None) -> 'Object':
     """Copy flags."""
