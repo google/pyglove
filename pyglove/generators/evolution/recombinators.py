@@ -131,8 +131,8 @@ from typing import List, Optional, Union
 
 import pyglove.core as pg
 
+from pyglove.generators import scalars
 from pyglove.generators.evolution import base
-from pyglove.generators.evolution import scalars
 from pyglove.generators.evolution import where
 
 

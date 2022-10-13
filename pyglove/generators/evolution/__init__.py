@@ -13,6 +13,7 @@
 # limitations under the License.
 """PyGlove's genetic computing framework."""
 
+from pyglove.generators import scalars
 from pyglove.generators.evolution import base
 from pyglove.generators.evolution import hill_climb as hill_climb_lib
 from pyglove.generators.evolution import mutators
@@ -20,7 +21,6 @@ from pyglove.generators.evolution import neat as neat_lib
 from pyglove.generators.evolution import nsga2 as nsga2_lib
 from pyglove.generators.evolution import recombinators
 from pyglove.generators.evolution import regularized_evolution as regularized_evolution_lib
-from pyglove.generators.evolution import scalars
 from pyglove.generators.evolution import selectors
 from pyglove.generators.evolution.hill_climb import hill_climb
 from pyglove.generators.evolution.neat import neat

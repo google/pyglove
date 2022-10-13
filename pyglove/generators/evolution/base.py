@@ -20,7 +20,7 @@ import typing
 from typing import Any, Callable, Iterable, List, Text, Optional, Tuple, Type
 
 import pyglove.core as pg
-from pyglove.generators.evolution import scalars
+from pyglove.generators import scalars
 
 # We disable implicit str concat as it is commonly used class schema docstr.
 # pylint: disable=implicit-str-concat

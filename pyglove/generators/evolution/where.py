@@ -19,7 +19,7 @@ import types
 from typing import List, Optional
 
 import pyglove.core as pg
-from pyglove.generators.evolution import scalars
+from pyglove.generators import scalars
 
 
 class DecisionPointFilter(pg.Object):

@@ -18,8 +18,8 @@ import random
 from typing import Any, List, Union
 
 import pyglove.core as pg
+from pyglove.generators import scalars
 from pyglove.generators.evolution import base
-from pyglove.generators.evolution import scalars
 
 
 # We disable implicit str concat as it is commonly used class schema docstr.
