@@ -16,7 +16,7 @@
 import math
 import unittest
 from pyglove.generators.scalars import base
-from pyglove.generators.scalars import math as scalars
+from pyglove.generators.scalars import maths as scalars
 
 
 class MathScalarsTest(unittest.TestCase):

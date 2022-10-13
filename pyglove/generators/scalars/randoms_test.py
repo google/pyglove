@@ -14,7 +14,7 @@
 """Tests for random scalars."""
 
 import unittest
-from pyglove.generators.scalars import random as scalars
+from pyglove.generators.scalars import randoms as scalars
 
 
 class RandomScalarsTest(unittest.TestCase):
