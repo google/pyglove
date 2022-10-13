@@ -35,6 +35,7 @@ Here lists the files included in the core PyGlove library:
    |__ typing.py       :  Runtime type check and value validation.
    |__ geno.py         :  Genome types for program generation/manipulation.
    |__ hyper.py        :  Encoding/Decoding between a program and a genome.
+   |__ composing.py    :  Dealing with symbolic compositions.
    |__ tuning.py       :  Interface for program tuning with a local backend.
    |__ detouring.py    :  Detouring classes creation without symbolic types.
    |__ patching.py     :  Patching a program with URL-like strings.
@@ -158,6 +159,15 @@ wrap_module = wrapping.wrap_module
 
 # Context manager for swapping wrapped class with their wrappers.
 apply_wrappers = wrapping.apply_wrappers
+
+
+#
+# Symbols from 'composing.py'
+#
+
+from pyglove.core import composing
+
+mutate = composing.mutate
 
 
 #
