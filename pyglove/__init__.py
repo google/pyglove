@@ -28,12 +28,10 @@ as enum, six, yaml.
 # pylint: disable=g-import-not-at-top
 
 from pyglove.core import *
+from pyglove.ext import *
 from pyglove import generators
 
-evolution = generators.evolution
-early_stopping = generators.early_stopping
-
- # Placeholder for Google-internal imports.
+# Placeholder for Google-internal imports.
 
 # pylint: enable=g-import-not-at-top
 # pylint: enable=reimported
