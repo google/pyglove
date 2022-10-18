@@ -125,7 +125,7 @@ class DictTest(unittest.TestCase):
         TypeError, 'Argument \'dict_obj\' must be dict type.'):
       symbolic.Dict(1)
 
-  def testsymbolic(self):
+  def testSchematized(self):
     """Tests for Dict with value_spec."""
     value_spec = schema.Dict([
         ('a2', schema.Int()),
@@ -732,6 +732,10 @@ class DictTest(unittest.TestCase):
     self.assertEqual(symbolic.Dict(a=A(x=1)), {'a': 1})
     self.assertFalse(symbolic.eq(symbolic.Dict(a=A(x=1)), {'a': 1}))
     self.assertTrue(symbolic.ne(symbolic.Dict(a=A(x=1)), {'a': 1}))
+    self.assertTrue(symbolic.Dict(a=2).sym_lt({'a': 3}))
+    self.assertFalse(symbolic.Dict(a=2).sym_lt({'a': 2}))
+    self.assertTrue(symbolic.Dict(a=2).sym_gt({'a': 1}))
+    self.assertFalse(symbolic.Dict(a=2).sym_gt({'a': 2}))
     self.assertNotEqual(symbolic.Dict(a=A(x=1)), {'a': 1.0})
 
 
@@ -817,7 +821,7 @@ class ListTest(unittest.TestCase):
         TypeError, 'Argument \'items\' must be list type'):
       symbolic.List(1)
 
-  def testsymbolic(self):
+  def testSchematized(self):
     """Tests for symbolic List."""
     value_spec = schema.List(
         schema.List(
@@ -1241,8 +1245,8 @@ class ListTest(unittest.TestCase):
     self.assertTrue(symbolic.ne(symbolic.List([A(x=1)]), [1]))
     self.assertNotEqual(symbolic.List([A(x=1)]), [1.0])
 
-    # Test symbolic eq/ne on symbolic objects that does not use
-    # symbolic comparison as the default eq/ne behavior.
+    # Test symbolic eq/ne on symbolic objects that uses
+    # symbolic comparison even the default eq/ne behavior has changed.
 
     @symbolic.members([
         ('x', schema.Int())
@@ -1257,34 +1261,30 @@ class ListTest(unittest.TestCase):
         return not self.__eq__(other)
 
     self.assertEqual(B(1), 1)
+    self.assertEqual([B(1)], [1])
+    self.assertEqual((B(1),), (1,))
+    self.assertEqual(dict(x=B(1)), dict(x=1))
     self.assertNotEqual(B(1), B(1))
     self.assertNotEqual([B(1)], [B(1)])
     self.assertNotEqual((B(1),), (B(1),))
     self.assertNotEqual(dict(x=B(1)), dict(x=B(1)))
 
     self.assertTrue(symbolic.eq(B(1), B(1)))
-    self.assertTrue(symbolic.eq(B(1), 1))
-    self.assertTrue(symbolic.eq(1, B(1)))
     self.assertTrue(symbolic.eq([B(1)], [B(1)]))
-    self.assertTrue(symbolic.eq([B(1)], [1]))
-    self.assertTrue(symbolic.eq([1], [B(1)]))
     self.assertTrue(symbolic.eq((B(1),), (B(1),)))
-    self.assertTrue(symbolic.eq((B(1),), (1,)))
-    self.assertTrue(symbolic.eq((1,), (B(1),)))
     self.assertTrue(symbolic.eq(dict(x=B(1)), dict(x=B(1))))
-    self.assertTrue(symbolic.eq(dict(x=B(1)), dict(x=1)))
-    self.assertTrue(symbolic.eq(dict(x=1), dict(x=B(1))))
+    self.assertFalse(symbolic.eq(B(1), 1))
 
-    self.assertTrue(symbolic.ne([B(1)], (B(1),)))
-    self.assertTrue(symbolic.ne([B(1)], [B(1), B(1)]))
-    self.assertTrue(symbolic.ne([B(1)], [2]))
-    self.assertTrue(symbolic.ne((B(1),), [B(1)]))
-    self.assertTrue(symbolic.ne((B(1),), (B(1), B(1))))
-    self.assertTrue(symbolic.ne((B(1),), 1))
-    self.assertTrue(symbolic.ne(dict(x=B(1)), [B(1)]))
-    self.assertTrue(symbolic.ne(dict(x=B(1)), dict(x=B(1), y=B(1))))
-    self.assertTrue(symbolic.ne(dict(x=B(1)), dict(y=B(1))))
-    self.assertTrue(symbolic.ne(dict(x=B(1)), dict(x=2)))
+    self.assertTrue(symbolic.ne(B(1), 1))
+    self.assertTrue(symbolic.ne([B(1)], [1]))
+    self.assertFalse(symbolic.ne(B(1), B(1)))
+    self.assertFalse(symbolic.ne([B(1)], [B(1)]))
+    self.assertFalse(symbolic.ne((B(1),), (B(1),)))
+
+    self.assertTrue(B(1).sym_lt(B(2)))
+    self.assertFalse(B(1).sym_lt(B(1)))
+    self.assertTrue(B(2).sym_gt(B(1)))
+    self.assertFalse(B(2).sym_gt(B(2)))
 
 
 class ObjectTest(unittest.TestCase):
@@ -3928,6 +3928,185 @@ class CopyTest(unittest.TestCase):
     })
     self.assertEqual(sd3.a1, 3)
     self.assertEqual(sd3.a2.b1.c1[0].d1, 'bar')
+
+
+class SymbolicComparisonTests(unittest.TestCase):
+  """Tests for symbolic comparisons."""
+
+  @symbolic.members([
+      ('x', schema.Int()),
+      ('y', schema.List(schema.Dict([
+          ('p', schema.Float()),
+          ('q', schema.Tuple([
+              schema.Str(),
+              schema.Bool()
+          ]))
+      ]))),
+      ('z', schema.Any())
+  ])
+  class A(symbolic.Object):
+    pass
+
+  class B(A):
+    pass
+
+  class C:
+
+    def __init__(self, x):
+      self.x = x
+
+    def sym_lt(self, other):
+      return self.x < other.x
+
+  class D:
+    pass
+
+  def testEq(self):
+    """Tests symbolic.eq."""
+    A = SymbolicComparisonTests.A
+    z = ValueError()
+    self.assertTrue(symbolic.eq(
+        A(1, [dict(p=1.0, q=('a', True))], z=z),
+        A(1, [dict(p=1.0, q=('a', True))], z=z)))
+    self.assertFalse(symbolic.eq(
+        A(1, [dict(p=1.0, q=('a', True))], z=z),
+        A(1, [dict(p=1.0, q=('a', True))], z=ValueError())))
+
+  def testNe(self):
+    """Tests symbolic.ne."""
+    A = SymbolicComparisonTests.A
+    z = ValueError()
+    self.assertFalse(symbolic.ne(
+        A(1, [dict(p=1.0, q=('a', True))], z=z),
+        A(1, [dict(p=1.0, q=('a', True))], z=z)))
+    self.assertTrue(symbolic.ne(
+        A(1, [dict(p=1.0, q=('a', True))], z=z),
+        A(1, [dict(p=1.0, q=('a', True))], z=ValueError())))
+
+  def testLt(self):
+    """Tests symbolic.lt."""
+    A = SymbolicComparisonTests.A
+    B = SymbolicComparisonTests.B
+    C = SymbolicComparisonTests.C
+    D = SymbolicComparisonTests.D
+
+    self.assertTrue(symbolic.lt(object_utils.MISSING_VALUE, None))
+    self.assertTrue(symbolic.lt(None, 1))
+    self.assertTrue(symbolic.lt(0, True))
+    self.assertTrue(symbolic.lt(1.0, 2))
+    self.assertTrue(symbolic.lt(99999, ''))
+    self.assertTrue(symbolic.lt('ab', []))
+    self.assertTrue(symbolic.lt([], ()))
+    self.assertTrue(symbolic.lt((), set()))
+    self.assertTrue(symbolic.lt(set(), dict()))
+    self.assertTrue(symbolic.lt(dict(), A(1, [], None)))
+    self.assertTrue(symbolic.lt(0.2, A(1, [], None)))
+    self.assertTrue(symbolic.lt(A(1, [], None), B(1, [], None)))
+
+    self.assertTrue(symbolic.lt(False, True))
+    self.assertTrue(symbolic.lt(0.1, 0.5))
+    self.assertTrue(symbolic.lt(1, 2))
+    self.assertTrue(symbolic.lt('a', 'ab'))
+    self.assertTrue(symbolic.lt([], [1]))
+    self.assertTrue(symbolic.lt([1], [2]))
+    self.assertTrue(symbolic.lt([1], [1, 2]))
+    self.assertTrue(symbolic.lt(dict(x=1), dict(x=2)))
+    self.assertTrue(symbolic.lt(dict(x=1), dict(y=1)))
+    self.assertTrue(symbolic.lt(dict(x=1), dict(x=1, a=0)))
+    self.assertTrue(symbolic.lt(A.partial(1, []), A(1, [], None)))
+    self.assertTrue(symbolic.lt(A(1, [], None), A(2, [], None)))
+    self.assertTrue(symbolic.lt(A(1, [], None), A(1, [], 0)))
+    self.assertTrue(symbolic.lt(C(1), C(2)))
+
+    self.assertFalse(symbolic.lt(False, False))
+    self.assertFalse(symbolic.lt(True, False))
+    self.assertFalse(symbolic.lt(True, 1))
+    self.assertFalse(symbolic.lt(1, 1.0))
+    self.assertFalse(symbolic.lt(2.0, 1.0))
+    self.assertFalse(symbolic.lt('a', 'a'))
+    self.assertFalse(symbolic.lt('b', 'a'))
+    self.assertFalse(symbolic.lt([], []))
+    self.assertFalse(symbolic.lt([1], []))
+    self.assertFalse(symbolic.lt([1], [1]))
+    self.assertFalse(symbolic.lt([1, 1], [1]))
+    self.assertFalse(symbolic.lt([2], [1]))
+    self.assertFalse(symbolic.lt(dict(x=1), dict(x=1)))
+    self.assertFalse(symbolic.lt(dict(x=2), dict(x=1)))
+    self.assertFalse(symbolic.lt(dict(x=1, a=0), dict(x=1)))
+    self.assertFalse(symbolic.lt(dict(y=1), dict(x=1)))
+
+    self.assertFalse(symbolic.lt(A.partial(1, []), A.partial()))
+    self.assertFalse(symbolic.lt(A.partial(1, []), A.partial(1)))
+    self.assertFalse(symbolic.lt(A.partial(1, []), A.partial(1, [])))
+    self.assertFalse(symbolic.lt(A.partial(2, []), A.partial(1, [])))
+    self.assertFalse(symbolic.lt(A(2, [], None), A.partial(2, [])))
+    self.assertFalse(symbolic.lt(A(2, [dict(p=1.0, q=('a', True))], None),
+                                 A.partial(2, [], None)))
+    self.assertFalse(symbolic.lt(C(2), C(1)))
+    with self.assertRaisesRegex(TypeError, '<.*'):
+      symbolic.lt(D(), D())
+
+  def testGt(self):
+    """Tests symbolic.gt."""
+    A = SymbolicComparisonTests.A
+    B = SymbolicComparisonTests.B
+    C = SymbolicComparisonTests.C
+    D = SymbolicComparisonTests.D
+
+    self.assertTrue(symbolic.gt(None, object_utils.MISSING_VALUE))
+    self.assertFalse(symbolic.gt(None, 1))
+    self.assertFalse(symbolic.gt(0, True))
+    self.assertFalse(symbolic.gt(1.0, 2))
+    self.assertFalse(symbolic.gt(99999, ''))
+    self.assertFalse(symbolic.gt('ab', []))
+    self.assertFalse(symbolic.gt([], ()))
+    self.assertFalse(symbolic.gt((), set()))
+    self.assertFalse(symbolic.gt(set(), dict()))
+    self.assertFalse(symbolic.gt(dict(), A(1, [], None)))
+    self.assertFalse(symbolic.gt(0.2, A(1, [], None)))
+    self.assertFalse(symbolic.gt(A(1, [], None), B(1, [], None)))
+
+    self.assertFalse(symbolic.gt(False, True))
+    self.assertFalse(symbolic.gt(0.1, 0.5))
+    self.assertFalse(symbolic.gt(1, 2))
+    self.assertFalse(symbolic.gt('a', 'ab'))
+    self.assertFalse(symbolic.gt([], [1]))
+    self.assertFalse(symbolic.gt([1], [2]))
+    self.assertFalse(symbolic.gt([1], [1, 2]))
+    self.assertFalse(symbolic.gt(dict(x=1), dict(x=2)))
+    self.assertFalse(symbolic.gt(dict(x=1), dict(y=1)))
+    self.assertFalse(symbolic.gt(dict(x=1), dict(x=1, a=0)))
+    self.assertFalse(symbolic.gt(A.partial(1, []), A(1, [], None)))
+    self.assertFalse(symbolic.gt(A(1, [], None), A(2, [], None)))
+    self.assertFalse(symbolic.gt(A(1, [], None), A(1, [], 0)))
+    self.assertFalse(symbolic.gt(C(1), C(2)))
+
+    self.assertFalse(symbolic.gt(False, False))
+    self.assertTrue(symbolic.gt(True, False))
+    self.assertFalse(symbolic.gt(True, 1))
+    self.assertFalse(symbolic.gt(1, 1.0))
+    self.assertTrue(symbolic.gt(2.0, 1.0))
+    self.assertFalse(symbolic.gt('a', 'a'))
+    self.assertTrue(symbolic.gt('b', 'a'))
+    self.assertFalse(symbolic.gt([], []))
+    self.assertTrue(symbolic.gt([1], []))
+    self.assertFalse(symbolic.gt([1], [1]))
+    self.assertTrue(symbolic.gt([1, 1], [1]))
+    self.assertTrue(symbolic.gt([2], [1]))
+    self.assertFalse(symbolic.gt(dict(x=1), dict(x=1)))
+    self.assertTrue(symbolic.gt(dict(x=2), dict(x=1)))
+    self.assertTrue(symbolic.gt(dict(x=1, a=0), dict(x=1)))
+    self.assertTrue(symbolic.gt(dict(y=1), dict(x=1)))
+
+    self.assertTrue(symbolic.gt(A.partial(1, []), A.partial()))
+    self.assertTrue(symbolic.gt(A.partial(1, []), A.partial(1)))
+    self.assertFalse(symbolic.gt(A.partial(1, []), A.partial(1, [])))
+    self.assertTrue(symbolic.gt(A.partial(2, []), A.partial(1, [])))
+    self.assertTrue(symbolic.gt(A(2, [], None), A.partial(2, [])))
+    self.assertTrue(symbolic.gt(A(2, [dict(p=1.0, q=('a', True))], None),
+                                A.partial(2, [], None)))
+    with self.assertRaisesRegex(TypeError, '<.*'):
+      symbolic.gt(D(), D())
 
 
 class InspectionTest(unittest.TestCase):

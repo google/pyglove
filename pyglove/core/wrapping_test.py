@@ -653,7 +653,7 @@ class SubclassWrapperTest(unittest.TestCase):
 
     # Test A2's symbolic members are not inherited from ClassWrapper.
     self.assertEqual(a, 1)
-    self.assertTrue(symbolic.eq(a, 1))
+    self.assertFalse(symbolic.eq(a, 1))
     self.assertTrue(symbolic.eq(a, A2({'p': 1})))
     self.assertNotEqual(a, 2)
     self.assertTrue(symbolic.ne(a, None))

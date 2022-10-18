@@ -102,6 +102,8 @@ boilerplate_class = symbolic.boilerplate_class
 # Methods for symbolic operations.
 eq = symbolic.eq
 ne = symbolic.ne
+lt = symbolic.lt
+gt = symbolic.gt
 hash = symbolic.sym_hash  # pylint: disable=redefined-builtin
 clone = symbolic.clone
 

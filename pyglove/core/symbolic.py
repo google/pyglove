@@ -1842,11 +1842,19 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
 
   def sym_ne(self, other: typing.Any) -> bool:
     """Returns if this object does not equal to another object symbolically."""
-    return not self.sym_eq(other)
+    return ne(self, other)
 
-  @abc.abstractmethod
   def sym_eq(self, other: typing.Any) -> bool:
     """Returns if this object equals to another object symbolically."""
+    return eq(self, other)
+
+  def sym_gt(self, other: typing.Any) -> bool:
+    """Returns if this object is symbolically greater than another object."""
+    return gt(self, other)
+
+  def sym_lt(self, other: typing.Any) -> bool:
+    """Returns True if this object is symbolically less than other object."""
+    return lt(self, other)
 
   @abc.abstractmethod
   def sym_hash(self) -> int:
@@ -2879,10 +2887,6 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
         if isinstance(v, Symbolic):
           v.sym_setparent(parent)
 
-  def sym_eq(self, other: typing.Any) -> bool:
-    """Tests symbolic equality."""
-    return eq(self, other)
-
   def sym_hash(self) -> int:
     """Symbolic hashing."""
     return sym_hash(
@@ -3545,10 +3549,6 @@ class List(list, Symbolic, schema_lib.CustomTyping):
   def sym_items(self) -> typing.Iterator[typing.Tuple[int, typing.Any]]:
     """Iterates the (key, value) pairs of symbolic attributes."""
     return enumerate(self)
-
-  def sym_eq(self, other: typing.Any) -> bool:
-    """Tests symbolic equality."""
-    return eq(self, other)
 
   def sym_hash(self) -> int:
     """Symbolically hashing."""
@@ -4340,13 +4340,15 @@ class Object(Symbolic, metaclass=ObjectMeta):
 
   def sym_eq(self, other: typing.Any) -> bool:
     """Tests symbolic equality."""
-    if (self is other
-        or (isinstance(other, self.__class__)
-            and eq(self._sym_attributes, other._sym_attributes))):  # pylint: disable=protected-access
-      return True
-    # Fall back to operator == when symbolic comparison is not the
-    # default behavior.
-    return not self.allow_symbolic_comparison and self == other
+    return self is other or (
+        type(self) is type(other) and eq(
+            self._sym_attributes, other._sym_attributes))   # pylint: disable=protected-access
+
+  def sym_lt(self, other: typing.Any) -> bool:
+    """Tests symbolic less-than."""
+    if type(self) is not type(other):
+      return lt(self, other)
+    return lt(self._sym_attributes, other._sym_attributes)  # pylint: disable=protected-access
 
   def sym_hash(self) -> int:
     """Symbolically hashing."""
@@ -5457,7 +5459,7 @@ def eq(left: typing.Any, right: typing.Any) -> bool:
   if left is right:
     return True
   if ((isinstance(left, list) and isinstance(right, list))
-      or isinstance(left, tuple) and isinstance(right, tuple)):
+      or (isinstance(left, tuple) and isinstance(right, tuple))):
     if len(left) != len(right):
       return False
     for x, y in zip(left, right):
@@ -5512,6 +5514,144 @@ def ne(left: typing.Any, right: typing.Any) -> bool:
     True if left and right is not equal or symbolically equal. Otherwise False.
   """
   return not eq(left, right)
+
+
+def lt(left: typing.Any, right: typing.Any) -> bool:
+  """Returns Ture if a value is symbolically less than the other value.
+
+  Symbolic values are comparable by their symbolic representations. For common
+  types such as numbers and string, symbolic comparison returns the same value
+  as value comparisons. For example::
+
+    assert pg.lt(False, True) == Flase < True
+    assert pg.lt(0.1, 1) == 0.1 < 1
+    assert pg.lt('a', 'ab') == 'a' < 'ab'
+
+  However, symbolic comparison can be applied on hierarchical values, for
+  example::
+
+    assert pg.lt(['a'], ['a', 'b'])
+    assert pg.lt(['a', 'b', 'c'], ['b'])
+    assert pg.lt({'x': 1}, {'x': 2})
+    assert pg.lt({'x': 1}, {'y': 1})
+    assert pg.lt(A(x=1), A(x=2))
+
+  Also, symbolic values of different types can be compared, for example::
+
+    assert pg.lt(pg.MISSING_VALUE, None)
+    assert pg.lt(None, 1)
+    assert pg.lt(1, 'abc')
+    assert pg.lt('abc', [])
+    assert pg.lt([], {})
+    assert pg.lt([], A(x=1))
+
+  The high-level idea is that a value with lower information entropy is less
+  than a value with higher information entropy. As a result, we know that
+  `pg.MISSING_VALUE` is the smallest among all values.
+
+  The order of symbolic representation are defined by the following rules:
+
+  1) If x and y are comparable by their values, they will be compared using
+     operator <. (e.g. bool, int, float, str)
+  2) If x and y are not directly comparable and are different in their types,
+     they will be compared based on their types. The order of different types
+     are: pg.MISSING_VALUE, NoneType, bool, int, float, str, list, tuple, set,
+     dict, functions/classes. When different functions/classes compare, their
+     order is determined by their qualified name.
+  3) If x and y are of the same type, which are symbolic containers (e.g. list,
+     dict, pg.Symbolic objects), their order will be determined by the order of
+     their first sub-nodes which are different. Therefore ['b'] is greater than
+     ['a', 'b'], though the later have 2 elements.
+  4) Non-symbolic classes can define method `sym_lt` to enable symbolic
+     comparison.
+
+  Args:
+    left: The left-hand value to compare.
+    right: The right-hand value to compare.
+
+  Returns:
+    True if the left value is symbolically less than the right value.
+  """
+  # A fast type check can eliminate most
+  if type(left) is not type(right):
+    tol = _type_order(left)
+    tor = _type_order(right)
+    # When tol == tor, this means different types are treated as same symbols.
+    # E.g. list and pg.List.
+    if tol != tor:
+      return tol < tor
+
+  # Most symbolic nodes are leaf, which are primitive types, therefore
+  # we detect such types to make `lt` to run faster.
+  if isinstance(left, (int, float, bool, str)):
+    return left < right
+  elif isinstance(left, Object):
+    return left.sym_lt(right)
+  elif isinstance(left, list):
+    min_len = min(len(left), len(right))
+    for i in range(min_len):
+      l, r = left[i], right[i]
+      if not eq(l, r):
+        return lt(l, r)
+    # `left` and `right` are equal so far, so `left` is less than `right`
+    # only when left has a smaller length.
+    return len(left) < len(right)
+  elif isinstance(left, dict):
+    lkeys = list(left.keys())
+    rkeys = list(right.keys())
+    min_len = min(len(lkeys), len(rkeys))
+    for i in range(min_len):
+      kl, kr = lkeys[i], rkeys[i]
+      if kl == kr:
+        if not eq(left[kl], right[kr]):
+          return lt(left[kl], right[kr])
+      else:
+        return kl < kr
+    # `left` and `right` are equal so far, so `left is less than `right`
+    # only when left has fewer keys.
+    return len(lkeys) < len(rkeys)
+  elif hasattr(left, 'sym_lt'):
+    return left.sym_lt(right)
+  return left < right
+
+
+def gt(left: typing.Any, right: typing.Any) -> bool:
+  """Returns True if a value is symbolically greater than the other value.
+
+  Refer to :func:`pyglove.lt` for the definition of symbolic comparison.
+
+  Args:
+    left: The left-hand value to compare.
+    right: The right-hand value to compare.
+
+  Returns:
+    True if the left value is symbolically greater than the right value.
+  """
+  return lt(right, left)   # pylint: disable=arguments-out-of-order
+
+
+_TYPE_SYMBOLIC_ORDERING_STR = {
+    object_utils.MissingValue: '0',   # Generic missing value class.
+    schema_lib.MissingValue: '0',     # Typed missing value class.
+    type(None): '1',
+    bool: '2',
+    int: '2',
+    float: '2',
+    str: '3',
+    list: '4',
+    List: '4',
+    tuple: '5',
+    set: '6',
+    dict: '7',
+    Dict: '7',
+}
+
+
+def _type_order(value: typing.Any) -> typing.Text:
+  """Returns the ordering string of value's type."""
+  t = type(value)
+  ordering_str = _TYPE_SYMBOLIC_ORDERING_STR.get(t, None)
+  return ordering_str if ordering_str is not None else t.__qualname__
 
 
 def sym_hash(x: typing.Any) -> int:
