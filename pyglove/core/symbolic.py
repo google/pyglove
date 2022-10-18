@@ -5517,7 +5517,7 @@ def ne(left: typing.Any, right: typing.Any) -> bool:
 
 
 def lt(left: typing.Any, right: typing.Any) -> bool:
-  """Returns Ture if a value is symbolically less than the other value.
+  """Returns True if a value is symbolically less than the other value.
 
   Symbolic values are comparable by their symbolic representations. For common
   types such as numbers and string, symbolic comparison returns the same value
