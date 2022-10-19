@@ -31,31 +31,5 @@ Sweeping = geno.Sweeping
 Random = geno.Random
 Deduping = geno.Deduping
 
-# TODO(daiyip): The following exports are for backward compatibility only
-# Remove once the dependencies are removed.
-
-DNA = geno.DNA
-
-# Symbols for hyper values.
-# Remove them once legacy dependencies are cleared.
-hyper = core.hyper
-Encoder = hyper.HyperValue
-Template = hyper.ObjectTemplate
-ChoiceValue = hyper.OneOf
-ChoiceList = hyper.ManyOf
-Float = hyper.Float
-
-template = hyper.template
-oneof = hyper.oneof
-one_of = hyper.oneof
-manyof = hyper.manyof
-sublist_of = hyper.manyof
-floatv = hyper.floatv
-float_value = hyper.floatv
-permutate = hyper.permutate
-
-dna_spec = hyper.dna_spec
-iterate = hyper.iterate
-
 # pylint: enable=g-import-not-at-top
 # pylint: enable=g-bad-import-order
