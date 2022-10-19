@@ -859,6 +859,9 @@ class CustomHyper(HyperPrimitive):
       self, location: Optional[object_utils.KeyPath] = None) -> geno.DNASpec:
     """Always returns CustomDecisionPoint for CustomHyper."""
     return geno.CustomDecisionPoint(
+        hyper_type=self.__class__.__name__,
+        next_dna_fn=self.next_dna,
+        random_dna_fn=self.random_dna,
         hints=self.hints, name=self.name, location=location)
 
   def first_dna(self) -> geno.DNA:
@@ -867,9 +870,21 @@ class CustomHyper(HyperPrimitive):
     Returns:
       A string-valued DNA.
     """
+    if self.next_dna.__code__ is CustomHyper.next_dna.__code__:
+      raise NotImplementedError(
+          f'{self.__class__!r} must implement method `next_dna` to be used in '
+          f'dynamic evaluation mode.')
+    return self.next_dna(None)
+
+  def next_dna(self, dna: Optional[geno.DNA]) -> Optional[geno.DNA]:
+    """Subclasses should override this method to support pg.Sweeping."""
     raise NotImplementedError(
-        f'{self.__class__!r} must implement method `first_dna` to be used in '
-        f'dynamic evaluation mode.')
+        f'`next_dna` is not implemented in f{self.__class__!r}')
+
+  def random_dna(self, random_generator) -> geno.DNA:
+    """Subclasses should override this method to support pg.random_dna."""
+    raise NotImplementedError(
+        f'`random_dna` is not implemented in {self.__class__!r}')
 
   def custom_apply(
       self,

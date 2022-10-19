@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.hyper."""
 
+import random
 import threading
 import unittest
 
@@ -737,6 +738,9 @@ class CustomHyperTest(unittest.TestCase):
 
     class IntSequence(hyper.CustomHyper):
 
+      def _create_dna(self, numbers):
+        return geno.DNA(','.join([str(n) for n in numbers]))
+
       def custom_decode(self, dna):
         return [int(v) for v in dna.value.split(',')]
 
@@ -744,6 +748,18 @@ class CustomHyperTest(unittest.TestCase):
 
       def custom_encode(self, value):
         return geno.DNA(','.join([str(v) for v in value]))
+
+      def next_dna(self, dna):
+        if dna is None:
+          return geno.DNA(','.join([str(i) for i in range(5)]))
+        v = self.custom_decode(dna)
+        v.append(len(v))
+        return self._create_dna(v)
+
+      def random_dna(self, random_generator):
+        k = random_generator.randint(0, 10)
+        v = random_generator.choices(list(range(10)), k=k)
+        return self._create_dna(v)
 
     self._int_sequence = IntSequence(hints='1,2,-3,4,5,-2,7')
     self._int_sequence_with_encode = IntSequenceWithEncode(
@@ -754,6 +770,7 @@ class CustomHyperTest(unittest.TestCase):
     self.assertTrue(symbolic.eq(
         self._int_sequence.dna_spec('a'),
         geno.CustomDecisionPoint(
+            hyper_type='IntSequence',
             location=object_utils.KeyPath('a'),
             hints='1,2,-3,4,5,-2,7')))
 
@@ -776,6 +793,32 @@ class CustomHyperTest(unittest.TestCase):
     with self.assertRaisesRegex(
         NotImplementedError, '\'custom_encode\' is not supported by'):
       _ = self._int_sequence.encode([0, 1, 2])
+
+  def testRandomDNA(self):
+    """Test working with pg.random_dna."""
+    self.assertEqual(
+        geno.random_dna(
+            self._int_sequence_with_encode.dna_spec('a'), random.Random(1)),
+        geno.DNA('5,8'))
+
+    with self.assertRaisesRegex(
+        NotImplementedError, '`random_dna` is not implemented in .*'):
+      geno.random_dna(self._int_sequence.dna_spec('a'))
+
+  def testIter(self):
+    """Test working with pg.iter."""
+    self.assertEqual(
+        self._int_sequence_with_encode.first_dna(),
+        geno.DNA('0,1,2,3,4'))
+    self.assertEqual(
+        list(hyper.iterate(self._int_sequence_with_encode, 3)),
+        [[0, 1, 2, 3, 4],
+         [0, 1, 2, 3, 4, 5],
+         [0, 1, 2, 3, 4, 5, 6]])
+
+    with self.assertRaisesRegex(
+        NotImplementedError, '`next_dna` is not implemented in .*'):
+      next(hyper.iterate(self._int_sequence))
 
   def testCooperation(self):
     """Test cooperation with pg.oneof."""
@@ -1278,7 +1321,7 @@ class DynamicEvaluationTest(unittest.TestCase):
     context = hyper.DynamicEvaluationContext()
     with self.assertRaisesRegex(
         NotImplementedError,
-        '.* must implement method `first_dna` to be used in '
+        '.* must implement method `next_dna` to be used in '
         'dynamic evaluation mode'):
       with context.collect():
         IntListWithoutFirstDNA()

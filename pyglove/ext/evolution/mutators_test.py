@@ -416,6 +416,32 @@ class UniformTest(CoverageTestCase):
     self.assertEventually(
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
+  def testCustomDecisionPoint(self):
+    def random_dna(random_generator):
+      return pg.DNA(value=str(random_generator.randint(0, 3)))
+
+    dna_spec = pg.geno.oneof([
+        pg.geno.constant(),
+        pg.geno.custom(random_dna_fn=random_dna),
+        pg.geno.constant(),
+    ])
+    mutator = mutators.Uniform()
+    dna = pg.DNA(0, spec=dna_spec)
+    expected_mutated_dnas = [
+        pg.DNA(0),
+        pg.DNA((1, '0')),
+        pg.DNA((1, '1')),
+        pg.DNA((1, '2')),
+        pg.DNA((1, '3')),
+        pg.DNA(2),
+    ]
+    def mutate():
+      mutated_dna = mutator.mutate(dna)
+      return expected_mutated_dnas.index(mutated_dna)
+    expected_indexes = range(len(expected_mutated_dnas))
+    self.assertEventually(
+        func=mutate, required=expected_indexes, allowed=expected_indexes)
+
 
 class SwapTest(CoverageTestCase):
   """Tests the Swap."""

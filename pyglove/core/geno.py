@@ -226,7 +226,6 @@ class DNASpec(symbolic.Object):
     """Returns the first DNA in the spec."""
     return self.next_dna(None, attach_spec)
 
-  @abc.abstractmethod
   def next_dna(self,
                dna: Optional['DNA'] = None,
                attach_spec: bool = True) -> Optional['DNA']:
@@ -240,6 +239,41 @@ class DNASpec(symbolic.Object):
     Returns:
       The next DNA or None if there is no next DNA.
     """
+    dna = self._next_dna(dna)
+    if attach_spec and dna is not None:
+      dna.use_spec(self)
+    return dna
+
+  @abc.abstractmethod
+  def _next_dna(self, dna: Optional['DNA'] = None) -> Optional['DNA']:
+    """Next DNA generation logic that should be overridden by subclasses."""
+
+  def random_dna(self,
+                 random_generator: Union[types.ModuleType,
+                                         random.Random,
+                                         None] = None,
+                 attach_spec: bool = True) -> 'DNA':
+    """Returns a random DNA based on current spec.
+
+    Args:
+      random_generator: An optional Random object. If None, the global random
+        module will be used.
+      attach_spec: If True, current spec will be attached to the returned DNA.
+
+    Returns:
+      A random DNA based on current spec.
+    """
+    random_generator = random_generator or random
+    dna = self._random_dna(random_generator)
+    if attach_spec:
+      dna.use_spec(self)
+    return dna
+
+  @abc.abstractmethod
+  def _random_dna(self,
+                  random_generator: Union[types.ModuleType, random.Random]
+                  ) -> 'DNA':
+    """Random DNA generation logic that should be overridden by subclasses."""
 
   def iter_dna(self, dna: Optional['DNA'] = None, attach_spec: bool = True):
     """Iterate the DNA in the space represented by this spec.
@@ -1823,13 +1857,10 @@ class Space(DNASpec):
         self._space_size *= sub_space_size
     return self._space_size
 
-  def next_dna(self,
-               dna: Optional['DNA'] = None,
-               attach_spec: bool = True) -> Optional['DNA']:
+  def _next_dna(self, dna: Optional['DNA'] = None) -> Optional['DNA']:
     """Returns the next DNA."""
     if dna is None:
-      return DNA(None, [e.first_dna(attach_spec=False) for e in self.elements],
-                 spec=self if attach_spec else None)
+      return DNA(None, [e.first_dna(attach_spec=False) for e in self.elements])
 
     new_children = []
     increment_next_element = True
@@ -1855,8 +1886,14 @@ class Space(DNASpec):
     if increment_next_element:
       return None
     else:
-      return DNA(None, list(reversed(new_children)),
-                 spec=self if attach_spec else None)
+      return DNA(None, list(reversed(new_children)))
+
+  def _random_dna(
+      self,
+      random_generator: Union[random.Random, types.ModuleType]) -> DNA:
+    """Returns a random DNA based on current spec."""
+    return DNA(value=None, children=[
+        elem.random_dna(random_generator, False) for elem in self.elements])
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -2242,9 +2279,7 @@ class Choices(DecisionPoint):
         self._space_size = _space_size(sub_space_sizes, self.num_choices)
     return self._space_size
 
-  def next_dna(self,
-               dna: Optional['DNA'] = None,
-               attach_spec: bool = True) -> Optional['DNA']:
+  def _next_dna(self, dna: Optional['DNA'] = None) -> Optional['DNA']:
     """Returns the next DNA."""
     if dna is None:
       choice_dna_list = []
@@ -2252,7 +2287,7 @@ class Choices(DecisionPoint):
         choice = i if self.distinct else 0
         dna = self.candidates[choice].first_dna(attach_spec=False)
         choice_dna_list.append(DNA(choice, [dna]))
-      return DNA(None, choice_dna_list, spec=self if attach_spec else None)
+      return DNA(None, choice_dna_list)
 
     if self.num_choices == 1:
       # NOTE(daiyip): the DNA represenation of Choices should be
@@ -2346,9 +2381,25 @@ class Choices(DecisionPoint):
               DNA(v, [self.candidates[v].first_dna(attach_spec=False)])
               for v in remaining_choices
           ]
-          return DNA(parent_choice_value,
-                     subdna_list, spec=self if attach_spec else None)
+          return DNA(parent_choice_value, subdna_list)
     return None
+
+  def _random_dna(
+      self,
+      random_generator: Union[random.Random, types.ModuleType]) -> DNA:
+    """Returns a random DNA based on current spec."""
+    if self.distinct:
+      choices = random_generator.sample(
+          list(range(len(self.candidates))), self.num_choices)
+    else:
+      choices = [random_generator.randint(0, len(self.candidates) - 1)
+                 for _ in range(self.num_choices)]
+    if self.sorted:
+      choices = sorted(choices)
+    return DNA(value=None, children=[
+        DNA(value=c, children=[
+            self.candidates[c].random_dna(random_generator, False)])
+        for c in choices])
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -2481,24 +2532,26 @@ class Float(DecisionPoint):
     """Returns the size of the search space. Use -1 for infinity."""
     return -1
 
-  def next_dna(self,
-               dna: Optional['DNA'] = None,
-               attach_spec: bool = True) -> Optional['DNA']:
+  def _next_dna(self, dna: Optional['DNA'] = None) -> Optional['DNA']:
     """Returns the next DNA in the space represented by this spec.
 
     Args:
       dna: The DNA whose next will be returned. If None, `next_dna` will return
         the first DNA.
-      attach_spec: If True, current spec will be attached to the returned DNA.
 
     Returns:
       The next DNA or None if there is no next DNA.
     """
     if dna is None:
-      return DNA(self.min_value, spec=self if attach_spec else None)
+      return DNA(self.min_value)
     # TODO(daiyip): Use hint for implementing stateful `next_dna`.
-    raise NotImplementedError(
-        '`next_dna` is not supported on `Float` yet.')
+    raise NotImplementedError('`next_dna` is not supported on `Float` yet.')
+
+  def _random_dna(
+      self,
+      random_generator: Union[random.Random, types.ModuleType]) -> DNA:
+    """Returns a random DNA based on current spec."""
+    return DNA(value=random_generator.uniform(self.min_value, self.max_value))
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -2547,8 +2600,21 @@ class Float(DecisionPoint):
 
 
 @symbolic.members(
-    [],
-    init_arg_list=['hints', 'location', 'name'],
+    [
+        ('hyper_type', schema.Str().noneable(),
+         'The display type for the decision point.'),
+        ('next_dna_fn', schema.Callable(
+            [schema.Object(DNA).noneable()],
+            returns=schema.Object(DNA).noneable()).noneable(),
+         'An optional callable object to get the next DNA for current point.'),
+        ('random_dna_fn', schema.Callable(
+            [schema.Any()],    # Random module or object.
+            returns=schema.Object(DNA)).noneable(),
+         'An optional callable object to get a random DNA for current point.'),
+    ],
+    init_arg_list=[
+        'hyper_type', 'next_dna_fn', 'random_dna_fn',
+        'hints', 'location', 'name'],
     # TODO(daiyip): For backward compatibility.
     # Move this to additional keys later.
     serialization_key='pyglove.generators.geno.CustomDecisionPoint',
@@ -2578,21 +2644,28 @@ class CustomDecisionPoint(DecisionPoint):
     """Returns the size of the search space. Use -1 for infinity."""
     return -1
 
-  def next_dna(self,
-               dna: Optional['DNA'] = None,
-               attach_spec: bool = True) -> Optional['DNA']:
+  def _next_dna(self, dna: Optional['DNA'] = None) -> Optional['DNA']:
     """Returns the next DNA in the space represented by this spec.
 
     Args:
       dna: The DNA whose next will be returned. If None, `next_dna` will return
         the first DNA.
-      attach_spec: If True, current spec will be attached to the returned DNA.
 
     Returns:
       The next DNA or None if there is no next DNA.
     """
-    raise NotImplementedError(
-        '`next_dna` is not supported on `CustomDecisionPoint`.')
+    if self.next_dna_fn is None:
+      raise NotImplementedError(
+          '`next_dna` is not supported on `CustomDecisionPoint`.')
+    return self.next_dna_fn(dna)
+
+  def _random_dna(
+      self, random_generator: Union[types.ModuleType, random.Random]) -> DNA:
+    """Returns a random DNA based on current spec."""
+    if self.random_dna_fn is None:
+      raise NotImplementedError(
+          '`random_dna` is not supported on `CustomDecisionPoint`.')
+    return self.random_dna_fn(random_generator)
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -2604,6 +2677,21 @@ class CustomDecisionPoint(DecisionPoint):
       raise ValueError(
           f'CustomDecisionPoint expects string type DNA. '
           f'Encountered: {dna!r}, Location: {self.location.path}.')
+
+  def sym_jsonify(self, **kwargs: Any) -> object_utils.JSONValueType:
+    """Overrides sym_jsonify to exclude non-serializable fields."""
+    exclude_keys = kwargs.pop('exclude_keys', [])
+    exclude_keys.extend(['random_dna_fn', 'next_dna_fn'])
+    return super().sym_jsonify(exclude_keys=exclude_keys, **kwargs)
+
+  def sym_eq(self, other: Any) -> bool:
+    """Overrides sym_eq to exclude non-serializable fields."""
+    if not isinstance(other, CustomDecisionPoint):
+      return False
+    return (self.hyper_type == other.hyper_type
+            and self.name == other.name
+            and self.location == other.location
+            and self.hints == other.hints)
 
   def format(self,
              compact: bool = True,
@@ -2619,6 +2707,7 @@ class CustomDecisionPoint(DecisionPoint):
     else:
       kvlist = []
     details = object_utils.kvlist_str(kvlist + [
+        ('hyper_type', object_utils.quote_if_str(self.hyper_type), None),
         ('name', object_utils.quote_if_str(self.name), None),
         ('hints', object_utils.quote_if_str(self.hints), None),
     ])
@@ -2834,7 +2923,11 @@ def floatv(min_value: float,
                hints=hints, location=location, name=name)
 
 
-def custom(hints: Any = None,
+def custom(hyper_type: Optional[Text] = None,
+           next_dna_fn: Optional[
+               Callable[[Optional[DNA]], Optional[DNA]]] = None,
+           random_dna_fn: Optional[Callable[[Any], DNA]] = None,
+           hints: Any = None,
            location: object_utils.KeyPath = object_utils.KeyPath(),
            name: Optional[Text] = None) -> CustomDecisionPoint:
   """Returns a custom decision point.
@@ -2843,9 +2936,14 @@ def custom(hints: Any = None,
 
   Example::
 
-    spec = pg.geno.custom(hints='some hints')
+    spec = pg.geno.custom('my_hyper', hints='some hints')
 
   Args:
+    hyper_type: An optional display type for the custom decision point.
+    next_dna_fn: An optional callable for computing the next DNA for current
+      decision point.
+    random_dna_fn: An optional callable for computing a random DNA for current
+      decision point.
     hints: An optional hint object.
     location: A ``pg.KeyPath`` object that indicates the location of the
       decision point.
@@ -2863,7 +2961,9 @@ def custom(hints: Any = None,
     * :func:`pyglove.geno.manyof`
     * :func:`pyglove.geno.floatv`
   """
-  return CustomDecisionPoint(hints=hints, location=location, name=name)
+  return CustomDecisionPoint(
+      hyper_type, next_dna_fn=next_dna_fn, random_dna_fn=random_dna_fn,
+      hints=hints, location=location, name=name)
 
 
 #
@@ -3229,7 +3329,8 @@ class Deduping(DNAGenerator):
 
 def random_dna(
     dna_spec: DNASpec,
-    random_generator: Union[None, types.ModuleType, random.Random] = None
+    random_generator: Union[None, types.ModuleType, random.Random] = None,
+    attach_spec: bool = True
     ) -> DNA:
   """Generates a random DNA from a DNASpec.
 
@@ -3250,28 +3351,12 @@ def random_dna(
   Args:
     dna_spec: a DNASpec object.
     random_generator: a Python random generator.
+    attach_spec: If True, attach the DNASpec to generated DNA.
 
   Returns:
     A DNA object.
   """
-  r = random_generator or random
-  def generator_fn(dna_spec: DNASpec):
-    """DNA generation function."""
-    if isinstance(dna_spec, Choices):
-      if dna_spec.distinct:
-        choices = r.sample(
-            list(range(len(dna_spec.candidates))), dna_spec.num_choices)
-      else:
-        choices = [r.randint(0, len(dna_spec.candidates) - 1)
-                   for _ in range(dna_spec.num_choices)]
-      if dna_spec.sorted:
-        choices = sorted(choices)
-      return choices
-    elif isinstance(dna_spec, Float):
-      return r.uniform(dna_spec.min_value, dna_spec.max_value)
-    else:
-      raise ValueError(f'\'random_dna\' for {dna_spec!r} is not supported.')
-  return DNA.from_fn(dna_spec, generator_fn).use_spec(dna_spec)
+  return dna_spec.random_dna(random_generator or random, attach_spec)
 
 
 def dna_generator(func: Callable[[DNASpec], Iterator[DNA]]):

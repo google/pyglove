@@ -157,8 +157,9 @@ class Uniform(base.Mutator):
       return False
     if self.where and not self.where(obj):
       return False
-    return (isinstance(obj.spec, pg.geno.Choices) or
-            isinstance(obj.spec, pg.geno.Float))
+    return isinstance(obj.spec, (pg.geno.Choices,
+                                 pg.geno.Float,
+                                 pg.geno.CustomDecisionPoint))
 
 
 @pg.members([

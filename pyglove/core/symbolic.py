@@ -3139,8 +3139,10 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
   def sym_jsonify(
       self,
       hide_default_values: bool = False,
+      exclude_keys: typing.Optional[typing.Sequence[typing.Text]] = None,
       **kwargs) -> object_utils.JSONValueType:
     """Converts current object to a dict with plain Python objects."""
+    exclude_keys = set(exclude_keys or [])
     if self._value_spec and self._value_spec.schema:
       json_repr = dict()
       matched_keys, _ = self._value_spec.schema.resolve(self.keys())
@@ -3150,16 +3152,18 @@ class Dict(dict, Symbolic, schema_lib.CustomTyping):
         field = self._value_spec.schema[key_spec]
         if not field.frozen:
           for key in keys:
-            value = self[key]
-            if schema_lib.MISSING_VALUE == value:
-              continue
-            if hide_default_values and value == field.default_value:
-              continue
-            json_repr[key] = to_json(
-                value, hide_default_values=hide_default_values, **kwargs)
+            if key not in exclude_keys:
+              value = self[key]
+              if schema_lib.MISSING_VALUE == value:
+                continue
+              if hide_default_values and value == field.default_value:
+                continue
+              json_repr[key] = to_json(
+                  value, hide_default_values=hide_default_values, **kwargs)
       return json_repr
     else:
-      return {k: to_json(v, **kwargs) for k, v in self.items()}
+      return {k: to_json(v, **kwargs)
+              for k, v in self.items() if k not in exclude_keys}
 
   def custom_apply(
       self,

@@ -1579,8 +1579,10 @@ class DNASpecTest(unittest.TestCase):
 
   def testCustomDecisionPoint(self):
     """Test geno.CustomDecisionPoint."""
-    custom_dp = geno.CustomDecisionPoint(hints=1, location='a.b')
+    custom_dp = geno.CustomDecisionPoint(
+        hyper_type='CustomA', hints=1, location='a.b')
     self.assertEqual(custom_dp.location.keys, ['a', 'b'])
+    self.assertEqual(custom_dp.hyper_type, 'CustomA')
     self.assertEqual(custom_dp.hints, 1)
     self.assertTrue(custom_dp.is_leaf)
     self.assertEqual(len(custom_dp), 1)
@@ -2081,7 +2083,7 @@ class RandomTest(unittest.TestCase):
                      geno.DNA(0))
 
     with self.assertRaisesRegex(
-        ValueError, '\'random_dna\' for .* is not supported'):
+        NotImplementedError, '`random_dna` is not supported'):
       _ = geno.random_dna(geno.custom())
 
 
