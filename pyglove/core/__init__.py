@@ -281,7 +281,7 @@ JSONConvertible = object_utils.JSONConvertible
 
 is_partial = object_utils.is_partial
 format = object_utils.format   # pylint: disable=redefined-builtin
-print = object_utils.printv    # pylint: disable=redefined-builtin
+print = object_utils.print    # pylint: disable=redefined-builtin
 
 
 #

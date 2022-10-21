@@ -2290,7 +2290,7 @@ class Symbolic(object_utils.JSONConvertible, object_utils.MaybePartial,
       v = self
     else:
       v = query(self, path_regex, where, False, custom_selector)
-    object_utils.printv(v, file=file, **kwargs)
+    object_utils.print(v, file=file, **kwargs)
 
   def __str__(self) -> typing.Text:
     """Override Formattable.__str__ by setting verbose to False."""
