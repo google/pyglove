@@ -14,6 +14,7 @@
 """Tests for pyglove.hyper."""
 
 import random
+import re
 import threading
 import unittest
 
@@ -756,7 +757,8 @@ class CustomHyperTest(unittest.TestCase):
         v.append(len(v))
         return self._create_dna(v)
 
-      def random_dna(self, random_generator):
+      def random_dna(self, random_generator, previous_dna):
+        del previous_dna
         k = random_generator.randint(0, 10)
         v = random_generator.choices(list(range(10)), k=k)
         return self._create_dna(v)
@@ -829,6 +831,230 @@ class CustomHyperTest(unittest.TestCase):
     ])
     self.assertEqual(hyper.materialize(hv, geno.DNA(1)), 1)
     self.assertEqual(hyper.materialize(hv, geno.DNA((0, '3,4'))), [3, 4])
+
+
+#
+# Classes used for evolvable tests.
+#
+
+
+class Layer(symbolic.Object):
+  pass
+
+
+@symbolic.members([
+    ('layers', schema.List(schema.Object(Layer))),
+])
+class Sequential(Layer):
+  pass
+
+
+class Activation(Layer):
+  pass
+
+
+class ReLU(Activation):
+  pass
+
+
+class Swish(Activation):
+  pass
+
+
+@symbolic.members([
+    ('filters', schema.Int(min_value=1)),
+    # `kernel_size` is marked as no_mutation, which should not appear as a
+    # mutation candidate.
+    ('kernel_size', schema.Int(min_value=1), '', {'no_mutation': True}),
+    ('activation', schema.Object(Activation).noneable())
+])
+class Conv(Layer):
+  pass
+
+
+class EvolvableTest(unittest.TestCase):
+  """Tests for hyper.evolvable."""
+
+  def setUp(self):
+    super().setUp()
+    self._seed_program = Sequential([
+        Conv(16, 3, ReLU()),
+        Conv(32, 5, Swish()),
+        Sequential([
+            Conv(64, 7)
+        ])
+    ])
+    def mutate_at_location(
+        mutation_type: hyper.MutationType, location: str):
+      def _weights(mt, k, v, p):
+        del v, p
+        if mt == mutation_type and re.match(location, str(k)):
+          return 1.0
+        return 0.0
+      return _weights
+    self._mutate_at_location = mutate_at_location
+
+  def testBasics(self):
+    v = hyper.evolve(
+        self._seed_program, lambda k, v, p: ReLU(),
+        weights=self._mutate_at_location(
+            hyper.MutationType.REPLACE, r'^layers\[.*\]$'))
+    self.assertEqual(
+        self._seed_program,
+        v.custom_decode(v.custom_encode(self._seed_program)))
+    self.assertEqual(
+        v.first_dna(),
+        v.custom_encode(self._seed_program))
+    self.assertEqual(v.random_dna(), v.custom_encode(self._seed_program))
+    self.assertEqual(
+        v.random_dna(random.Random(1), v.first_dna()),
+        v.custom_encode(
+            Sequential([
+                ReLU(),
+                Conv(32, 5, Swish()),
+                Sequential([
+                    Conv(64, 7)
+                ])
+            ])))
+
+  def testReplace(self):
+    v = hyper.evolve(
+        self._seed_program, lambda k, v, p: ReLU(),
+        weights=self._mutate_at_location(
+            hyper.MutationType.REPLACE, r'^layers\[1\]$'))
+    self.assertEqual(
+        v.mutate(self._seed_program),
+        Sequential([
+            Conv(16, 3, ReLU()),
+            ReLU(),
+            Sequential([
+                Conv(64, 7)
+            ])
+        ]))
+
+  def testInsertion(self):
+    v = hyper.evolve(
+        self._seed_program, lambda k, v, p: ReLU(),
+        weights=self._mutate_at_location(
+            hyper.MutationType.INSERT, r'^layers\[1\]$'))
+    self.assertEqual(
+        v.mutate(self._seed_program),
+        Sequential([
+            Conv(16, 3, ReLU()),
+            ReLU(),
+            Conv(32, 5, Swish()),
+            Sequential([
+                Conv(64, 7)
+            ])
+        ]))
+
+  def testDelete(self):
+    v = hyper.evolve(
+        self._seed_program, lambda k, v, p: ReLU(),
+        weights=self._mutate_at_location(
+            hyper.MutationType.DELETE, r'^layers\[1\]$'))
+    self.assertEqual(
+        v.mutate(self._seed_program, random.Random(1)),
+        Sequential([
+            Conv(16, 3, ReLU()),
+            Sequential([
+                Conv(64, 7)
+            ])
+        ]))
+
+  def testRandomGenerator(self):
+    v = hyper.evolve(
+        self._seed_program, lambda k, v, p: ReLU(),
+        weights=self._mutate_at_location(
+            hyper.MutationType.REPLACE, r'^layers\[.*\]$'))
+    self.assertEqual(
+        v.mutate(self._seed_program, random_generator=random.Random(1)),
+        Sequential([
+            ReLU(),
+            Conv(32, 5, Swish()),
+            Sequential([
+                Conv(64, 7)
+            ])
+        ]))
+
+  def testMutationPointsAndWeights(self):
+    v = hyper.evolve(
+        self._seed_program,
+        lambda k, v, p: v,
+        weights=lambda *x: 1.0)
+    points, weights = v.mutation_points_and_weights(self._seed_program)
+
+    # NOTE(daiyip): Conv.kernel_size is marked with 'no_mutation', thus
+    # it should not show here.
+    self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (hyper.MutationType.REPLACE, 'layers'),
+        (hyper.MutationType.INSERT, 'layers[0]'),
+        (hyper.MutationType.DELETE, 'layers[0]'),
+        (hyper.MutationType.REPLACE, 'layers[0]'),
+        (hyper.MutationType.REPLACE, 'layers[0].filters'),
+        (hyper.MutationType.REPLACE, 'layers[0].activation'),
+        (hyper.MutationType.INSERT, 'layers[1]'),
+        (hyper.MutationType.DELETE, 'layers[1]'),
+        (hyper.MutationType.REPLACE, 'layers[1]'),
+        (hyper.MutationType.REPLACE, 'layers[1].filters'),
+        (hyper.MutationType.REPLACE, 'layers[1].activation'),
+        (hyper.MutationType.INSERT, 'layers[2]'),
+        (hyper.MutationType.DELETE, 'layers[2]'),
+        (hyper.MutationType.REPLACE, 'layers[2]'),
+        (hyper.MutationType.REPLACE, 'layers[2].layers'),
+        (hyper.MutationType.INSERT, 'layers[2].layers[0]'),
+        (hyper.MutationType.DELETE, 'layers[2].layers[0]'),
+        (hyper.MutationType.REPLACE, 'layers[2].layers[0]'),
+        (hyper.MutationType.REPLACE, 'layers[2].layers[0].filters'),
+        (hyper.MutationType.REPLACE, 'layers[2].layers[0].activation'),
+        (hyper.MutationType.INSERT, 'layers[2].layers[1]'),
+        (hyper.MutationType.INSERT, 'layers[3]'),
+    ])
+    self.assertEqual(weights, [1.0] * len(points))
+
+  def testMutationPointsAndWeightsWithHonoringListSize(self):
+    # Non-typed list. There is no size limit.
+    v = hyper.evolve(
+        symbolic.List([]), lambda k, v, p: v,
+        weights=lambda *x: 1.0)
+    points, _ = v.mutation_points_and_weights(symbolic.List([1]))
+    self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (hyper.MutationType.INSERT, '[0]'),
+        (hyper.MutationType.DELETE, '[0]'),
+        (hyper.MutationType.REPLACE, '[0]'),
+        (hyper.MutationType.INSERT, '[1]'),
+    ])
+
+    # Typed list with size limit.
+    value_spec = schema.List(schema.Int(), min_size=1, max_size=3)
+    points, _ = v.mutation_points_and_weights(
+        symbolic.List([1, 2], value_spec=value_spec))
+    self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (hyper.MutationType.INSERT, '[0]'),
+        (hyper.MutationType.DELETE, '[0]'),
+        (hyper.MutationType.REPLACE, '[0]'),
+        (hyper.MutationType.INSERT, '[1]'),
+        (hyper.MutationType.DELETE, '[1]'),
+        (hyper.MutationType.REPLACE, '[1]'),
+        (hyper.MutationType.INSERT, '[2]'),
+    ])
+    points, _ = v.mutation_points_and_weights(
+        symbolic.List([1], value_spec=value_spec))
+    self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (hyper.MutationType.INSERT, '[0]'),
+        (hyper.MutationType.REPLACE, '[0]'),
+        (hyper.MutationType.INSERT, '[1]'),
+    ])
+    points, _ = v.mutation_points_and_weights(
+        symbolic.List([1, 2, 3], value_spec=value_spec))
+    self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (hyper.MutationType.DELETE, '[0]'),
+        (hyper.MutationType.REPLACE, '[0]'),
+        (hyper.MutationType.DELETE, '[1]'),
+        (hyper.MutationType.REPLACE, '[1]'),
+        (hyper.MutationType.DELETE, '[2]'),
+        (hyper.MutationType.REPLACE, '[2]'),
+    ])
 
 
 class TunableValueHelpersTests(unittest.TestCase):

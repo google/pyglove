@@ -64,7 +64,10 @@ Hyper values map 1:1 to genotypes as the following:
 import abc
 import contextlib
 import copy
+import dataclasses
+import enum
 import numbers
+import random
 import threading
 import types
 import typing
@@ -876,12 +879,15 @@ class CustomHyper(HyperPrimitive):
           f'dynamic evaluation mode.')
     return self.next_dna(None)
 
-  def next_dna(self, dna: Optional[geno.DNA]) -> Optional[geno.DNA]:
+  def next_dna(self, dna: Optional[geno.DNA] = None) -> Optional[geno.DNA]:
     """Subclasses should override this method to support pg.Sweeping."""
     raise NotImplementedError(
         f'`next_dna` is not implemented in f{self.__class__!r}')
 
-  def random_dna(self, random_generator) -> geno.DNA:
+  def random_dna(
+      self,
+      random_generator: Union[types.ModuleType, random.Random, None] = None,
+      previous_dna: Optional[geno.DNA] = None) -> geno.DNA:
     """Subclasses should override this method to support pg.random_dna."""
     raise NotImplementedError(
         f'`random_dna` is not implemented in {self.__class__!r}')
@@ -898,6 +904,173 @@ class CustomHyper(HyperPrimitive):
     del path, value_spec, allow_partial, child_transform
     # Allow custom hyper to be assigned to any type.
     return (False, self)
+
+
+class MutationType(str, enum.Enum):
+  """Mutation type."""
+  REPLACE = 0
+  INSERT = 1
+  DELETE = 2
+
+
+@dataclasses.dataclass
+class MutationPoint:
+  """Internal class that encapsulates the information for a mutation point.
+
+  Attributes:
+    mutation_type: The type of the mutation.
+    location: The location where the mutation will take place.
+    old_value: The value of the mutation point before mutation.
+    parent: The parent node of the mutation point.
+  """
+  mutation_type: 'MutationType'
+  location: object_utils.KeyPath
+  old_value: Any
+  parent: symbolic.Symbolic
+
+
+class Evolvable(CustomHyper):
+  """Hyper primitive for evolving an arbitrary symbolic object."""
+
+  def _on_bound(self):
+    super()._on_bound()
+    self._weights = self.weights or (lambda mt, k, v, p: 1.0)
+
+  def custom_decode(self, dna: geno.DNA) -> Any:
+    assert isinstance(dna.value, str)
+    # TODO(daiyip): consider compression.
+    return symbolic.from_json_str(dna.value)
+
+  def custom_encode(self, value: Any) -> geno.DNA:
+    return geno.DNA(symbolic.to_json_str(value))
+
+  def mutation_points_and_weights(
+      self,
+      value: symbolic.Symbolic) -> Tuple[List[MutationPoint], List[float]]:
+    """Returns mutation points with weights for a symbolic tree."""
+    mutation_points: List[MutationPoint] = []
+    mutation_weights: List[float] = []
+
+    def _choose_mutation_point(k: object_utils.KeyPath,
+                               v: Any,
+                               p: Optional[symbolic.Symbolic]):
+      """Visiting function for a symbolic node."""
+      def _add_point(mt: MutationType, k=k, v=v, p=p):
+        assert p is not None
+        mutation_points.append(MutationPoint(mt, k, v, p))
+        mutation_weights.append(self._weights(mt, k, v, p))
+
+      if p is not None:
+        # Stopping mutating current branch if metadata said so.
+        f = p.sym_attr_field(k.key)
+        if f and f.metadata and 'no_mutation' in f.metadata:
+          return symbolic.TraverseAction.CONTINUE
+        _add_point(MutationType.REPLACE)
+
+      # Special handle list traversal to add insertion and deletion.
+      if isinstance(v, symbolic.List):
+        if v.value_spec:
+          spec = v.value_spec
+          reached_max_size = spec.max_size and len(v) == spec.max_size
+          reached_min_size = spec.min_size and len(v) == spec.min_size
+        else:
+          reached_max_size = False
+          reached_min_size = False
+
+        for i, cv in enumerate(v):
+          ck = object_utils.KeyPath(i, parent=k)
+          if not reached_max_size:
+            _add_point(MutationType.INSERT,
+                       k=ck, v=object_utils.MISSING_VALUE, p=v)
+
+          if not reached_min_size:
+            _add_point(MutationType.DELETE, k=ck, v=cv, p=v)
+
+          # Replace type and value will be added in traverse.
+          symbolic.traverse(cv, _choose_mutation_point, root_path=ck, parent=v)
+          if not reached_max_size and i == len(v) - 1:
+            _add_point(MutationType.INSERT,
+                       k=object_utils.KeyPath(i + 1, parent=k),
+                       v=object_utils.MISSING_VALUE,
+                       p=v)
+        return symbolic.TraverseAction.CONTINUE
+      return symbolic.TraverseAction.ENTER
+
+    # First-order traverse the symbolic tree to compute
+    # the mutation points and weights.
+    symbolic.traverse(value, _choose_mutation_point)
+    return mutation_points, mutation_weights
+
+  def first_dna(self) -> geno.DNA:
+    """Returns the first DNA of current sub-space."""
+    return self.custom_encode(self.initial_value)
+
+  def random_dna(
+      self,
+      random_generator: Union[types.ModuleType, random.Random, None] = None,
+      previous_dna: Optional[geno.DNA] = None) -> geno.DNA:
+    """Generates a random DNA."""
+    random_generator = random_generator or random
+    if previous_dna is None:
+      return self.first_dna()
+    return self.custom_encode(
+        self.mutate(self.custom_decode(previous_dna), random_generator))
+
+  def mutate(
+      self,
+      value: symbolic.Symbolic,
+      random_generator: Union[types.ModuleType, random.Random, None] = None
+      ) -> symbolic.Symbolic:
+    """Returns the next value for a symbolic value."""
+    r = random_generator or random
+    points, weights = self.mutation_points_and_weights(value)
+    [point] = r.choices(points, weights, k=1)
+
+    # Mutating value.
+    if point.mutation_type == MutationType.REPLACE:
+      assert point.location, point
+      value.rebind({
+          str(point.location): self.node_transform(
+              point.location, point.old_value, point.parent)})
+    elif point.mutation_type == MutationType.INSERT:
+      assert isinstance(point.parent, symbolic.List), point
+      assert point.old_value == object_utils.MISSING_VALUE, point
+      assert isinstance(point.location.key, int), point
+      with symbolic.allow_writable_accessors():
+        point.parent.insert(
+            point.location.key,
+            self.node_transform(point.location, point.old_value, point.parent))
+    else:
+      assert point.mutation_type == MutationType.DELETE, point
+      assert isinstance(point.parent, symbolic.List), point
+      assert isinstance(point.location.key, int), point
+      with symbolic.allow_writable_accessors():
+        del point.parent[point.location.key]
+    return value
+
+
+# We defer members declaration for Evolvable since the weights will reference
+# the definition of MutationType.
+symbolic.members([
+    ('initial_value', schema.Object(symbolic.Symbolic),
+     'Symbolic value to involve.'),
+    ('node_transform', schema.Callable(
+        [],
+        returns=schema.Any()),
+     ''),
+    ('weights', schema.Callable(
+        [
+            schema.Object(MutationType),
+            schema.Object(object_utils.KeyPath),
+            schema.Any().noneable(),
+            schema.Object(symbolic.Symbolic)
+        ], returns=schema.Float(min_value=0.0)).noneable(),
+     ('An optional callable object that returns the unnormalized (e.g. '
+      'the sum of all probabilities do not have to sum to 1.0) mutation '
+      'probabilities for all the nodes in the symbolic tree, based on '
+      '(mutation type, location, old value, parent node). If None, all the '
+      'locations and mutation types will be sampled uniformly.')),
+])(Evolvable)
 
 
 @symbolic.members([
@@ -1473,6 +1646,7 @@ def oneof(candidates: Iterable[Any],
     * :func:`pyglove.manyof`
     * :func:`pyglove.floatv`
     * :func:`pyglove.permutate`
+    * :func:`pyglove.evolve`
 
   .. note::
 
@@ -1575,6 +1749,7 @@ def manyof(k: int,
     * :func:`pyglove.manyof`
     * :func:`pyglove.floatv`
     * :func:`pyglove.permutate`
+    * :func:`pyglove.evolve`
 
   Args:
     k: number of choices to make. Should be no larger than the length of
@@ -1675,6 +1850,7 @@ def permutate(candidates: Iterable[Any],
     * :func:`pyglove.oneof`
     * :func:`pyglove.manyof`
     * :func:`pyglove.floatv`
+    * :func:`pyglove.evolve`
 
   Args:
     candidates: Candidates to select from. Items of candidate can be any type,
@@ -1726,6 +1902,7 @@ def floatv(min_value: float,
     * :func:`pyglove.oneof`
     * :func:`pyglove.manyof`
     * :func:`pyglove.permutate`
+    * :func:`pyglove.evolve`
 
   .. note::
 
@@ -1775,6 +1952,91 @@ def floatv(min_value: float,
 
 # For backward compatibility
 float_value = floatv
+
+
+def evolve(
+    initial_value: symbolic.Symbolic,
+    node_transform: Callable[
+        [
+            object_utils.KeyPath,    # Location.
+            Any,                     # Old value.
+                                     # pg.MISSING_VALUE for insertion.
+            symbolic.Symbolic,       # Parent node.
+        ],
+        Any                          # Replacement.
+    ],
+    *,
+    weights: Optional[Callable[
+        [
+            MutationType,  # Mutation type.
+            object_utils.KeyPath,    # Location.
+            Any,                     # Value.
+            symbolic.Symbolic,       # Parent.
+        ],
+        float                        # Mutation weight.
+    ]] = None,  # pylint: disable=bad-whitespace
+    name: Optional[Text] = None,
+    hints: Optional[Any] = None) -> Evolvable:
+  """An evolvable symbolic value.
+
+  Example::
+
+    @pg.symbolize
+    @dataclasses.dataclass
+    class Foo:
+      x: int
+      y: int
+
+    @pg.symbolize
+    @dataclasses.dataclass
+    class Bar:
+      a: int
+      b: int
+
+    # Defines possible transitions.
+    def node_transform(location, value, parent):
+      if isinstance(value, Foo)
+        return Bar(value.x, value.y)
+      if location.key == 'x':
+        return random.choice([1, 2, 3])
+      if location.key == 'y':
+        return random.choice([3, 4, 5])
+
+    v = pg.evolve(Foo(1, 3), node_transform)
+
+  See also:
+
+    * :class:`pyglove.hyper.Evolvable`
+    * :func:`pyglove.oneof`
+    * :func:`pyglove.manyof`
+    * :func:`pyglove.permutate`
+    * :func:`pyglove.floatv`
+
+  Args:
+    initial_value: The initial value to evolve.
+    node_transform: A callable object that takes information of the value to
+      operate (e.g. location, old value, parent node) and returns a new value as
+      a replacement for the node. Such information allows users to not only
+      access the mutation node, but the entire symbolic tree if needed, allowing
+      complex mutation rules to be written with ease - for example - check
+      adjacent nodes while modifying a list element. This function is designed
+      to take care of both node replacements and node insertions. When insertion
+      happens, the old value for the location will be `pg.MISSING_VALUE`. See
+      `pg.composing.SeenObjectReplacer` as an example.
+    weights: An optional callable object that returns the unnormalized (e.g.
+      the sum of all probabilities don't have to sum to 1.0) mutation
+      probabilities for all the nodes in the symbolic tree, based on (mutation
+      type, location, old value, parent node), If None, all the locations and
+      mutation types will be sampled uniformly.
+    name: An optional name of the decision point.
+    hints: An optional hints for the decision point.
+
+  Returns:
+    A `pg.hyper.Evolvable` object.
+  """
+  return Evolvable(
+      initial_value=initial_value, node_transform=node_transform,
+      weights=weights, name=name, hints=hints)
 
 
 def template(

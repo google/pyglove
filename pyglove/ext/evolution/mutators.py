@@ -76,7 +76,8 @@ class Uniform(base.Mutator):
         child_nodes, parent_nodes, child_indexes)))
     if parent_node is None:
       # The node mutated ("child") is the root of the DNA tree.
-      return pg.random_dna(child_node.spec, self._random)
+      return pg.random_dna(
+          child_node.spec, self._random, previous_dna=child_node)
     else:
       # The node mutated is not the root of the DNA tree.
       if _node_needs_distinct(child_node.spec):
@@ -94,13 +95,16 @@ class Uniform(base.Mutator):
           new_child_node = pg.DNA(
               new_child_value,
               children=[pg.random_dna(
-                  child_node.spec.candidates[new_child_value], self._random)])
+                  child_node.spec.candidates[new_child_value],
+                  # Choice has changed for the new node,
+                  # thus previous_dna does not apply.
+                  self._random, previous_dna=None)])
           new_child_node.use_spec(child_node.spec)
         else:
           new_child_node = None
       else:
         new_child_node = pg.random_dna(
-            child_node.spec, self._random)
+            child_node.spec, self._random, previous_dna=child_node)
       if new_child_node is not None:
         # NOTE(daiyip): we update the children without invalidating the internal
         # states of the DNA for better performance.

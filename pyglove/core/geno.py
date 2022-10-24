@@ -252,27 +252,30 @@ class DNASpec(symbolic.Object):
                  random_generator: Union[types.ModuleType,
                                          random.Random,
                                          None] = None,
-                 attach_spec: bool = True) -> 'DNA':
+                 attach_spec: bool = True,
+                 previous_dna: Optional['DNA'] = None) -> 'DNA':
     """Returns a random DNA based on current spec.
 
     Args:
       random_generator: An optional Random object. If None, the global random
         module will be used.
       attach_spec: If True, current spec will be attached to the returned DNA.
+      previous_dna: An optional DNA representing previous DNA. This field might
+        be useful for generating stateful random DNAs.
 
     Returns:
       A random DNA based on current spec.
     """
     random_generator = random_generator or random
-    dna = self._random_dna(random_generator)
+    dna = self._random_dna(random_generator, previous_dna)
     if attach_spec:
       dna.use_spec(self)
     return dna
 
   @abc.abstractmethod
   def _random_dna(self,
-                  random_generator: Union[types.ModuleType, random.Random]
-                  ) -> 'DNA':
+                  random_generator: Union[types.ModuleType, random.Random],
+                  previous_dna: Optional['DNA']) -> 'DNA':
     """Random DNA generation logic that should be overridden by subclasses."""
 
   def iter_dna(self, dna: Optional['DNA'] = None, attach_spec: bool = True):
@@ -1890,10 +1893,24 @@ class Space(DNASpec):
 
   def _random_dna(
       self,
-      random_generator: Union[random.Random, types.ModuleType]) -> DNA:
+      random_generator: Union[random.Random, types.ModuleType],
+      previous_dna: Optional[DNA]) -> DNA:
     """Returns a random DNA based on current spec."""
+    if previous_dna is None:
+      child_dnas = [None] * len(self.elements)
+    else:
+      # Previous DNA could be in three forms.
+      # DNA(None, dna_for_elements)
+      # dna_for_element_1 (where elements == 1)
+      if len(self.elements) == 1:
+        child_dnas = [previous_dna]
+      else:
+        assert previous_dna.value is None, previous_dna
+        child_dnas = previous_dna.children
+      assert len(child_dnas) == len(self.elements), (self, child_dnas)
     return DNA(value=None, children=[
-        elem.random_dna(random_generator, False) for elem in self.elements])
+        self.elements[i].random_dna(random_generator, False, child_dnas[i])
+        for i in range(len(self.elements))])
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -2386,7 +2403,8 @@ class Choices(DecisionPoint):
 
   def _random_dna(
       self,
-      random_generator: Union[random.Random, types.ModuleType]) -> DNA:
+      random_generator: Union[random.Random, types.ModuleType],
+      previous_dna: Optional[DNA]) -> DNA:
     """Returns a random DNA based on current spec."""
     if self.distinct:
       choices = random_generator.sample(
@@ -2396,10 +2414,33 @@ class Choices(DecisionPoint):
                  for _ in range(self.num_choices)]
     if self.sorted:
       choices = sorted(choices)
-    return DNA(value=None, children=[
-        DNA(value=c, children=[
-            self.candidates[c].random_dna(random_generator, False)])
-        for c in choices])
+
+    # Figure out previous DNAs.
+    if previous_dna is None:
+      child_dnas = [None] * len(choices)
+    else:
+      if self.num_choices == 1:
+        choices_dnas = [previous_dna]
+      else:
+        choices_dnas = list(previous_dna.children)
+      assert len(choices_dnas) == self.num_choices, (self, choices_dnas)
+      child_dnas = []
+      for i, (choice_dna, choice) in enumerate(zip(choices_dnas, choices)):
+        if choice_dna.value != choice:
+          child_dna = None
+        else:
+          child_dna = DNA(
+              None,
+              children=choice_dna.children,
+              spec=self.candidates[choice])
+        child_dnas.append(child_dna)
+
+    children = []
+    for i, c in enumerate(choices):
+      children.append(DNA(value=c, children=[
+          self.candidates[c].random_dna(
+              random_generator, False, child_dnas[i])]))
+    return DNA(value=None, children=children)
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -2549,8 +2590,10 @@ class Float(DecisionPoint):
 
   def _random_dna(
       self,
-      random_generator: Union[random.Random, types.ModuleType]) -> DNA:
+      random_generator: Union[random.Random, types.ModuleType],
+      previous_dna: Optional[DNA]) -> DNA:
     """Returns a random DNA based on current spec."""
+    del previous_dna
     return DNA(value=random_generator.uniform(self.min_value, self.max_value))
 
   def __len__(self) -> int:
@@ -2608,7 +2651,10 @@ class Float(DecisionPoint):
             returns=schema.Object(DNA).noneable()).noneable(),
          'An optional callable object to get the next DNA for current point.'),
         ('random_dna_fn', schema.Callable(
-            [schema.Any()],    # Random module or object.
+            [
+                schema.Any(),                   # Random module or object.
+                schema.Object(DNA).noneable()   # Previous DNA.
+            ],
             returns=schema.Object(DNA)).noneable(),
          'An optional callable object to get a random DNA for current point.'),
     ],
@@ -2660,12 +2706,14 @@ class CustomDecisionPoint(DecisionPoint):
     return self.next_dna_fn(dna)
 
   def _random_dna(
-      self, random_generator: Union[types.ModuleType, random.Random]) -> DNA:
+      self,
+      random_generator: Union[types.ModuleType, random.Random],
+      previous_dna: Optional[DNA]) -> DNA:
     """Returns a random DNA based on current spec."""
     if self.random_dna_fn is None:
       raise NotImplementedError(
           '`random_dna` is not supported on `CustomDecisionPoint`.')
-    return self.random_dna_fn(random_generator)
+    return self.random_dna_fn(random_generator, previous_dna)
 
   def __len__(self) -> int:
     """Returns number of decision points in current space."""
@@ -3330,7 +3378,8 @@ class Deduping(DNAGenerator):
 def random_dna(
     dna_spec: DNASpec,
     random_generator: Union[None, types.ModuleType, random.Random] = None,
-    attach_spec: bool = True
+    attach_spec: bool = True,
+    previous_dna: Optional[DNA] = None
     ) -> DNA:
   """Generates a random DNA from a DNASpec.
 
@@ -3352,11 +3401,14 @@ def random_dna(
     dna_spec: a DNASpec object.
     random_generator: a Python random generator.
     attach_spec: If True, attach the DNASpec to generated DNA.
+    previous_dna: An optional DNA representing previous DNA. This field might
+        be useful for generating stateful random DNAs.
 
   Returns:
     A DNA object.
   """
-  return dna_spec.random_dna(random_generator or random, attach_spec)
+  return dna_spec.random_dna(
+      random_generator or random, attach_spec, previous_dna)
 
 
 def dna_generator(func: Callable[[DNASpec], Iterator[DNA]]):

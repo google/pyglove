@@ -417,7 +417,8 @@ class UniformTest(CoverageTestCase):
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
   def testCustomDecisionPoint(self):
-    def random_dna(random_generator):
+    def random_dna(random_generator, previous_dna):
+      del previous_dna
       return pg.DNA(value=str(random_generator.randint(0, 3)))
 
     dna_spec = pg.geno.oneof([

@@ -2086,6 +2086,34 @@ class RandomTest(unittest.TestCase):
         NotImplementedError, '`random_dna` is not supported'):
       _ = geno.random_dna(geno.custom())
 
+  def testRandomDNAWithPreviousDNA(self):
+    """Test geno.random_dna with previous DNA."""
+    def custom_random_dna_fn(random_generator, previous_dna):
+      del random_generator
+      if previous_dna is None:
+        return geno.DNA('abc')
+      return geno.DNA(previous_dna.value + 'x')
+
+    spec = geno.space([
+        geno.oneof([
+            geno.oneof([
+                geno.custom(random_dna_fn=custom_random_dna_fn),
+                geno.constant()
+            ]),
+            geno.floatv(0.1, 1.0),
+            geno.constant()
+        ]),
+        geno.manyof(2, [
+            geno.constant(),
+            geno.constant(),
+            geno.constant()
+        ])
+    ])
+    dna = geno.random_dna(
+        spec, random.Random(1),
+        previous_dna=geno.DNA([(0, 0, 'xyz'), [0, 1]]))
+    self.assertEqual(dna, geno.DNA([(0, 0, 'xyzx'), [1, 0]]))
+
 
 @geno.dna_generator
 def dummy_generator(unused_dna_spec):
