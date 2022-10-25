@@ -968,26 +968,30 @@ def functor_class(
                 add_to_registry=add_to_registry)
 
   # Update signature with symbolic value specs.
-  value_spec_by_name = {field.key: field.value for field in arg_fields}
+  def _value_spec_by_name(name: str):
+    field = cls.schema.get_field(name)
+    assert field is not None
+    return field.value
+  varkw_field = cls.schema.dynamic_field
+  assert signature.has_varkw == (varkw_field is not None), varkw_field
   signature = schema_lib.Signature(
       callable_type=signature.callable_type,
       name=signature.name,
       module_name=signature.module_name,
       qualname=signature.qualname,
       args=[
-          schema_lib.Argument(arg.name, value_spec_by_name[arg.name])
+          schema_lib.Argument(arg.name, _value_spec_by_name(arg.name))
           for arg in signature.args
       ],
       kwonlyargs=[
-          schema_lib.Argument(arg.name, value_spec_by_name[arg.name])
+          schema_lib.Argument(arg.name, _value_spec_by_name(arg.name))
           for arg in signature.kwonlyargs
       ],
       varargs=(
           schema_lib.Argument(signature.varargs.name,
-                              value_spec_by_name[signature.varargs.name])
+                              _value_spec_by_name(signature.varargs.name))
           if signature.varargs else None),
-      varkw=(schema_lib.Argument(signature.varkw.name,
-                                 value_spec_by_name[schema_lib.StrKey()])
+      varkw=(schema_lib.Argument(signature.varkw.name, varkw_field.value)
              if signature.has_varkw else None),
       return_value=returns or signature.return_value)
   setattr(cls, 'signature', signature)
@@ -998,8 +1002,9 @@ def functor_class(
     # For variable positional arguments, PyType uses the element type as
     # anntoation. Therefore we need to use the element type to generate
     # the right annotation.
-    varargs = schema_lib.Argument(
-        signature.varargs.name, signature.varargs.value_spec.element)
+    varargs_spec = signature.varargs.value_spec
+    assert isinstance(varargs_spec, schema_lib.List), varargs_spec
+    varargs = schema_lib.Argument(signature.varargs.name, varargs_spec.element)
 
   init_signature = schema_lib.Signature(
       callable_type=schema_lib.CallableType.FUNCTION,
@@ -4044,8 +4049,8 @@ class Object(Symbolic, metaclass=ObjectMeta):
       # Functor and ClassWrapper override their `__init__` methods, therefore
       # they need to synchronize the __init__ signature by themselves.
       return
-    signature = cls.schema.get_signature(
-        cls.__module__, '__init__', f'{cls.__name__}.__init__')
+    signature = schema_lib.get_init_signature(
+        cls.schema, cls.__module__, '__init__', f'{cls.__name__}.__init__')
     pseudo_init = signature.make_function(['pass'])
 
     # Create a new `__init__` that passes through all the arguments to
