@@ -158,7 +158,6 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError, '.* takes no arguments.'):
       B(1)
 
-  @unittest.skip('fix partial on rebind')
   def test_partial(self):
 
     @pg_members([
@@ -171,11 +170,10 @@ class ObjectTest(unittest.TestCase):
     a = A.partial()
     self.assertTrue(a.is_partial)
 
-    # Fix this case.
     a.rebind(x=1)
     self.assertFalse(a.is_partial)
 
-    with self.assertRaisesRegex(ValueError, 'Required value is not specified.'):
+    with self.assertRaisesRegex(TypeError, 'missing 1 required argument'):
       _ = A()
 
     with flags.allow_partial(True):
@@ -398,20 +396,8 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(a.non_default_values(), {'x': 1, 'z.p': 2.0})
     self.assertEqual(
         a.non_default_values(flatten=False), {'x': 1, 'z': {'p': 2.0}})
-
-  @unittest.skip('non_default_values upon rebind needs to be fixed.')
-  def test_non_default_after_rebind(self):
-
-    @pg_members([
-        ('x', pg_typing.Int(default=1))
-    ])
-    class A(Object):
-      pass
-
-    a = A(2)
-    self.assertEqual(a.non_default_values(), {'x': 2})
-    a.rebind(x=1)
-    self.assertEqual(a.non_default_values(), {})
+    a.rebind({'z.p': 1.0}, y=False, x=2)
+    self.assertEqual(a.non_default_values(), {'x': 2, 'y': False})
 
   def test_missing_values(self):
 
@@ -432,21 +418,9 @@ class ObjectTest(unittest.TestCase):
         a.missing_values(flatten=False),
         {'x': MISSING_VALUE, 'z': {'p': MISSING_VALUE}})
 
-  @unittest.skip('fix missing_values after rebind.')
-  def test_missing_values_after_rebind(self):
-
-    @pg_members([
-        ('x', pg_typing.Any()),
-        ('y', pg_typing.Any())
-    ])
-    class A(Object):
-      pass
-
-    a = A.partial(y=2)
-    self.assertEqual(a.missing_values(), {'x': MISSING_VALUE})
     # After rebind, the non_default_values are updated.
-    a.rebind({'x': 1.0, 'y': MISSING_VALUE})
-    self.assertEqual(a.missing_values(), {'y': MISSING_VALUE})
+    a.rebind({'x': 1, 'y': MISSING_VALUE, 'z.p': 1.0})
+    self.assertEqual(a.missing_values(), {})
 
   def test_sym_has(self):
 
@@ -795,7 +769,6 @@ class ObjectTest(unittest.TestCase):
         ValueError, 'Cannot set the origin with a different source value'):
       a.sym_setorigin(a2, 'builder3')
 
-  @unittest.skip('fix sym_partial on rebind.')
   def test_sym_partial(self):
     # Refer to `test_partial` for more details.
 
@@ -810,7 +783,6 @@ class ObjectTest(unittest.TestCase):
     a.rebind(x=1)
     self.assertFalse(a.sym_partial)
 
-  @unittest.skip('fix sym_missing on rebind.')
   def test_sym_missing(self):
 
     @pg_members([
@@ -824,7 +796,6 @@ class ObjectTest(unittest.TestCase):
     a.rebind(x=1)
     self.assertEqual(len(a.sym_missing()), 0)
 
-  @unittest.skip('fix sym_nondefault on rebind')
   def test_sym_nondefault(self):
     # Refer to `test_non_default_values` for more details.
 
@@ -864,7 +835,6 @@ class ObjectTest(unittest.TestCase):
     a.rebind(x=X())
     self.assertTrue(a.sym_puresymbolic)
 
-  @unittest.skip('Fix sym_missing after rebind')
   def test_sym_abstract(self):
 
     @pg_members([

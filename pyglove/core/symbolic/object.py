@@ -524,10 +524,16 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
   def _sym_missing(self) -> Dict[str, Any]:
     """Returns missing values."""
+    # Invalidate the cache of child attributes' missing values before calling
+    # `Dict.sym_missing`.
+    setattr(self._sym_attributes, '_sym_missing_values', None)
     return self._sym_attributes.sym_missing(flatten=False)
 
   def _sym_nondefault(self) -> Dict[str, Any]:
     """Returns non-default values."""
+    # Invalidate the cache of child attributes' non-default values before
+    # calling `Dict.sym_nondefault`.
+    setattr(self._sym_attributes, '_sym_nondefault_values', None)
     return self._sym_attributes.sym_nondefault(flatten=False)
 
   def set_accessor_writable(self, writable: bool = True) -> 'Object':
@@ -599,17 +605,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     """Operator==."""
     if self.use_symbolic_comparison:
       return self.sym_eq(other)
-    # NOTE(daiyip): In Python2, not all classes (e.g. int) have `__eq__` method.
-    # Therefore we always check the presence of `__eq__` and use it when
-    # possible. Otherwise we downgrade the default behavior by returning
-    # `NotImplemented`.
-    if hasattr(super(), '__eq__'):
-      return super().__eq__(other)
-
-    # In Python, `__eq__` may returns NotImplemented to fallback to the
-    # default equality check. Reference:
-    # https://stackoverflow.com/questions/40780004/returning-notimplemented-from-eq
-    return NotImplemented
+    return super().__eq__(other)
 
   def __ne__(self, other: Any) -> bool:
     """Operator!=."""
