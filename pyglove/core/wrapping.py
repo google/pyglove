@@ -399,7 +399,7 @@ def _subclassed_wrapper(
     # to be used for `__eq__`, `__ne__` and `__hash__`. If `user_cls` defines
     # these methods, even `use_symbolic_comp` is set to True, the methods from
     # `user_cls` will be used.
-    allow_symbolic_comparison = use_symbolic_comp
+    use_symbolic_comparison = use_symbolic_comp
 
   cls = SubclassedWrapper
   cls.__name__ = class_name or user_cls.__name__

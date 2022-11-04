@@ -59,10 +59,10 @@ from pyglove.core import symbolic
 # Global flags.
 allow_empty_field_description = symbolic.allow_empty_field_description
 allow_repeated_class_registration = symbolic.allow_repeated_class_registration
-set_stacktrace_limit = symbolic.set_stacktrace_limit
+set_origin_stacktrace_limit = symbolic.set_origin_stacktrace_limit
 
 # Context manager for scoped flags.
-allow_partial = symbolic.allow_partial_values
+allow_partial = symbolic.allow_partial
 allow_writable_accessors = symbolic.allow_writable_accessors
 notify_on_change = symbolic.notify_on_change
 enable_type_check = symbolic.enable_type_check
@@ -103,7 +103,7 @@ eq = symbolic.eq
 ne = symbolic.ne
 lt = symbolic.lt
 gt = symbolic.gt
-hash = symbolic.sym_hash  # pylint: disable=redefined-builtin
+hash = symbolic.hash  # pylint: disable=redefined-builtin
 clone = symbolic.clone
 
 # Methods for querying symbolic types.

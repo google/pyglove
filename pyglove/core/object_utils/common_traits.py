@@ -285,9 +285,6 @@ class MaybePartial(metaclass=abc.ABCMeta):
 class Functor(metaclass=abc.ABCMeta):
   """Interface for functor."""
 
-  # `schema.Signature` object for this functor class.
-  signature = None
-
   @abc.abstractmethod
   def __call__(self, *args, **kwargs) -> Any:
     """Calls the functor.

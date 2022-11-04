@@ -231,7 +231,7 @@ class ObjectTemplateTest(unittest.TestCase):
     self.assertIs(schema.Object(hyper.Template).apply(t), t)
     self.assertIs(schema.Dict().apply(t), t)
     with self.assertRaisesRegex(
-        ValueError, 'Dict cannot be applied to a different spec'):
+        ValueError, 'Dict .* cannot be assigned to an incompatible field'):
       schema.Int().apply(t)
 
 

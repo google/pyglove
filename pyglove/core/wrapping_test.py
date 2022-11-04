@@ -68,7 +68,7 @@ class WrappingTest(unittest.TestCase):
     self.assertNotEqual(a, A(1, 1))
     self.assertTrue(a, a.sym_eq(A(1, 1)))
     self.assertNotEqual(hash(a), hash(A(1, 1)))
-    self.assertEqual(symbolic.sym_hash(a), symbolic.sym_hash(A(1, 1)))
+    self.assertEqual(symbolic.hash(a), symbolic.hash(A(1, 1)))
 
     self.assertEqual(a.x, 1)
     self.assertEqual(a.z, 2)
@@ -625,7 +625,7 @@ class SubclassWrapperTest(unittest.TestCase):
     self.assertTrue(a.sym_eq(A1({'p': 1})))
     self.assertFalse(a.sym_eq(A1({'p': 2})))
     self.assertEqual(hash(a), 0)
-    self.assertNotEqual(symbolic.sym_hash(a), 0)
+    self.assertNotEqual(symbolic.hash(a), 0)
     self.assertEqual(copy.copy(a), 1)
     self.assertEqual(copy.deepcopy(a), 2)
     self.assertTrue(a.sym_eq(a.clone(deep=True)))

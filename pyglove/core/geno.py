@@ -139,7 +139,7 @@ class DNASpec(symbolic.Object):
   # This is helpful when we want to align decision points using DNASpec as
   # dictionary key. Users can use `pg.eq`/`pg.ne` for symbolic comparisons
   # and `pg.hash` for symbolic hashing.
-  allow_symbolic_comparison = False
+  use_symbolic_comparison = False
 
   def _on_bound(self):
     """Event that is triggered when object is modified."""
@@ -2051,7 +2051,7 @@ class Choices(DecisionPoint):
 
     # Automatically set the candidate index for template.
     for i, c in enumerate(self.candidates):
-      c.rebind(index=i, skip_notification=True)
+      c.rebind(index=i, skip_notification=True, raise_on_no_change=False)
 
     # Create sub choice specs and index decision points.
     if self.num_choices > 1 and not self.is_subchoice:
@@ -3332,7 +3332,7 @@ class Deduping(DNAGenerator):
 
   def _setup(self):
     self.generator.setup(self.dna_spec)
-    self._hash_fn = self.hash_fn or symbolic.sym_hash
+    self._hash_fn = self.hash_fn or symbolic.hash
     self._cache = {}
     self._enables_auto_reward = (
         self.needs_feedback and self.auto_reward_fn is not None)
