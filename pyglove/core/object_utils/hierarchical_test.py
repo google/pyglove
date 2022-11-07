@@ -248,19 +248,35 @@ class TransformTest(unittest.TestCase):
   def test_inplace_flag(self):
     d1 = {
         'a': 1,
-        'b': {
-            'c': {}
-        }
+        'b': [
+            {'c': [1]}
+        ]
     }
     d2 = hierarchical.transform(d1, lambda p, v: v, inplace=True)
     self.assertIs(d1, d2)
     self.assertIs(d1['b'], d2['b'])
-    self.assertIs(d1['b']['c'], d2['b']['c'])
+    self.assertIs(d1['b'][0], d2['b'][0])
+    self.assertIs(d1['b'][0]['c'], d2['b'][0]['c'])
 
-    d3 = hierarchical.transform(d1, lambda p, v: v, inplace=False)
-    self.assertEqual(d1, d3)
-    self.assertIsNot(d1, d3)
-    self.assertIsNot(d1['b']['c'], d3['b']['c'])
+    d3 = hierarchical.transform(
+        d1, lambda p, v: v + 1 if isinstance(v, int) else v, inplace=True)
+    self.assertEqual(d3, {
+        'a': 2,
+        'b': [
+            {'c': [2]}
+        ]
+    })
+    self.assertIs(d1, d3)
+    self.assertIs(d1['b'], d3['b'])
+    self.assertIs(d1['b'][0], d3['b'][0])
+    self.assertIs(d1['b'][0]['c'], d3['b'][0]['c'])
+
+    d4 = hierarchical.transform(d1, lambda p, v: v, inplace=False)
+    self.assertEqual(d1, d4)
+    self.assertIsNot(d1, d4)
+    self.assertIsNot(d1['b'], d4['b'])
+    self.assertIsNot(d1['b'][0], d4['b'][0])
+    self.assertIsNot(d1['b'][0]['c'], d4['b'][0]['c'])
 
 
 class FlattenTest(unittest.TestCase):

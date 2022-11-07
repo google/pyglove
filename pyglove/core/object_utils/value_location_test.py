@@ -235,6 +235,7 @@ class KeyPathTest(unittest.TestCase):
     self.assertNotEqual(keypath('a[1][2].b[3][4]'), keypath('a[1][2].a[3][4]'))
     self.assertNotEqual(keypath('a[1][2].b[3][4]'), keypath('a[1][2].b[4][4]'))
     # Earlier keys in the path should be prioritized over later ones.
+    self.assertLess(value_location.KeyPath(), 'a')
     self.assertLess(value_location.KeyPath(), keypath('a'))
     self.assertLess(keypath('a'), keypath('a.a'))
     self.assertLess(keypath('a.a'), keypath('a.b'))
@@ -251,6 +252,24 @@ class KeyPathTest(unittest.TestCase):
     self.assertGreater(keypath('a.b'), keypath('a[1]'))
     self.assertLessEqual(keypath('a[1]'), keypath('a.b'))
     self.assertGreaterEqual(keypath('a.b'), keypath('a[1]'))
+
+    class CustomKey(value_location.StrKey):
+
+      def __init__(self, text):
+        self.text = text
+
+      def __lt__(self, other):
+        if isinstance(other, CustomKey):
+          return self.text < other.text
+        return False
+
+    self.assertLess(
+        value_location.KeyPath([CustomKey('a'), 'b']),
+        value_location.KeyPath([CustomKey('b'), 'b']))
+
+    with self.assertRaisesRegex(
+        TypeError, 'Comparison is not supported between instances'):
+      _ = value_location.KeyPath() < 1
 
   def test_query(self):
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.List."""
 
+import copy
 import inspect
 import io
 import unittest
@@ -489,6 +490,39 @@ class ListTest(unittest.TestCase):
     sl = List([0], value_spec=pg_typing.List(pg_typing.Int()))
     sl2 = sl.copy()
     self.assertIs(sl.value_spec, sl2.value_spec)
+
+    # Test copy.copy.
+    sl = List([0, A(), dict(x=A()), list([A()])])
+    sl3 = copy.copy(sl)
+    self.assertIsInstance(sl3, List)
+    self.assertEqual(sl, sl3)
+    self.assertIsNot(sl, sl3)
+    self.assertIs(sl[1], sl3[1])
+    self.assertIsNot(sl[2], sl3[2])
+    self.assertIsNot(sl[3], sl3[3])
+    self.assertIs(sl[2].x, sl3[2].x)
+    self.assertIs(sl[3][0], sl3[3][0])
+
+    # Test copy.deepcopy.
+
+    class B:
+
+      def __init__(self, v):
+        self.v = v
+
+      def __eq__(self, other):
+        return isinstance(other, B) and self.v == other.v
+
+    sl = List([0, B(1), dict(x=B(2)), list([B(3)])])
+    sl4 = copy.deepcopy(sl)
+    self.assertIsInstance(sl4, List)
+    self.assertEqual(sl, sl4)
+    self.assertIsNot(sl, sl4)
+    self.assertIsNot(sl[1], sl4[1])
+    self.assertIsNot(sl[2], sl4[2])
+    self.assertIsNot(sl[3], sl4[3])
+    self.assertIsNot(sl[2].x, sl4[2].x)
+    self.assertIsNot(sl[3][0], sl4[3][0])
 
   def test_sort(self):
     sl = List([0, 2, 1, 3])

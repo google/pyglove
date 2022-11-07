@@ -83,8 +83,7 @@ class GetArgFieldsTest(unittest.TestCase):
         KeyError, 'multiple StrKey found in symbolic arguments declaration.'):
       class_schema_utils.get_arg_fields(
           callable_signature.get_signature(lambda a: 1),
-          [(ks.StrKey(), vs.Int()),
-           (ks.StrKey(), vs.Int())])
+          [(ks.StrKey(), vs.Int()), (ks.StrKey(), vs.Int())])
 
     with self.assertRaisesRegex(
         KeyError, 'multiple symbolic fields found for argument \'a\'.'):
@@ -92,13 +91,14 @@ class GetArgFieldsTest(unittest.TestCase):
           callable_signature.get_signature(lambda a: 1),
           [('a', vs.Int()), ('a', vs.Int())])
 
-    with self.assertRaisesRegex(KeyError,
-                                'found extra symbolic argument \'b\'.'):
+    with self.assertRaisesRegex(
+        KeyError, 'found extra symbolic argument \'b\'.'):
       class_schema_utils.get_arg_fields(
           callable_signature.get_signature(lambda a: 1),
           [('b', vs.Int())])
 
-    with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*.'):
+    with self.assertRaisesRegex(
+        TypeError, 'Expect .* but encountered .*.'):
       class_schema_utils.get_arg_fields(
           callable_signature.get_signature(lambda a=1: 1),
           [('a', vs.Str())])

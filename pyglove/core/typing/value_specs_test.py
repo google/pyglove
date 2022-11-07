@@ -778,8 +778,12 @@ class ListTest(unittest.TestCase):
   def test_apply(self):
     self.assertEqual(vs.List(vs.Int()).apply([]), [])
     self.assertEqual(vs.List(vs.Int()).apply([1]), [1])
-    self.assertEqual(
-        vs.List(vs.Int().noneable()).apply([1, None]), [1, None])
+    self.assertEqual(vs.List(vs.Int().noneable()).apply([1, None]), [1, None])
+    # Automatic conversion: str -> KeyPath is a registered conversion.
+    # See 'type_conversion.py'.
+    l = vs.List(vs.Object(object_utils.KeyPath)).apply(['a.b.c'])
+    self.assertIsInstance(l[0], object_utils.KeyPath)
+    self.assertEqual(l, [object_utils.KeyPath.parse('a.b.c')])
     self.assertEqual(
         vs.List(vs.Int()).apply(
             typed_missing.MISSING_VALUE, allow_partial=True),
@@ -2026,6 +2030,9 @@ class CallableTest(unittest.TestCase):
     self.assertFalse(
         vs.Callable(kw=[('a', vs.Int())]).is_compatible(vs.Callable()))
     self.assertFalse(
+        vs.Callable(kw=[('a', vs.Int())]).is_compatible(
+            vs.Callable(kw=[('b', vs.Int())])))
+    self.assertFalse(
         vs.Callable(kw=[('a', vs.Int())]).is_compatible(vs.Object(Exception)))
     self.assertFalse(
         vs.Callable(kw=[('a', vs.Int())]).is_compatible(
@@ -2070,8 +2077,16 @@ class CallableTest(unittest.TestCase):
 class TypeTest(unittest.TestCase):
   """Tests for `Type`."""
 
+  def test_init(self):
+    with self.assertRaisesRegex(TypeError, '.* is not a type'):
+      _ = vs.Type(1)
+
   def test_value_type(self):
     self.assertEqual(vs.Type(Exception).value_type, type)
+
+  def test_type(self):
+    self.assertIs(vs.Type(int).type, int)
+    self.assertIs(vs.Type(Exception).type, Exception)
 
   def test_default(self):
     self.assertEqual(vs.Type(Exception).default, typed_missing.MISSING_VALUE)
@@ -2256,6 +2271,9 @@ class UnionTest(unittest.TestCase):
         vs.Union([vs.Int(), vs.Bool()]),
         vs.Union([vs.Int(), vs.Str()]))
     self.assertNotEqual(
+        vs.Union([vs.Int(), vs.Bool(), vs.Str()]),
+        vs.Union([vs.Int(), vs.Str()]))
+    self.assertNotEqual(
         vs.Union([vs.Int(), vs.Bool()]),
         vs.Union([vs.Int(), vs.Bool()]).noneable())
     self.assertNotEqual(
@@ -2265,8 +2283,8 @@ class UnionTest(unittest.TestCase):
         vs.Union([vs.Int(), vs.Bool()], 1),
         vs.Union([vs.Int(), vs.Bool()]))
     self.assertNotEqual(
-        vs.Union([vs.Int(), vs.Bool()]),
-        vs.Union([vs.Int(), vs.Str(), vs.Bool()]))
+        vs.Union([vs.Int(), vs.Enum('abc', [True, 'abc'])]),
+        vs.Union([vs.Int(), vs.Any(), vs.Bool()]))
 
   def test_bad_init(self):
     with self.assertRaisesRegex(
@@ -2312,6 +2330,10 @@ class UnionTest(unittest.TestCase):
         vs.Union([vs.Union([vs.Float(), vs.Int()]), vs.Str()]).get_candidate(
             vs.Int()),
         vs.Int())
+
+    self.assertEqual(
+        vs.Union([vs.Callable(), vs.Int()]).get_candidate(vs.Any()),
+        vs.Callable())
 
   def test_apply(self):
     self.assertEqual(vs.Union([vs.Int(), vs.Str()]).apply(1), 1)

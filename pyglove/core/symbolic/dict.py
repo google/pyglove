@@ -526,13 +526,9 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     if (pg_typing.MISSING_VALUE == value and
         (not field or isinstance(field.key, pg_typing.NonConstKey))):
-      if key in self:
-        super().__delitem__(key)
-        new_value = pg_typing.MISSING_VALUE
-      else:
-        # Insert a MISSING_VALUE to a Dict with no schema or non-const field
-        # will be treated as no-op.
-        return None
+      assert key in self, (key, self)
+      super().__delitem__(key)
+      new_value = pg_typing.MISSING_VALUE
     else:
       new_value = self._formalized_value(key, field, value)
       super().__setitem__(key, new_value)

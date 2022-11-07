@@ -40,20 +40,9 @@ class _TypeConverterRegistry:
       raise TypeError('Argument \'src\' and \'dest\' must be a type or '
                       'tuple of types.')
     if isinstance(dest, tuple):
-      json_value_convertible = False
-      for d in dest:
-        for dest_type in self._json_value_types:
-          if issubclass(d, dest_type):
-            json_value_convertible = True
-            break
-        if json_value_convertible:
-          break
+      json_value_convertible = any(d in self._json_value_types for d in dest)
     else:
-      json_value_convertible = False
-      for dest_type in self._json_value_types:
-        if issubclass(dest, dest_type):
-          json_value_convertible = True
-          break
+      json_value_convertible = dest in self._json_value_types
     self._converter_list.append((src, dest, convert_fn, json_value_convertible))
 
   def get_converter(
@@ -65,7 +54,8 @@ class _TypeConverterRegistry:
     # NOTE(daiyip): We do reverse lookup since usually subclass converter
     # is register after base class.
     for src_type, dest_type, converter, _ in reversed(self._converter_list):
-      if issubclass(src, src_type) and issubclass(dest, dest_type):
+      dest_type = dest_type if isinstance(dest_type, tuple) else (dest_type,)
+      if issubclass(src, src_type) and dest in dest_type:
         return converter
     return None
 
@@ -91,12 +81,9 @@ def get_converter(
 
 def get_first_applicable_converter(
     src_type: Type[Any],
-    dest_type_or_types: Union[Type[Any], Tuple[Type[Any], ...]]):
+    dest_type: Union[Type[Any], Tuple[Type[Any], ...]]):
   """Get first applicable converter."""
-  if isinstance(dest_type_or_types, tuple):
-    dest_types = list(dest_type_or_types)
-  else:
-    dest_types = [dest_type_or_types]
+  dest_types = dest_type if isinstance(dest_type, tuple) else (dest_type,)
   for dest_type in dest_types:
     converter = get_converter(src_type, dest_type)
     if converter is not None:

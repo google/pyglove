@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.Dict."""
 
+import copy
 import inspect
 import io
 import unittest
@@ -537,6 +538,39 @@ class DictTest(unittest.TestCase):
     sd = Dict(a=0, value_spec=pg_typing.Dict([('a', pg_typing.Int())]))
     sd2 = sd.copy()
     self.assertIs(sd.value_spec, sd2.value_spec)
+
+    # Test copy.copy
+    sd = Dict(a=0, b=A(), c=dict(d=A()))
+    sd3 = copy.copy(sd)
+    self.assertIsInstance(sd3, Dict)
+    self.assertEqual(sd, sd3)
+    self.assertIsNot(sd, sd3)
+    # Shallow copy of regular objet.
+    self.assertIs(sd.b, sd3.b)
+    self.assertIs(sd.c.d, sd3.c.d)
+    # Deep copy of symbolic object.
+    self.assertIsNot(sd.c, sd3.c)
+
+    # Test copy.deepcopy.
+
+    class B:
+
+      def __init__(self, v):
+        self.v = v
+
+      def __eq__(self, other):
+        return isinstance(other, B) and self.v == other.v
+
+    sd = Dict(a=0, b=B(1), c=dict(d=B(2)))
+    sd4 = copy.deepcopy(sd)
+    self.assertIsInstance(sd4, Dict)
+    self.assertEqual(sd, sd4)
+    self.assertIsNot(sd, sd4)
+    # Deep copy of regular objet.
+    self.assertIsNot(sd.b, sd4.b)
+    self.assertIsNot(sd.c.d, sd4.c.d)
+    # Deep copy of symbolic object.
+    self.assertIsNot(sd.c, sd4.c)
 
   def test_setdefault(self):
     sd = Dict(a=0, b=1)

@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.Object."""
 
+import copy
 import inspect
 import io
 import os
@@ -292,6 +293,52 @@ class ObjectTest(unittest.TestCase):
     s = io.StringIO()
     a.inspect(where=lambda v: v == 1, file=s)
     self.assertEqual(s.getvalue(), '{\n  \'x[0].x\': 1\n}\n')
+
+  def test_copy(self):
+
+    class X:
+      pass
+
+    @pg_members([
+        ('x', pg_typing.Any()),
+    ])
+    class A(Object):
+      pass
+
+    a = A([dict(), A(X())])
+    a2 = copy.copy(a)
+    self.assertEqual(a, a2)
+    # Symbolic containers are deeply copied.
+    self.assertIsNot(a.x, a2.x)
+    self.assertIsNot(a.x[0], a2.x[0])
+    self.assertIsNot(a.x[1], a2.x[1])
+    # Regualr objects are shallowly copied.
+    self.assertIs(a.x[1].x, a2.x[1].x)
+
+  def test_deepcopy(self):
+
+    class X:
+      def __init__(self, v):
+        self.v = v
+
+      def __eq__(self, other):
+        return isinstance(other, X) and self.v == other.v
+
+    @pg_members([
+        ('x', pg_typing.Any()),
+    ])
+    class A(Object):
+      pass
+
+    a = A([dict(), A(X(1))])
+    a2 = copy.deepcopy(a)
+    self.assertEqual(a, a2)
+    # Symbolic containers are deeply copied.
+    self.assertIsNot(a.x, a2.x)
+    self.assertIsNot(a.x[0], a2.x[0])
+    self.assertIsNot(a.x[1], a2.x[1])
+    # Regualr objects are also deeply copied.
+    self.assertIsNot(a.x[1].x, a2.x[1].x)
 
   def test_sym_init_args(self):
 
@@ -2101,6 +2148,10 @@ class TraverseTest(unittest.TestCase):
         '[2]',
         '',
     ])
+
+  def test_default_preorder_and_postorder_visit_fn(self):
+    ret = pg_traverse(self._v)
+    self.assertTrue(ret)
 
 
 class QueryTest(unittest.TestCase):

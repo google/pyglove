@@ -25,6 +25,51 @@ from pyglove.core.typing import value_specs as vs
 class TypeConversionTest(unittest.TestCase):
   """Tests for type conversion during assignment."""
 
+  def test_register_and_get_converter(self):
+
+    class A:
+
+      def __init__(self, x):
+        self.x = x
+
+    class B(A):
+
+      def __init__(self, x, y):
+        super().__init__(x)
+        self.y = y
+
+    a_converter = lambda a: a.x
+    type_conversion.register_converter(A, (str, int), a_converter)
+    self.assertIs(type_conversion.get_converter(A, str), a_converter)
+    self.assertIs(type_conversion.get_converter(A, int), a_converter)
+    self.assertIs(type_conversion.get_json_value_converter(A), a_converter)
+
+    self.assertIsNone(
+        type_conversion.get_first_applicable_converter(A, (float, bool)))
+    self.assertIs(
+        type_conversion.get_first_applicable_converter(A, (float, int)),
+        a_converter)
+
+    # B is a subclass of A, so A's converter applies.
+    self.assertIs(type_conversion.get_converter(B, str), a_converter)
+    self.assertIs(type_conversion.get_converter(B, int), a_converter)
+    self.assertIs(type_conversion.get_json_value_converter(B), a_converter)
+
+    b_converter = lambda b: b.y
+    type_conversion.register_converter(B, (str, int), b_converter)
+
+    # `b_converter` takes precedence over `a_converter` since it's an absolute
+    # match.
+    self.assertIs(type_conversion.get_converter(B, str), b_converter)
+    self.assertIs(type_conversion.get_converter(B, int), b_converter)
+    self.assertIs(type_conversion.get_json_value_converter(B), b_converter)
+
+    self.assertIsNone(
+        type_conversion.get_first_applicable_converter(B, (float, bool)))
+    self.assertIs(
+        type_conversion.get_first_applicable_converter(B, (float, int)),
+        b_converter)
+
   def test_user_conversion(self):
 
     class A:

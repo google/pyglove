@@ -167,19 +167,6 @@ class Symbolic(object_utils.JSONConvertible,
     else:
       object.__init__(self)
 
-  @classmethod
-  def partial(cls, *args, **kwargs) -> 'Symbolic':
-    """Class method that creates a partial object of current class.
-
-    Args:
-      *args: Positional arguments that are subclass specific.
-      **kwargs: Keyword arguments that are subclass specific.
-
-    Returns:
-      A partial symbolic value.
-    """
-    raise NotImplementedError()
-
   #
   # Formal contract for symbolic operations.
   #

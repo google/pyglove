@@ -1953,13 +1953,17 @@ class Union(ValueSpecBase):
     # is a converter from A to B (converter may return value that is not B). A
     # use case is that tf.Variable is not a tf.Tensor, but value spec of
     # tf.Tensor should be able to accept tf.Variable.
+    matched_candidate = None
     for c in self._candidates:
       if type_conversion.get_first_applicable_converter(
           type(value), c.value_type) is not None:
-        return c.apply(value, allow_partial, child_transform, root_path)
+        matched_candidate = c
+        break
 
-    raise ValueError('Should never happen: _apply is entered only when there '
-                     'is a type match or convertible path.')
+    # `_apply` is entered only when there is a type match or conversion path.
+    assert matched_candidate is not None
+    return matched_candidate.apply(
+        value, allow_partial, child_transform, root_path)
 
   def _extend(self, base: 'Union') -> None:
     """Union specific extension."""
