@@ -712,6 +712,11 @@ class Evolution(pg.DNAGenerator):
             _set_initial_population(dna, True)
             self._pending_proposals.append(dna)
           except StopIteration:
+            pg.logging.info(
+                f'Evolution finishes population initialization due to that '
+                f'the population initializer ('
+                f'{self._init_population_generator!r}) raises StopIteration '
+                f'error. (population_size={len(self._population)}')
             self._population_initialized = True
             self._global_state.num_generations = 1
             self._pending_proposals.extend(self._evolve())
@@ -768,6 +773,10 @@ class Evolution(pg.DNAGenerator):
       if (not self._population_initialized
           and self._init_population_size is not None
           and self.num_feedbacks >= self._init_population_size - 1):
+        pg.logging.info(
+            f'Evolution finishes population initialization due to that '
+            f'the initial population size ({self._init_population_size}) '
+            f'is reached. (population_size={len(self._population)}')
         self._population_initialized = True
         self._global_state.num_generations = 1
 
@@ -807,8 +816,8 @@ class Evolution(pg.DNAGenerator):
                 global_state=self._global_state,
                 step=self._num_feedbacks)
           self._num_feedbacks += 1
-      if is_initial_population(dna):
-        init_population.append((dna, reward))
+        if is_initial_population(dna):
+          init_population.append((dna, reward))
 
       # Recover `self.num_generations`.
       generation_id = get_generation_id(dna)
