@@ -23,167 +23,19 @@ import abc
 import functools
 import inspect
 import types
-import typing
-from typing import Any, Callable, List, Optional, Sequence, Text, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Text, Tuple, Type, Union
 
 from pyglove.core import detouring
 from pyglove.core import object_utils
-from pyglove.core import symbolic
-from pyglove.core import typing as schema_lib
+from pyglove.core import typing as pg_typing
+
+from pyglove.core.symbolic import dict as pg_dict  # pylint: disable=unused-import
+from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
+from pyglove.core.symbolic import object as pg_object
+from pyglove.core.symbolic import schema_utils
 
 
-# NOTE(daiyip): we removed the pytype annotation for the return value here,
-# since there were often false-positive pytype errors. Also it takes a long time
-# for checking type errors.
-def symbolize(*args, **kwargs):
-  """Make a symbolic class/function out of a regular Python class/function.
-
-  ``pg.symbolize`` is introduced for the purpose of making existing
-  classes/functions symbolically programmable. For use cases that build
-  symbolic classes from scratch (native PyGlove classes), extending `pg.Object`
-  with `@pg.members` that declares the symbolic properties is the recommended
-  way, which automatically generates the ``__init__`` method and allow
-  symbolic attributes to be accessed via `self.<member>`.
-
-  ``pg.symbolize`` can be invoked as a class/function decorator, or as a
-  function. When it is used as a decorator, the decorated class or function
-  will be converted to a symbolic type (via :func:`pyglove.wrap` and
-  :func:`pyglove.functor_class`). This is preferred when user can modify the
-  files of existing classes/functions. For example::
-
-    @pg.symbolize
-    def foo(a, b):
-      return a + b
-
-    f = foo(1, 2)
-    f.rebind(a=2)
-    f()           # Returns 4
-
-    @pg.symbolize([
-      # (Optional) add symbolic constraint for __init__ argument 'a'.
-      ('a', pg.typing.Int(min_value=0), 'Description for `a`.')
-    ])
-    class Foo:
-      def __init__(self, a, b):
-        self._a = a
-        self._b = b
-
-      def result(self):
-        return self._a + self._b
-
-    f = Foo(1, 2)
-    f.rebind(a=2, b=3)
-    f.result()   # Returns 5
-
-  When it used as a function, the input class or function will not be modified.
-  Instead, a new symbolic type will be created and returned. This is helpful
-  when users want to create new symbolic types from existing classes/functions
-  without modifying their original source code. For example::
-
-    def foo(a, b):
-      return a + b
-
-    # Create a new symbolic type with constraint on 'a'.
-    symbolic_foo = pg.symbolize(foo, [
-        ('a', pg.typing.Int(min_value=0))
-    ], returns=pg.typing.Int())
-    foo(1, 2)    # Returns 3 (foo is kept intact).
-
-    f = symbolic_foo(1, 2)
-    f.rebind(a=2)
-    f()          # Returns 4.
-
-    class Foo:
-      def __init__(self, a, b):
-        self._a = a
-        self._b = b
-
-      def result(self):
-        return self._a + self._b
-
-    SymbolicFoo = pg.symbolize(Foo)
-    f = SymbolicFoo(2, 2)
-    f.rebind(a=3)
-    f.result()   # Returns 5.
-
-  Args:
-    *args:  The positional arguments for `symbolize` are:
-
-      * `class_or_fn`: applicable when `symbolize` is called in function mode.
-      * `constraints`: an optional list of tuples that allows users to specify
-        the constraints for arguments from the `__init__` method (for class)
-        or the arguments from the function signature (for function).
-        Each tuple should be in format:
-
-           `(<arg_name>, <value_spec>, [description], [arg_metadata])`
-
-        Where `arg_name` is an argument name that is acceptable to the
-        `__init__` method of the class, or the function signature;
-        'value_spec' is a `pg.ValueSpec` object that validates the value of
-        the argument.
-        `description` and `arg_metadata` are optional, for documentation and
-        meta-programming purposes.
-    **kwargs: Keyword arguments will be passsed through to :func:`pyglove.wrap`
-      (for symbolizing classes) and :func:`pyglove.functor_class` (for
-      symbolizing functions).
-
-  Returns:
-    A Symbolic subclass for the decorated/input type.
-
-  Raises:
-    TypeError: input type cannot be symbolized, or it's not a type.
-  """
-  cls_or_fn = None
-  if args:
-    if inspect.isclass(args[0]) or inspect.isfunction(args[0]):
-      cls_or_fn = args[0]
-      if cls_or_fn is dict or cls_or_fn is list:
-        if len(args) != 1 or kwargs:
-          raise ValueError(
-              f'Constraints are not supported in symbolic {cls_or_fn!r}. '
-              f'Encountered: constraints={args[1]!r}.')
-        return symbolic.Dict if cls_or_fn is dict else symbolic.List
-      args = args[1:]
-      if len(args) > 1:
-        raise ValueError(
-            f'Only `constraint` is supported as positional arguments. '
-            f'Encountered {args!r}.')
-    elif not isinstance(args[0], list):
-      raise TypeError(f'{args[0]!r} cannot be symbolized.')
-
-  def _symbolize(cls_or_fn):
-    if inspect.isclass(cls_or_fn):
-      if (issubclass(cls_or_fn, symbolic.Symbolic)
-          and not issubclass(cls_or_fn, ClassWrapper)):
-        raise ValueError(
-            f'Cannot symbolize {cls_or_fn!r}: {cls_or_fn.__name__} is already '
-            f'a dataclass-like symbolic class derived from `pg.Object`. '
-            f'Consider to use `pg.members` to add new symbolic attributes.')
-      return wrap(cls_or_fn, *args, **kwargs)
-    assert inspect.isfunction(cls_or_fn), (
-        f'Unexpected: {cls_or_fn!r} should be a class or function.')
-    return symbolic.functor_class(
-        cls_or_fn, add_to_registry=True, *args, **kwargs)
-
-  if cls_or_fn is not None:
-    # When `cls_or_fn` is provided, `symbolize` is called under function mode
-    # such as `SymbolicFoo = pg.symbolize(Foo)` or being used as a decorator
-    # with no arguments, e.g:
-    # ```
-    #   @symbolize
-    #   class Foo:
-    #     pass
-    # ```
-    # In both case, we return the symbolic type of `cls_or_fn`.
-    return _symbolize(cls_or_fn)
-  else:
-    # Otherwise a factory method is returned to create the symbolic type from
-    # a late-bound `cls_or_fn` input, which is the case when `symbolize` is used
-    # as a decorator with provided arguments.
-    return _symbolize
-
-
-class ClassWrapperMeta(symbolic.ObjectMeta):
+class ClassWrapperMeta(pg_object.ObjectMeta):
   """Metaclass for class wrapper."""
 
   def __repr__(self) -> Text:
@@ -198,7 +50,7 @@ class ClassWrapperMeta(symbolic.ObjectMeta):
     return getattr(wrapped_cls, name)
 
 
-class ClassWrapper(symbolic.Object, metaclass=ClassWrapperMeta):
+class ClassWrapper(pg_object.Object, metaclass=ClassWrapperMeta):
   """Base class for symbolic class wrapper.
 
   Please see :func:`pyglove.wrap` for details.
@@ -281,7 +133,7 @@ class _SubclassedWrapperBase(ClassWrapper):
 
       # We do not extend existing schema which is inherited from the base
       # class.
-      symbolic.update_schema(
+      schema_utils.update_schema(
           cls, arg_fields, init_arg_list=init_arg_list, extend=False)
     else:
       assert hasattr(cls, '__orig_init__')
@@ -333,13 +185,9 @@ class _SubclassedWrapperBase(ClassWrapper):
     if init_arg_list and init_arg_list[-1].startswith('*'):
       vararg_name = init_arg_list[-1][1:]
       varargs = kwargs.pop(vararg_name)
-
       for arg_name in init_arg_list[:-1]:
-        v = kwargs.pop(arg_name, schema_lib.MISSING_VALUE)
-        if v == schema_lib.MISSING_VALUE:
-          break
-        else:
-          list_args.append(v)
+        assert arg_name in kwargs
+        list_args.append(kwargs.pop(arg_name))
       list_args.extend(varargs)
     self._init_user_cls(*list_args, **kwargs)
 
@@ -356,7 +204,6 @@ def _subclassed_wrapper(
     user_cls,
     use_symbolic_repr: bool,
     use_symbolic_comp: bool,
-    use_symbolic_copy: bool,
     reset_state_fn: Optional[Callable[[Any], None]],
     class_name: Optional[Text] = None,
     module_name: Optional[Text] = None):
@@ -413,34 +260,29 @@ def _subclassed_wrapper(
     setattr(cls, '_on_reset', reset_state_fn)
 
   if use_symbolic_repr:
-    cls.__repr__ = wrapper_base_cls.__repr__
-    cls.__str__ = wrapper_base_cls.__str__
-
-  if use_symbolic_copy:
-    if not hasattr(cls, '__deepcopy__'):
-      cls.__deepcopy__ = lambda self, memo: self.sym_clone(True, memo)
-    if not hasattr(cls, '__copy__'):
-      cls.__copy__ = lambda self: self.sym_clone(False)
+    cls.__repr__ = pg_object.Object.__repr__
+    cls.__str__ = pg_object.Object.__str__
+  else:
+    cls.__repr__ = user_cls.__repr__
+    cls.__str__ = user_cls.__str__
   return cls
 
 
 def wrap(
     cls,
     init_args: Optional[List[Union[
-        Tuple[Union[Text, schema_lib.KeySpec], schema_lib.ValueSpec, Text],
-        Tuple[Union[Text, schema_lib.KeySpec], schema_lib.ValueSpec, Text, Any]
+        Tuple[Union[Text, pg_typing.KeySpec], pg_typing.ValueSpec, Text],
+        Tuple[Union[Text, pg_typing.KeySpec], pg_typing.ValueSpec, Text, Any]
     ]]] = None,
     reset_state_fn: Optional[Callable[[Any], None]] = None,
     repr: bool = True,    # pylint: disable=redefined-builtin
     eq: bool = False,
-    copy: bool = False,
-    class_name: typing.Optional[typing.Text] = None,
-    module_name: typing.Optional[typing.Text] = None,
-    serialization_key: typing.Optional[typing.Text] = None,
-    additional_keys: typing.Optional[typing.List[typing.Text]] = None,
-    override: typing.Optional[
-        typing.Dict[typing.Text, typing.Any]] = None
-) -> typing.Type['ClassWrapper']:
+    class_name: Optional[str] = None,
+    module_name: Optional[str] = None,
+    serialization_key: Optional[str] = None,
+    additional_keys: Optional[List[str]] = None,
+    override: Optional[Dict[str, Any]] = None
+) -> Type['ClassWrapper']:
   """Makes a symbolic class wrapper from a regular Python class.
 
   ``pg.wrap`` is called by :func:`pyglove.symbolize` for symbolizing existing
@@ -474,8 +316,6 @@ def wrap(
       repr=True,
       # use symbolic equality for __eq__, __ne__ and __hash__.
       eq=True,
-      # use symbolic copy for __copy__ and __deepcopy__.
-      copy=True,
       # Customize the class name obtained (the default behaivor
       # is to use the source class name).
       class_name='A4'
@@ -490,19 +330,19 @@ def wrap(
       in the __init__ method of `cls`.
     reset_state_fn: An optional callable object to reset the internal state of
       the user class when rebind happens.
-    repr: If True, use symbolic representation. Otherwise use
-      the representation of the user class.
-    eq: Use symbolic comparison and symbolic hashing as the
-      default semantics for comparison and hashing. If the flag is True and
-      the user class doesn't have `__eq__`/`__ne__`/`__hash__`, the wrapper
-      class will use symbolic eq/ne/hash as the `__eq__`/`__ne__`/`__hash__`
-      implementation. Otherwise the wrapper class will inherit the comparison
-      and hashing behaviors from the user class.
-    copy: Use symbolic clone as the default semantics for copy and
-      deep copy. If the flag is True and the user class doesn't have `__copy__`
-      and `__deepcopy__` methods, the wrapper class will use symbolic clone
-      for `__copy__` and `__deepcopy__` implementation. Otherwise the wrapper
-      class will inherit the copy behaviors from the user class.
+    repr: Options for generating `__repr__` and `__str__`.
+      If True (default), use symbolic representation if the user class does not
+        define its own. Otherwise use the user class' definition.
+      If False, always use non-symbolic representations, which falls back to
+        `object.__repr__` and `object.__str__` if the user class does not define
+        them.
+    eq: Options for generating `__eq__`, `__ne__` and `__hash__`.
+      If True and the `user_cls` defines `__eq__`, `__ne__` and `__hash__`,
+        use the definitions from the `user_cls`.
+      If True and the `user_cls` does not define `__eq__`, `__ne__` and
+        `__hash__`, use symbolic eq/hash.
+      If False (default), use `user_cls`'s definition if present, or the
+        definitions from the `object` class.
     class_name: An optional string used as class name for the wrapper class.
       If None, the wrapper class will use the class name of the wrapped class.
     module_name: An optional string used as module name for the wrapper class.
@@ -532,7 +372,6 @@ def wrap(
         cls,
         use_symbolic_repr=repr,
         use_symbolic_comp=eq,
-        use_symbolic_copy=copy,
         reset_state_fn=reset_state_fn,
         class_name=class_name,
         module_name=module_name)
@@ -541,7 +380,7 @@ def wrap(
     # Update init argument specifications according to user specified specs.
     # Replace schema instead of extending it.
     init_arg_list, arg_fields = _extract_init_args_and_fields(cls, init_args)
-    symbolic.update_schema(
+    schema_utils.update_schema(
         cls, arg_fields,
         init_arg_list=init_arg_list,
         extend=False,
@@ -658,16 +497,13 @@ def _extract_init_args_and_fields(cls, arg_specs=None):
     arg_fields = arg_specs or []
     init_arg_list = []
   else:
-    signature = schema_lib.get_signature(init_method)
+    signature = pg_typing.get_signature(init_method)
     if not signature.args or signature.args[0].name != 'self':
       raise ValueError(
           f'{cls.__name__}.__init__ must have `self` as the first argument.')
     # Remove field for 'self'.
-    arg_fields = schema_lib.get_arg_fields(signature, arg_specs)[1:]
+    arg_fields = pg_typing.get_arg_fields(signature, arg_specs)[1:]
     init_arg_list = [arg.name for arg in signature.args[1:]]
     if signature.has_varargs:
       init_arg_list.append(f'*{signature.varargs.name}')
   return (init_arg_list, arg_fields)
-
-
-

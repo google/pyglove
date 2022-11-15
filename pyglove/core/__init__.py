@@ -27,18 +27,17 @@ to symbolic program declaration, program manipulation, program generation and
 runtime type checking. It also introduced features in advanced function binding
 and class detouring, which may be applicable to general Python coding scenarios.
 
-Here lists the files included in the core PyGlove library:
+Here lists the sub-modules included in the core PyGlove library:
 
   pyglove/core
-   |__ symbolic.py     :  Symbolic program constructs and operations.
-   |__ wrapping.py     :  Converting existing classes into symbolic classes.
-   |__ typing.py       :  Runtime type check and value validation.
-   |__ geno.py         :  Genome types for program generation/manipulation.
-   |__ hyper.py        :  Encoding/Decoding between a program and a genome.
-   |__ tuning.py       :  Interface for program tuning with a local backend.
-   |__ detouring.py    :  Detouring classes creation without symbolic types.
-   |__ patching.py     :  Patching a program with URL-like strings.
-   |__ object_utils.py :  Utility libary on operating with Python objects.
+   |__ symbolic        :  Symbolic program constructs and operations.
+   |__ typing          :  Runtime type check and value validation.
+   |__ geno            :  Genome types for program generation/manipulation.
+   |__ hyper           :  Encoding/Decoding between a program and a genome.
+   |__ tuning          :  Interface for program tuning with a local backend.
+   |__ detouring       :  Detouring classes creation without symbolic types.
+   |__ patching        :  Patching a program with URL-like strings.
+   |__ object_utils    :  Utility libary on operating with Python objects.
 
 """
 
@@ -80,6 +79,7 @@ List = symbolic.List
 list = List   # pylint: disable=redefined-builtin
 
 Object = symbolic.Object
+ClassWrapper = symbolic.ClassWrapper
 Functor = symbolic.Functor
 
 # Decorator for declaring symbolic. members for `pg.Object`.
@@ -89,14 +89,30 @@ members = symbolic.members
 # Methods for making symbolic types.
 #
 
+# Function/Decorator for symbolizing existing types.
+symbolize = symbolic.symbolize
+
 # Decorator for converting a function into `pg.Functor`.
 functor = symbolic.functor
 
 # Method for making a functor class out from a function.
 functor_class = symbolic.functor_class
 
+# Function for wrapping a single class.
+wrap = symbolic.wrap
+
+# Function for wrapping multiple classes under a module.
+wrap_module = symbolic.wrap_module
+
 # Method for declaring a boilerplated class from a symbolic instance.
 boilerplate_class = symbolic.boilerplate_class
+
+#
+# Context manager for swapping wrapped class with their wrappers.
+#
+
+apply_wrappers = symbolic.apply_wrappers
+
 
 # Methods for symbolic operations.
 eq = symbolic.eq
@@ -137,29 +153,6 @@ Origin = symbolic.Origin
 FieldUpdate = symbolic.FieldUpdate
 Insertion = symbolic.Insertion
 WritePermissionError = symbolic.WritePermissionError
-
-#
-# Symbols from 'wrapping.py'.
-#
-
-from pyglove.core import wrapping
-
-ClassWrapper = wrapping.ClassWrapper
-
-# Decorator or method for symbolizing an existing class or function.
-symbolize = wrapping.symbolize
-
-
-# Methods for wrapping existing classes an swap them with their wrappers.
-
-# Method for making a symbolic class wrapper from a regular Python class.
-wrap = wrapping.wrap
-
-# Wrap classes within a module in batch.
-wrap_module = wrapping.wrap_module
-
-# Context manager for swapping wrapped class with their wrappers.
-apply_wrappers = wrapping.apply_wrappers
 
 
 #

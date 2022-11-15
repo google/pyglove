@@ -72,6 +72,12 @@ from pyglove.core.symbolic.functor import functor
 from pyglove.core.symbolic.functor import functor_class
 from pyglove.core.symbolic.functor import as_functor
 
+from pyglove.core.symbolic.class_wrapper import ClassWrapper
+from pyglove.core.symbolic.class_wrapper import wrap
+from pyglove.core.symbolic.class_wrapper import wrap_module
+from pyglove.core.symbolic.class_wrapper import apply_wrappers
+
+from pyglove.core.symbolic.symbolize import symbolize
 from pyglove.core.symbolic.boilerplate import boilerplate_class
 
 # Symbolic operations.
