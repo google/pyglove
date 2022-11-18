@@ -240,7 +240,7 @@ class PointWise(base.Recombinator):
             for i in range(dp.num_choices):
               if old_decision is None or old_decision[i] != decision[i]:
                 for child_dp in self._applicable_decision_points(
-                    dp.choice_spec(i), global_state=global_state, step=step):
+                    dp.subchoice(i), global_state=global_state, step=step):
                   parent_dict[child_dp] = None
           else:
             if old_decision != decision:
