@@ -422,7 +422,7 @@ def functor(
     return functor_class(
         typing.cast(Callable[..., Any], args),
         add_to_registry=True, **kwargs)
-  return lambda fn: functor_class(  # pylint: disable=g-long-lambda
+  return lambda fn: functor_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
       fn, args, returns, base_class, add_to_registry=True, **kwargs)
 
 

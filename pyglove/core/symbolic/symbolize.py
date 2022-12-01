@@ -124,7 +124,7 @@ def symbolize(*args, **kwargs):
   """
   cls_or_fn = None
   if args:
-    if inspect.isclass(args[0]) or inspect.isfunction(args[0]):
+    if inspect.isclass(args[0]) or inspect.isfunction(args[0]):  # pytype: disable=not-supported-yet
       cls_or_fn = args[0]
       if cls_or_fn is dict or cls_or_fn is list:
         if len(args) != 1 or kwargs:
