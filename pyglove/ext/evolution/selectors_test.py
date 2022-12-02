@@ -22,8 +22,7 @@ from pyglove.ext.evolution import selectors
 
 class SelectorsTest(unittest.TestCase):
 
-  def testRandom(self):
-    """Test selectors.Random."""
+  def test_random_selector(self):
     inputs = [pg.DNA(i) for i in range(10)]
 
     # Test n is an integer.
@@ -52,8 +51,7 @@ class SelectorsTest(unittest.TestCase):
     self.assertEqual(selector(inputs, step=0), [pg.DNA(2)])
     self.assertEqual(selector(inputs, step=1), [pg.DNA(9), pg.DNA(1)])
 
-  def testSample(self):
-    """Test selectors.Sample."""
+  def test_sample_selector(self):
     inputs = [pg.DNA(i) for i in range(5)]
     weights = lambda x: [0.13, 0.23, 0., 0., 0.26]
 
@@ -75,8 +73,7 @@ class SelectorsTest(unittest.TestCase):
     self.assertEqual(selector(inputs, step=0), [pg.DNA(0)])
     self.assertEqual(selector(inputs, step=1), [pg.DNA(4), pg.DNA(4)])
 
-  def testProportional(self):
-    """Test selectors.Proportional."""
+  def test_proportional_selector(self):
     inputs = [pg.DNA(i) for i in range(5)]
     weights = lambda x: [0.13, 0.23, 0., 0., 0.26]
 
@@ -113,8 +110,7 @@ class SelectorsTest(unittest.TestCase):
     # `extra` < 1.
     self.assertEqual(selector._partition([0.109, 0.506, 0.297], 5), [0, 3, 2])
 
-  def testTop(self):
-    """Test selectors.Top."""
+  def test_top_selector(self):
     inputs = [base.set_fitness(pg.DNA(i), float(i) if i % 2 else -float(i))
               for i in range(10)]
 
@@ -150,8 +146,7 @@ class SelectorsTest(unittest.TestCase):
     # Test custom type.
     self.assertEqual(selectors.Top(1)([1, 0, 2]), [2])
 
-  def testBottom(self):
-    """Test selectors.Bottom."""
+  def test_bottom_selector(self):
     inputs = [base.set_fitness(pg.DNA(i), float(i) if i % 2 else -float(i))
               for i in range(10)]
 
@@ -187,8 +182,7 @@ class SelectorsTest(unittest.TestCase):
     # Test custom type.
     self.assertEqual(selectors.Bottom(1)([1, 0, 2]), [0])
 
-  def testFirst(self):
-    """Test selectors.First."""
+  def test_first_selector(self):
     inputs = [pg.DNA(i) for i in range(10)]
 
     # Test n is an integer.
@@ -205,8 +199,7 @@ class SelectorsTest(unittest.TestCase):
     self.assertEqual(selector(inputs, step=0), [pg.DNA(0)])
     self.assertEqual(selector(inputs, step=1), [pg.DNA(0), pg.DNA(1)])
 
-  def testLast(self):
-    """Test selectors.Last."""
+  def test_last_selector(self):
     inputs = [pg.DNA(i) for i in range(10)]
 
     # Test n is an integer.

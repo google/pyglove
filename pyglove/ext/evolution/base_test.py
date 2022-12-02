@@ -70,8 +70,7 @@ def search_space():
 class EvolutionTest(unittest.TestCase):
   """Tests for the `Evolution` class."""
 
-  def testBasics(self):
-    """Test basics of Evolution."""
+  def test_basics(self):
     init_algo = pg.geno.Random(seed=0)
     algo = base.Evolution(
         FirstAndLast() >> Average() >> NextValue(),
@@ -115,8 +114,7 @@ class EvolutionTest(unittest.TestCase):
         [base.is_initial_population(d) for d in dna_list],
         [True] * 3 + [False] * 7)
 
-  def testPopulationInitWithoutPopulationSize(self):
-    """Test `population_init` arugment without population size."""
+  def test_population_init_without_population_size(self):
     @pg.geno.dna_generator
     def init_population(dna_spec):
       for i in range(10):
@@ -163,8 +161,7 @@ class EvolutionTest(unittest.TestCase):
         [base.is_initial_population(d) for d in dna_list],
         [True] * 10 + [False] * 2)
 
-  def testMultipleDNAPerEvolution(self):
-    """Test an evolution process that produces multiple child DNA instances."""
+  def test_reproduction_with_multiple_dnas(self):
     # We produce multiple children by not having a recombinator, so the
     # parents will be used for mutation.
     algo = base.Evolution(
@@ -211,8 +208,7 @@ class EvolutionTest(unittest.TestCase):
         'num_generations': 5
     })
 
-  def testReproducingTheSameDNA(self):
-    """Test reproducing the same DNA."""
+  def test_reproduction_with_the_same_dna(self):
     init_algo = pg.geno.Random(seed=0)
     algo = base.Evolution(
         LastN(1),
@@ -230,8 +226,7 @@ class EvolutionTest(unittest.TestCase):
       dna_id_set.add(id(dna))
       algo.feedback(dna, 0.)
 
-  def testBatchedProposal(self):
-    """Test batched proposal."""
+  def test_batched_proposal(self):
     init_algo = pg.geno.Random(seed=0)
     algo = base.Evolution(
         (FirstAndLast() >> Average() >> NextValue()) * 4,
@@ -270,8 +265,7 @@ class EvolutionTest(unittest.TestCase):
         pg.DNA([7, 8]),
     ])
 
-  def testRecovery(self):
-    """Test `Evolution.recover`."""
+  def test_recovery(self):
     algo1 = base.Evolution(
         FirstAndLast() >> Average() >> NextValue(),
         population_init=(pg.geno.Sweeping(), 3),
@@ -322,8 +316,7 @@ class EvolutionTest(unittest.TestCase):
     algo2.recover(history)
     self.assertEqual(algo1.propose(), algo2.propose())
 
-  def testBadPopulationInit(self):
-    """Test bad population initializer."""
+  def test_bad_population_initializer(self):
     @pg.geno.dna_generator
     def bad_init(unused_spec):
       if True:  # pylint: disable=using-constant-test
@@ -343,8 +336,7 @@ class EvolutionTest(unittest.TestCase):
         ValueError, 'Error happened earlier: bad initializer'):
       algo.propose()
 
-  def testThreadSafety(self):
-    """Test thread safety."""
+  def test_thread_safety(self):
     def run_in_parallel(num_workers, evaluation_time):
       algo = base.Evolution(
           FirstAndLast() >> Average() >> NextValue(),
@@ -380,8 +372,7 @@ class EvolutionTest(unittest.TestCase):
     # Should run fine.
     self.assertEqual(run_in_parallel(100, 0.01), [])
 
-  def testEmptyChildren(self):
-    """Test evolving before any reward is received."""
+  def test_empty_children(self):
     @pg.geno.dna_generator
     def small_population(dna_spec):
       yield dna_spec.first_dna()
@@ -402,8 +393,7 @@ class EvolutionTest(unittest.TestCase):
 class OperationInterfaceTest(unittest.TestCase):
   """Tests for Operation interface."""
 
-  def testMakeOperationCompatible(self):
-    """Test make_operation_compatible."""
+  def test_make_operation_comptabile(self):
     self.assertIsNone(base.make_operation_compatible(None))
 
     op = LastN(1)
@@ -431,8 +421,7 @@ class OperationInterfaceTest(unittest.TestCase):
     self.assertEqual(op([0, 1], global_state=global_state), [2])
     self.assertEqual(op([0, 1], global_state=global_state, step=1), [2])
 
-  def testInputOutputTypeCheck(self):
-    """Test input/output type check within `Operation.__call__`."""
+  def test_input_output_type_check(self):
 
     class Op1(base.Operation):
 
@@ -457,8 +446,7 @@ class OperationInterfaceTest(unittest.TestCase):
         TypeError, 'The output is expected to be a list of .*'):
       op([1, 2, 3])
 
-  def testImplementationWithDifferentSignature(self):
-    """Test implementing Operation class with different signature."""
+  def test_call_with_different_signature(self):
 
     class Op1(base.Operation):
 
@@ -508,13 +496,11 @@ class OperationInterfaceTest(unittest.TestCase):
         Op4()([0, 1], global_state=pg.geno.AttributeDict(a=1), step=2),
         [3, 4])
 
-  def testNotImplementedCallMethod(self):
-    """Test the unimplemented `call` method."""
+  def test_not_implemented_call_method(self):
     with self.assertRaises(NotImplementedError):
       base.Operation()([])
 
-  def testSelectorInterface(self):
-    """Test the selector interface."""
+  def test_selector_interface(self):
 
     class Selector1(base.Selector):
 
@@ -552,8 +538,7 @@ class OperationInterfaceTest(unittest.TestCase):
             step=1),
         [2])
 
-  def testRecombinatorInterface(self):
-    """Test the recombinator interface."""
+  def test_recombinator_interface(self):
 
     class Recombinator1(base.Recombinator):
 
@@ -614,8 +599,7 @@ class OperationInterfaceTest(unittest.TestCase):
         ValueError, '.* supports recombination on exact 2 parents.'):
       Recombinator5()([pg.DNA(1)])
 
-  def testMutatorInterface(self):
-    """Test the mutator interface."""
+  def test_mutator_interface(self):
     # Test element-wise mutations.
 
     class Mutator1(base.Mutator):
@@ -719,21 +703,18 @@ class OperationInterfaceTest(unittest.TestCase):
 class CompositionalOperationsTest(unittest.TestCase):
   """Tests for compositional operations."""
 
-  def testIdentity(self):
-    """Test the identity operator."""
+  def test_identity(self):
     inputs = [pg.DNA(i) for i in range(5)]
     op = base.Identity()
     self.assertEqual(op(inputs), inputs)
 
-  def testLambda(self):
-    """Test the lambda operator."""
+  def test_lambda(self):
     inputs = [pg.DNA(i) for i in range(5)]
     op = base.Lambda(lambda x: x[::2])
     self.assertEqual(op(inputs),
                      [pg.DNA(0), pg.DNA(2), pg.DNA(4)])
 
-  def testChoice(self):
-    """Test the choice operator."""
+  def test_choice(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = base.Choice([
         (FirstAndLast(), 0.0),
@@ -759,8 +740,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = FirstAndLast().with_prob(0.01, seed=1)
     self.assertIs(op(inputs), inputs)
 
-  def testConditional(self):
-    """Test the conditional operator."""
+  def test_conditional(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = base.Conditional(
         lambda x, step: len(x) > step,
@@ -779,14 +759,12 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertIs(op(inputs, step=5), inputs)
     self.assertEqual(op(inputs, step=10), [pg.DNA(0), pg.DNA(9)])
 
-  def testElementWise(self):
-    """Test the element-wise operator."""
+  def test_element_wise(self):
     inputs = [[1, 2], [[1], [2]], [[1, 2], [3, 4]]]
     op = base.Identity().for_each(LastN(1))
     self.assertEqual(op(inputs), [[2], [[2]], [[3, 4]]])
 
-  def testFlatten(self):
-    """Test flatten operator."""
+  def test_flatten(self):
     inputs = [[1], 2, [[3], [4]]]
 
     op = base.Flatten()
@@ -798,8 +776,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = base.Identity().flatten()
     self.assertEqual(op(inputs), [1, 2, 3, 4])
 
-  def testGlobalStateGetter(self):
-    """Test the global state getter operator."""
+  def test_global_state_getter(self):
     op = base.GlobalStateGetter('foo')
     self.assertEqual(
         op([], global_state=pg.geno.AttributeDict(foo=[1, 2, 3])),
@@ -821,8 +798,7 @@ class CompositionalOperationsTest(unittest.TestCase):
         op([], global_state=pg.geno.AttributeDict(
             foo=[1, 2, 3])), [1, 2, 3])
 
-  def testGlobalStateSetter(self):
-    """Test the global state setter operator."""
+  def test_global_state_setter(self):
     op = base.GlobalStateSetter('foo')
     global_state = pg.geno.AttributeDict()
     self.assertEqual(op([1, 2, 3], global_state=global_state), [])
@@ -852,8 +828,7 @@ class CompositionalOperationsTest(unittest.TestCase):
         'foo': 1
     })
 
-  def testUntilChange(self):
-    """Test the UntilChange operator."""
+  def test_until_change(self):
     inputs = [pg.DNA(0, spec=pg.dna_spec(pg.oneof(range(10))))]
     op = base.UntilChange(base.Choice([(NextValue(), 0.2)]))
     self.assertEqual(op(inputs), [pg.DNA(1)])
@@ -865,8 +840,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = base.Choice([(NextValue(), 0.01)], seed=1).until_change(max_attempts=1)
     self.assertEqual(op(inputs), [pg.DNA(0)])
 
-  def testPipeline(self):
-    """Test the pipeline operator."""
+  def test_pipeline(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = LastN(5) >> FirstAndLast()
     self.assertEqual(op(inputs), [pg.DNA(5), pg.DNA(9)])
@@ -881,8 +855,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = (lambda x: x[:2]) >> LastN(1)
     self.assertEqual(op(inputs), [pg.DNA(1)])
 
-  def testPower(self):
-    """Test the power operator."""
+  def test_power(self):
     inputs = [pg.DNA(0, spec=pg.dna_spec(pg.oneof(range(10))))]
     op = NextValue() ** 3
     self.assertEqual(op(inputs), [pg.DNA(3)])
@@ -892,8 +865,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertEqual(op(inputs, step=0), [pg.DNA(1)])
     self.assertEqual(op(inputs, step=1), [pg.DNA(2)])
 
-  def testConcatenation(self):
-    """Test the concatenation operator."""
+  def test_concatenation(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = FirstAndLast() + FirstAndLast()
     self.assertEqual(
@@ -906,16 +878,14 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertEqual(
         op(inputs), [pg.DNA(0), pg.DNA(1), pg.DNA(0), pg.DNA(9)])
 
-  def testSlice(self):
-    """Test the slice operator."""
+  def test_slice(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = base.Identity()[-2:]
     self.assertEqual(op(inputs), [pg.DNA(8), pg.DNA(9)])
     op = base.Identity()[-1]
     self.assertEqual(op(inputs), [pg.DNA(9)])
 
-  def testRepeat(self):
-    """Test the repeat operator."""
+  def test_repeat(self):
     inputs = [pg.DNA(0, spec=pg.dna_spec(pg.oneof(range(10))))]
     op = NextValue() * 3
     self.assertEqual(op(inputs), [pg.DNA(1), pg.DNA(1), pg.DNA(1)])
@@ -925,8 +895,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertEqual(op(inputs, step=0), [pg.DNA(1)])
     self.assertEqual(op(inputs, step=1), [pg.DNA(1), pg.DNA(1)])
 
-  def testUnion(self):
-    """Test the union operator."""
+  def test_union(self):
     inputs = [pg.DNA(i) for i in range(10)]
     # Test union with a single child.
     op = base.Union([lambda x: [x[0]] * 3])
@@ -935,15 +904,14 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertIs(None | op, op)
 
     # Test union with overlaps.
-    op = FirstAndLast() | LastN(2)
+    op = FirstAndLast() | LastN(2)  # pylint: disable=unsupported-binary-operation
     self.assertEqual(op(inputs), [pg.DNA(0), pg.DNA(9), pg.DNA(8)])
 
     # Test __ror__.
-    op = (lambda x: x[:1]) | LastN(2)
+    op = (lambda x: x[:1]) | LastN(2)  # pylint: disable=unsupported-binary-operation
     self.assertEqual(op(inputs), [pg.DNA(0), pg.DNA(8), pg.DNA(9)])
 
-  def testIntersection(self):
-    """Test the intersection operator."""
+  def test_intersection(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = LastN(3) & FirstAndLast()
     self.assertEqual(op(inputs), [pg.DNA(9)])
@@ -956,8 +924,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = (lambda x: x[:-2]) & LastN(3)
     self.assertEqual(op(inputs), [pg.DNA(7)])
 
-  def testDifference(self):
-    """Test the difference operator."""
+  def test_difference(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = FirstAndLast() - LastN(3)
     self.assertEqual(op(inputs), [pg.DNA(0)])
@@ -967,8 +934,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = (lambda x: x[3:-4]) - LastN(3)
     self.assertEqual(op(inputs), [pg.DNA(3), pg.DNA(4), pg.DNA(5)])
 
-  def testSymmetricDifference(self):
-    """Test the difference operator."""
+  def test_symmetric_difference(self):
     inputs = [pg.DNA(1), pg.DNA(2), pg.DNA(2), pg.DNA(0)]
     op = FirstAndLast() ^ LastN(3)
     self.assertEqual(op(inputs), [pg.DNA(1), pg.DNA(2), pg.DNA(2)])
@@ -978,8 +944,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     op = (lambda x: x[:3]) ^ LastN(3)
     self.assertEqual(op(inputs), [pg.DNA(1), pg.DNA(0)])
 
-  def testInversion(self):
-    """Test the inversion operator."""
+  def test_inversion(self):
     inputs = [pg.DNA(i) for i in range(5)]
     op = ~FirstAndLast()  # pylint: disable=invalid-unary-operand-type
     self.assertEqual(
@@ -989,8 +954,7 @@ class CompositionalOperationsTest(unittest.TestCase):
     self.assertEqual(-op, base.Inversion(op))
     self.assertEqual(~op, base.Inversion(op))
 
-  def testComposition(self):
-    """Test composition."""
+  def test_composition(self):
     inputs = [pg.DNA(i) for i in range(10)]
     op = ~LastN(7) >> base.Choice([  # pylint: disable=invalid-unary-operand-type
         (lambda x: [pg.DNA(d.value + 1) for d in x], 1.0),

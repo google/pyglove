@@ -81,11 +81,7 @@ def get_trivial_hash(search_space, algo):
 
 class RegularizedEvolutionTest(unittest.TestCase):
 
-  def testIntegration(self):
-    """Integration test for the RegularizedEvolution generator.
-
-    Carries out a full search in the trivial search space.
-    """
+  def test_integration(self):
     # Set up search space.
     search_space = get_trivial_search_space()
 
@@ -111,8 +107,7 @@ class RegularizedEvolutionTest(unittest.TestCase):
       if time.time() - start_time > 300.0:
         self.fail('Took too long to find a solution.')
 
-  def testPermanence(self):
-    """Permanence test for the RegularizedEvolution generator."""
+  def test_permanence(self):
     search_space = get_trivial_search_space()
     algo = regularized_evolution.regularized_evolution(
         population_size=10, tournament_size=2, mutator=TrivialMutator(seed=1),

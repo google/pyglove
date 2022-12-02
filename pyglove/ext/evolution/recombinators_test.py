@@ -21,7 +21,7 @@ from pyglove.ext.evolution import recombinators
 class RecombinationTest(unittest.TestCase):
   """Base class for recombination test."""
 
-  def assertEventual(
+  def assert_eventual(
       self, recombinator, inputs, expected_outputs, max_attempts=200):
     """Asserts that the output should eventually cover all expected outputs."""
     expected_outputs = {tuple(sorted(o)): 0 for o in expected_outputs}
@@ -42,7 +42,7 @@ class RecombinationTest(unittest.TestCase):
 class UniformTest(RecombinationTest):
   """Tests for uniform recombinator."""
 
-  def testFlatSearchSpaceWithoutConstraint(self):
+  def test_flat_search_space(self):
     dna_spec = pg.dna_spec(pg.List(
         [pg.oneof(range(10))]
         + [pg.floatv(0.1, 1.)]
@@ -53,14 +53,14 @@ class UniformTest(RecombinationTest):
     z = pg.DNA([2, 0.6, [3, 3]], spec=dna_spec)
     def _make_output(a, b, c, d):
       return (pg.DNA([a, b, [c, d]]),)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [_make_output(*v) for v in pg.iter(pg.List([
             pg.oneof([1, 3, 2]), pg.oneof([0.2, 0.5, 0.6]),
             pg.oneof([1, 4, 3]), pg.oneof([2, 5, 3])]))],
         max_attempts=500)
 
-  def testConditional(self):
+  def test_hierarchical_search_space(self):
     dna_spec = pg.dna_spec(pg.manyof(3, [
         pg.oneof(['foo', pg.oneof([1, 2])]),
         pg.oneof(range(10)),
@@ -72,20 +72,20 @@ class UniformTest(RecombinationTest):
     z = pg.DNA([(1, 3), 2, (0, 1, 0)], spec=dna_spec)
     def _make_output(a, b, c):
       return (pg.DNA([a, b, c]),)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [_make_output(*v) for v in pg.iter(pg.List([
             pg.oneof([(0, 0), 2, (1, 3)]), pg.oneof([2, (0, 1, 1)]),
             pg.oneof([(1, 4), (1, 5), (0, 1, 0)])]))],
         max_attempts=500)
 
-  def testDistinctMultiChoices(self):
+  def test_distinct_multi_choices(self):
     dna_spec = pg.dna_spec(pg.manyof(3, range(10), distinct=True))
     r = recombinators.Uniform(seed=1)
     x = pg.DNA([2, 1, 5], spec=dna_spec)
     y = pg.DNA([1, 0, 7], spec=dna_spec)
     z = pg.DNA([0, 1, 2], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([0, 1, 2]),),
@@ -100,13 +100,13 @@ class UniformTest(RecombinationTest):
             (pg.DNA([2, 1, 7]),),
         ])
 
-  def testSortedMultiChoices(self):
+  def test_sorted_multi_choices(self):
     dna_spec = pg.dna_spec(pg.manyof(3, range(10), distinct=False, sorted=True))
     r = recombinators.Uniform(seed=1)
     x = pg.DNA([1, 1, 5], spec=dna_spec)
     y = pg.DNA([0, 1, 2], spec=dna_spec)
     z = pg.DNA([2, 2, 2], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([0, 1, 2]),),
@@ -121,13 +121,13 @@ class UniformTest(RecombinationTest):
             (pg.DNA([2, 2, 5]),),
         ])
 
-  def testDistinctSortedMultiChoices(self):
+  def test_distinct_sorted_multi_choices(self):
     dna_spec = pg.dna_spec(pg.manyof(3, range(10), distinct=True, sorted=True))
     r = recombinators.Uniform(seed=1)
     x = pg.DNA([0, 1, 2], spec=dna_spec)
     y = pg.DNA([0, 2, 5], spec=dna_spec)
     z = pg.DNA([1, 5, 7], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([0, 1, 2]),),
@@ -141,19 +141,19 @@ class UniformTest(RecombinationTest):
             (pg.DNA([1, 5, 7]),),
         ])
 
-  def testDistinctMultiChoicesWithoutRearrangeSolution(self):
+  def test_distinct_multi_choices_without_rearrangement(self):
     dna_spec = pg.dna_spec(pg.permutate(range(4)))
     r = recombinators.Uniform(seed=1)
     x = pg.DNA([3, 2, 0, 1], spec=dna_spec)
     y = pg.DNA([0, 3, 1, 2], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([3, 2, 0, 1]),),
             (pg.DNA([0, 3, 1, 2]),),
         ])
 
-  def testCarryOverForUnrecombinedValues(self):
+  def test_carry_over_unrecombined_parts(self):
     dna_spec = pg.dna_spec(
         pg.Dict(x=pg.floatv(0.1, 1.0), y=pg.oneof(range(10))))
     r = recombinators.Uniform(
@@ -162,7 +162,7 @@ class UniformTest(RecombinationTest):
     x = pg.DNA([0.2, 1], spec=dna_spec)
     y = pg.DNA([0.5, 2], spec=dna_spec)
     z = pg.DNA([0.3, 7], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([0.2, 1]), pg.DNA([0.2, 2]), pg.DNA([0.2, 7])),
@@ -170,7 +170,7 @@ class UniformTest(RecombinationTest):
             (pg.DNA([0.3, 1]), pg.DNA([0.3, 2]), pg.DNA([0.3, 7])),
         ])
 
-  def testComplexCase(self):
+  def test_complex_case(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=pg.oneof(range(10), name='excluded'),
         y=pg.oneof([
@@ -189,7 +189,7 @@ class UniformTest(RecombinationTest):
     x = pg.DNA([7, 1], spec=dna_spec)
     y = pg.DNA([5, (0, [(0, 4), 2])], spec=dna_spec)
     z = pg.DNA([3, (0, [1, (0, 7)])], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([7, 1]), pg.DNA([5, 1]), pg.DNA([3, 1])),
@@ -208,7 +208,7 @@ class UniformTest(RecombinationTest):
 class SampleTest(RecombinationTest):
   """Test sample recombinator."""
 
-  def testSimpleCase(self):
+  def test_simple_case(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=pg.oneof(range(10)),
         y=pg.oneof(range(10))))
@@ -217,7 +217,7 @@ class SampleTest(RecombinationTest):
     a = pg.DNA([1, 9], spec=dna_spec)
     b = pg.DNA([2, 3], spec=dna_spec)
     c = pg.DNA([5, 4], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [a, b, c],
         [
             (pg.DNA([2, 3]),),
@@ -226,7 +226,7 @@ class SampleTest(RecombinationTest):
             (pg.DNA([5, 4]),),
         ])
 
-  def testComplexCase(self):
+  def test_complex_case(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=pg.oneof(range(10), name='excluded'),
         y=pg.oneof([
@@ -246,7 +246,7 @@ class SampleTest(RecombinationTest):
     a = pg.DNA([7, 1], spec=dna_spec)
     b = pg.DNA([5, (0, [(0, 4), 2])], spec=dna_spec)
     c = pg.DNA([3, (0, [1, (0, 7)])], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [a, b, c],
         [
             # NOTE(daiyip): dict item y=2 shall never be sampled since
@@ -266,7 +266,7 @@ class SampleTest(RecombinationTest):
 class AverageTest(RecombinationTest):
   """Test average recombinator."""
 
-  def testFloatsOnly(self):
+  def test_floats_only(self):
     dna_spec = pg.dna_spec(
         pg.Dict(x=pg.floatv(0.1, 0.5), y=pg.floatv(0.0, 1.0)))
 
@@ -274,13 +274,13 @@ class AverageTest(RecombinationTest):
     x = pg.DNA([0.1, 0.5], spec=dna_spec)
     y = pg.DNA([0.5, 0.2], spec=dna_spec)
     z = pg.DNA([0.3, 0.8], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([0.3, 0.5]),)
         ],)
 
-  def testCarryOverWithUnrecombinedParts(self):
+  def test_carry_over_unrecombined_parts(self):
     dna_spec = pg.dna_spec(
         pg.Dict(x=pg.floatv(0.1, 0.5, name='excluded'), y=pg.floatv(0.0, 1.0)))
 
@@ -289,7 +289,7 @@ class AverageTest(RecombinationTest):
     x = pg.DNA([0.1, 0.5], spec=dna_spec)
     y = pg.DNA([0.5, 0.2], spec=dna_spec)
     z = pg.DNA([0.3, 0.8], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [(pg.DNA([0.1, 0.5]), pg.DNA([0.5, 0.5]), pg.DNA([0.3, 0.5]))])
 
@@ -297,7 +297,7 @@ class AverageTest(RecombinationTest):
 class WeightedAverageTest(RecombinationTest):
   """Test weighted average recombinator."""
 
-  def testFloatsOnly(self):
+  def test_floats_only(self):
     dna_spec = pg.dna_spec(
         pg.Dict(x=pg.floatv(0.0, 1.0), y=pg.floatv(0.0, 1.0)))
 
@@ -305,13 +305,13 @@ class WeightedAverageTest(RecombinationTest):
     x = pg.DNA([0.1, 0.5], spec=dna_spec)
     y = pg.DNA([0.5, 0.2], spec=dna_spec)
     z = pg.DNA([0.3, 0.8], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [
             (pg.DNA([0.3, 0.62]),)
         ],)
 
-  def testCarryOverWithUnrecombinedParts(self):
+  def test_carry_over_unrecombined_parts(self):
     dna_spec = pg.dna_spec(
         pg.Dict(x=pg.floatv(0.1, 0.5, name='excluded'), y=pg.floatv(0.0, 1.0)))
 
@@ -321,7 +321,7 @@ class WeightedAverageTest(RecombinationTest):
     x = pg.DNA([0.1, 0.5], spec=dna_spec)
     y = pg.DNA([0.5, 0.2], spec=dna_spec)
     z = pg.DNA([0.3, 0.8], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y, z],
         [(pg.DNA([0.1, 0.62]), pg.DNA([0.5, 0.62]), pg.DNA([0.3, 0.62]))])
 
@@ -329,7 +329,7 @@ class WeightedAverageTest(RecombinationTest):
 class KPointTest(RecombinationTest):
   """Test KPoint recombinator."""
 
-  def testSinglePoint(self):
+  def test_single_point(self):
     dna_spec = pg.dna_spec(
         pg.List([pg.oneof(range(100))] * 4
                 + [pg.floatv(0., 1.)]))
@@ -337,7 +337,7 @@ class KPointTest(RecombinationTest):
     r = recombinators.KPoint(1, seed=2)
     x = pg.DNA([0, 1, 3, 1, 0.5], spec=dna_spec)
     y = pg.DNA([1, 2, 5, 4, 0.3], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, 5, 4, 0.3]), pg.DNA([1, 1, 3, 1, 0.5])),
@@ -346,33 +346,33 @@ class KPointTest(RecombinationTest):
             (pg.DNA([0, 1, 3, 1, 0.3]), pg.DNA([1, 2, 5, 4, 0.5])),
         ])
 
-  def testTwoPoint(self):
+  def test_two_point(self):
     dna_spec = pg.dna_spec(pg.List([pg.oneof(range(100))] * 4))
 
     r = recombinators.KPoint(2, seed=2)
     x = pg.DNA([0, 1, 3, 1], spec=dna_spec)
     y = pg.DNA([1, 2, 3, 4], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, 3, 1]), pg.DNA([1, 1, 3, 4])),
             (pg.DNA([0, 1, 3, 1]), pg.DNA([1, 2, 3, 4])),
         ])
 
-  def testMorePoint(self):
+  def test_k_points(self):
     dna_spec = pg.dna_spec(pg.List([pg.oneof(range(100))] * 4))
 
     # Downgrade into alternating position.
     r = recombinators.KPoint(5, seed=2)
     x = pg.DNA([0, 1, 3, 1], spec=dna_spec)
     y = pg.DNA([1, 2, 5, 4], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, 3, 4]), pg.DNA([1, 1, 5, 1])),
         ])
 
-  def testIndependentMultiChoice(self):
+  def test_independent_multi_choice(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=[pg.oneof(range(10))] * 2,
         y=pg.manyof(2, range(10), distinct=False)))
@@ -380,7 +380,7 @@ class KPointTest(RecombinationTest):
     r = recombinators.KPoint(2, seed=2)
     x = pg.DNA([0, 1, [3, 1]], spec=dna_spec)
     y = pg.DNA([1, 2, [5, 4]], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, [3, 1]]), pg.DNA([1, 1, [5, 4]])),
@@ -388,7 +388,7 @@ class KPointTest(RecombinationTest):
             (pg.DNA([0, 1, [5, 1]]), pg.DNA([1, 2, [3, 4]])),
         ])
 
-  def testDistinctMultiChoice(self):
+  def test_distinct_multi_choice(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=[pg.oneof(range(10))] * 2,
         y=pg.manyof(3, range(10), distinct=True)))
@@ -396,13 +396,13 @@ class KPointTest(RecombinationTest):
     r = recombinators.KPoint(2, seed=2)
     x = pg.DNA([0, 1, [3, 1, 2]], spec=dna_spec)
     y = pg.DNA([1, 2, [1, 3, 4]], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, [3, 1, 2]]), pg.DNA([1, 1, [1, 3, 4]])),
         ])
 
-  def testSortedMultiChoice(self):
+  def test_sorted_multi_choice(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=[pg.oneof(range(10))] * 2,
         y=pg.manyof(3, range(10), sorted=True)))
@@ -410,7 +410,7 @@ class KPointTest(RecombinationTest):
     r = recombinators.KPoint(2, seed=2)
     x = pg.DNA([0, 1, [1, 2, 3]], spec=dna_spec)
     y = pg.DNA([1, 2, [1, 3, 4]], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, [1, 2, 3]]), pg.DNA([1, 1, [1, 3, 4]])),
@@ -420,12 +420,12 @@ class KPointTest(RecombinationTest):
 class SegmentedTest(RecombinationTest):
   """Test for alternating position recombinator."""
 
-  def testBasics(self):
+  def test_basics(self):
     dna_spec = pg.dna_spec(pg.List([pg.oneof(range(100))] * 4))
     r = recombinators.Segmented(lambda xs: [1, 3])
     x = pg.DNA([0, 1, 3, 1], spec=dna_spec)
     y = pg.DNA([1, 2, 5, 4], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, 5, 1]), pg.DNA([1, 1, 3, 4]))
@@ -435,18 +435,18 @@ class SegmentedTest(RecombinationTest):
 class PartiallyMappedTest(RecombinationTest):
   """Test for partially mapped crossover (PMX)."""
 
-  def testSimpleCase(self):
+  def test_simple_case(self):
     dna_spec = pg.dna_spec(pg.permutate(range(5)))
     r = recombinators.PartiallyMapped(seed=3)
     x = pg.DNA([0, 1, 2, 4, 3], spec=dna_spec)
     y = pg.DNA([1, 2, 3, 4, 0], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 2, 3, 4, 1]), pg.DNA([3, 1, 2, 4, 0]))
         ])
 
-  def testNonMatchingMultiChoices(self):
+  def test_non_matching_multi_choices(self):
     dna_spec = pg.dna_spec(
         pg.oneof([
             pg.permutate(range(5)),
@@ -458,13 +458,13 @@ class PartiallyMappedTest(RecombinationTest):
     y = pg.DNA((1, [1, 2, 3, 4, 0]), spec=dna_spec)
 
     # Output the parents since two multi-choices are active at different branch.
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA((0, [0, 1, 2, 4, 3])), pg.DNA((1, [1, 2, 3, 4, 0]))),
         ])
 
-  def testMultiChoicesWithOtherDecisions(self):
+  def test_multi_choices_with_different_decisions(self):
     dna_spec = pg.dna_spec(pg.Dict(
         x=pg.oneof([1, 2, 3]),
         y=pg.permutate(range(3)),
@@ -476,7 +476,7 @@ class PartiallyMappedTest(RecombinationTest):
 
     # The output is a product of non-permutated parts of the parents and the
     # permutated parts.
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, [0, 1, 2], 0.2]),
@@ -485,7 +485,7 @@ class PartiallyMappedTest(RecombinationTest):
              pg.DNA([0, [1, 2, 0], 0.2]))
         ])
 
-  def testNestedMatchingMultiChoices(self):
+  def test_nested_matching_multi_choices(self):
     dna_spec = pg.dna_spec(pg.oneof([
         1,
         pg.permutate(range(5))
@@ -494,13 +494,13 @@ class PartiallyMappedTest(RecombinationTest):
     r = recombinators.PartiallyMapped(seed=3)
     x = pg.DNA((1, [0, 1, 2, 4, 3]), spec=dna_spec)
     y = pg.DNA((1, [1, 2, 3, 4, 0]), spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA((1, [1, 2, 3, 4, 0])), pg.DNA((1, [0, 1, 2, 4, 3])))
         ])
 
-  def testWhereClause(self):
+  def test_where_clause(self):
     dna_spec = pg.dna_spec(pg.List([
         pg.permutate(range(5), name='a'),
         pg.permutate(range(5), name='b'),
@@ -515,7 +515,7 @@ class PartiallyMappedTest(RecombinationTest):
     y = pg.DNA([[3, 4, 0, 1, 2],
                 [4, 0, 1, 2, 3],
                 [0, 1, 2, 3, 4]], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             # Crossover happens on the 2rd column. Without the `where`
@@ -534,7 +534,7 @@ class PartiallyMappedTest(RecombinationTest):
 class OrderCrossoverTest(RecombinationTest):
   """Test for order crossover (OX)."""
 
-  def testOrderCrossover(self):
+  def test_correctness(self):
     """Refer to https://www.hindawi.com/journals/cin/2017/7430125."""
     r = recombinators.Order()
     self.assertEqual(
@@ -542,12 +542,12 @@ class OrderCrossoverTest(RecombinationTest):
                            [4, 2, 5, 1, 6, 8, 3, 7]], 3, 6),
         [[4, 2, 7, 1, 6, 8, 5, 3], [5, 6, 8, 2, 7, 1, 3, 4]])
 
-  def testSimpleCase(self):
+  def test_simple_case(self):
     dna_spec = pg.dna_spec(pg.permutate(range(5)))
     r = recombinators.Order(seed=4)
     x = pg.DNA([0, 1, 2, 4, 3], spec=dna_spec)
     y = pg.DNA([1, 2, 3, 4, 0], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([1, 2, 4, 3, 0]), pg.DNA([2, 1, 3, 4, 0]))
@@ -557,7 +557,7 @@ class OrderCrossoverTest(RecombinationTest):
 class CycleCrossoverTest(RecombinationTest):
   """Test for cycle crossover (CX)."""
 
-  def testCycleCrossover(self):
+  def test_correctness(self):
     """Refer to https://www.hindawi.com/journals/cin/2017/7430125."""
     r = recombinators.Cycle(seed=4)
     self.assertEqual(
@@ -565,12 +565,12 @@ class CycleCrossoverTest(RecombinationTest):
                            [8, 5, 2, 1, 3, 6, 4, 7]]),
         [[1, 5, 2, 4, 3, 6, 7, 8], [8, 2, 3, 1, 5, 6, 4, 7]])
 
-  def testSimpleCase(self):
+  def test_simple_case(self):
     dna_spec = pg.dna_spec(pg.permutate(range(5)))
     r = recombinators.Cycle(seed=4)
     x = pg.DNA([0, 1, 2, 3, 4], spec=dna_spec)
     y = pg.DNA([1, 0, 3, 4, 2], spec=dna_spec)
-    self.assertEventual(
+    self.assert_eventual(
         r, [x, y],
         [
             (pg.DNA([0, 1, 3, 4, 2]), pg.DNA([1, 0, 2, 3, 4]))

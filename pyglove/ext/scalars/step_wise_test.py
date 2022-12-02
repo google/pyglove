@@ -21,7 +21,7 @@ from pyglove.ext.scalars import step_wise as scalars
 class StepWiseScalarTest(unittest.TestCase):
   """Test step-wise scalar schedule."""
 
-  def testStepsAsPhaseLength(self):
+  def test_step_as_phase_length(self):
     sv = scalars.StepWise([
         (2, 1),
         (2, base.STEP),
@@ -36,7 +36,7 @@ class StepWiseScalarTest(unittest.TestCase):
         4, 4, 4       # Use the last value for the rest.
     ])
 
-  def testProportionAsPhaseLength(self):
+  def test_proportion_as_phase_length(self):
     sv = scalars.StepWise([
         (0.2, 1),
         (0.2, base.STEP),
@@ -51,7 +51,7 @@ class StepWiseScalarTest(unittest.TestCase):
         4, 4, 4       # Use the last value for the rest.
     ])
 
-  def testBadSpecification(self):
+  def test_bad_specification(self):
     with self.assertRaisesRegex(
         ValueError,
         '`total_steps` must be specified when float is used as the value'):

@@ -20,7 +20,7 @@ from pyglove.ext.scalars import randoms as scalars
 class RandomScalarsTest(unittest.TestCase):
   """Random scalars tests."""
 
-  def testUniform(self):
+  def test_uniform(self):
     sv = scalars.Uniform(seed=1)
     self.assertEqual(sv(0), 0.13436424411240122)
     self.assertEqual(sv(0), 0.8474337369372327)
@@ -34,7 +34,7 @@ class RandomScalarsTest(unittest.TestCase):
         '`low` must be less or equal than `high`.'):
       scalars.Uniform(10, 1, seed=1)
 
-  def testTriangular(self):
+  def test_triangular(self):
     sv = scalars.Triangular(0.0, 1.0, 0.9, seed=1)
     self.assertEqual(sv(0), 0.34774677525630787)
     self.assertEqual(sv(0), 0.8733214547023962)
@@ -43,17 +43,17 @@ class RandomScalarsTest(unittest.TestCase):
     self.assertEqual(sv(0), 12)
     self.assertEqual(sv(0), 17)
 
-  def testGaussian(self):
+  def test_gaussian(self):
     sv = scalars.Gaussian(1.0, 0.2, seed=1)
     self.assertEqual(sv(0), 1.2576369506310927)
     self.assertEqual(sv(0), 1.2898891217399542)
 
-  def testNormal(self):
+  def test_normal(self):
     sv = scalars.Normal(1.0, 0.2, seed=1)
     self.assertEqual(sv(0), 1.1214911715287412)
     self.assertEqual(sv(0), 0.997154910897843)
 
-  def testLogNormal(self):
+  def test_log_normal(self):
     sv = scalars.LogNormal(1.0, 0.2, seed=1)
     self.assertEqual(sv(0), 3.0694278358084994)
     self.assertEqual(sv(0), 2.710559065635824)

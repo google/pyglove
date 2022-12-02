@@ -39,7 +39,7 @@ class ConstantPolicy(base.EarlyStopingPolicyBase):
 class EarlyStoppingPolicyComposabilityTest(unittest.TestCase):
   """Test the composability of early stopping policies."""
 
-  def testAnd(self):
+  def test_logical_and(self):
     t = pg.tuning.Trial(id=1, dna=pg.DNA(1), created_time=0)
     x = ConstantPolicy(True)
     self.assertTrue(x.should_stop_early(t))
@@ -52,7 +52,7 @@ class EarlyStoppingPolicyComposabilityTest(unittest.TestCase):
     self.assertFalse((y & x).should_stop_early(t))
     self.assertFalse((y & y).should_stop_early(t))
 
-  def testOr(self):
+  def test_logical_or(self):
     t = pg.tuning.Trial(id=1, dna=pg.DNA(1), created_time=0)
     self.assertTrue(
         (ConstantPolicy(True) | ConstantPolicy(True)).should_stop_early(t))
@@ -63,12 +63,12 @@ class EarlyStoppingPolicyComposabilityTest(unittest.TestCase):
     self.assertFalse(
         (ConstantPolicy(False) | ConstantPolicy(False)).should_stop_early(t))
 
-  def testNot(self):
+  def test_logical_not(self):
     t = pg.tuning.Trial(id=1, dna=pg.DNA(1), created_time=0)
     self.assertFalse((~ConstantPolicy(True)).should_stop_early(t))  # pylint: disable=invalid-unary-operand-type
     self.assertTrue((-ConstantPolicy(False)).should_stop_early(t))  # pylint: disable=invalid-unary-operand-type
 
-  def testRecorver(self):
+  def test_recorver(self):
     t = pg.tuning.Trial(id=1, dna=pg.DNA(1), created_time=0)
     x = ConstantPolicy(True)
     y = ConstantPolicy(False)

@@ -20,7 +20,7 @@ from pyglove.ext.scalars import base as scalars
 class BasicScalarTest(unittest.TestCase):
   """Test basic scalars."""
 
-  def testMakeScalar(self):
+  def test_make_scalar(self):
     sv = scalars.make_scalar(scalars.Constant(1))
     self.assertIsInstance(sv, scalars.Scalar)
     self.assertEqual(sv(0), 1)
@@ -37,7 +37,7 @@ class BasicScalarTest(unittest.TestCase):
     self.assertEqual(sv(1), 1)
     self.assertEqual(sv(10), 10)
 
-  def testCurrentStep(self):
+  def test_step(self):
     sv = scalars.STEP * 2
     self.assertEqual(sv(0), 0)
     self.assertEqual(sv(10), 20)
@@ -46,20 +46,20 @@ class BasicScalarTest(unittest.TestCase):
 class UnaryOpTest(unittest.TestCase):
   """Tests for unary scalar operators."""
 
-  def testNegation(self):
+  def test_negation(self):
     sv = -scalars.STEP
     self.assertEqual(sv(1), -1)
     self.assertEqual(sv(2), -2)
 
-  def testFloor(self):
+  def test_floor(self):
     sv = scalars.Constant(1.6).floor()
     self.assertEqual(sv(0), 1)
 
-  def testCeil(self):
+  def test_ceil(self):
     sv = scalars.Constant(1.6).ceil()
     self.assertEqual(sv(0), 2)
 
-  def testAbs(self):
+  def test_abs(self):
     sv = abs(scalars.Constant(-1))
     self.assertEqual(sv(0), 1)
 
@@ -67,49 +67,49 @@ class UnaryOpTest(unittest.TestCase):
 class BinaryOpTest(unittest.TestCase):
   """Tests for binary scalar operators."""
 
-  def testAdd(self):
+  def test_add(self):
     sv = scalars.Constant(1) + 2
     self.assertEqual(sv(0), 3)
 
     sv = 2 + scalars.Constant(1)
     self.assertEqual(sv(0), 3)
 
-  def testSubstract(self):
+  def test_substract(self):
     sv = scalars.Constant(1) - 2
     self.assertEqual(sv(0), -1)
 
     sv = 2 - scalars.Constant(1)
     self.assertEqual(sv(0), 1)
 
-  def testMultiply(self):
+  def test_multiply(self):
     sv = scalars.Constant(1) * 2
     self.assertEqual(sv(0), 2)
 
     sv = 2 * scalars.Constant(1)
     self.assertEqual(sv(0), 2)
 
-  def testDivide(self):
+  def test_divide(self):
     sv = scalars.Constant(1) / 2
     self.assertEqual(sv(0), 0.5)
 
     sv = 2 / scalars.Constant(1)
     self.assertEqual(sv(0), 2)
 
-  def testFloorDivide(self):
+  def test_floor_divide(self):
     sv = scalars.Constant(1) // 2
     self.assertEqual(sv(0), 0)
 
     sv = 2 // scalars.Constant(1)
     self.assertEqual(sv(0), 2)
 
-  def testMod(self):
+  def test_mod(self):
     sv = scalars.Constant(2) % 3
     self.assertEqual(sv(0), 2)
 
     sv = 3 % scalars.Constant(2)
     self.assertEqual(sv(0), 1)
 
-  def testPower(self):
+  def test_power(self):
     sv = scalars.Constant(2) ** 3
     self.assertEqual(sv(0), 8)
 

@@ -55,7 +55,7 @@ def get_stopping_steps(policy,
 class EarlyStopByValueTest(unittest.TestCase):
   """Tests for early_stop_by_value."""
 
-  def testInvalidGatingRules(self):
+  def test_bad_gating_rules(self):
     with self.assertRaisesRegex(
         ValueError, 'Invalid definition in `step_values`'):
       _ = step_wise.early_stop_by_value([1])()
@@ -70,7 +70,7 @@ class EarlyStopByValueTest(unittest.TestCase):
           (1, 'abc')
       ])()
 
-  def testWithMaximizeOnReward(self):
+  def test_maximize_the_reward(self):
     policy = step_wise.early_stop_by_value([
         # Gate 1 at step 1, stop when reward < 0.6.
         (1, 0.5),
@@ -98,7 +98,7 @@ class EarlyStopByValueTest(unittest.TestCase):
         get_stopping_steps(policy, 4, 5)[1],
         [(3, 1), (4, 1), (2, 3)])
 
-  def testWithMinimizeLoss(self):
+  def test_minimize_a_metric(self):
     policy = step_wise.early_stop_by_value([
         # Gate 1 at step 1, stop when loss > 0.3.
         (1, 0.3),
@@ -130,7 +130,7 @@ class EarlyStopByValueTest(unittest.TestCase):
         get_stopping_steps(policy, 4, 5)[1],
         [(4, 1), (3, 3)])
 
-  def testCallableMetric(self):
+  def test_callable_metrics(self):
     policy = step_wise.early_stop_by_value([
         # Gate 1 at step 1, stop when loss > 0.3.
         (1, 0.3),
@@ -147,7 +147,7 @@ class EarlyStopByValueTest(unittest.TestCase):
 class EarlyStopByRankTest(unittest.TestCase):
   """Tests for early_stop_by_rank."""
 
-  def testInvalidGatingRules(self):
+  def test_bad_gating_rules(self):
     with self.assertRaisesRegex(
         ValueError, 'Invalid definition in `step_ranks`'):
       _ = step_wise.early_stop_by_rank([
@@ -169,7 +169,7 @@ class EarlyStopByRankTest(unittest.TestCase):
           (1, 2.0, 1)
       ])()
 
-  def testWithMaximizeOnReward(self):
+  def test_maximize_the_reward(self):
     policy = step_wise.early_stop_by_rank([
         # Gate 1 at step 1, stop when reward < top 50% and len(hist) >= 2.
         (1, 0.5, 2),
@@ -200,7 +200,7 @@ class EarlyStopByRankTest(unittest.TestCase):
         get_stopping_steps(policy, 4, 5)[1],
         [(3, 1), (4, 1), (2, 3)])
 
-  def testWithMinimizeLoss(self):
+  def test_minimize_a_metric(self):
     policy = step_wise.early_stop_by_rank([
         # Gate 1 at step 1, stop when loss rank < top % 80 and len(hist) >= 3.
         (1, 0.8, 3),
@@ -230,7 +230,7 @@ class EarlyStopByRankTest(unittest.TestCase):
         get_stopping_steps(policy, 4, 5)[1],
         [(4, 1), (2, 3), (3, 3)])
 
-  def testCallableMetric(self):
+  def test_callable_metric(self):
     policy = step_wise.early_stop_by_rank([
         # Gate 1 at step 1, stop when loss rank < top % 80 and len(hist) >= 3.
         (1, 0.8, 3),
@@ -242,7 +242,7 @@ class EarlyStopByRankTest(unittest.TestCase):
         get_stopping_steps(policy, 4, 5)[1],
         [(4, 1), (2, 3), (3, 3)])
 
-  def testRecover(self):
+  def test_recover(self):
     policy = step_wise.early_stop_by_rank([
         # Gate 1 at step 1, stop when reward < top 50% and len(hist) >= 2.
         (1, 0.5, 2),

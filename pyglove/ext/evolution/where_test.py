@@ -21,18 +21,18 @@ from pyglove.ext.evolution import where
 class DecisionPointFiltersTest(unittest.TestCase):
   """Tests for DecisionPointFilter subclasses."""
 
-  def testLambda(self):
+  def test_lambda(self):
     w = where.Lambda(lambda xs: xs[:1])
     output = w([pg.geno.Float(0., float(i + 1)) for i in range(5)])
     self.assertEqual(len(output), 1)
 
-  def testAll(self):
+  def test_all(self):
     w = where.ALL
     inputs = [pg.geno.Float(0., float(i + 1)) for i in range(5)]
     output = w(inputs)
     self.assertIs(inputs, output)
 
-  def testAny(self):
+  def test_any(self):
     w = where.Any(seed=1)
     inputs = [pg.geno.Float(0., float(i + 1)) for i in range(5)]
     output = w(inputs)
@@ -49,7 +49,7 @@ class DecisionPointFiltersTest(unittest.TestCase):
     output = w(inputs)
     self.assertIs(inputs, output)
 
-  def testAutomaticConversion(self):
+  def test_automatic_conversion(self):
 
     @pg.members([
         ('where', where.where_spec())

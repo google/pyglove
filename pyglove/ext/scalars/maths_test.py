@@ -22,20 +22,20 @@ from pyglove.ext.scalars import maths as scalars
 class MathScalarsTest(unittest.TestCase):
   """Math scalars tests."""
 
-  def assertIsClose(self, x, y):
+  def assert_is_close(self, x, y):
     assert abs(x - y) < 1e-15, (x, y)
 
-  def testSqrt(self):
+  def test_sqrt(self):
     sv = scalars.sqrt(base.STEP)
     self.assertEqual(sv(0), 0)
     self.assertEqual(sv(4), 2)
 
-  def testExp(self):
+  def test_exp(self):
     sv = scalars.exp(base.STEP)
     self.assertEqual(sv(0), 1)
     self.assertEqual(sv(1), math.e)
 
-  def testLog(self):
+  def test_log(self):
     sv = scalars.log(base.STEP, 2)
     self.assertEqual(sv(1), 0)
     self.assertEqual(sv(4), 2)
@@ -44,26 +44,26 @@ class MathScalarsTest(unittest.TestCase):
     self.assertEqual(sv(2), 4)
     self.assertEqual(sv(4), 2)
 
-  def testCos(self):
+  def test_cos(self):
     sv = scalars.cos(base.STEP * math.pi / 4)
-    self.assertIsClose(sv(0), 1)
-    self.assertIsClose(sv(1), math.sqrt(2) / 2)
-    self.assertIsClose(sv(2), 0)
+    self.assert_is_close(sv(0), 1)
+    self.assert_is_close(sv(1), math.sqrt(2) / 2)
+    self.assert_is_close(sv(2), 0)
 
-  def testSin(self):
+  def test_sin(self):
     sv = scalars.sin(base.STEP * math.pi / 4)
-    self.assertIsClose(sv(0), 0)
-    self.assertIsClose(sv(1), math.sqrt(2) / 2)
-    self.assertIsClose(sv(2), 1)
+    self.assert_is_close(sv(0), 0)
+    self.assert_is_close(sv(1), math.sqrt(2) / 2)
+    self.assert_is_close(sv(2), 1)
 
 
 class HelperFunctionsTest(unittest.TestCase):
   """Test helper functions for popular scalar schedule."""
 
-  def assertIsClose(self, x, y):
+  def assert_is_close(self, x, y):
     assert abs(x - y) < 1e-15, (x, y)
 
-  def testLinear(self):
+  def test_linear(self):
     sv = scalars.linear(10, 1, 6)
     self.assertEqual(sv(0), 1)
     self.assertEqual(sv(1), 1.5)
@@ -78,47 +78,47 @@ class HelperFunctionsTest(unittest.TestCase):
     self.assertEqual(sv(9), 1.5)
     self.assertEqual(sv(10), 1)
 
-  def testCosineDecay(self):
+  def test_cosine_decay(self):
     sv = scalars.cosine_decay(10, end=0.1)
-    self.assertIsClose(sv(0), 1.0)
-    self.assertIsClose(sv(6), 0.41094235253127376)
-    self.assertIsClose(sv(10), 0.1)
+    self.assert_is_close(sv(0), 1.0)
+    self.assert_is_close(sv(6), 0.41094235253127376)
+    self.assert_is_close(sv(10), 0.1)
 
-  def testExponentialDecay(self):
+  def test_exponential_decay(self):
     sv = scalars.exponential_decay(0.2, decay_interval=2) * 5
-    self.assertIsClose(sv(0), 5.0)
-    self.assertIsClose(sv(1), 5.0)
-    self.assertIsClose(sv(2), 1.0)
-    self.assertIsClose(sv(3), 1.0)
-    self.assertIsClose(sv(4), 0.2)
-    self.assertIsClose(sv(5), 0.2)
-    self.assertIsClose(sv(6), 0.04)
-    self.assertIsClose(sv(7), 0.04)
+    self.assert_is_close(sv(0), 5.0)
+    self.assert_is_close(sv(1), 5.0)
+    self.assert_is_close(sv(2), 1.0)
+    self.assert_is_close(sv(3), 1.0)
+    self.assert_is_close(sv(4), 0.2)
+    self.assert_is_close(sv(5), 0.2)
+    self.assert_is_close(sv(6), 0.04)
+    self.assert_is_close(sv(7), 0.04)
 
     sv = scalars.exponential_decay(0.2, decay_interval=2, staircase=False) * 5
-    self.assertIsClose(sv(0), 5.0)
-    self.assertIsClose(sv(1), 2.23606797749979)
-    self.assertIsClose(sv(2), 1.0)
-    self.assertIsClose(sv(3), 0.447213595499958)
-    self.assertIsClose(sv(4), 0.2)
-    self.assertIsClose(sv(5), 0.0894427190999916)
-    self.assertIsClose(sv(6), 0.04)
-    self.assertIsClose(sv(7), 0.01788854381999832)
+    self.assert_is_close(sv(0), 5.0)
+    self.assert_is_close(sv(1), 2.23606797749979)
+    self.assert_is_close(sv(2), 1.0)
+    self.assert_is_close(sv(3), 0.447213595499958)
+    self.assert_is_close(sv(4), 0.2)
+    self.assert_is_close(sv(5), 0.0894427190999916)
+    self.assert_is_close(sv(6), 0.04)
+    self.assert_is_close(sv(7), 0.01788854381999832)
 
-  def testCyclic(self):
+  def test_cyclic(self):
     sv = scalars.cyclic(10) * 2
-    self.assertIsClose(sv(0), 2.0)
-    self.assertIsClose(sv(2), 1.3090169943749475)
-    self.assertIsClose(sv(5), 0.0)
-    self.assertIsClose(sv(7), 0.6909830056250524)
-    self.assertIsClose(sv(10), 2.0)
+    self.assert_is_close(sv(0), 2.0)
+    self.assert_is_close(sv(2), 1.3090169943749475)
+    self.assert_is_close(sv(5), 0.0)
+    self.assert_is_close(sv(7), 0.6909830056250524)
+    self.assert_is_close(sv(10), 2.0)
 
     sv = scalars.cyclic(10, math.pi) * 2
-    self.assertIsClose(sv(0), 0.0)
-    self.assertIsClose(sv(2), 0.6909830056250524)
-    self.assertIsClose(sv(5), 2.0)
-    self.assertIsClose(sv(7), 1.3090169943749477)
-    self.assertIsClose(sv(10), 0.0)
+    self.assert_is_close(sv(0), 0.0)
+    self.assert_is_close(sv(2), 0.6909830056250524)
+    self.assert_is_close(sv(5), 2.0)
+    self.assert_is_close(sv(7), 1.3090169943749477)
+    self.assert_is_close(sv(10), 0.0)
 
 
 if __name__ == '__main__':

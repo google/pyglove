@@ -90,7 +90,7 @@ def get_trivial_hash(search_space, algo):
 
 class NeatTest(unittest.TestCase):
 
-  def testUtilityComputeDiff(self):
+  def test_utility_compute_diff(self):
     dna_data_pairs = [((0, 0), (0, 1)), ((0, 0), (1, [0, 1, 2])), ((0, 0), 2),
                       ((1, [0, 1, 2]), (1, [0, 2, 1])), ((1, [0, 1, 2]), 2)]
     corresponding_outputs = [(2, 1, 0), (4, 1, 3), (2, 1, 1), (4, 2, 0),
@@ -102,7 +102,7 @@ class NeatTest(unittest.TestCase):
       self.assertEqual(
           neat._compute_diff(left, right), corresponding_outputs[i])
 
-  def testIntegration(self):
+  def test_integration(self):
     # Set up search space.
     search_space = get_trivial_search_space()
 
@@ -128,8 +128,7 @@ class NeatTest(unittest.TestCase):
       if time.time() - start_time > 300.0:
         self.fail('Took too long to find a solution.')
 
-  def testHierarchicalSS(self):
-    """Checks if the NEAT algorithm can loop over a complex search space."""
+  def test_hierarchical_search_space(self):
     search_space = get_hierarchical_search_space()
     dna_spec = pg.template(search_space).dna_spec()
     algo = neat.neat(mutator=mutators.Uniform(), population_size=10)
@@ -140,8 +139,7 @@ class NeatTest(unittest.TestCase):
       reward = random.uniform(-100.0, 100.0)
       algo.feedback(dna, reward)
 
-  def testPermanence(self):
-    """Permanence test for the NEAT generator."""
+  def test_permanence(self):
     search_space = get_trivial_search_space()
     algo = neat.neat(mutator=TrivialMutator(seed=1), population_size=10, seed=1)
 

@@ -145,13 +145,13 @@ class Nsga2Test(unittest.TestCase):
         return True
     return False
 
-  def testDominatesFunctionWorksAsIntended(self):
+  def test_dominates(self):
     self.assertTrue(nsga2.dominates(tuple((1.0, 2.0)), tuple((1.0, 1.0))))
     self.assertFalse(nsga2.dominates(tuple((1.0, 2.0)), tuple((2.0, 1.0))))
     with self.assertRaises(ValueError):
       nsga2.dominates(tuple((1.0, 2.0, 3.0)), tuple((1.0, 2.0)))
 
-  def testFastNondominatedSort(self):
+  def test_fast_nondominated_sort(self):
     ind1 = base.set_fitness(pg.DNA(None), tuple((1.0, 1.0)))
     ind2 = base.set_fitness(pg.DNA(None), tuple((1.0, 2.0)))
     ind3 = base.set_fitness(pg.DNA(None), tuple((3.0, 4.0)))
@@ -165,7 +165,7 @@ class Nsga2Test(unittest.TestCase):
         nsga2.nondominated_sort()([ind1, ind2, ind3, ind4]),
         [[ind3, ind4], [ind2], [ind1]])
 
-  def testCrowdingDistanceSort(self):
+  def test_crowding_distance_sort(self):
     ind1 = base.set_fitness(pg.DNA(None), tuple((100.0, 1.0)))
     ind2 = base.set_fitness(pg.DNA(None), tuple((50.0, 10.0)))
     ind3 = base.set_fitness(pg.DNA(None), tuple((30.0, 30.0)))
@@ -176,11 +176,7 @@ class Nsga2Test(unittest.TestCase):
         nsga2.crowding_distance_sort()([ind1, ind2, ind3, ind4, ind5]),
         [ind1, ind5, ind2, ind4, ind3])
 
-  def testIntegrationWithSingleObjective(self):
-    """Integration test for the NSGA2 with 1 objective.
-
-    Carries out a full search in the trivial search space.
-    """
+  def test_integration_single_objective(self):
     # Set up search space.
     search_space = get_trivial_search_space()
 
@@ -206,11 +202,7 @@ class Nsga2Test(unittest.TestCase):
       if time.time() - start_time > 300.0:
         self.fail('Took too long to find a solution.')
 
-  def testIntegrationWithSimpleTwoObjective(self):
-    """Integration test for the NSGA2 with 2 objectives.
-
-    Carries out a full search in the trivial search space.
-    """
+  def test_integration_simple_two_objectives(self):
     # Set up search space.
     search_space = get_trivial_search_space()
 
@@ -237,11 +229,7 @@ class Nsga2Test(unittest.TestCase):
       if time.time() - start_time > 300.0:
         self.fail('Took too long to find a solution.')
 
-  def testIntegrationWithLayeredTwoObjective(self):
-    """Integration test for the NSGA2 with 2 objectives.
-
-    Carries out a full search in the trivial search space.
-    """
+  def test_integration_with_two_layered_objectives(self):
     # Set up search space.
     search_space = get_trivial_search_space()
 
@@ -268,8 +256,7 @@ class Nsga2Test(unittest.TestCase):
       if time.time() - start_time > 300.0:
         self.fail('Took too long to find a solution.')
 
-  def testPermanence(self):
-    """Permanence test for the NSGA2."""
+  def test_permanence(self):
     search_space = get_trivial_search_space()
     algo = nsga2.nsga2(TrivialMutator(seed=1), 10, seed=1)
 

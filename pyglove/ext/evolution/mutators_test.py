@@ -32,10 +32,10 @@ class CoverageTestCase(unittest.TestCase):
   class MyCoverageTestCase(CoverageTestCase):
     ...
     def testMyFunc(self):
-      self.assertEventually(func=MyFunc, allowed=[0, 1, 2], required=[1, 2])
+      self.assert_eventual(func=MyFunc, allowed=[0, 1, 2], required=[1, 2])
   """
 
-  def assertEventually(  # pylint: disable=g-unreachable-test-method
+  def assert_eventual(  # pylint: disable=g-unreachable-test-method
       self, func, required, allowed, timeout_secs=300.0):
     """Tests that calls to the given function meet required and allowed values.
 
@@ -69,7 +69,7 @@ class UniformTest(CoverageTestCase):
   the implementation uses a special case to handle it.
   """
 
-  def testOriginalDNARemainsUnchanged(self):
+  def test_original_dna_remains_unchanged(self):
     random.seed()
     dna_spec = pg.geno.manyof(10, [
         pg.geno.constant(), pg.geno.constant(), pg.geno.constant()
@@ -81,8 +81,7 @@ class UniformTest(CoverageTestCase):
     _ = mutator.mutate(dna)
     self.assertEqual(dna, expected)
 
-  def testRootNodeValueMutability(self):
-    """Tests that the value of a root node can be mutated."""
+  def test_root_node_value_mutability(self):
     random.seed()
     dna_spec = pg.geno.oneof([pg.geno.constant(), pg.geno.constant()])
     mutator = mutators.Uniform()
@@ -91,10 +90,9 @@ class UniformTest(CoverageTestCase):
     def mutate():
       mutated_dna = mutator.mutate(dna)
       return mutated_dna.value != dna.value
-    self.assertEventually(func=mutate, required=[True], allowed=[True, False])
+    self.assert_eventual(func=mutate, required=[True], allowed=[True, False])
 
-  def testRootNodeBranchMutability(self):
-    """Tests that a mutation at the root affects the children."""
+  def test_root_node_branch_mutability(self):
     random.seed()
     dna_spec = pg.geno.oneof([
         pg.geno.oneof([pg.geno.constant(), pg.geno.constant()]),
@@ -110,10 +108,9 @@ class UniformTest(CoverageTestCase):
           mutated_dna.value != dna.value and
           # This mutation also modified the branch.
           mutated_dna.children[0].value != dna.children[0].value)
-    self.assertEventually(func=mutate, required=[True], allowed=[True, False])
+    self.assert_eventual(func=mutate, required=[True], allowed=[True, False])
 
-  def testRootNodeWithoutValueBranchMutability(self):
-    """Tests that a value-less root node is mutable."""
+  def test_root_node_without_value_branch_mutability(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.constant(), pg.geno.constant()
@@ -126,10 +123,9 @@ class UniformTest(CoverageTestCase):
       # If both children changed, the mutation happened at the root.
       return (mutated_dna.children[0].value != dna.children[0].value and
               mutated_dna.children[1].value != dna.children[1].value)
-    self.assertEventually(func=mutate, required=[True], allowed=[True, False])
+    self.assert_eventual(func=mutate, required=[True], allowed=[True, False])
 
-  def testNonRootNodeValueMutability(self):
-    """Tests that the value of a non-root node can be mutated."""
+  def test_non_root_node_value_mutability(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.constant(), pg.geno.constant()
@@ -141,10 +137,9 @@ class UniformTest(CoverageTestCase):
     def mutate():
       mutated_dna = mutator.mutate(dna)
       return mutated_dna != dna
-    self.assertEventually(func=mutate, required=[True], allowed=[True, False])
+    self.assert_eventual(func=mutate, required=[True], allowed=[True, False])
 
-  def testNonRootNodeBranchMutability(self):
-    """Tests that a mutation at a non-root node affects its children."""
+  def test_non_root_node_branch_mutability(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.oneof([pg.geno.constant(), pg.geno.constant()]),
@@ -171,9 +166,9 @@ class UniformTest(CoverageTestCase):
           # Check whether the nonroot node's child has changed too.
           mutated_dna.children[mutated_nonroot_index].children[0].value !=
           dna.children[mutated_nonroot_index].children[0].value)
-    self.assertEventually(func=mutate, required=[True], allowed=[True, False])
+    self.assert_eventual(func=mutate, required=[True], allowed=[True, False])
 
-  def testRootNodeWithNontrivialConditionValueCoverage(self):
+  def test_root_node_with_nontrivial_condition_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.oneof([
         pg.geno.oneof([pg.geno.constant(), pg.geno.constant()]),
@@ -191,10 +186,10 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return expected_mutated_dnas.index(mutated_dna)
     expected_indexes = range(len(expected_mutated_dnas))
-    self.assertEventually(
+    self.assert_eventual(
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
-  def testNonRootNodeWithNontrivialConditionValueCoverage(self):
+  def test_non_root_node_with_nontrivial_condition_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.oneof([pg.geno.constant(), pg.geno.constant()]),
@@ -212,11 +207,10 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return expected_mutated_first_child.index(mutated_dna.children[0])
     expected_indexes = range(len(expected_mutated_first_child))
-    self.assertEventually(
+    self.assert_eventual(
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
-  def testFloatValueCoverage(self):
-    """Tests that all float values can be reached."""
+  def test_float_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.floatv(0.0, 1.0)
     mutator = mutators.Uniform()
@@ -226,10 +220,9 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return round(mutated_dna.value * 10.0)
     expected = range(11)
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testChoicesValueCoverage(self):
-    """Tests that all choices can be reached."""
+  def test_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.space([
         pg.geno.manyof(2, [
@@ -243,9 +236,9 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return mutated_dna.children[1].value
     expected = [0, 1, 2]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testSortedChoicesValueCoverage(self):
+  def test_sorted_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.constant(), pg.geno.constant(), pg.geno.constant()
@@ -257,9 +250,9 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return (mutated_dna.children[0].value, mutated_dna.children[1].value)
     expected = [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testNestedSortedChoicesValueCoverage(self):
+  def test_nested_sorted_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.dna_spec(
         pg.oneof([
@@ -282,9 +275,9 @@ class UniformTest(CoverageTestCase):
         pg.DNA((0, [2, 2])),
         pg.DNA(1)
     ]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testDistinctChoicesValueCoverage(self):
+  def test_distinct_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.constant(), pg.geno.constant(), pg.geno.constant()
@@ -296,9 +289,9 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return (mutated_dna.children[0].value, mutated_dna.children[1].value)
     expected = [(0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1)]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testNestedDistinctChoicesValueCoverage(self):
+  def test_nested_distinct_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.dna_spec(
         pg.oneof([
@@ -321,9 +314,9 @@ class UniformTest(CoverageTestCase):
         pg.DNA((0, [2, 1])),
         pg.DNA(1)
     ]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testSortedDistinctChoicesValueCoverage(self):
+  def test_sorted_distinct_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.constant(), pg.geno.constant(), pg.geno.constant()
@@ -335,9 +328,9 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return (mutated_dna.children[0].value, mutated_dna.children[1].value)
     expected = [(0, 1), (0, 2), (1, 2)]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testNestedSortedDistinctChoicesValueCoverage(self):
+  def test_nested_sorted_distinct_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.dna_spec(
         pg.oneof([
@@ -357,10 +350,9 @@ class UniformTest(CoverageTestCase):
         pg.DNA((0, [1, 2])),
         pg.DNA(1)
     ]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testDistinctChoicesSubtree(self):
-    """Tests conditional subtrees of a node with distinct constraints."""
+  def test_distinct_choices_subtree(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
         pg.geno.constant(),
@@ -379,10 +371,10 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return expected_mutated_dnas.index(mutated_dna)
     expected_indexes = range(len(expected_mutated_dnas))
-    self.assertEventually(
+    self.assert_eventual(
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
-  def testTargeting(self):
+  def test_targeting(self):
     random.seed()
     dna_spec = pg.geno.space([
         pg.geno.oneof([   # No hints, so not targeted.
@@ -413,7 +405,7 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return expected_mutated_dnas.index(mutated_dna)
     expected_indexes = range(len(expected_mutated_dnas))
-    self.assertEventually(
+    self.assert_eventual(
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
   def testCustomDecisionPoint(self):
@@ -440,15 +432,14 @@ class UniformTest(CoverageTestCase):
       mutated_dna = mutator.mutate(dna)
       return expected_mutated_dnas.index(mutated_dna)
     expected_indexes = range(len(expected_mutated_dnas))
-    self.assertEventually(
+    self.assert_eventual(
         func=mutate, required=expected_indexes, allowed=expected_indexes)
 
 
 class SwapTest(CoverageTestCase):
   """Tests the Swap."""
 
-  def testOriginalDNARemainsUnchanged(self):
-    """Tests that a mutable root node is mutated."""
+  def test_original_dna_remains_unchanged(self):
     dna_spec = pg.geno.manyof(
         3, [pg.geno.constant() for _ in range(10)],
         distinct=False, sorted=False)
@@ -459,7 +450,7 @@ class SwapTest(CoverageTestCase):
     _ = mutator.mutate(dna)
     self.assertEqual(dna, expected)
 
-  def testRandomSeed(self):
+  def test_random_seed(self):
     dna_spec = pg.geno.manyof(
         3, [pg.geno.constant() for _ in range(10)],
         distinct=False, sorted=False)
@@ -471,7 +462,7 @@ class SwapTest(CoverageTestCase):
         mutator.mutate(pg.DNA([1, 8, 9], spec=dna_spec)),
         pg.DNA([8, 1, 9]))
 
-  def testCoverage(self):
+  def test_coverage(self):
     random.seed()
     dna_spec = pg.geno.manyof(
         3, [pg.geno.constant() for _ in range(10)],
@@ -484,9 +475,9 @@ class SwapTest(CoverageTestCase):
       return (mutated_dna.children[0].value, mutated_dna.children[1].value,
               mutated_dna.children[2].value)
     expected = [(1, 9, 8), (9, 8, 1), (8, 1, 9)]
-    self.assertEventually(func=mutate, required=expected, allowed=expected)
+    self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
-  def testHandlesLackOfCandidates(self):
+  def test_lack_of_candidates(self):
     dna_spec = pg.geno.oneof([pg.geno.constant() for _ in range(10)])
     mutator = mutators.Swap()
     dna = pg.DNA([5])
@@ -494,7 +485,7 @@ class SwapTest(CoverageTestCase):
     mutated_dna = mutator.mutate(dna)
     self.assertEqual(mutated_dna, dna)
 
-  def testTargeting(self):
+  def test_targeting(self):
     random.seed()
     dna_spec = pg.geno.space([
         pg.geno.manyof(2, [  # No hints, so not targeted.
