@@ -1,4 +1,4 @@
-# Copyright 2019 The PyGlove Authors
+# Copyright 2022 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.tuning."""
+"""Tests for `pg.sample`."""
 
 import inspect
 import threading
@@ -21,11 +21,18 @@ import unittest
 from pyglove.core import geno
 from pyglove.core import hyper
 from pyglove.core import symbolic
-from pyglove.core import tuning
-from pyglove.core import typing
+from pyglove.core import typing as pg_typing
+
+# Import 'in-memory' backend as the default backend.
+from pyglove.core.tuning import local_backend  # pylint: disable=unused-import
+
+from pyglove.core.tuning import protocols
+from pyglove.core.tuning.backend import poll_result as pg_poll_result
+from pyglove.core.tuning.early_stopping import EarlyStoppingPolicy
+from pyglove.core.tuning.sample import sample as pg_sample
 
 
-class DummyEarlyStoppingPolicy(tuning.EarlyStoppingPolicy):
+class DummyEarlyStoppingPolicy(EarlyStoppingPolicy):
   """Early stopping policy for testing."""
 
   def should_stop_early(self, trial):
@@ -37,7 +44,7 @@ class DummyEarlyStoppingPolicy(tuning.EarlyStoppingPolicy):
 
 
 class DummySingleObjectiveAlgorithm(geno.DNAGenerator):
-  """Dummy single-object algorithm for testing."""
+  """Single-object algorithm for testing."""
 
   def _setup(self):
     self.rewards = []
@@ -50,55 +57,20 @@ class DummySingleObjectiveAlgorithm(geno.DNAGenerator):
 
 
 class DummyMultiObjectiveAlgorithm(DummySingleObjectiveAlgorithm):
-  """Dummy multi-objective algorithm for testing."""
+  """Multi-objective algorithm for testing."""
 
   @property
   def multi_objective(self):
     return True
 
 
-class TrialTest(unittest.TestCase):
-  """Test for Trial class."""
-
-  def testGetRewardForFeedback(self):
-    """Test `Trial.get_reward`."""
-    t = tuning.Trial(
-        id=0, dna=geno.DNA(0),
-        status='PENDING',
-        created_time=int(time.time()))
-    self.assertIsNone(t.get_reward_for_feedback())
-
-    t = tuning.Trial(
-        id=0, dna=geno.DNA(0),
-        status='COMPLETED',
-        infeasible=True,
-        created_time=int(time.time()))
-    self.assertIsNone(t.get_reward_for_feedback())
-
-    t = tuning.Trial(
-        id=0, dna=geno.DNA(0),
-        status='COMPLETED',
-        infeasible=False,
-        final_measurement=tuning.Measurement(
-            step=1, elapse_secs=0.1, reward=1.0, metrics=dict(
-                accuracy=0.9, latency=750.0)),
-        created_time=int(time.time()))
-    self.assertEqual(t.get_reward_for_feedback(), 1.0)
-    self.assertEqual(t.get_reward_for_feedback(['accuracy', 'latency']),
-                     (0.9, 750.0))
-    with self.assertRaisesRegex(
-        ValueError, 'Metric \'foo\' does not exist'):
-      t.get_reward_for_feedback(['foo'])
-
-
 class SamplingTest(unittest.TestCase):
-  """Test `sample` with in-memory tuning backend."""
+  """Test `pg.sample` with the default tuning backend."""
 
-  def testSample(self):
-    """Test `sample`."""
+  def test_sample_with_set_metadata(self):
     feedbacks = []
     algo = geno.Random(seed=1)
-    for example, f in tuning.sample(
+    for example, f in pg_sample(
         hyper_value=symbolic.Dict(x=hyper.oneof([5, 6, 7])),
         algorithm=algo,
         num_examples=10,
@@ -123,7 +95,7 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual([c.id for c in feedbacks], list(range(1, 11)))
 
     # Test `poll_result`.
-    result = tuning.poll_result('my_search')
+    result = pg_poll_result('my_search')
     self.assertTrue(result.is_active)
     self.assertIsNotNone(result.best_trial)
     self.assertEqual(result.best_trial.final_measurement.reward, 7.0)
@@ -134,6 +106,7 @@ class SamplingTest(unittest.TestCase):
 
     self.assertEqual(result.metadata['global_key'], 1)
     self.assertEqual(len(result.trials), 10)
+    # TODO(daiyip): Move this test to 'local_backend_test.py'
     self.assertEqual(
         str(result),
         inspect.cleandoc('''{
@@ -150,11 +123,10 @@ class SamplingTest(unittest.TestCase):
           }
         }'''))
 
-  def testSkipOnExceptions(self):
-    """Test various forms of `pg.tuning.skip_on_exceptions`."""
+  def test_sample_with_skip_on_exceptions(self):
     search_space = symbolic.Dict(x=hyper.oneof(range(10)))
     algo = geno.Random(seed=1)
-    sample = tuning.sample(search_space, algo)
+    sample = pg_sample(search_space, algo)
     _, f = next(sample)
 
     with f.skip_on_exceptions((ValueError,)):
@@ -225,39 +197,36 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(algo.num_proposals, 8)
     self.assertEqual(algo.num_feedbacks, 1)
 
-  def testSampleWithRaceCondition(self):
-    """Test `pg.sample` with race condition among co-workers."""
-    _, f = next(tuning.sample(hyper.oneof([1, 2, 3]), geno.Random(seed=1)))
+  def test_sample_with_race_condition(self):
+    _, f = next(pg_sample(hyper.oneof([1, 2, 3]), geno.Random(seed=1)))
 
     f(1)
     with self.assertRaisesRegex(
-        tuning.RaceConditionError,
+        protocols.RaceConditionError,
         '.*Measurements can only be added to PENDING trials.*'):
       f.add_measurement(0.1)
 
     with f.ignore_race_condition():
       f.add_measurement(0.1)
 
-  def testSampleWithDefineByRunSearchSpace(self):
-    """Test `pg.sample` with define-by-run search space definition."""
+  def test_sample_with_dynamic_evaluation(self):
     def fun():
       return hyper.oneof([1, 2, 3]) + hyper.oneof([3, 4, 5])
 
-    for example, f in tuning.sample(
+    for example, f in pg_sample(
         hyper.trace(fun),
         geno.Sweeping(), num_examples=6, name='define-by-run-search'):
       with example():
         f(fun())
 
     # Test `poll_result`.
-    result = tuning.poll_result('define-by-run-search')
+    result = pg_poll_result('define-by-run-search')
     rewards = [t.final_measurement.reward for t in result.trials]
     self.assertEqual(rewards, [4., 5., 6., 5., 6., 7.])
 
-  def testSampleWithContinuationAndEndLoop(self):
-    """Test `pg.sample` with continuation and `end_loop`."""
+  def test_sample_with_continuation_and_end_loop(self):
     hyper_value = symbolic.Dict(x=hyper.oneof([1, 2, 3]))
-    for _, feedback in tuning.sample(
+    for _, feedback in pg_sample(
         hyper_value=hyper_value,
         algorithm=geno.Random(seed=1),
         name='my_search2'):
@@ -268,11 +237,11 @@ class SamplingTest(unittest.TestCase):
         # We break without ending the loop
         break
 
-    result = tuning.poll_result('my_search2')
+    result = pg_poll_result('my_search2')
     self.assertTrue(result.is_active)
     self.assertEqual(len(result.trials), 2)
 
-    sample1 = tuning.sample(
+    sample1 = pg_sample(
         name='my_search2',
         hyper_value=hyper_value,
         algorithm=geno.Random(seed=1))
@@ -293,17 +262,15 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(c1c.id, 4)
 
     # Make sure after `end_loop`, sampling will raise StopIteration error.
-    # Also the in-memory study is no longer active.
+    # Also the study is no longer active.
     c1c.end_loop()
     with self.assertRaises(StopIteration):
       next(sample1)
     self.assertFalse(result.is_active)
 
-  def testSamplingWithMetricsToOptimize(self):
-    """Test sampling with argument 'metrics_to_optimize'."""
-    # Test 'metrics_to_optimize' with a single objective algorithm.
+  def test_sample_with_single_objective(self):
     algo = DummySingleObjectiveAlgorithm()
-    _, f = next(tuning.sample(
+    _, f = next(pg_sample(
         hyper.oneof([1, 2]), algo,
         metrics_to_optimize=['reward']))
 
@@ -315,7 +282,7 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(algo.rewards, [1.0])
 
     algo = DummySingleObjectiveAlgorithm()
-    _, f = next(tuning.sample(
+    _, f = next(pg_sample(
         hyper.oneof([1, 2]), algo,
         metrics_to_optimize=['accuracy']))
 
@@ -336,13 +303,13 @@ class SamplingTest(unittest.TestCase):
         ValueError,
         '\'metrics_to_optimize\' should include only 1 metric as '
         'multi-objective optimization is not supported'):
-      next(tuning.sample(
+      next(pg_sample(
           hyper.oneof([1, 2]), DummySingleObjectiveAlgorithm(),
           metrics_to_optimize=['reward', 'accuracy', 'latency']))
 
-    # Test 'metrics_to_optimize' with a multi-objective algorithm.
+  def test_sample_with_multi_objective(self):
     algo = DummyMultiObjectiveAlgorithm()
-    it = tuning.sample(
+    it = pg_sample(
         hyper.oneof([1, 2]), algo,
         metrics_to_optimize=['reward', 'accuracy', 'latency'])
     _, f = next(it)
@@ -374,15 +341,14 @@ class SamplingTest(unittest.TestCase):
       f((0.1, 0.2, 0.3), metrics={'accuracy': 0.5})
 
     algo = DummyMultiObjectiveAlgorithm()
-    _, f = next(tuning.sample(hyper.oneof([1, 2]), algo))
+    _, f = next(pg_sample(hyper.oneof([1, 2]), algo))
     f(1.)
     self.assertEqual(algo.rewards, [(1.,)])
 
-  def testSampleWithControlleredEvaluatedRewards(self):
-    """Test scenario when controller provided the reward for a DNA."""
+  def test_sample_with_controller_evaluated_rewards(self):
 
     @symbolic.members([
-        ('num_objectives', typing.Int(min_value=1))
+        ('num_objectives', pg_typing.Int(min_value=1))
     ])
     class MaybeControllerEvaluated(geno.DNAGenerator):
 
@@ -405,7 +371,7 @@ class SamplingTest(unittest.TestCase):
 
     algo = MaybeControllerEvaluated(1)
     client_evaluated = []
-    for x, f in tuning.sample(hyper.oneof(range(100)), algo, 10):
+    for x, f in pg_sample(hyper.oneof(range(100)), algo, 10):
       f(x)
       client_evaluated.append(f.dna)
 
@@ -417,7 +383,7 @@ class SamplingTest(unittest.TestCase):
 
     algo = MaybeControllerEvaluated(2)
     client_evaluated = []
-    for x, f in tuning.sample(
+    for x, f in pg_sample(
         hyper.oneof(range(100)), algo, 10, metrics_to_optimize=['a', 'b']):
       f(None, metrics=dict(a=0., b=0.))
       client_evaluated.append(f.dna)
@@ -428,7 +394,7 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(algo.num_proposals, 10)
     self.assertEqual(algo.num_feedbacks, 10)
 
-    it = tuning.sample(hyper.oneof(range(100)), algo, 10)
+    it = pg_sample(hyper.oneof(range(100)), algo, 10)
     # The first call will get a DNA to be evaluated at the client side.
     # It should pass
     x, f = next(it)
@@ -441,51 +407,10 @@ class SamplingTest(unittest.TestCase):
         ValueError, 'The number of items in the reward .* does not match'):
       next(it)
 
-  def testBadSampling(self):
-    """Test bad sampling."""
-    _, f = next(tuning.sample(
-        symbolic.Dict(x=hyper.oneof([1, 2])),
-        geno.Random(seed=1), 1))
-    with self.assertRaisesRegex(
-        ValueError, 'At least one measurement should be added for trial'):
-      f.done()
-
-    with self.assertRaisesRegex(
-        ValueError, '\'hyper_value\' is a constant value'):
-      next(tuning.sample(1, geno.Random(seed=1)))
-
-    with self.assertRaisesRegex(
-        ValueError, 'Backend .* does not exist.'):
-      next(tuning.sample(
-          hyper.oneof([1, 2]), geno.Random(seed=1),
-          backend='non-exist'))
-
-    # Using the sample algorithm to optimize different search spaces will
-    # trigger a value error.
-    algo = geno.Random(seed=1)
-    early_stopping_policy = DummyEarlyStoppingPolicy()
-    next(tuning.sample(
-        hyper.oneof([1, 2]), algo, 1, early_stopping_policy))
-    with self.assertRaisesRegex(
-        ValueError, '.* has been set up with a different DNASpec'):
-      next(tuning.sample(symbolic.Dict(x=hyper.oneof([3, 4])), algo))
-
-    algo = geno.Random(seed=1)
-    with self.assertRaisesRegex(
-        ValueError, '.* has been set up with a different DNASpec'):
-      next(tuning.sample(
-          symbolic.Dict(x=hyper.oneof([1, 2])),
-          algo, 1, early_stopping_policy))
-
-    with self.assertRaisesRegex(
-        ValueError, 'Result .* does not exist.'):
-      tuning.poll_result('non-exist-search')
-
-  def testEarlyStoppingPolicy(self):
-    """Test `tuning.EarlyStoppingPolicy`."""
+  def test_sample_with_early_stopping(self):
     stopped_trial_steps = []
     early_stopping_policy = DummyEarlyStoppingPolicy()
-    for _, f in tuning.sample(
+    for _, f in pg_sample(
         symbolic.Dict(x=hyper.oneof([1, 2])),
         geno.Random(seed=1), 10,
         early_stopping_policy,
@@ -503,31 +428,29 @@ class SamplingTest(unittest.TestCase):
       else:
         f.done()
 
-    self.assertEqual(
-        stopped_trial_steps, [(2, 2), (4, 2), (8, 2)])
+    self.assertEqual(stopped_trial_steps, [(2, 2), (4, 2), (8, 2)])
 
-    result = tuning.poll_result('early_stopping')
+    result = pg_poll_result('early_stopping')
     for t in result.trials:
       if t.id in [2, 4, 8]:
         self.assertTrue(t.infeasible)
         self.assertEqual(len(t.measurements), 2)
         self.assertEqual(
             t.final_measurement,
-            tuning.Measurement(step=0, reward=0.0, elapse_secs=0.0))
+            protocols.Measurement(step=0, reward=0.0, elapse_secs=0.0))
       else:
         self.assertFalse(t.infeasible)
         self.assertEqual(t.final_measurement.step, 2)
         self.assertEqual(len(t.measurements), 3)
 
-  def testLocalBackendWithMultiThreadSampling(self):
-    """Test local backend with multi-thread sampling."""
+  def test_sample_with_concurrent_workers(self):
     threads_trial_ids = []
     def create_worker_func(study_name, num_examples=None, group_id=None):
       hyper_value = symbolic.Dict(x=hyper.oneof([1, 2, 3]))
       def worker_func():
         trial_ids = []
         threads_trial_ids.append(trial_ids)
-        for _, feedback in tuning.sample(
+        for _, feedback in pg_sample(
             hyper_value=hyper_value,
             algorithm=geno.Random(seed=1),
             group_id=group_id,
@@ -560,27 +483,45 @@ class SamplingTest(unittest.TestCase):
     # point due to every iteration sleeps for 100 ms.
     self.assertIn(len(all_trial_ids), list(range(7, 7 + num_workers)))
 
-  def testPluggableBackend(self):
-    """Test pluggable backend."""
-
-    @tuning.add_backend('test')
-    class TestBackendFactory(tuning._InMemoryBackendFactory):  # pylint: disable=unused-variable
-      """A backend factory for testing."""
-
-    self.assertEqual(tuning.available_backends(), ['in-memory', 'test'])
-    self.assertEqual(tuning.default_backend(), 'in-memory')
-    tuning.set_default_backend('test')
-    self.assertEqual(tuning.default_backend(), 'test')
+  def test_bad_sampling(self):
+    _, f = next(pg_sample(
+        symbolic.Dict(x=hyper.oneof([1, 2])),
+        geno.Random(seed=1), 1))
     with self.assertRaisesRegex(
-        ValueError, 'Backend .* does not exist'):
-      tuning.set_default_backend('non-exist-backend')
+        ValueError, 'At least one measurement should be added for trial'):
+      f.done()
 
     with self.assertRaisesRegex(
-        TypeError, '.* is not a BackendFactory subclass'):
+        ValueError, '\'hyper_value\' is a constant value'):
+      next(pg_sample(1, geno.Random(seed=1)))
 
-      @tuning.add_backend('bad')
-      class BadBackendFactory:  # pylint: disable=unused-variable
-        pass
+    with self.assertRaisesRegex(
+        ValueError, 'Backend .* does not exist.'):
+      next(pg_sample(
+          hyper.oneof([1, 2]), geno.Random(seed=1),
+          backend='non-exist'))
+
+    # Using the sample algorithm to optimize different search spaces will
+    # trigger a value error.
+    algo = geno.Random(seed=1)
+    early_stopping_policy = DummyEarlyStoppingPolicy()
+    next(pg_sample(
+        hyper.oneof([1, 2]), algo, 1, early_stopping_policy))
+    with self.assertRaisesRegex(
+        ValueError, '.* has been set up with a different DNASpec'):
+      next(pg_sample(symbolic.Dict(x=hyper.oneof([3, 4])), algo))
+
+    algo = geno.Random(seed=1)
+    with self.assertRaisesRegex(
+        ValueError, '.* has been set up with a different DNASpec'):
+      next(pg_sample(
+          symbolic.Dict(x=hyper.oneof([1, 2])),
+          algo, 1, early_stopping_policy))
+
+    with self.assertRaisesRegex(
+        ValueError, 'Result .* does not exist.'):
+      pg_poll_result('non-exist-search')
+
 
 if __name__ == '__main__':
   unittest.main()
