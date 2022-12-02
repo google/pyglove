@@ -1,4 +1,4 @@
-# Copyright 2019 The PyGlove Authors
+# Copyright 2022 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,256 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-"""Systematic patching on symbolic values.
-
-As :meth:`pyglove.Symbolic.rebind` provides a flexible programming
-interface for modifying symbolic values, why bother to have this module?
-Here are the  motivations:
-
-  * Provide user friendly methods for addressing the most common patching
-    patterns.
-
-  * Provide a systematic solution for
-
-    * Patch semantic groups.
-    * Enable combination of these groups.
-    * Provide an interface that patching can be invoked from the command line.
-"""
+"""Patcher: modular rule-based patching."""
 
 import re
 import typing
-from typing import Any, Callable, Dict, List, Optional, Text, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 from pyglove.core import object_utils
 from pyglove.core import symbolic
-from pyglove.core import typing as schema
-
-
-def patch_on_key(
-    src: symbolic.Symbolic,
-    regex: Text,
-    value: Any = None,
-    value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
-  """Recursively patch values on matched keys (leaf-node names).
-
-  Example::
-
-    d = pg.Dict(a=0, b=2)
-    print(pg.patching.patch_on_key(d, 'a', value=3))
-    # {a=3, b=2}
-
-    print(pg.patching.patch_on_key(d, '.', value=3))
-    # {a=3, b=3}
-
-    @pg.members([
-      ('x', schema.Int())
-    ])
-    class A(pg.Object):
-
-      def _on_init(self):
-        super()._on_init()
-        self._num_changes = 0
-
-      def _on_change(self, updates):
-        super()._on_change(updates)
-        self._num_changes += 1
-
-    a = A()
-    pg.patching.patch_on_key(a, 'x', value=2)
-    # a._num_changes is 1.
-
-    pg.patching.patch_on_key(a, 'x', value=3)
-    # a._num_changes is 2.
-
-    pg.patching.patch_on_keys(a, 'x', value=4, skip_notification=True)
-    # a._num_changes is still 2.
-
-  Args:
-    src: symbolic value to patch.
-    regex: Regex for key name.
-    value: New value for field that satisfy `condition`.
-    value_fn: Callable object that produces new value based on old value.
-      If not None, `value` must be None.
-    skip_notification: If True, `on_change` event will not be triggered for this
-      operation. If None, the behavior is decided by `pg.notify_on_rebind`.
-      Please see `symbolic.Symbolic.rebind` for details.
-
-  Returns:
-    `src` after being patched.
-  """
-  regex = re.compile(regex)
-  return _conditional_patch(
-      src,
-      lambda k, v, p: k and regex.match(str(k.key)),
-      value,
-      value_fn,
-      skip_notification)
-
-
-def patch_on_path(
-    src: symbolic.Symbolic,
-    regex: Text,
-    value: Any = None,
-    value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
-  """Recursively patch values on matched paths.
-
-  Example::
-
-    d = pg.Dict(a={'x': 1}, b=2)
-    print(pg.patching.patch_on_path(d, '.*x', value=3))
-    # {a={x=1}, b=2}
-
-  Args:
-    src: symbolic value to patch.
-    regex: Regex for key path.
-    value: New value for field that satisfy `condition`.
-    value_fn: Callable object that produces new value based on old value.
-      If not None, `value` must be None.
-    skip_notification: If True, `on_change` event will not be triggered for this
-      operation. If None, the behavior is decided by `pg.notify_on_rebind`.
-      Please see `symbolic.Symbolic.rebind` for details.
-
-  Returns:
-    `src` after being patched.
-  """
-  regex = re.compile(regex)
-  return _conditional_patch(
-      src, lambda k, v, p: regex.match(str(k)),
-      value, value_fn, skip_notification)
-
-
-def patch_on_value(
-    src: symbolic.Symbolic,
-    old_value: Any,
-    value: Any = None,
-    value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
-  """Recursively patch values on matched values.
-
-  Example::
-
-    d = pg.Dict(a={'x': 1}, b=1)
-    print(pg.patching.patch_on_value(d, 1, value=3))
-    # {a={x=3}, b=3}
-
-  Args:
-    src: symbolic value to patch.
-    old_value: Old value to match.
-    value: New value for field that satisfy `condition`.
-    value_fn: Callable object that produces new value based on old value.
-      If not None, `value` must be None.
-    skip_notification: If True, `on_change` event will not be triggered for this
-      operation. If None, the behavior is decided by `pg.notify_on_rebind`.
-      Please see `symbolic.Symbolic.rebind` for details.
-
-  Returns:
-    `src` after being patched.
-  """
-  return _conditional_patch(
-      src, lambda k, v, p: v == old_value,
-      value, value_fn, skip_notification)
-
-
-def patch_on_type(
-    src: symbolic.Symbolic,
-    value_type: Union[Type[Any], Tuple[Type[Any], ...]],
-    value: Any = None,
-    value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
-  """Recursively patch values on matched types.
-
-  Example::
-
-    d = pg.Dict(a={'x': 1}, b=2)
-    print(pg.patching.patch_on_type(d, int, value_fn=lambda x: x * 2))
-    # {a={x=2}, b=4}
-
-  Args:
-    src: symbolic value to patch.
-    value_type: Value type to match.
-    value: New value for field that satisfy `condition`.
-    value_fn: Callable object that produces new value based on old value.
-      If not None, `value` must be None.
-    skip_notification: If True, `on_change` event will not be triggered for this
-      operation. If None, the behavior is decided by `pg.notify_on_rebind`.
-      Please see `symbolic.Symbolic.rebind` for details.
-
-  Returns:
-    `src` after being patched.
-  """
-  return _conditional_patch(
-      src, lambda k, v, p: isinstance(v, value_type),
-      value, value_fn, skip_notification)
-
-
-def patch_on_member(
-    src: symbolic.Symbolic,
-    cls: Union[Type[Any], Tuple[Type[Any], ...]],
-    name: Text,
-    value: Any = None,
-    value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
-  """Recursively patch values that are the requested member of classes.
-
-  Example::
-
-    d = pg.Dict(a=A(x=1), b=2)
-    print(pg.patching.patch_on_member(d, A, 'x', 2)
-    # {a=A(x=2), b=4}
-
-  Args:
-    src: symbolic value to patch.
-    cls: In which class the member belongs to.
-    name: Member name.
-    value: New value for field that satisfy `condition`.
-    value_fn: Callable object that produces new value based on old value.
-      If not None, `value` must be None.
-    skip_notification: If True, `on_change` event will not be triggered for this
-      operation. If None, the behavior is decided by `pg.notify_on_rebind`.
-      Please see `symbolic.Symbolic.rebind` for details.
-
-  Returns:
-    `src` after being patched.
-  """
-  return _conditional_patch(
-      src, lambda k, v, p: isinstance(p, cls) and k.key == name,
-      value, value_fn, skip_notification)
-
-
-def _conditional_patch(
-    src: symbolic.Symbolic,
-    condition: Callable[
-        [object_utils.KeyPath, Any, symbolic.Symbolic], bool],
-    value: Any = None,
-    value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
-  """Recursive patch values on condition.
-
-  Args:
-    src: symbolic value to patch.
-    condition: Callable object with signature (key_path, value, parent) which
-      returns whether a field should be patched.
-    value: New value for field that satisfy `condition`.
-    value_fn: Callable object that produces new value based on old value.
-      If not None, `value` must be None.
-    skip_notification: If True, `on_change` event will not be triggered for this
-      operation. If None, the behavior is decided by `pg.notify_on_rebind`.
-      Please see `symbolic.Symbolic.rebind` for details.
-
-  Returns:
-    `src` after being patched.
-  """
-  if value_fn is not None and value is not None:
-    raise ValueError(
-        'Either `value` or `value_fn` should be specified.')
-  def _fn(k, v, p):
-    if condition(k, v, p):
-      return value_fn(v) if value_fn else value
-    return v
-  return src.rebind(
-      _fn, raise_on_no_change=False, skip_notification=skip_notification)
+from pyglove.core import typing as pg_typing
 
 
 class Patcher(symbolic.Functor):
@@ -379,7 +137,7 @@ class Patcher(symbolic.Functor):
   def __call__(
       self,
       x: symbolic.Symbolic
-      ) -> Union[Dict[Text, Any], Tuple[Dict[Text, Any], Callable[[], None]]]:
+      ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], Callable[[], None]]]:
     """Override __call__ to get rebind dict."""
     return super().__call__(x, override_args=True)
 
@@ -405,14 +163,14 @@ class _PatcherRegistry:
       raise KeyError(f'Patcher {name!r} is not registered.')
     return self._registry[name]
 
-  def register(self, name: Text, patcher_cls: Type[Patcher]):
+  def register(self, name: str, patcher_cls: Type[Patcher]):
     """Register a function with a scheme name."""
     if name in self._registry and not _ALLOW_REPEATED_PATCHER_REGISTRATION:
       raise KeyError(f'Patcher {name!r} already registered.')
     self._registry[name] = patcher_cls
 
   @property
-  def names(self) -> List[Text]:
+  def names(self) -> List[str]:
     """Returns registered scheme names."""
     return list(self._registry.keys())
 
@@ -421,8 +179,8 @@ _PATCHER_REGISTRY = _PatcherRegistry()
 
 
 def patcher(
-    args: Optional[List[Tuple[Text, schema.ValueSpec]]] = None,
-    name: Optional[Text] = None) -> Any:
+    args: Optional[List[Tuple[str, pg_typing.ValueSpec]]] = None,
+    name: Optional[str] = None) -> Any:
   """Decorate a function into a Patcher and register it.
 
   A patcher function is defined as:
@@ -486,18 +244,18 @@ def patcher(
 def _is_patcher_target_spec(value_spec):
   """Return True if value_spec can be used for patcher target."""
   return isinstance(
-      value_spec, (schema.Any, schema.Object,
-                   schema.Dict, schema.List, schema.Callable))
+      value_spec, (pg_typing.Any, pg_typing.Object,
+                   pg_typing.Dict, pg_typing.List, pg_typing.Callable))
 
 
 def _is_patcher_parameter_spec(value_spec, leaf_only=False):
   """Return True if value_spec can be used for patcher parameters."""
-  if isinstance(value_spec, (schema.Any, schema.Str, schema.Bool,
-                             schema.Int, schema.Float)):
+  if isinstance(value_spec, (pg_typing.Any, pg_typing.Str, pg_typing.Bool,
+                             pg_typing.Int, pg_typing.Float)):
     return True
-  elif isinstance(value_spec, schema.Enum):
+  elif isinstance(value_spec, pg_typing.Enum):
     return value_spec.value_type == str
-  elif isinstance(value_spec, schema.List):
+  elif isinstance(value_spec, pg_typing.List):
     return (not leaf_only  and _is_patcher_parameter_spec(
         value_spec.element.value, leaf_only=True))
   return False
@@ -509,8 +267,8 @@ def patcher_names():
 
 
 PatchType = Union[
-    Dict[Text, Any], Callable, Patcher, Text,               # pylint: disable = g-bare-generic
-    List[Union[Dict[Text, Any], Callable, Patcher, Text]]]  # pylint: disable = g-bare-generic
+    Dict[str, Any], Callable, Patcher, str,               # pylint: disable = g-bare-generic
+    List[Union[Dict[str, Any], Callable, Patcher, str]]]  # pylint: disable = g-bare-generic
 
 
 def patch(value: symbolic.Symbolic, rule: PatchType) -> Any:
@@ -572,7 +330,7 @@ _ID_REGEX = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*')
 _ARG_ASSIGN_REGEX = re.compile(r'^([a-zA-Z_][a-zA-Z0-9_]*)=(.*)')
 
 
-def from_uri(uri: Text) -> Patcher:
+def from_uri(uri: str) -> Patcher:
   """Create a Patcher object from a URI-like string."""
   name, args, kwargs = parse_uri(uri)
   patcher_cls = typing.cast(Type[Any], _PATCHER_REGISTRY.get(name))
@@ -580,7 +338,7 @@ def from_uri(uri: Text) -> Patcher:
   return patcher_cls(object_utils.MISSING_VALUE, *args, **kwargs)
 
 
-def parse_uri(uri: Text) -> Tuple[Text, List[Text], Dict[Text, Text]]:
+def parse_uri(uri: str) -> Tuple[str, List[str], Dict[str, str]]:
   """Parse patcher name and arguments from a URI-like string."""
   pos = uri.find('?')
   args = []
@@ -611,9 +369,9 @@ def parse_uri(uri: Text) -> Tuple[Text, List[Text], Dict[Text, Text]]:
   return name, args, kwargs    # pytype: disable=bad-return-type
 
 
-def parse_args(signature: schema.Signature,
-               args: List[Text],
-               kwargs: Dict[Text, Text]) -> Tuple[List[Any], Dict[Text, Any]]:
+def parse_args(signature: pg_typing.Signature,
+               args: List[str],
+               kwargs: Dict[str, str]) -> Tuple[List[Any], Dict[str, Any]]:
   """Parse patcher arguments based on its signature."""
   acceptable_arg_names = [arg.name for arg in signature.args[1:]]
   if len(signature.args) < len(args) + 1:
@@ -644,8 +402,8 @@ _BOOL_FALSE_LITERAL_SET = frozenset(['False', 'false', 'no', '0'])
 _NONE_LITERAL_SET = frozenset(['None', 'none'])
 
 
-def parse_arg(patcher_id: Text, arg_name: Text,
-              value_spec: schema.ValueSpec, arg_str: Text):
+def parse_arg(patcher_id: str, arg_name: str,
+              value_spec: pg_typing.ValueSpec, arg_str: str):
   """Parse patcher argument based on value spec."""
   def _value_error(msg):
     return ValueError(f'{msg} (Patcher={patcher_id!r}, Argument={arg_name!r})')
@@ -654,7 +412,7 @@ def parse_arg(patcher_id: Text, arg_name: Text,
     # NOTE(daiyip): If string type value needs literal 'None' or 'none', they
     # can quote the string with "".
     arg = None
-  elif isinstance(value_spec, (schema.Any, schema.Str)):
+  elif isinstance(value_spec, (pg_typing.Any, pg_typing.Str)):
     if len(arg_str) > 1:
       begin_quote = (arg_str[0] == '"')
       end_quote = (arg_str[-1] == '"')
@@ -663,28 +421,28 @@ def parse_arg(patcher_id: Text, arg_name: Text,
       elif begin_quote or end_quote:
         raise _value_error(f'Unmatched quote for string value: {arg_str!r}.')
     arg = arg_str
-  elif isinstance(value_spec, schema.Bool):
+  elif isinstance(value_spec, pg_typing.Bool):
     if (arg_str not in _BOOL_TRUE_LITERAL_SET
         and arg_str not in _BOOL_FALSE_LITERAL_SET):
       raise _value_error(f'Cannot convert {arg_str!r} to bool.')
     arg = arg_str in _BOOL_TRUE_LITERAL_SET
-  elif isinstance(value_spec, schema.Int):
+  elif isinstance(value_spec, pg_typing.Int):
     try:
       arg = int(arg_str)
     except ValueError:
       raise _value_error(f'Cannot convert {arg_str!r} to int.')  # pylint: disable=raise-missing-from
-  elif isinstance(value_spec, schema.Float):
+  elif isinstance(value_spec, pg_typing.Float):
     try:
       arg = float(arg_str)
     except ValueError:
       raise _value_error(f'Cannot convert {arg_str!r} to float.')  # pylint: disable=raise-missing-from
-  elif isinstance(value_spec, schema.Enum):
+  elif isinstance(value_spec, pg_typing.Enum):
     if value_spec.value_type != str:
       raise _value_error(
           f'{value_spec!r} cannot be used for Patcher argument. '
           f'Only Enum of string type can be used.')
     arg = arg_str
-  elif isinstance(value_spec, schema.List):
+  elif isinstance(value_spec, pg_typing.List):
     arg = parse_list(
         arg_str,
         lambda i, s: parse_arg(    # pylint: disable=g-long-lambda
@@ -697,84 +455,11 @@ def parse_arg(patcher_id: Text, arg_name: Text,
       arg, root_path=object_utils.KeyPath.parse(f'{patcher_id}.{arg_name}'))
 
 
-def parse_list(string: Text,
-               convert_fn: Callable[[int, Text], Any]) -> List[Any]:
+def parse_list(string: str,
+               convert_fn: Callable[[int, str], Any]) -> List[Any]:
   """Parse a (possibly empty) colon-separated list of values."""
   string = string.strip()
   if string:
     return [convert_fn(i, piece) for i, piece in enumerate(string.split(':'))]
   return []
 
-
-@symbolic.functor()
-def object_factory(
-    value_type: Type[symbolic.Symbolic],
-    base_value: Union[symbolic.Symbolic,
-                      Callable[[], symbolic.Symbolic],
-                      Text],
-    patches: Optional[PatchType] = None,
-    params_override: Optional[Union[Dict[Text, Any], Text]] = None) -> Any:
-  """A factory to create symbolic object from a base value and patches.
-
-  Args:
-    value_type: Type of return value.
-    base_value: An instance of `value_type`,
-      or a callable object that produces an instance of `value_type`,
-      or a string as the path to the serialized value.
-    patches: Optional patching rules. See :func:`patch` for details.
-    params_override: A rebind dict (or a JSON string as serialized rebind dict)
-      as an additional patch to the value,
-
-  Returns:
-    Value after applying `patchers` and `params_override` based on `base_value`.
-  """
-  # Step 1: Load base value.
-  if not isinstance(base_value, value_type) and callable(base_value):
-    value = base_value()
-  elif isinstance(base_value, str):
-    value = symbolic.load(base_value)
-  else:
-    value = base_value
-
-  if not isinstance(value, value_type):
-    raise TypeError(
-        f'{base_value!r} is neither an instance of {value_type!r}, '
-        f'nor a factory or a path of JSON file that produces an '
-        f'instance of {value_type!r}.')
-
-  # Step 2: Patch with patchers if available.
-  if patches is not None:
-    value = patch(value, patches)
-
-  # Step 3: Patch with additional parameter override dict if available.
-  if params_override:
-    value = value.rebind(
-        object_utils.flatten(from_maybe_serialized(params_override, dict)),
-        raise_on_no_change=False)
-  return value
-
-
-def from_maybe_serialized(
-    source: Union[Any, Text],
-    value_type: Optional[Type[Any]] = None) -> Any:
-  """Load value from maybe serialized form (e.g. JSON file or JSON string).
-
-  Args:
-    source: Source of value. It can be value (non-string type) itself, or a
-      filepath, or a JSON string from where the value will be loaded.
-    value_type: An optional type to constrain the value.
-
-  Returns:
-    Value from source.
-  """
-  if isinstance(source, str):
-    if source.endswith('.json'):
-      value = symbolic.load(source)
-    else:
-      value = symbolic.from_json_str(source)
-  else:
-    value = source
-  if value_type is not None and not isinstance(value, value_type):
-    raise TypeError(
-        f'Loaded value {value!r} is not an instance of {value_type!r}.')
-  return value
