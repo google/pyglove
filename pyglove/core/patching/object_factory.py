@@ -19,8 +19,34 @@ from pyglove.core import symbolic
 from pyglove.core.patching import rule_based
 
 
+def from_maybe_serialized(
+    source: Union[Any, str],
+    value_type: Optional[Type[Any]] = None) -> Any:
+  """Load value from maybe serialized form (e.g. JSON file or JSON string).
+
+  Args:
+    source: Source of value. It can be value (non-string type) itself, or a
+      filepath, or a JSON string from where the value will be loaded.
+    value_type: An optional type to constrain the value.
+
+  Returns:
+    Value from source.
+  """
+  if isinstance(source, str):
+    if source.endswith('.json'):
+      value = symbolic.load(source)
+    else:
+      value = symbolic.from_json_str(source)
+  else:
+    value = source
+  if value_type is not None and not isinstance(value, value_type):
+    raise TypeError(
+        f'Loaded value {value!r} is not an instance of {value_type!r}.')
+  return value
+
+
 @symbolic.functor()
-def object_factory(
+def ObjectFactory(    # pylint: disable=invalid-name
     value_type: Type[symbolic.Symbolic],
     base_value: Union[symbolic.Symbolic,
                       Callable[[], symbolic.Symbolic],
@@ -66,28 +92,3 @@ def object_factory(
         raise_on_no_change=False)
   return value
 
-
-def from_maybe_serialized(
-    source: Union[Any, str],
-    value_type: Optional[Type[Any]] = None) -> Any:
-  """Load value from maybe serialized form (e.g. JSON file or JSON string).
-
-  Args:
-    source: Source of value. It can be value (non-string type) itself, or a
-      filepath, or a JSON string from where the value will be loaded.
-    value_type: An optional type to constrain the value.
-
-  Returns:
-    Value from source.
-  """
-  if isinstance(source, str):
-    if source.endswith('.json'):
-      value = symbolic.load(source)
-    else:
-      value = symbolic.from_json_str(source)
-  else:
-    value = source
-  if value_type is not None and not isinstance(value, value_type):
-    raise TypeError(
-        f'Loaded value {value!r} is not an instance of {value_type!r}.')
-  return value

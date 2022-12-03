@@ -16,7 +16,7 @@
 import unittest
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
-from pyglove.core.patching.object_factory import object_factory
+from pyglove.core.patching.object_factory import ObjectFactory
 from pyglove.core.patching.rule_based import patcher as pg_patcher
 
 
@@ -31,11 +31,11 @@ class ObjectFactoryTest(unittest.TestCase):
   """ObjectFactory test."""
 
   def test_factory_with_base_value_in_object_form(self):
-    v = object_factory(symbolic.Dict, symbolic.Dict(a=1))()
+    v = ObjectFactory(symbolic.Dict, symbolic.Dict(a=1))()
     self.assertEqual(v, {'a': 1})
 
   def test_factory_with_base_value_in_callable_form(self):
-    v = object_factory(symbolic.Dict, lambda: symbolic.Dict(a=1))()
+    v = ObjectFactory(symbolic.Dict, lambda: symbolic.Dict(a=1))()
     self.assertEqual(v, {'a': 1})
 
   def test_factory_with_base_value_in_file_form(self):
@@ -51,20 +51,20 @@ class ObjectFactoryTest(unittest.TestCase):
 
     filepath = 'myfile.json'
     symbolic.Dict(a=1).save(filepath)
-    v = object_factory(symbolic.Dict, filepath)()
+    v = ObjectFactory(symbolic.Dict, filepath)()
     self.assertEqual(v, symbolic.Dict(a=1))
 
     symbolic.set_save_handler(old_save_handler)
     symbolic.set_load_handler(old_load_handler)
 
   def test_factory_with_patchers(self):
-    v = object_factory(
+    v = ObjectFactory(
         symbolic.Dict, symbolic.Dict(a=1), ['update_a?value=2'])()
     self.assertEqual(v, {'a': 2})
 
   def test_factory_with_hierarchical_params_override(self):
     # Using dict for `params_override`.
-    v = object_factory(
+    v = ObjectFactory(
         symbolic.Dict, symbolic.Dict(a={'x': 1, 'y': 2}),
         params_override={
             'a': {
@@ -74,7 +74,7 @@ class ObjectFactoryTest(unittest.TestCase):
     self.assertEqual(v, {'a': {'x': 2, 'y': 2}})
 
   def test_factory_with_flattened_params_override(self):
-    v = object_factory(
+    v = ObjectFactory(
         symbolic.Dict, symbolic.Dict(a={'x': 1, 'y': 2}),
         params_override={
             'a.x': 2
@@ -82,13 +82,13 @@ class ObjectFactoryTest(unittest.TestCase):
     self.assertEqual(v, {'a': {'x': 2, 'y': 2}})
 
   def test_factory_with_serialized_hierarchical_params_override(self):
-    v = object_factory(
+    v = ObjectFactory(
         symbolic.Dict, symbolic.Dict(a={'x': 1, 'y': 2}),
         params_override='{"a": {"x": 2}}')()
     self.assertEqual(v, {'a': {'x': 2, 'y': 2}})
 
   def test_factory_with_serialized_flattened_params_override(self):
-    v = object_factory(
+    v = ObjectFactory(
         symbolic.Dict, symbolic.Dict(a={'x': 1, 'y': 2}),
         params_override='{"a.x": 2}')()
     self.assertEqual(v, {'a': {'x': 2, 'y': 2}})
@@ -96,12 +96,12 @@ class ObjectFactoryTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError,
         'Loaded value .* is not an instance of .*'):
-      object_factory(
+      ObjectFactory(
           symbolic.Dict, symbolic.Dict(a=1),
           params_override='1')()
 
   def test_factory_with_patchers_and_params_override(self):
-    v = object_factory(
+    v = ObjectFactory(
         symbolic.Dict, symbolic.Dict(a=1, b=2),
         ['update_a?value=2'],
         params_override={'b': 3, 'c': 0})()
@@ -116,7 +116,7 @@ class ObjectFactoryTest(unittest.TestCase):
         TypeError,
         '.* is neither an instance of .*, nor a factory or a path '
         'of JSON file that produces an instance of .*'):
-      object_factory(symbolic.Dict, symbolic.List())()
+      ObjectFactory(symbolic.Dict, symbolic.List())()
 
 
 if __name__ == '__main__':

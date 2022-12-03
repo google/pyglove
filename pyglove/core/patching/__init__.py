@@ -48,7 +48,8 @@ from pyglove.core.patching.rule_based import patcher_names
 from pyglove.core.patching.rule_based import allow_repeated_patcher_registration
 
 # Object factory based on patchers.
-from pyglove.core.patching.object_factory import object_factory
+from pyglove.core.patching.object_factory import ObjectFactory
+from pyglove.core.patching.object_factory import from_maybe_serialized
 
 
 # pylint: enable=g-bad-import-order

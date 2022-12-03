@@ -248,7 +248,7 @@ patch_on_path = patching.patch_on_path
 patch_on_value = patching.patch_on_value
 patch_on_type = patching.patch_on_type
 patch_on_member = patching.patch_on_member
-object_factory = patching.object_factory
+ObjectFactory = patching.ObjectFactory
 
 
 #
