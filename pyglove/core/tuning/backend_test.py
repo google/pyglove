@@ -25,13 +25,17 @@ class BackendTest(unittest.TestCase):
     self.assertEqual(backend.available_backends(), ['in-memory'])
 
     @backend.add_backend('test')
-    class TestBackendFactory(backend.BackendFactory):  # pylint: disable=unused-variable
+    class TestBackend(backend.Backend):  # pylint: disable=unused-variable
       """A fake backend factory for testing."""
 
-      def create(self, **kwargs):
+      def __init__(self, **kwargs):
+        pass
+
+      @classmethod
+      def poll_result(cls, name):
         return None
 
-      def poll_result(self, name):
+      def next(self):
         return None
 
     self.assertEqual(backend.available_backends(), ['in-memory', 'test'])
@@ -44,10 +48,10 @@ class BackendTest(unittest.TestCase):
       backend.set_default_backend('non-exist-backend')
 
     with self.assertRaisesRegex(
-        TypeError, '.* is not a BackendFactory subclass'):
+        TypeError, '.* is not a `pg.tuning.Backend` subclass'):
 
       @backend.add_backend('bad')
-      class BadBackendFactory:  # pylint: disable=unused-variable
+      class BadBackend:  # pylint: disable=unused-variable
         pass
     backend.set_default_backend('in-memory')
     self.assertEqual(backend.default_backend(), 'in-memory')

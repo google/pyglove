@@ -48,7 +48,6 @@ from pyglove.core.tuning.early_stopping import EarlyStoppingPolicy
 
 # Interfaces for tuning backend developers.
 from pyglove.core.tuning.backend import Backend
-from pyglove.core.tuning.backend import BackendFactory
 from pyglove.core.tuning.backend import add_backend
 from pyglove.core.tuning.backend import available_backends
 

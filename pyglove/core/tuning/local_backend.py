@@ -208,7 +208,7 @@ class _InMemoryResult(Result):
             and best.final_measurement.reward
             < trial.final_measurement.reward)):
           self._best_trial = trial
-      self._last_update_time = datetime.datetime.utcnow()
+      self._last_update_time = datetime.datetime.now(tz=datetime.timezone.utc)
 
   @property
   def metadata(self) -> Dict[str, Any]:
@@ -280,31 +280,21 @@ class _InMemoryResult(Result):
     return object_utils.format(json_repr, compact, False, root_indent, **kwargs)
 
 
+@backend.add_backend('in-memory')
 class _InMemoryBackend(backend.Backend):
   """In-memory tuning backend."""
 
-  def __init__(self):
+  def __init__(self,
+               name: Optional[str],
+               group: Optional[str],
+               dna_spec: geno.DNASpec,
+               algorithm: geno.DNAGenerator,
+               metrics_to_optimize: Sequence[str],
+               early_stopping_policy: Optional[EarlyStoppingPolicy] = None,
+               num_examples: Optional[int] = None):
     """Constructor."""
     super().__init__()
-    self._study = None
-    self._group_id = None
-    self._dna_spec = None
-    self._algorithm = None
-    self._early_stopping_policy = None
-    self._num_examples = None
-    self._metrics_to_optimize = None
 
-  def setup(self,
-            name: Optional[str],
-            group_id: Optional[str],
-            dna_spec: geno.DNASpec,
-            algorithm: geno.DNAGenerator,
-            metrics_to_optimize: Sequence[str],
-            early_stopping_policy: Optional[EarlyStoppingPolicy] = None,
-            num_examples: Optional[int] = None,
-            ) -> None:
-    """Sets up the backend for an existing or a new sampling."""
-    # Lookup or create a new in-memory result.
     if name is None or name not in _in_memory_results:
       study = _InMemoryResult(name, num_examples)
       if name is not None:
@@ -312,9 +302,8 @@ class _InMemoryBackend(backend.Backend):
     else:
       study = _in_memory_results[name]
 
-    if group_id is None:
-      group_id = str(threading.get_ident())
-    self._group_id = group_id
+    if group is None:
+      group = str(threading.get_ident())
 
     if not algorithm.multi_objective and len(metrics_to_optimize) > 1:
       raise ValueError(
@@ -340,6 +329,7 @@ class _InMemoryBackend(backend.Backend):
             f'New: {dna_spec!r}.')
 
     self._study = study
+    self._group_id = group
     self._dna_spec = dna_spec
     self._algorithm = algorithm
     self._early_stopping_policy = early_stopping_policy
@@ -382,25 +372,13 @@ class _InMemoryBackend(backend.Backend):
       trial = self._study.create_trial(next_dna, self._group_id)
     return self._create_feedback(self._study, trial)
 
-
-# Global dictionary for locally sampled in-memory results by name.
-_in_memory_results = {}
-
-
-@backend.add_backend('in-memory')
-class _InMemoryBackendFactory(backend.BackendFactory):
-  """In-memory backend factory."""
-
-  def create(
-      self,
-      # NOTE(daiyip): passing through other keyword arguments to allow
-      # swapping of the default backend.
-      **kwargs) -> backend.Backend:
-    """Creates a tuning backend for an existing or a new sampling."""
-    return _InMemoryBackend()
-
-  def poll_result(self, name: str) -> Result:
+  @classmethod
+  def poll_result(cls, name: str) -> Result:
     """Gets tuning result by a unique tuning identifier."""
     if name not in _in_memory_results:
       raise ValueError(f'Result {name!r} does not exist.')
     return _in_memory_results[name]
+
+
+# Global dictionary for locally sampled in-memory results by name.
+_in_memory_results: Dict[str, _InMemoryResult] = {}

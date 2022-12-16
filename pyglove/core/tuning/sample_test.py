@@ -453,7 +453,7 @@ class SamplingTest(unittest.TestCase):
         for _, feedback in pg_sample(
             hyper_value=hyper_value,
             algorithm=geno.Random(seed=1),
-            group_id=group_id,
+            group=group_id,
             num_examples=num_examples,
             name=study_name):
           trial_ids.append(feedback.id)

@@ -226,10 +226,9 @@ def sample(hyper_value: Any,
 
   # Create and set up the backend.
   metrics_to_optimize = metrics_to_optimize or ['reward']
-  backend = backend_lib.create_backend_factory(backend).create(**kwargs)
-  backend.setup(
+  backend = backend_lib.get_backend_cls(backend).create(
       name, group, dna_spec, algorithm, metrics_to_optimize,
-      early_stopping_policy, num_examples)
+      early_stopping_policy, num_examples, **kwargs)
 
   while True:
     try:

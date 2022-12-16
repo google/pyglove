@@ -14,7 +14,7 @@
 """Interface for tuning backend and backend factory."""
 
 import abc
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Type
 
 from pyglove.core import geno
 from pyglove.core.tuning.early_stopping import EarlyStoppingPolicy
@@ -25,46 +25,73 @@ from pyglove.core.tuning.protocols import Result
 class Backend(metaclass=abc.ABCMeta):
   """Interface for the tuning backend."""
 
-  @abc.abstractmethod
-  def setup(self,
-            name: Optional[str],
-            group_id: Optional[str],
-            dna_spec: geno.DNASpec,
-            algorithm: geno.DNAGenerator,
-            metrics_to_optimize: Sequence[str],
-            early_stopping_policy: Optional[EarlyStoppingPolicy] = None,
-            num_examples: Optional[int] = None) -> None:
-    """Setup current backend for an existing or a new sampling.
+  @classmethod
+  def create(cls,
+             name: Optional[str],
+             group: Optional[str],
+             dna_spec: geno.DNASpec,
+             algorithm: geno.DNAGenerator,
+             metrics_to_optimize: Sequence[str],
+             early_stopping_policy: Optional[EarlyStoppingPolicy] = None,
+             num_examples: Optional[int] = None,
+             **kwargs) -> 'Backend':
+    """Create an instance of `Backend` based on `pg.sample` arguments.
+
+    The default implementation is to pass through all the arguments to
+    ``__init__`` for creating an instance of the backend. Users can override.
 
     Args:
-      name: An unique string as the identifier for the sampling instance.
-      group_id: An optional group id for current process.
-      dna_spec: DNASpec for current sampling.
-      algorithm: Search algorithm used for current sampling.
-      metrics_to_optimize: metric names to optimize.
-      early_stopping_policy: An optional early stopping policy.
-      num_examples: Max number of examples to sample. Infinite if None.
+      name: A string as a unique identifier for current sampling. Two separate
+        calls to `pg.sample` with the same `name` (also the same algorithm) will
+        share the same sampling queue, whose examples are proposed by the same
+        search algorithm.
+      group: An string or integer as the group ID of current process in
+        distributed sampling, which will be used to group different workers into
+        co-worker groups. Workers with the same group id will work on the same
+        trial. On the contrary, workers in different groups will always be
+        working with different trials. If not specified, each worker in current
+        sampling will be in different groups. `group` is usually used in the
+        outer loops of nested search, in order to allow workers to work on the
+        same higher-order item.
+      dna_spec: An `pg.DNASpec` object representing the search space.
+      algorithm: The search algorithm that samples the search space.
+      metrics_to_optimize: A sequence of string as the names of the metrics
+        to be optimized by the algorithm, which is ['reward'] by default.
+        When specified, it should have only 1 item for single-objective
+        algorithm and can have multiple items for algorithms that support
+        multi-objective optimization.
+      early_stopping_policy: An optional early stopping policy for user to tell
+        if incremental evaluation (which reports multiple measurements) on each
+        example can be early short circuited.
+        After each call to `feedback.add_measurement`, users can use method
+        `feedback.should_stop_early` to check whether current example worth
+        further evaluation or not.
+      num_examples: An optional integer as the max number of examples to
+        sample. If None, sample will return an iterator of infinite examples.
+      **kwargs: Arguments passed to the `BackendFactory` subclass registered
+        with the requested backend.
+
+    Returns:
+      A `pg.tuning.Backend` object.
     """
+    return cls(     # pytype: disable=wrong-keyword-args
+        name=name,
+        group=group,
+        dna_spec=dna_spec,
+        algorithm=algorithm,
+        metrics_to_optimize=metrics_to_optimize,
+        early_stopping_policy=early_stopping_policy,
+        num_examples=num_examples,
+        **kwargs)
+
+  @classmethod
+  @abc.abstractmethod
+  def poll_result(cls, name: str, **kwargs) -> Result:
+    """Gets tuning result by a unique tuning identifier."""
 
   @abc.abstractmethod
   def next(self) -> Feedback:
     """Get the feedback object for the next sample."""
-
-
-class BackendFactory(metaclass=abc.ABCMeta):
-  """Interface for tuning backend factory."""
-
-  @abc.abstractmethod
-  def create(self, **kwargs) -> Backend:
-    """Creates a tuning backend for an existing or a new sampling.
-
-    Args:
-      **kwargs: Backend-specific keyword arguments passed from `pg.sample`.
-    """
-
-  @abc.abstractmethod
-  def poll_result(self, name: str) -> Result:
-    """Gets tuning result by a unique tuning identifier."""
 
 
 _backend_registry = dict()
@@ -73,11 +100,11 @@ _default_backend_name = 'in-memory'
 
 def add_backend(backend_name: str):
   """Decorator to register a backend factory with name."""
-  def _decorator(factory_cls):
-    if not issubclass(factory_cls, BackendFactory):
-      raise TypeError(f'{factory_cls!r} is not a BackendFactory subclass.')
-    _backend_registry[backend_name] = factory_cls
-    return factory_cls
+  def _decorator(backend_cls):
+    if not issubclass(backend_cls, Backend):
+      raise TypeError(f'{backend_cls!r} is not a `pg.tuning.Backend` subclass.')
+    _backend_registry[backend_name] = backend_cls
+    return backend_cls
   return _decorator
 
 
@@ -99,12 +126,12 @@ def default_backend() -> str:
   return _default_backend_name
 
 
-def create_backend_factory(backend_name: str) -> BackendFactory:
+def get_backend_cls(backend_name: str) -> Type[Backend]:
   """Get backend by name."""
   backend_name = backend_name or default_backend()
   if backend_name not in _backend_registry:
     raise ValueError(f'Backend {backend_name!r} does not exist.')
-  return _backend_registry[backend_name]()
+  return _backend_registry[backend_name]
 
 
 def poll_result(
@@ -112,4 +139,4 @@ def poll_result(
     backend: Optional[str] = None,
     **kwargs) -> Result:
   """Gets tuning result by name."""
-  return create_backend_factory(backend).poll_result(name, **kwargs)
+  return get_backend_cls(backend).poll_result(name, **kwargs)
