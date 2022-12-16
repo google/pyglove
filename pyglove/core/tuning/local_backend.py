@@ -20,6 +20,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from pyglove.core import geno
+from pyglove.core import logging
 from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core.tuning import backend
@@ -291,7 +292,8 @@ class _InMemoryBackend(backend.Backend):
                algorithm: geno.DNAGenerator,
                metrics_to_optimize: Sequence[str],
                early_stopping_policy: Optional[EarlyStoppingPolicy] = None,
-               num_examples: Optional[int] = None):
+               num_examples: Optional[int] = None,
+               **kwargs):
     """Constructor."""
     super().__init__()
 
@@ -327,6 +329,11 @@ class _InMemoryBackend(backend.Backend):
             f'{early_stopping_policy!r} has been set up with a different '
             f'DNASpec. Existing: {early_stopping_policy.dna_spec!r}, '
             f'New: {dna_spec!r}.')
+
+    if kwargs:
+      logging.warning(
+          f'Ignoring keyword arguments that are not supported by \'in-memory\' '
+          f'backend: {kwargs}')
 
     self._study = study
     self._group_id = group
