@@ -1,4 +1,4 @@
-# Copyright 2022 The PyGlove Authors
+# Copyright 2023 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -671,12 +671,21 @@ class CreateSchemaTest(unittest.TestCase):
   """Tests for class_schema.create_schema."""
 
   def test_basics(self):
-    s = class_schema.create_schema([
-        ('a', 1),
-        ('b', 'foo', 'field b'),
-        ('c', True, 'field c', {'user_data': 1}),
-        ('d', 1.0), ('e', vs.Enum(0, [0, 1]))
-    ], 'schema1', metadata={'user_data': 2})
+    s = class_schema.create_schema(
+        [
+            ('a', 1),
+            ('b', 'foo', 'field b'),
+            ('c', True, 'field c', {'user_data': 1}),
+            ('d', 1.0),
+            ('e', vs.Enum(0, [0, 1])),
+            ('f', int),
+            ('g', float),
+            ('h', bool),
+            ('i', str),
+        ],
+        'schema1',
+        metadata={'user_data': 2},
+    )
 
     self.assertEqual(s.name, 'schema1')
     self.assertEqual(s['a'], Field('a', vs.Int(1)))
@@ -688,19 +697,27 @@ class CreateSchemaTest(unittest.TestCase):
     self.assertEqual(s['d'], Field('d', vs.Float(1.0)))
     self.assertEqual(s['e'], Field('e', vs.Enum(0, [0, 1])))
     self.assertEqual(s.metadata, {'user_data': 2})
+    self.assertEqual(s['f'], Field('f', vs.Int()))
+    self.assertEqual(s['g'], Field('g', vs.Float()))
+    self.assertEqual(s['h'], Field('h', vs.Bool()))
+    self.assertEqual(s['i'], Field('i', vs.Str()))
 
-  def test_bad_cases(self):
-    with self.assertRaisesRegex(
-        TypeError, 'Metadata of schema should be a dict.'):
-      class_schema.create_schema([], metadata=1)
 
-    with self.assertRaisesRegex(
-        TypeError, 'Field definition should be tuples with 2 to 4 elements.'):
-      class_schema.create_schema(['a'])
+def test_bad_cases(self):
+  with self.assertRaisesRegex(
+      TypeError, 'Metadata of schema should be a dict.'
+  ):
+    class_schema.create_schema([], metadata=1)
 
-    with self.assertRaisesRegex(
-        TypeError, 'Field definition should be tuples with 2 to 4 elements.'):
-      class_schema.create_schema([('a',)])
+  with self.assertRaisesRegex(
+      TypeError, 'Field definition should be tuples with 2 to 4 elements.'
+  ):
+    class_schema.create_schema(['a'])
+
+  with self.assertRaisesRegex(
+      TypeError, 'Field definition should be tuples with 2 to 4 elements.'
+  ):
+    class_schema.create_schema([('a',)])
 
 
 if __name__ == '__main__':

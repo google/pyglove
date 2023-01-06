@@ -1,4 +1,4 @@
-# Copyright 2022 The PyGlove Authors
+# Copyright 2023 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -211,6 +211,21 @@ class ValueSpec(object_utils.Formattable):
 
   The code above creates an int specification with default value 1 and can
   accept None.
+
+  ``ValueSpec`` object can also be derived from primitive annotation.
+  For example, annotation below
+
+     @pg.members([
+        ('x', pg.typing.Int()),
+        ('y', pg.typing.Str()),
+    ])
+
+  can be writen as
+
+    @pg.members([
+        ('x', int),
+        ('y', str),
+    ])
   """
 
   @property
@@ -419,6 +434,9 @@ class ValueSpec(object_utils.Formattable):
     """Gets a concrete ValueSpec from a value."""
     if isinstance(value, ValueSpec):
       return value
+    if isinstance(value, Type):
+      return cls.from_type(value)
+
     value_spec = cls.from_type(type(value))
     value_spec.set_default(value)
     return value_spec
