@@ -702,22 +702,21 @@ class CreateSchemaTest(unittest.TestCase):
     self.assertEqual(s['h'], Field('h', vs.Bool()))
     self.assertEqual(s['i'], Field('i', vs.Str()))
 
+  def test_bad_cases(self):
+    with self.assertRaisesRegex(
+        TypeError, 'Metadata of schema should be a dict.'
+    ):
+      class_schema.create_schema([], metadata=1)
 
-def test_bad_cases(self):
-  with self.assertRaisesRegex(
-      TypeError, 'Metadata of schema should be a dict.'
-  ):
-    class_schema.create_schema([], metadata=1)
+    with self.assertRaisesRegex(
+        TypeError, 'Field definition should be tuples with 2 to 4 elements.'
+    ):
+      class_schema.create_schema(['a'])
 
-  with self.assertRaisesRegex(
-      TypeError, 'Field definition should be tuples with 2 to 4 elements.'
-  ):
-    class_schema.create_schema(['a'])
-
-  with self.assertRaisesRegex(
-      TypeError, 'Field definition should be tuples with 2 to 4 elements.'
-  ):
-    class_schema.create_schema([('a',)])
+    with self.assertRaisesRegex(
+        TypeError, 'Field definition should be tuples with 2 to 4 elements.'
+    ):
+      class_schema.create_schema([('a',)])
 
 
 if __name__ == '__main__':
