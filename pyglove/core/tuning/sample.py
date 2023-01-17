@@ -126,7 +126,7 @@ def sample(hyper_value: Any,
 
   **Workroup**
 
-  In a distribured setup, worker processes may or may not work on the same
+  In a distributed setup, worker processes may or may not work on the same
   trials. Worker group is introduced to serve this purpose, which is identified
   by an integer or a string named `group`. If `group` is not specified or
   having different values among the workers, every worker will work on
