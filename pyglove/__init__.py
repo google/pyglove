@@ -38,4 +38,4 @@ from pyglove import generators
 # pylint: enable=unused-import
 # pylint: enable=g-bad-import-order
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
