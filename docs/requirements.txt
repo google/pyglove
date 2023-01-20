@@ -3,3 +3,5 @@
 autodocsumm
 sphinx_autodoc_typehints
 myst_nb
+absl-py
+jinja2
