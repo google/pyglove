@@ -2,11 +2,4 @@
 
 autodocsumm
 sphinx_autodoc_typehints
-sphinx.ext.autosectionlabel
-sphinx.ext.autosummary
-sphinx.ext.intersphinx
-sphinx.ext.linkcode
-sphinx.ext.mathjax
-sphinx.ext.napoleon
-sphinx.ext.graphviz
 myst_nb
