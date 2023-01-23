@@ -147,7 +147,8 @@ class ValueSpec(object_utils.Formattable):
     +---------------------------+----------------------------------------------+
     | tuple                     | :class:`pyglove.typing.Tuple`                |
     +---------------------------+----------------------------------------------+
-    | dict                      | :class:`pyglove.Dict`                 |
+    | dict                      | :class:`pyglove.typing.Dict`
+    |
     +---------------------------+----------------------------------------------+
     | instance of a class       | :class:`pyglove.typing.Object`               |
     +---------------------------+----------------------------------------------+
@@ -157,9 +158,9 @@ class ValueSpec(object_utils.Formattable):
     +---------------------------+----------------------------------------------+
     | type                      | :class:`pyglove.typing.Type`                 |
     +---------------------------+----------------------------------------------+
-    | union                     | :class:`pyglove.Union`                |
+    | union                     | :class:`pyglove.typing.Union`                |
     +---------------------------+----------------------------------------------+
-    | any                       | :class:`pyglove.Any`                  |
+    | any                       | :class:`pyglove.typing.Any`                  |
     +---------------------------+----------------------------------------------+
 
   **Construction**
@@ -212,19 +213,27 @@ class ValueSpec(object_utils.Formattable):
   The code above creates an int specification with default value 1 and can
   accept None.
 
-  ``ValueSpec`` object can also be derived from primitive annotation.
+  ``ValueSpec`` object can also be derived from annotations.
   For example, annotation below
 
      @pg.members([
+        ('a', pg.typing.List(pg.typing.Str)),
+        ('b', pg.typing.Dict().set_default('key': 'value')),
+        ('c', pg.typing.List(pg.typing.Any()).noneable()),
         ('x', pg.typing.Int()),
-        ('y', pg.typing.Str()),
+        ('y', pg.typing.Str().noneable()),
+        ('z', pg.typing.Union(pg.typing.Int(), pg.typing.Float()))
     ])
 
   can be writen as
 
     @pg.members([
+        ('a', list[str]),
+        ('b', {'key': 'value}),
+        ('c', Optional[list]),
         ('x', int),
-        ('y', str),
+        ('y', Optional[str]),
+        ('z', Union[int, float])
     ])
   """
 
@@ -420,26 +429,11 @@ class ValueSpec(object_utils.Formattable):
     return self.format(compact=False, verbose=True)
 
   @classmethod
-  def from_annotation(cls, annotation: Any) -> 'ValueSpec':
+  def from_annotation(
+      cls, annotation: Any, runtime_type_check=False
+  ) -> 'ValueSpec':
     """Gets a concrete ValueSpec from annotation."""
     assert False, 'Overridden in `value_specs.py`.'
-
-  @classmethod
-  def from_type(cls, value_type: Type[Any]) -> 'ValueSpec':
-    """Gets a concrete ValueSpec from annotation."""
-    assert False, 'Overridden in `value_specs.py`.'
-
-  @classmethod
-  def from_value(cls, value: Any) -> 'ValueSpec':
-    """Gets a concrete ValueSpec from a value."""
-    if isinstance(value, ValueSpec):
-      return value
-    if isinstance(value, Type):
-      return cls.from_type(value)
-
-    value_spec = cls.from_type(type(value))
-    value_spec.set_default(value)
-    return value_spec
 
 
 class Field(object_utils.Formattable):
@@ -959,8 +953,7 @@ class Schema(object_utils.Formattable):
       KeyError: Key is not allowed in schema.
       TypeError: Type of dict values are not aligned with schema.
       ValueError: Value of dict values are not aligned with schema.
-    """
-    # pyformat: enable
+    """  # pyformat: enable
     matched_keys, unmatched_keys = self.resolve(dict_obj.keys())
     if unmatched_keys:
       raise KeyError(
@@ -1183,7 +1176,7 @@ def create_schema(
       raise TypeError(
           f'The 1st element of field definition should be of '
           f'<class \'str\'> or KeySpec. Encountered: {maybe_key_spec}.')
-    value = ValueSpec.from_value(maybe_value_spec)
+    value = ValueSpec.from_annotation(maybe_value_spec, True)
     if (description is not None and
         not isinstance(description, str)):
       raise TypeError(f'Description (the 3rd element) of field definition '

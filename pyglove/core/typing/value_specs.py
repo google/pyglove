@@ -2118,35 +2118,86 @@ def _any_if_no_annotation(annotation: typing.Any):
   return typing.Any if annotation == MISSING_VALUE else annotation
 
 
-def _from_annotation(annotation: typing.Any) -> ValueSpec:
+def _from_annotation(
+    annotation: typing.Any, runtime_type_check=False
+) -> ValueSpec:
   """Creates a value spec from annotation."""
-  # TODO(daiyip): Currently we always create Any with annotation as type lint.
-  # We shall be able to map Python typing annotations to PyGlove value specs.
-  # later.
-  value_spec = Any()
-  if annotation != inspect.Parameter.empty:
-    value_spec.annotate(annotation)
-  return value_spec
+  if not runtime_type_check:
+    value_spec = Any()
+    if annotation != inspect.Parameter.empty:
+      value_spec.annotate(annotation)
+    return value_spec
 
+  origin = typing.get_origin(annotation)
+  args = typing.get_args(annotation)
 
-def _from_type(value_type: typing.Type[typing.Any]) -> ValueSpec:
-  """Create value spec from a python type."""
-  if value_type is bool:
+  if isinstance(annotation, ValueSpec):
+    return annotation
+  elif isinstance(annotation, bool):
+    return Bool(annotation)
+  elif isinstance(annotation, int):
+    return Int(annotation)
+  elif isinstance(annotation, float):
+    return Float(annotation)
+  elif isinstance(annotation, str):
+    return Str(annotation)
+  elif isinstance(annotation, type(None)):
+    return Any().noneable()
+  elif isinstance(annotation, (list, typing.List)):
+    vs = (
+        _from_annotation(type(annotation[0]), True)
+        if len(annotation) > 1
+        else Any()
+    )
+    return List(vs).set_default(annotation)
+  elif isinstance(annotation, (dict, typing.Dict)):
+    return Dict().set_default(annotation)
+  elif isinstance(annotation, (tuple, typing.Tuple)):
+    vs = (
+        [_from_annotation(type(ele), True) for ele in annotation]
+        if len(annotation)
+        else Any()
+    )
+    return Tuple(vs).set_default(annotation)
+  elif annotation is bool:
     return Bool()
-  elif value_type is int:
+  elif annotation is int:
     return Int()
-  elif value_type is float:
+  elif annotation is float:
     return Float()
-  elif issubclass(value_type, str):
+  elif annotation in (list, typing.List):
+    return List(_from_annotation(args[0], True)) if args else List(Any())
+  elif annotation in (dict, typing.Dict):
+    return Dict()
+  elif annotation in (tuple, typing.Tuple):
+    return Tuple(Any())
+  elif annotation is str:
     return Str()
+  elif origin is typing.Union:
+    if type(None) in args and len(args) == 2:
+      return _from_annotation(_get_optional_arg(args), True).noneable()
+    else:
+      return Union(list(_from_annotation(value, True) for value in set(args)))
+  elif origin in (list, typing.List):
+    return List(_from_annotation(args[0], True)) if args else List(Any())
+  elif origin in (tuple, typing.Tuple):
+    return (
+        Tuple([_from_annotation(arg, True) for arg in args])
+        if args
+        else Tuple(Any())
+    )
+
   else:
-    raise TypeError(f'Only primitive types (bool, int, float, str) are '
-                    f'supported to create ValueSpec from a default value. '
-                    f'Encountered {value_type}.'
-                    f'Consider using schema.Enum, schema.Dict, schema.List '
-                    f'and schema.Object for complex types.')
+    raise TypeError(
+        'Only types (bool, int, float, str, list, dict) are supported.'
+        f'Encountered {annotation}.'
+        'Consider using schema.Enum '
+        'and schema.Object for complex types.'
+    )
+
+
+def _get_optional_arg(values: tuple[Any, ...]) -> Any:
+  return [x for x in values if x is not type(None)][0]
 
 
 ValueSpec.from_annotation = _from_annotation
-ValueSpec.from_type = _from_type
-

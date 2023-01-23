@@ -23,6 +23,7 @@ from pyglove.core.typing import class_schema
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import typed_missing
 from pyglove.core.typing import value_specs as vs
+from pyglove.core.typing.class_schema import ValueSpec
 
 
 class BoolTest(unittest.TestCase):
@@ -1381,7 +1382,8 @@ class DictTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         TypeError,
-        'Only primitive types \\(bool, int, float, str\\) are supported '):
+        'Only types \\(bool, int, float, str, list, dict\\) are supported.',
+    ):
       vs.Dict([('key', lambda x: x, 'field 1')])
 
     with self.assertRaisesRegex(
@@ -2544,6 +2546,61 @@ class AnyTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Any().freeze()
+
+
+class ValueSpecTest(unittest.TestCase):
+  """Tests for ValueSpec.fromAnnotation."""
+
+  def test_from_annotation(self):
+    self.assertEqual(ValueSpec.from_annotation(1, True), vs.Int(1))
+    self.assertEqual(ValueSpec.from_annotation(1.0, True), vs.Float(1.0))
+    self.assertEqual(ValueSpec.from_annotation(False, True), vs.Bool(False))
+    self.assertEqual(ValueSpec.from_annotation('abc', True), vs.Str('abc'))
+    self.assertEqual(
+        ValueSpec.from_annotation([], True), vs.List(vs.Any()).set_default([])
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation([1, 2], True),
+        vs.List(vs.Int()).set_default([1, 2]),
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation({}, True), vs.Dict().set_default({})
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation((1, 1.0, 'b'), True),
+        vs.Tuple([vs.Int(), vs.Float(), vs.Str()]).set_default((1, 1.0, 'b')),
+    )
+    self.assertEqual(ValueSpec.from_annotation(None, True), vs.Any().noneable())
+    self.assertEqual(ValueSpec.from_annotation(int, True), vs.Int())
+    self.assertEqual(ValueSpec.from_annotation(float, True), vs.Float())
+    self.assertEqual(ValueSpec.from_annotation(str, True), vs.Str())
+    self.assertEqual(ValueSpec.from_annotation(list, True), vs.List(vs.Any()))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.List, True), vs.List(vs.Any())
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(list[int], True), vs.List(vs.Int())
+    )
+    self.assertEqual(ValueSpec.from_annotation(dict, True), vs.Dict())
+    self.assertEqual(ValueSpec.from_annotation(typing.Dict, True), vs.Dict())
+    self.assertEqual(ValueSpec.from_annotation(tuple, True), vs.Tuple(vs.Any()))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Tuple, True), vs.Tuple(vs.Any())
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(tuple[int], True), vs.Tuple([vs.Int()])
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Optional[int], True),
+        vs.Int().noneable(),
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Union[int, str], True),
+        vs.Union([vs.Int(), vs.Str()]),
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(int, False), vs.Any(annotation=int)
+    )
 
 
 if __name__ == '__main__':
