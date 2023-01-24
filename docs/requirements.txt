@@ -1,7 +1,9 @@
 # Required Sphinx-related packages.
 
+absl-py
 autodocsumm
 furo
+jinja2
 sphinx_autodoc_typehints
 sphinx-copybutton
 myst_nb

@@ -2196,7 +2196,7 @@ def _from_annotation(
     )
 
 
-def _get_optional_arg(values: tuple[Any, ...]) -> Any:
+def _get_optional_arg(values: typing.Sequence[Any]) -> Any:
   return [x for x in values if x is not type(None)][0]
 
 
