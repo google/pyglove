@@ -8,10 +8,4 @@ Welcome to PyGlove
    :caption: API References
 
    api/index
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   API Index (A-Z) <genindex>

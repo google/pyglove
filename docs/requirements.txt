@@ -1,5 +1,7 @@
 # Required Sphinx-related packages.
 
 autodocsumm
+furo
 sphinx_autodoc_typehints
+sphinx-copybutton
 myst_nb

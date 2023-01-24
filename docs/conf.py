@@ -121,6 +121,7 @@ extensions = [
     # pip install autodocsumm
     'autodocsumm',
     'sphinx_autodoc_typehints',
+    'sphinx_copybutton',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosectionlabel',
     'sphinx.ext.autosummary',
@@ -170,7 +171,6 @@ language = 'en'
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = [
     # Temporarily disable sources for faster sphinx-build
-    # 'api/generators',
     # 'api/core/symbolic',
     # 'api/core/object_utils',
     # 'api/core/typing',
@@ -180,6 +180,7 @@ exclude_patterns = [
     # 'api/core/geno',
     # 'api/core/hyper',
     # 'api/core/tuning',
+    # 'api/ext'
     # Manual sections.
     # 'overview',
     # 'symbolic_oop',
@@ -210,14 +211,27 @@ napolean_use_rtype = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
-html_logo = '_static/logo.svg'
-html_favicon = '_static/favicon.svg'
 
+html_theme = 'furo'
+html_title = 'PyGlove'
+
+html_static_path = ['_static']
 html_theme_options = {
+    # furo
+    'light_logo': 'logo_light.svg',
+    'dark_logo': 'logo_dark.svg',
+    'sidebar_hide_name': True,
+    'navigation_with_keys': True,
+
+    'light_css_variables': {
+        'sidebar-item-font-size': '81.25%',
+        'code-font-size': '75%'
+    },
+
     'logo_only': True,
     'navigation_depth': 6
 }
+html_favicon = '_static/favicon.svg'
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
