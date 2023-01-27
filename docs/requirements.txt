@@ -3,6 +3,7 @@
 absl-py
 autodocsumm
 furo
+graphviz
 jinja2
 sphinx_autodoc_typehints
 sphinx-copybutton
