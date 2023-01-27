@@ -110,6 +110,7 @@ pip install pyglove --pre
   * [One-Max Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/onemax.ipynb)
 
 * Machine Learning
+  * [Scalably exchanging ML ideas](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/efficiently_exchange_ml_ideas_as_code.ipynb)
   * [Symbolic Machine Learning](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/symbolic_ml.ipynb)
   * [Symbolic Neural Modeling](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/neural_modeling.ipynb)
 
