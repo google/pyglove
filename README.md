@@ -9,6 +9,12 @@
 [![codecov](https://codecov.io/gh/google/pyglove/branch/main/graph/badge.svg)](https://codecov.io/gh/google/pyglove)
 ![pytest](https://github.com/google/pyglove/actions/workflows/ci.yaml/badge.svg)
 
+[**Getting started**](#hello-pyglove)
+| [**Installation**](#install)
+| [**Examples**](#examples)
+| [**Reference docs**](https://pyglove.readthedocs.io/)
+
+## What is PyGlove
 
 PyGlove is a general-purpose library for Python object manipulation.
 It introduces symbolic object-oriented programming to Python, allowing
@@ -44,18 +50,6 @@ at NeurIPS 2020. It is widely used within [Alphabet](https://abc.xyz/), includin
 PyGlove is developed by Daiyi Peng and colleagues in [Google Brain Team](https://research.google/teams/brain/).
 
 
-## Install
-
-```
-pip install pyglove
-```
-
-Or install nightly build with:
-
-```
-pip install pyglove --pre
-```
-
 ## Hello PyGlove
 
 ```python
@@ -89,6 +83,17 @@ for h in pg.iter(hello):
 > Hello, World!<br>
 > Hello, PyGlove!
 
+## Install
+
+```
+pip install pyglove
+```
+
+Or install nightly build with:
+
+```
+pip install pyglove --pre
+```
 
 ## Examples
 
