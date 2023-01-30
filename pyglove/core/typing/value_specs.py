@@ -163,7 +163,7 @@ class ValueSpecBase(ValueSpec):
     if not base.is_noneable and self._is_noneable:
       raise TypeError(f'{self!r} cannot extend {base!r}: '
                       f'None is not allowed in base spec.')
-    self._extend(base)
+    self._extend(base)  # pytype: disable=wrong-arg-types  # always-use-return-annotations
     return self
 
   def _extend(self, base: ValueSpec) -> None:
