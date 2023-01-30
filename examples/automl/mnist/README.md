@@ -6,24 +6,24 @@ regular Python program. Each may find its users among different codebases and
 scenarios:
 
 * **Passing a search space of hyper-parameters**:
-This is the option for most ML practioners who already have a codebase that
+This is the option for most ML practitioners who already have a codebase that
 trains a single model by passing the hyper-parameters from the top.
 By symbolizing the top-level function using functor, search can be enabled on
-an existing codebase with a few lines of code. This option is illustrated in [mnist_tune_hparams.py](https://github.com/google/pyglove/examples/automl/mnist/mnist_tune_hparams.py)
+an existing codebase with a few lines of code. This option is illustrated in [mnist_tune_hparams.py](https://github.com/google/pyglove/tree/main/examples/automl/mnist/mnist_tune_hparams.py)
 
 * **Define-by-run search space definition**:
 This option is for codebases whose hyper-parameters are not centrally managed
 (e.g. specified within a function without passing from the function argument).
 Therefore, users want to directly modify the code (e.g. function definitions)
-to convert it into a search space. This option is the least flexibile but has
-the smallest cost to get started with, illustrated in [mnist_tune_eagerly.py](https://github.com/google/pyglove/examples/automl/mnist/mnist_tune_eagerly.py)
+to convert it into a search space. This option is the least flexible but has
+the smallest cost to get started with, illustrated in [mnist_tune_eagerly.py](https://github.com/google/pyglove/tree/main/examples/automl/mnist/mnist_tune_eagerly.py)
 
 * **Search space as a composition of symbolic objects**:
 This is the most flexible and powerful option, which works well for software
 systems that are already compositional (e.g. Keras layers).
 Within a hierarchical composition, nodes are not only searchable, but also
 rewrittable into different components or search spaces. This option is
-recommended for new systems built for maximum flexiblity. This option is illustrated in [mnist_tune.py](https://github.com/google/pyglove/examples/automl/mnist/mnist_tune.py)
+recommended for new systems built for maximum flexibility. This option is illustrated in [mnist_tune.py](https://github.com/google/pyglove/tree/main/examples/automl/mnist/mnist_tune.py)
 
 
 ## Option 1: Passing a search space of hyper-parameters
@@ -70,7 +70,7 @@ It can be used as a search space and optimized by `pg.sample` as follows:
    feedback(reward)
  ```
 
-See example on MNIST in [mnist_tune_hparams.py](https://github.com/google/pyglove/examples/automl/mnist/mnist_tune_hparams.py)
+See example on MNIST in [mnist_tune_hparams.py](https://github.com/google/pyglove/tree/main/examples/automl/mnist/mnist_tune_hparams.py)
 
 ## Option 2: Define-by-run search space definition
 
@@ -123,7 +123,7 @@ When calling `foo` during defining the search space, its output will be
 discarded, and later runs within the loop will produce a number as the feedback
 to the search algorithm.
 
-See example on MNIST in [mnist_tune_eagerly.py](https://github.com/google/pyglove/examples/automl/mnist/mnist_tune_eagerly.py)
+See example on MNIST in [mnist_tune_eagerly.py](https://github.com/google/pyglove/tree/main/examples/automl/mnist/mnist_tune_eagerly.py)
 
 
 ## Option 3: Search space as a composition of symbolic objects
@@ -160,4 +160,4 @@ optimize it using `pg.sample`:
     feedback(reward)
   ```
 
-See example on MNIST in [mnist_tune.py](https://github.com/google/pyglove/examples/automl/mnist/mnist_tune.py)
+See example on MNIST in [mnist_tune.py](https://github.com/google/pyglove/tree/main/examples/automl/mnist/mnist_tune.py)
