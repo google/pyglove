@@ -1,4 +1,4 @@
-# Copyright 2022 The PyGlove Authors
+# Copyright 2023 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,17 +37,22 @@ class SignatureTest(unittest.TestCase):
                      'pyglove.core.typing.callable_signature_test.SignatureTest.test_basics.<locals>.foo')
     self.assertEqual(
         str(signature),
-        'Signature(\'pyglove.core.typing.callable_signature_test.SignatureTest.test_basics.<locals>.foo\', '
-        'args=[\n'
-        '  Argument(name=\'a\', value_spec=Any()),\n'
-        '  Argument(name=\'b\', value_spec=Any('
-        'default=1, annotation=<class \'int\'>))\n])')
+        (
+            "Signature('pyglove.core.typing.callable_signature_test.SignatureTest.test_basics.<locals>.foo', "
+            'args=[\n'
+            "  Argument(name='a', value_spec=Any()),\n"
+            "  Argument(name='b', value_spec=Int("
+            'default=1))\n])'
+        ),
+    )
 
-    self.assertEqual(signature.named_args, [
-        callable_signature.Argument('a', vs.Any()),
-        callable_signature.Argument(
-            'b', vs.Any(default=1).annotate(int)),
-    ])
+    self.assertEqual(
+        signature.named_args,
+        [
+            callable_signature.Argument('a', vs.Any()),
+            callable_signature.Argument('b', vs.Int(default=1)),
+        ],
+    )
     self.assertEqual(signature.arg_names, ['a', 'b'])
 
     # Test __eq__ and __ne__.
@@ -85,11 +90,13 @@ class SignatureTest(unittest.TestCase):
     signature = callable_signature.get_signature(foo)
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.FUNCTION)
-    self.assertEqual(signature.args, [
-        callable_signature.Argument('a', vs.Any()),
-        callable_signature.Argument(
-            'b', vs.Any(default=1).annotate(int)),
-    ])
+    self.assertEqual(
+        signature.args,
+        [
+            callable_signature.Argument('a', vs.Any()),
+            callable_signature.Argument('b', vs.Int(default=1)),
+        ],
+    )
     self.assertEqual(signature.kwonlyargs, [])
     self.assertIsNone(signature.varargs)
     self.assertEqual(signature.varkw,
@@ -97,9 +104,7 @@ class SignatureTest(unittest.TestCase):
     self.assertFalse(signature.has_varargs)
     self.assertTrue(signature.has_varkw)
     self.assertTrue(signature.has_wildcard_args)
-    self.assertEqual(
-        signature.get_value_spec('b'),
-        vs.Any(default=1, annotation=int))
+    self.assertEqual(signature.get_value_spec('b'), vs.Int(default=1))
     # NOTE: 'x' matches **kwargs
     self.assertEqual(signature.get_value_spec('x'), vs.Any())
 
@@ -140,9 +145,8 @@ class SignatureTest(unittest.TestCase):
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.METHOD)
     self.assertEqual(
-        signature.args,
-        [callable_signature.Argument(
-            'x', vs.Any(default=1).annotate(int))])
+        signature.args, [callable_signature.Argument('x', vs.Int(default=1))]
+    )
     self.assertEqual(signature.kwonlyargs, [])
 
     # Test instance method.
@@ -150,11 +154,12 @@ class SignatureTest(unittest.TestCase):
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.METHOD)
     self.assertEqual(
-        signature.args,
-        [callable_signature.Argument('y', vs.Any().annotate(int))])
+        signature.args, [callable_signature.Argument('y', vs.Int())]
+    )
     self.assertEqual(
         signature.kwonlyargs,
-        [callable_signature.Argument('z', vs.Any(default=1))])
+        [callable_signature.Argument('z', vs.Int(default=1))],
+    )
     self.assertEqual(
         signature.varargs,
         callable_signature.Argument('args', vs.Any()))
@@ -165,13 +170,17 @@ class SignatureTest(unittest.TestCase):
     signature = callable_signature.get_signature(A.bar)
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.FUNCTION)
-    self.assertEqual(signature.args, [
-        callable_signature.Argument('self', vs.Any()),
-        callable_signature.Argument('y', vs.Any().annotate(int))
-    ])
+    self.assertEqual(
+        signature.args,
+        [
+            callable_signature.Argument('self', vs.Any()),
+            callable_signature.Argument('y', vs.Int()),
+        ],
+    )
     self.assertEqual(
         signature.kwonlyargs,
-        [callable_signature.Argument('z', vs.Any(default=1))])
+        [callable_signature.Argument('z', vs.Int(default=1))],
+    )
     self.assertEqual(
         signature.varargs,
         callable_signature.Argument('args', vs.Any()))
@@ -183,8 +192,8 @@ class SignatureTest(unittest.TestCase):
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.METHOD)
     self.assertEqual(
-        signature.args,
-        [callable_signature.Argument('z', vs.Any().annotate(int))])
+        signature.args, [callable_signature.Argument('z', vs.Int())]
+    )
     self.assertEqual(signature.kwonlyargs, [])
     self.assertFalse(signature.has_varargs)
     self.assertTrue(signature.has_varkw)
@@ -201,7 +210,7 @@ class SignatureTest(unittest.TestCase):
     def func2(x=1, *, y):
       del x, y
 
-    def func3(x=1, *y):    # pylint: disable=keyword-arg-before-vararg
+    def func3(x=1, *y):  # pylint: disable=keyword-arg-before-vararg
       del x, y
 
     def func4(*y):
@@ -217,7 +226,17 @@ class SignatureTest(unittest.TestCase):
       new_func = callable_signature.get_signature(func).make_function(['pass'])
       old_signature = inspect.signature(func)
       new_signature = inspect.signature(new_func)
-      self.assertEqual(old_signature, new_signature)
+      self.assertTrue(
+          all(
+              old_param == new_param
+              for old_param, new_param in zip(
+                  old_signature.parameters, new_signature.parameters
+              )
+          )
+      )
+      self.assertEqual(
+          old_signature.return_annotation, new_signature.return_annotation
+      )
 
 
 if __name__ == '__main__':

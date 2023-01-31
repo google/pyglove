@@ -1,4 +1,4 @@
-# Copyright 2022 The PyGlove Authors
+# Copyright 2023 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,7 +35,9 @@ class Argument:
       name: str,
       annotation: Any = inspect.Parameter.empty):
     """Creates an argument from annotation."""
-    return Argument(name, class_schema.ValueSpec.from_annotation(annotation))
+    return Argument(
+        name, class_schema.ValueSpec.from_annotation(annotation)
+    )
 
 
 class CallableType(enum.Enum):
@@ -181,11 +183,18 @@ class Signature(object_utils.Formattable):
         raise TypeError(f'{callable_object!r}.__call__ is not a method.')
       func = callable_object.__call__
 
-    def make_arg_spec(param: inspect.Parameter) -> Argument:
-      value_spec = class_schema.ValueSpec.from_annotation(param.annotation)
+    def get_value_spec(param: inspect.Parameter) -> class_schema.ValueSpec:
       if param.default != inspect.Parameter.empty:
-        value_spec.set_default(param.default)
-      return Argument(param.name, value_spec)
+        return class_schema.ValueSpec.from_annotation(
+            param.default, True
+        ).set_default(param.default)
+      elif param.annotation != inspect.Parameter.empty:
+        return class_schema.ValueSpec.from_annotation(param.annotation, True)
+      else:
+        return class_schema.ValueSpec.from_annotation(param.annotation)
+
+    def make_arg_spec(param: inspect.Parameter) -> Argument:
+      return Argument(param.name, get_value_spec(param))
 
     sig = inspect.signature(func)
     args = []

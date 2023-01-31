@@ -1117,14 +1117,13 @@ def create_schema(
 
   Args:
     maybe_field_list: A list of field equivalent values. A Field equivalent
-      value is either a Field object or a tuple of 2 - 4 elements:
-      `(<key>, <value>, [description], [metadata])`.
-      `key` can be a KeySpec subclass object or string. `value` can be a
-      ValueSpec subclass object or equivalent value. (see
-      ``ValueSpec.from_value`` method). `description` is the description of this
-      field. It can be optional when this field overrides the default value of a
-      field defined in parent schema. `metadata` is an optional field which is a
-      dict of user objects.
+      value is either a Field object or a tuple of 2 - 4 elements: `(<key>,
+      <value>, [description], [metadata])`. `key` can be a KeySpec subclass
+      object or string. `value` can be a ValueSpec subclass object or equivalent
+      value. (see ``ValueSpec.from_annotation`` method). `description` is the
+      description of this field. It can be optional when this field overrides
+      the default value of a field defined in parent schema. `metadata` is an
+      optional field which is a dict of user objects.
     name: An optional name for the schema.
     base_schema_list: A list of schema objects as bases.
     allow_nonconst_keys: Whether to allow non const keys in schema.
