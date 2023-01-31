@@ -128,8 +128,4 @@ from pyglove.core.symbolic.schema_utils import update_schema
 from pyglove.core.symbolic.schema_utils import formalize_schema
 from pyglove.core.symbolic.base import _TYPE_NAME_KEY
 
-
-# For backward compatibility.
-schema = members
-
 # pylint: enable=g-bad-import-order

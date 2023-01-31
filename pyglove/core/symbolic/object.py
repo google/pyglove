@@ -750,8 +750,3 @@ def members(
         additional_keys=additional_keys)
     return cls
   return typing.cast(pg_typing.Decorator, _decorator)
-
-
-# Create an alias method for members.
-schema = members
-
