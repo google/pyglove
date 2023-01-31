@@ -180,7 +180,9 @@ exclude_patterns = [
     # 'api/core/geno',
     # 'api/core/hyper',
     # 'api/core/tuning',
-    # 'api/ext'
+    # 'api/ext/evolution',
+    # 'api/ext/scalars',
+    # 'api/ext/early_stopping',
     # Manual sections.
     # 'overview',
     # 'symbolic_oop',
@@ -227,9 +229,6 @@ html_theme_options = {
         'sidebar-item-font-size': '81.25%',
         'code-font-size': '75%'
     },
-
-    'logo_only': True,
-    'navigation_depth': 6
 }
 html_favicon = '_static/favicon.svg'
 

@@ -4,6 +4,11 @@ Welcome to PyGlove
 ##################
 
 .. toctree::
+  :maxdepth: 2
+
+  learn/index
+
+.. toctree::
    :maxdepth: 2
    :caption: API References
 
