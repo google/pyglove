@@ -33,7 +33,7 @@ It provides:
   * A set of powerful search primitives for defining the search space;
   * A library of search algorithms ready to use, and a framework for developing
     new search algorithms;
-  * An API to interface with any distributed infrastructure for such search.
+  * An API to interface with any distributed infrastructure (e.g. [Open Source Vizier](https://oss-vizier.readthedocs.io/en/latest/advanced_topics/pyglove/vizier_as_backend.html)) for such search.
 
 It's commonly used in:
 
