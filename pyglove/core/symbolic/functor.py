@@ -543,10 +543,10 @@ def functor_class(
 
   # Update signature with symbolic value specs.
   def _value_spec_by_name(name: str):
-    field = cls.schema.get_field(name)
+    field = cls.schema.get_field(name)  # pytype: disable=attribute-error  # re-none
     assert field is not None
     return field.value
-  varkw_field = cls.schema.dynamic_field
+  varkw_field = cls.schema.dynamic_field  # pytype: disable=attribute-error  # re-none
   assert signature.has_varkw == (varkw_field is not None), varkw_field
   signature = pg_typing.Signature(
       callable_type=signature.callable_type,
@@ -597,7 +597,7 @@ def functor_class(
   def _init(self, *args, **kwargs):
     Functor.__init__(self, *args, **kwargs)
   setattr(cls, '__init__', _init)
-  return cls
+  return cls  # pytype: disable=bad-return-type  # re-none
 
 
 def as_functor(
