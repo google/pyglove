@@ -15,4 +15,5 @@
 
 from pyglove.ext import early_stopping
 from pyglove.ext import evolution
+from pyglove.ext import mutfun
 from pyglove.ext import scalars
