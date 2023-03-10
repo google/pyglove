@@ -77,7 +77,7 @@ VALIDATION_SET_REPORTING_EPOCH = 12
     ('ops', pg.typing.List(pg.typing.Str())),
     ('num_nodes', pg.typing.Int())
 ])
-def model_tss_spc(ops, num_nodes):
+def model_tss_spc(ops, num_nodes):  # pytype: disable=not-instantiable  # always-use-return-annotations
   """The architecture in the topology search space of NATS-Bench."""
   nodes, k = [], 0
   for i in range(1, num_nodes):
@@ -92,7 +92,7 @@ def model_tss_spc(ops, num_nodes):
 @pg.functor([
     ('channels', pg.typing.List(pg.typing.Int()))
 ])
-def model_sss_spc(channels):
+def model_sss_spc(channels):  # pytype: disable=not-instantiable  # always-use-return-annotations
   """The architecture in the size search space of NATS-Bench."""
   return ':'.join(str(x) for x in channels)
 

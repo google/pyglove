@@ -46,7 +46,7 @@ def from_maybe_serialized(
 
 
 @symbolic.functor()
-def ObjectFactory(    # pylint: disable=invalid-name
+def ObjectFactory(    # pylint: disable=invalid-name  # pytype: disable=not-instantiable  # always-use-return-annotations
     value_type: Type[symbolic.Symbolic],
     base_value: Union[symbolic.Symbolic,
                       Callable[[], symbolic.Symbolic],

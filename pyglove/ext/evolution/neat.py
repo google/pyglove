@@ -131,7 +131,7 @@ class Species:
     ('distance_threshold', pg.typing.Float(min_value=0.),
      'Threshold for max distances between two DNA in the same species.')
 ])
-def speciate(
+def speciate(  # pytype: disable=not-instantiable  # always-use-return-annotations
     dna_list: List[pg.DNA],
     global_state: pg.geno.AttributeDict,
     distance,
@@ -176,7 +176,7 @@ def speciate(
     ('matching_coefficient', pg.typing.Float(min_value=0.0),
      'Coefficient for DNA matching.')
 ])
-def compatibility_distance(
+def compatibility_distance(  # pytype: disable=not-instantiable  # always-use-return-annotations
     left: pg.DNA,
     right: pg.DNA,
     disjoint_coefficient,
@@ -188,7 +188,7 @@ def compatibility_distance(
 
 
 @pg.functor()
-def scaled_average_fitness(inputs: List[Species], step: int) -> List[float]:
+def scaled_average_fitness(inputs: List[Species], step: int) -> List[float]:  # pytype: disable=not-instantiable  # always-use-return-annotations
   """Returns scaled average fitness of each species."""
   del step
   global_min = None

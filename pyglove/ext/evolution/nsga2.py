@@ -70,7 +70,7 @@ def nsga2(mutator=mutators.Uniform(),
 
 
 @pg.functor()
-def next_elite(dna_list: List[pg.DNA], global_state: pg.Dict):
+def next_elite(dna_list: List[pg.DNA], global_state: pg.Dict):  # pytype: disable=not-instantiable  # always-use-return-annotations
   """Returns the next elite."""
   del dna_list
   elite = global_state.elites[global_state.elite_cursor]
@@ -80,7 +80,7 @@ def next_elite(dna_list: List[pg.DNA], global_state: pg.Dict):
 
 
 @pg.functor()
-def nondominated_sort(inputs: List[pg.DNA]) -> List[List[pg.DNA]]:
+def nondominated_sort(inputs: List[pg.DNA]) -> List[List[pg.DNA]]:  # pytype: disable=not-instantiable  # always-use-return-annotations
   """Algorithm fast-non-dominated-sort implementation using topological sort.
 
   Please see section III A in the original paper.
@@ -121,7 +121,7 @@ def nondominated_sort(inputs: List[pg.DNA]) -> List[List[pg.DNA]]:
 
 
 @pg.functor()
-def crowding_distance_sort(frontier: List[pg.DNA]) -> List[pg.DNA]:
+def crowding_distance_sort(frontier: List[pg.DNA]) -> List[pg.DNA]:  # pytype: disable=not-instantiable  # always-use-return-annotations
   """Algorithm crowding-distance-assignment implementation.
 
   Check section III B in the original paper.

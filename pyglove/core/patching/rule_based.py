@@ -215,7 +215,7 @@ def patcher(
   functor_decorator = symbolic.functor(args, base_class=Patcher)
   def _decorator(fn):
     """Returns decorated Patcher class."""
-    cls = functor_decorator(fn)
+    cls = functor_decorator(fn)  # pytype: disable=not-instantiable  # always-use-return-annotations
     _PATCHER_REGISTRY.register(name or fn.__name__,
                                typing.cast(Type[Patcher], cls))
     arg_specs = cls.signature.args
