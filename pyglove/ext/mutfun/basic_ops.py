@@ -51,9 +51,9 @@ class UnaryOperator(Operator):
     return base.indent(
         self.OPERATOR_STR + self.maybe_parenthesize(self.x), block_indent)
 
-  def evaluate(self, variables: Dict[str, Any]) -> Any:
+  def evaluate(self, context: Dict[str, Any]) -> Any:
     assert self.OPERATOR_FN is not None, self.__class__
-    return self.OPERATOR_FN(base.evaluate(self.x, variables))  # pylint: disable=not-callable
+    return self.OPERATOR_FN(base.evaluate(self.x, context))  # pylint: disable=not-callable
 
 
 class Negate(UnaryOperator):
@@ -79,11 +79,11 @@ class BinaryOperator(Operator):
                       self.OPERATOR_STR,
                       self.maybe_parenthesize(self.y)), block_indent)
 
-  def evaluate(self, variables: Dict[str, Any]) -> Any:
+  def evaluate(self, context: Dict[str, Any]) -> Any:
     assert self.OPERATOR_FN is not None, self.__class__
     return self.OPERATOR_FN(                # pylint: disable=not-callable
-        base.evaluate(self.x, variables),
-        base.evaluate(self.y, variables))
+        base.evaluate(self.x, context),
+        base.evaluate(self.y, context))
 
 
 class Add(BinaryOperator):

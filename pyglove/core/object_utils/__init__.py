@@ -68,6 +68,8 @@ from pyglove.core.object_utils.common_traits import Formattable
 from pyglove.core.object_utils.common_traits import MaybePartial
 from pyglove.core.object_utils.common_traits import Functor
 
+from pyglove.core.object_utils.common_traits import registered_types
+
 # Value location.
 from pyglove.core.object_utils.value_location import KeyPath
 from pyglove.core.object_utils.value_location import StrKey

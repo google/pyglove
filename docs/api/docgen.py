@@ -69,10 +69,11 @@ MODULES_TO_DOCUMENT = frozenset({
     'evolution.selectors',
     'evolution.mutators',
     'evolution.recombinators',
+    'mutfun',
+    'scalars',
 
     # generators.
     'generators',
-    'scalars',
 })
 
 

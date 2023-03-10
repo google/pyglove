@@ -16,10 +16,16 @@
 # pylint: disable=g-bad-import-order
 
 # Base and common instructions.
-from pyglove.ext.mutfun.base import Instruction
+from pyglove.ext.mutfun.base import Code
+
+from pyglove.ext.mutfun.base import SymbolDefinition
 from pyglove.ext.mutfun.base import Function
 from pyglove.ext.mutfun.base import Assign
+
+from pyglove.ext.mutfun.base import Instruction
+from pyglove.ext.mutfun.base import SymbolReference
 from pyglove.ext.mutfun.base import Var
+from pyglove.ext.mutfun.base import FunctionCall
 
 from pyglove.ext.mutfun.base import evaluate
 from pyglove.ext.mutfun.base import python_repr

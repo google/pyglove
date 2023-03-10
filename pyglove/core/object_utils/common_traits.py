@@ -202,8 +202,13 @@ class JSONConvertible(metaclass=abc.ABCMeta):
 
   @classmethod
   def registered_types(cls) -> Iterable[Tuple[str, Type['JSONConvertible']]]:
-    """Returns an iterator of registered (type name, class) tuples."""
+    """Returns an iterator of registered (serialization key, class) tuples."""
     return cls._TYPE_REGISTRY.iteritems()
+
+
+def registered_types() -> Iterable[Tuple[str, Type[JSONConvertible]]]:
+  """Returns an iterator of registered (serialization key, class) tuples."""
+  return JSONConvertible.registered_types()
 
 
 class Formattable(metaclass=abc.ABCMeta):

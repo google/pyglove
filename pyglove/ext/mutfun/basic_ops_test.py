@@ -14,6 +14,7 @@
 """Tests for symbolic_program/base.py."""
 
 import unittest
+import pyglove.core as pg
 from pyglove.ext.mutfun import base
 from pyglove.ext.mutfun import basic_ops
 
@@ -35,7 +36,7 @@ class NegateTest(unittest.TestCase):
     self.assertEqual(variables, dict(x=1))
 
   def test_operator_overload(self):
-    self.assertEqual(-base.Var('x'), basic_ops.Negate(base.Var('x')))
+    self.assertTrue(pg.eq(-base.Var('x'), basic_ops.Negate(base.Var('x'))))
 
 
 class AddTest(unittest.TestCase):
@@ -57,8 +58,8 @@ class AddTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 1 + 2 + 1)
 
   def test_operator_overload(self):
-    self.assertEqual(1 + base.Var('x'), basic_ops.Add(1, base.Var('x')))
-    self.assertEqual(base.Var('x') + 1, basic_ops.Add(base.Var('x'), 1))
+    self.assertTrue(pg.eq(1 + base.Var('x'), basic_ops.Add(1, base.Var('x'))))
+    self.assertTrue(pg.eq(base.Var('x') + 1, basic_ops.Add(base.Var('x'), 1)))
 
 
 class SubstractTest(unittest.TestCase):
@@ -80,8 +81,10 @@ class SubstractTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 1 - (2 + 1))
 
   def test_operator_overload(self):
-    self.assertEqual(1 - base.Var('x'), basic_ops.Substract(1, base.Var('x')))
-    self.assertEqual(base.Var('x') - 1, basic_ops.Substract(base.Var('x'), 1))
+    self.assertTrue(
+        pg.eq(1 - base.Var('x'), basic_ops.Substract(1, base.Var('x'))))
+    self.assertTrue(
+        pg.eq(base.Var('x') - 1, basic_ops.Substract(base.Var('x'), 1)))
 
 
 class MultiplyTest(unittest.TestCase):
@@ -103,8 +106,10 @@ class MultiplyTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 2 * (3 + 1))
 
   def test_operator_overload(self):
-    self.assertEqual(2 * base.Var('x'), basic_ops.Multiply(2, base.Var('x')))
-    self.assertEqual(base.Var('x') * 2, basic_ops.Multiply(base.Var('x'), 2))
+    self.assertTrue(
+        pg.eq(2 * base.Var('x'), basic_ops.Multiply(2, base.Var('x'))))
+    self.assertTrue(
+        pg.eq(base.Var('x') * 2, basic_ops.Multiply(base.Var('x'), 2)))
 
 
 class DivideTest(unittest.TestCase):
@@ -129,8 +134,10 @@ class DivideTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 2 / (3 + 1))
 
   def test_operator_overload(self):
-    self.assertEqual(2 / base.Var('x'), basic_ops.Divide(2, base.Var('x')))
-    self.assertEqual(base.Var('x') / 2, basic_ops.Divide(base.Var('x'), 2))
+    self.assertTrue(
+        pg.eq(2 / base.Var('x'), basic_ops.Divide(2, base.Var('x'))))
+    self.assertTrue(
+        pg.eq(base.Var('x') / 2, basic_ops.Divide(base.Var('x'), 2)))
 
 
 class FloorDivideTest(unittest.TestCase):
@@ -156,10 +163,10 @@ class FloorDivideTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 2 // (3 + 1))
 
   def test_operator_overload(self):
-    self.assertEqual(2 // base.Var('x'),
-                     basic_ops.FloorDivide(2, base.Var('x')))
-    self.assertEqual(base.Var('x') // 2,
-                     basic_ops.FloorDivide(base.Var('x'), 2))
+    self.assertTrue(
+        pg.eq(2 // base.Var('x'), basic_ops.FloorDivide(2, base.Var('x'))))
+    self.assertTrue(
+        pg.eq(base.Var('x') // 2, basic_ops.FloorDivide(base.Var('x'), 2)))
 
 
 class ModTest(unittest.TestCase):
@@ -184,10 +191,8 @@ class ModTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 2 % (3 + 1))
 
   def test_operator_overload(self):
-    self.assertEqual(2 % base.Var('x'),
-                     basic_ops.Mod(2, base.Var('x')))
-    self.assertEqual(base.Var('x') % 2,
-                     basic_ops.Mod(base.Var('x'), 2))
+    self.assertTrue(pg.eq(2 % base.Var('x'), basic_ops.Mod(2, base.Var('x'))))
+    self.assertTrue(pg.eq(base.Var('x') % 2, basic_ops.Mod(base.Var('x'), 2)))
 
 
 class PowerTest(unittest.TestCase):
@@ -212,10 +217,10 @@ class PowerTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 2 ** (3 + 1))
 
   def test_operator_overload(self):
-    self.assertEqual(2 ** base.Var('x'),
-                     basic_ops.Power(2, base.Var('x')))
-    self.assertEqual(base.Var('x') ** 2,
-                     basic_ops.Power(base.Var('x'), 2))
+    self.assertTrue(
+        pg.eq(2 ** base.Var('x'), basic_ops.Power(2, base.Var('x'))))
+    self.assertTrue(
+        pg.eq(base.Var('x') ** 2, basic_ops.Power(base.Var('x'), 2)))
 
 
 if __name__ == '__main__':
