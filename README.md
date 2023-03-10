@@ -108,6 +108,7 @@ pip install pyglove --pre
     [[Fine Control](https://github.com/google/pyglove/blob/main/docs/notebooks/intro/search/evolution_scheduling.ipynb)]
   * [Travelling Salesman Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/tsp.ipynb)
   * [One-Max Problem](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/onemax.ipynb)
+  * [Symbolic function regression with `pg.mutfun`](https://github.com/google/pyglove/blob/main/docs/notebooks/evolution/function_regression.ipynb)
 
 * Machine Learning
   * [Scalably exchanging ML ideas](https://github.com/google/pyglove/blob/main/docs/notebooks/ml/efficiently_exchange_ml_ideas_as_code.ipynb)
