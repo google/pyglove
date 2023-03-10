@@ -22,7 +22,15 @@ from pyglove.core.tuning import backend as backend_lib
 from pyglove.core.tuning.early_stopping import EarlyStoppingPolicy
 
 
-def sample(hyper_value: Any,
+# A hyper value is a symbolic value that contains objects of
+# `pg.hyper.HyperValue`. Since it is a composition constraint instead of
+# a type constraint, we use `Any` as its pytype annotation for now.
+HyperValue = Any
+
+
+def sample(space: Union[HyperValue,
+                        hyper.DynamicEvaluationContext,
+                        geno.DNASpec],
            algorithm: geno.DNAGenerator,
            num_examples: Optional[int] = None,
            early_stopping_policy: Optional[EarlyStoppingPolicy] = None,
@@ -37,8 +45,8 @@ def sample(hyper_value: Any,
   Example 1: sample a search space defined by a symbolic hyper value::
 
     for example, feedback in pg.sample(
-        hyper_value=pg.Dict(x=pg.floatv(-1, 1))),
-        algorithm=pg.generators.Random(),
+        pg.Dict(x=pg.floatv(-1, 1))),
+        pg.generators.Random(),
         num_examples=10,
         name='my_search'):
 
@@ -88,16 +96,27 @@ def sample(hyper_value: Any,
         3]) + sum(pg.manyof(2, [1, 2, 3]))
 
     for example, feedback in pg.sample(
-        hyper_value=pg.hyper.trace(fun),
-        algorithm=pg.generators.Random(),
+        pg.hyper.trace(fun),
+        pg.generators.Random(),
         num_examples=10,
         name='my_search'):
-      # When hyper_value is a `pg.hyper.DynamicEvaluationContext` object,
+      # When space is a `pg.hyper.DynamicEvaluationContext` object,
       # the `example` yielded at each iteration is a context manager under which
       # the hyper primitives (e.g. pg.oneof) will be materialized into concrete
       # values according to the controller decision.
       with example():
         reward = fun()
+      feedback(reward)
+
+  Example 3: sample DNAs from an abstract search space represented by
+  `pg.DNASpec`::
+
+    for dna, feedback in pg.sample(
+        pg.List([pg.oneof(range(3))] * 5).dna_spec(),
+        pg.generators.Random(),
+        num_examples=10,
+        name='my_search'):
+      reward = evaluate_dna(dna)
       feedback(reward)
 
   **Using `pg.sample` in distributed environment**
@@ -136,7 +155,7 @@ def sample(hyper_value: Any,
   of a nested search. However, feedback on the same example should be fed back
   to the search algorithm only once. Therefore, workers in the same group need
   to communicate with each other to avoid duplicated evaluation and feedbacks.
-  To faciliate such communication, per-trial metadata is supported, and can be
+  To facilitate such communication, per-trial metadata is supported, and can be
   accessed via `feedback.set_metadata/get_metadata` methods. The consistency in
   reading and writing the metadata is defined by the backend used. For the
   'in-memory' backend, all the trials and their metadata is stored in memory,
@@ -157,10 +176,13 @@ def sample(hyper_value: Any,
   set the default tuning backend for the entire process.
 
   Args:
-    hyper_value: A hyper value to sample from. A hyper value is an object with
-      to-be-determined values specified by `pg.oneof`, `pg.manyof`, `pg.floatv`
-      and etc, representing a search space, or a
-      `pg.hyper.DynamicEvaluationContext` object.
+    space: One of (a hyper value, a `pg.hyper.DynamicEvaluationContext`,
+      a `pg.DNASpec`) to sample from.
+      A hyper value is an object with to-be-determined values specified by
+      `pg.oneof`, `pg.manyof`, `pg.floatv` and etc, representing a search space.
+      A `pg.hyper.DynamicEvaluationContext` object represents a search space
+      that is traced via dynamic evaluation.
+      A `pg.DNASpec` represents an abstract search space that emits DNAs.
     algorithm: The search algorithm that samples the search space. For example:
       `pg.generators.Random()`, `pg.evolution.regularized_evolution(...)`, and
       etc.
@@ -173,11 +195,11 @@ def sample(hyper_value: Any,
       `feedback.should_stop_early` to check whether current example worth
       further evaluation or not.
     where: Function to filter the hyper values. If None, all decision points
-      from the `hyper_value` will be included for the algorithm to make
+      from the `space` will be included for the algorithm to make
       decisions. Otherwise only the decision points on which 'where' returns
       True will be included. The rest decision points will be passed through
       in the example, intact, which is a sub-space of the search space
-      represented by the `hyper_value`. `where` is usually used in nested search
+      represented by the `space`. `where` is usually used in nested search
       flows. Please see 'hyper.Template' docstr for details.
     name: A string as a unique identifier for current sampling. Two separate
       calls to `pg.sample` with the same `name` (also the same algorithm) will
@@ -204,23 +226,27 @@ def sample(hyper_value: Any,
 
   Yields:
     An iterator of tuples (example, feedback) as examples sampled from the
-    search space defined by the `hyper_value` through `algorithm`.
+    search space defined by the `space` through `algorithm`.
 
   Raises:
-    ValueError: `hyper_value` is a fixed value, or requested `backend` is not
+    ValueError: `space` is a fixed value, or requested `backend` is not
     available.
   """
     # Placeholder for Google-internal usage instrumentation.
 
   # Create template based on the hyper value.
-  if isinstance(hyper_value, hyper.DynamicEvaluationContext):
-    dynamic_evaluation_context = hyper_value
-    dna_spec = hyper_value.dna_spec
+  if isinstance(space, hyper.DynamicEvaluationContext):
+    dynamic_evaluation_context = space
+    dna_spec = space.dna_spec
+    template = None
+  elif isinstance(space, geno.DNASpec):
+    dynamic_evaluation_context = None
+    dna_spec = space
     template = None
   else:
-    if symbolic.is_deterministic(hyper_value):
-      raise ValueError(f'\'hyper_value\' is a constant value: {hyper_value!r}.')
-    template = hyper.template(hyper_value, where)
+    if symbolic.is_deterministic(space):
+      raise ValueError(f'\'space\' is a constant value: {space!r}.')
+    template = hyper.template(space, where)
     dna_spec = template.dna_spec()
     dynamic_evaluation_context = None
 
@@ -239,9 +265,10 @@ def sample(hyper_value: Any,
         # Decode and return current example to client code for evaluation.
         if template is not None:
           value = template.decode(dna)
-        else:
-          assert dynamic_evaluation_context is not None
+        elif dynamic_evaluation_context is not None:
           value = lambda: dynamic_evaluation_context.apply(dna)
+        else:
+          value = dna
         yield (value, feedback)
       else:
         # Reward may be computed at the controller side, we can

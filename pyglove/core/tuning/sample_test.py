@@ -71,7 +71,7 @@ class SamplingTest(unittest.TestCase):
     feedbacks = []
     algo = geno.Random(seed=1)
     for example, f in pg_sample(
-        hyper_value=symbolic.Dict(x=hyper.oneof([5, 6, 7])),
+        symbolic.Dict(x=hyper.oneof([5, 6, 7])),
         algorithm=algo,
         num_examples=10,
         name='my_search',):
@@ -83,7 +83,7 @@ class SamplingTest(unittest.TestCase):
       f.set_metadata('global_key', 1, per_trial=False)
       self.assertEqual(f.get_metadata('global_key', per_trial=False), 1)
 
-      f.add_link('filepath', f'https://path/to/file_{example.x}')
+      f.add_link('filepath', f'http://path/to/file_{example.x}')
       with f.skip_on_exceptions([ValueError]):
         if f.id == 5:
           raise ValueError('bad trial')
@@ -102,7 +102,7 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(result.best_trial.dna, geno.DNA.parse([2]))
     self.assertEqual(result.best_trial.metadata.example, symbolic.Dict(x=7))
     self.assertEqual(
-        result.best_trial.related_links.filepath, 'https://path/to/file_7')
+        result.best_trial.related_links.filepath, 'http://path/to/file_7')
 
     self.assertEqual(result.metadata['global_key'], 1)
     self.assertEqual(len(result.trials), 10)
@@ -224,10 +224,23 @@ class SamplingTest(unittest.TestCase):
     rewards = [t.final_measurement.reward for t in result.trials]
     self.assertEqual(rewards, [4., 5., 6., 5., 6., 7.])
 
+  def test_sample_with_dna_spec(self):
+    dna_spec = geno.space([
+        geno.oneof([geno.constant(), geno.constant(), geno.constant()]),
+    ])
+    for dna, f in pg_sample(
+        dna_spec, geno.Sweeping(), name='sample-dnaspec'):
+      f(dna.value)
+
+    # Test `poll_result`.
+    result = pg_poll_result('sample-dnaspec')
+    rewards = [t.final_measurement.reward for t in result.trials]
+    self.assertEqual(rewards, [0, 1, 2])
+
   def test_sample_with_continuation_and_end_loop(self):
     hyper_value = symbolic.Dict(x=hyper.oneof([1, 2, 3]))
     for _, feedback in pg_sample(
-        hyper_value=hyper_value,
+        hyper_value,
         algorithm=geno.Random(seed=1),
         name='my_search2'):
       # Always invoke the feedback function in order to advance
@@ -242,9 +255,9 @@ class SamplingTest(unittest.TestCase):
     self.assertEqual(len(result.trials), 2)
 
     sample1 = pg_sample(
-        name='my_search2',
-        hyper_value=hyper_value,
-        algorithm=geno.Random(seed=1))
+        hyper_value,
+        algorithm=geno.Random(seed=1),
+        name='my_search2')
 
     # Make sure sampling within the same worker get the same trial IDs before
     # feedback.
@@ -451,7 +464,7 @@ class SamplingTest(unittest.TestCase):
         trial_ids = []
         threads_trial_ids.append(trial_ids)
         for _, feedback in pg_sample(
-            hyper_value=hyper_value,
+            hyper_value,
             algorithm=geno.Random(seed=1),
             group=group_id,
             num_examples=num_examples,
@@ -492,7 +505,7 @@ class SamplingTest(unittest.TestCase):
       f.done()
 
     with self.assertRaisesRegex(
-        ValueError, '\'hyper_value\' is a constant value'):
+        ValueError, '\'space\' is a constant value'):
       next(pg_sample(1, geno.Random(seed=1)))
 
     with self.assertRaisesRegex(
