@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Basic operators around symbolic instructions."""
+"""Basic operators on mutable instructions."""
 
 from typing import Any, Callable, Dict, Optional, Type
 import pyglove.core as pg
