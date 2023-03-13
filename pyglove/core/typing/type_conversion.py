@@ -138,4 +138,5 @@ def _register_builtin_converters():
 
 
 _register_builtin_converters()
+object_utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter
 

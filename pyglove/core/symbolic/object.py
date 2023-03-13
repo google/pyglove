@@ -122,10 +122,6 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   # Disable pytype attribute checking.
   _HAS_DYNAMIC_ATTRIBUTES = True
 
-  # Class property that indicates whether to automatically register class
-  # for deserialization.
-  auto_register = True
-
   # Class property that indicates whether to allow attribute access on symbolic
   # members.
   allow_symbolic_attribute = True
@@ -166,9 +162,6 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     setattr(cls, '__sym_fields', pg_typing.Dict(cls_schema))
     setattr(cls, '__serialization_key__', cls.type_name)
     cls_schema.metadata['init_arg_list'] = schema_utils.auto_init_arg_list(cls)
-    if cls.auto_register:
-      schema_utils.register_cls_for_deserialization(cls, cls.type_name)
-
     cls._update_init_signature_based_on_schema()
     cls._generate_sym_attributes_if_enabled()
 
@@ -623,7 +616,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   def sym_jsonify(self, **kwargs) -> object_utils.JSONValueType:
     """Converts current object to a dict of plain Python objects."""
     return object_utils.merge([{
-        base._TYPE_NAME_KEY: self.__class__.serialization_key    # pylint: disable=protected-access
+        object_utils.JSONConvertible.TYPE_NAME_KEY:
+            self.__class__.serialization_key
     }, self._sym_attributes.to_json(**kwargs)])
 
   def format(self,

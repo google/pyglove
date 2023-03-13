@@ -19,8 +19,8 @@ formatting (Formattable), functor (Functor).
 """
 
 import abc
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
-
+import inspect
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -131,9 +131,27 @@ class JSONConvertible(metaclass=abc.ABCMeta):
   # useful to allow backward compatibility of existing serialized strings.
   _TYPE_REGISTRY = _TypeRegistry()
 
+  # Key in serialized dict that represents the class to restore.
+  TYPE_NAME_KEY = '_type'
+
+  # Marker (as the first element of a list) for serializing tuples.
+  TUPLE_MARKER = '__tuple__'
+
+  # Type converter that converts a complex type to basic JSON value type.
+  # When this field is set by users, the converter will be invoked when a
+  # complex value cannot be serialized by existing methods.
+  TYPE_CONVERTER: Optional[
+      Callable[[Type[Any]], Callable[[Any], JSONValueType]]] = None
+
+  # Class property that indicates whether to automatically register class
+  # for deserialization. Subclass can override.
+  auto_register = True
+
   @classmethod
   def from_json(cls, json_value: JSONValueType, **kwargs) -> 'JSONConvertible':
     """Creates an instance of this class from a plain Python value.
+
+    NOTE(daiyip): ``pg.Symbolic`` overrides ``from_json`` class method.
 
     Args:
       json_value: JSON value type.
@@ -142,7 +160,11 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     Returns:
       An instance of cls.
     """
-    raise NotImplementedError('Subclass should override this method.')
+    del kwargs
+    assert isinstance(json_value, dict)
+    init_args = {k: from_json(v) for k, v in json_value.items()
+                 if k != JSONConvertible.TYPE_NAME_KEY}
+    return cls(**init_args)
 
   @abc.abstractmethod
   def to_json(self, **kwargs) -> JSONValueType:
@@ -205,10 +227,95 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     """Returns an iterator of registered (serialization key, class) tuples."""
     return cls._TYPE_REGISTRY.iteritems()
 
+  @classmethod
+  def to_json_dict(
+      cls,
+      fields: Dict[str, Any],
+      **kwargs) -> Dict[str, JSONValueType]:
+    """Helper method to create JSON dict from class and field."""
+    type_name = f'{cls.__module__}.{cls.__name__}'
+    json_dict = {JSONConvertible.TYPE_NAME_KEY: type_name}
+    json_dict.update({k: to_json(v, **kwargs) for k, v in fields.items()})
+    return json_dict
+
+  @classmethod
+  def __init_subclass__(cls):
+    super().__init_subclass__()
+    if not inspect.isabstract(cls) and cls.auto_register:
+      type_name = f'{cls.__module__}.{cls.__name__}'
+      JSONConvertible.register(type_name, cls, override_existing=True)
+
 
 def registered_types() -> Iterable[Tuple[str, Type[JSONConvertible]]]:
   """Returns an iterator of registered (serialization key, class) tuples."""
   return JSONConvertible.registered_types()
+
+
+def to_json(value: Any, **kwargs) -> Any:
+  """Serializes a (maybe) JSONConvertible value into a plain Python object.
+
+  Args:
+    value: value to serialize. Applicable value types are:
+
+      * Builtin python types: None, bool, int, float, string;
+      * JSONConvertible types;
+      * List types;
+      * Tuple types;
+      * Dict types.
+
+    **kwargs: Keyword arguments to pass to value.to_json if value is
+      JSONConvertible.
+
+  Returns:
+    JSON value.
+  """
+  if isinstance(value, (type(None), bool, int, float, str)):
+    return value
+  elif isinstance(value, JSONConvertible):
+    return value.to_json(**kwargs)
+  elif isinstance(value, tuple):
+    return [JSONConvertible.TUPLE_MARKER] + to_json(list(value), **kwargs)
+  elif isinstance(value, list):
+    return [to_json(item, **kwargs) for item in value]
+  elif isinstance(value, dict):
+    return {k: to_json(v, **kwargs) for k, v in value.items()}
+  else:
+    if JSONConvertible.TYPE_CONVERTER is not None:
+      converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
+      if converter:
+        return to_json(converter(value))
+    raise ValueError(f'Cannot convert complex type {value} to JSON.')
+
+
+def from_json(json_value: JSONValueType) -> Any:
+  """Deserializes a (maybe) JSONConvertible value from JSON value.
+
+  Args:
+    json_value: Input JSON value.
+
+  Returns:
+    Deserialized value.
+  """
+  if isinstance(json_value, list):
+    if json_value and json_value[0] == JSONConvertible.TUPLE_MARKER:
+      if len(json_value) < 2:
+        raise ValueError(
+            f'Tuple should have at least one element '
+            f'besides \'{JSONConvertible.TUPLE_MARKER}\'. '
+            f'Encountered: {json_value}.')
+      return tuple([from_json(v) for v in json_value[1:]])
+    return [from_json(v) for v in json_value]
+  elif isinstance(json_value, dict):
+    if JSONConvertible.TYPE_NAME_KEY not in json_value:
+      return {k: from_json(v) for k, v in json_value.items()}
+    type_name = json_value[JSONConvertible.TYPE_NAME_KEY]
+    cls = JSONConvertible.class_from_typename(type_name)
+    if cls is None:
+      raise TypeError(
+          f'Type name \'{type_name}\' is not registered '
+          f'with a `pg.JSONConvertible` subclass.')
+    return cls.from_json(json_value)
+  return json_value
 
 
 class Formattable(metaclass=abc.ABCMeta):

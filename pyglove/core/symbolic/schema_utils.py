@@ -110,7 +110,8 @@ def update_schema(
   cls_schema.metadata['init_arg_list'] = init_arg_list
 
   if add_to_registry:
-    register_cls_for_deserialization(cls, serialization_key, additional_keys)
+    register_serialization_keys(
+        cls, serialization_key, additional_keys)
 
   cls._update_init_signature_based_on_schema()  # pylint: disable=protected-access
   cls._generate_sym_attributes_if_enabled()  # pylint: disable=protected-access
@@ -155,7 +156,7 @@ def auto_init_arg_list(cls):
   return init_arg_list
 
 
-def register_cls_for_deserialization(
+def register_serialization_keys(
     cls,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None):

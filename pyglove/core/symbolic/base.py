@@ -1768,10 +1768,6 @@ def contains(
   return not traverse(x, _contains)
 
 
-_TYPE_NAME_KEY = '_type'
-_TUPLE_MARKER = '__tuple__'
-
-
 def from_json(json_value: Any,
               *,
               allow_partial: bool = False,
@@ -1803,7 +1799,6 @@ def from_json(json_value: Any,
     Deserialized value, which is
     * pg.Dict for dict.
     * pg.List for list.
-    * (TODO:daiyip) symbolic.Tuple for tuple.
     * symbolic.Object for dict with '_type' property.
     * value itself.
   """
@@ -1815,13 +1810,14 @@ def from_json(json_value: Any,
       'root_path': root_path,
   })
   if isinstance(json_value, list):
-    if json_value and json_value[0] == _TUPLE_MARKER:
+    if (json_value
+        and json_value[0] == object_utils.JSONConvertible.TUPLE_MARKER):
       if len(json_value) < 2:
         raise ValueError(
             object_utils.message_on_path(
                 f'Tuple should have at least one element '
-                f'besides \'{_TUPLE_MARKER}\'. Encountered: {json_value}',
-                root_path))
+                f'besides \'{object_utils.JSONConvertible.TUPLE_MARKER}\'. '
+                f'Encountered: {json_value}', root_path))
       return tuple([
           from_json(v, allow_partial=allow_partial,
                     root_path=object_utils.KeyPath(i, root_path))
@@ -1829,16 +1825,16 @@ def from_json(json_value: Any,
       ])
     return Symbolic.ListType(json_value, **kwargs)  # pylint: disable=not-callable
   elif isinstance(json_value, dict):
-    if _TYPE_NAME_KEY not in json_value:
+    if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
       return Symbolic.DictType.from_json(json_value, **kwargs)
-    cls = object_utils.JSONConvertible.class_from_typename(
-        json_value[_TYPE_NAME_KEY])
+    type_name = json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
+    cls = object_utils.JSONConvertible.class_from_typename(type_name)
     if cls is None:
       raise TypeError(
           object_utils.message_on_path(
-              f'Type name \'{json_value[_TYPE_NAME_KEY]}\' is not registered '
+              f'Type name \'{type_name}\' is not registered '
               f'with a `pg.JSONConvertible` subclass.', root_path))
-    del json_value[_TYPE_NAME_KEY]
+    del json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
     return cls.from_json(json_value, **kwargs)
   return json_value
 
@@ -1903,6 +1899,7 @@ def to_json(value: Any, **kwargs) -> Any:
       * Builtin python types: None, bool, int, float, string;
       * JSONConvertible types;
       * List types;
+      * Tuple types;
       * Dict types.
 
     **kwargs: Keyword arguments to pass to value.to_json if value is
@@ -1911,23 +1908,11 @@ def to_json(value: Any, **kwargs) -> Any:
   Returns:
     JSON value.
   """
-  if isinstance(value, (type(None), bool, int, float, str)):
-    return value
+  # NOTE(daiyip): special handling `sym_jsonify` since symbolized
+  # classes may have conflicting `to_json` method in their existing classes.
   if isinstance(value, Symbolic):
     return value.sym_jsonify(**kwargs)
-  elif isinstance(value, object_utils.JSONConvertible):
-    return value.to_json(**kwargs)
-  elif isinstance(value, tuple):
-    return [_TUPLE_MARKER] + to_json(list(value), **kwargs)
-  elif isinstance(value, list):
-    return [to_json(item, **kwargs) for item in value]
-  elif isinstance(value, dict):
-    return {k: to_json(v, **kwargs) for k, v in value.items()}
-  else:
-    converter = pg_typing.get_json_value_converter(type(value))
-    if not converter:
-      raise ValueError(f'Cannot convert complex type {value} to JSON.')
-    return to_json(converter(value))
+  return object_utils.to_json(value, **kwargs)
 
 
 def to_json_str(value: Any,

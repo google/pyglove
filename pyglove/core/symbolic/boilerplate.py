@@ -127,7 +127,7 @@ def boilerplate_class(
   cls.__module__ = cls_module
 
   # Enable automatic registration for subclass.
-  cls.auto_register = True  # pylint: disable=protected-access
+  cls.auto_register = True
 
   allow_partial = value.allow_partial
   def _freeze_field(path: object_utils.KeyPath,
@@ -164,6 +164,6 @@ def boilerplate_class(
     schema_utils.validate_init_arg_list(init_arg_list, cls.schema)
     cls.schema.metadata['init_arg_list'] = init_arg_list
   setattr(cls, '__serialization_key__', serialization_key or cls.type_name)
-  schema_utils.register_cls_for_deserialization(
+  schema_utils.register_serialization_keys(
       cls, serialization_key, additional_keys)
   return cls

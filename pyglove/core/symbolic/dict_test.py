@@ -1185,14 +1185,14 @@ class DictTest(unittest.TestCase):
 
       with self.assertRaisesRegex(
           base.WritePermissionError,
-          'Cannot del Dict field by attribute or key while accessor_writable is '
-          'set to False.'):
+          'Cannot del Dict field by attribute or key while accessor_writable '
+          'is set to False.'):
         del sd.a
 
       with self.assertRaisesRegex(
           base.WritePermissionError,
-          'Cannot del Dict field by attribute or key while accessor_writable is '
-          'set to False.'):
+          'Cannot del Dict field by attribute or key while accessor_writable '
+          'is set to False.'):
         del sd['a']
 
   def test_mark_missing_values(self):

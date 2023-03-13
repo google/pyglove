@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.object_utils.common_traits."""
 
+import abc
 import unittest
 from pyglove.core.object_utils import common_traits
 
@@ -24,41 +25,84 @@ class JSONConvertibleTest(unittest.TestCase):
 
     class A(common_traits.JSONConvertible):
 
-      def __init__(self, x):
-        self.x = x
-
-      @classmethod
-      def from_json(cls, json_dict):
-        return A(x=json_dict.pop('x'))
-
-      def to_json(self):
-        return {
-            '_type': 'A',
-            'x': self.x
-        }
-
-    common_traits.JSONConvertible.register('A', A)
-    self.assertTrue(common_traits.JSONConvertible.is_registered('A'))
-    self.assertIs(common_traits.JSONConvertible.class_from_typename('A'), A)
-    self.assertIn(
-        ('A', A),
-        list(common_traits.JSONConvertible.registered_types()))
+      @abc.abstractmethod
+      def value(self):
+        pass
 
     class B(A):
-      pass
 
-    with self.assertRaisesRegex(
-        NotImplementedError, 'Subclass should override this method'):
-      _ = common_traits.JSONConvertible.from_json(1)
+      def __init__(self, x):
+        super().__init__()
+        self.x = x
+
+      def to_json(self):
+        return A.to_json_dict({
+            'x': self.x
+        })
+
+      def value(self):
+        return self.x
+
+    typename = lambda cls: f'{cls.__module__}.{cls.__name__}'
+
+    # A is abstract.
+    self.assertFalse(common_traits.JSONConvertible.is_registered(typename(A)))
+    self.assertTrue(common_traits.JSONConvertible.is_registered(typename(B)))
+    self.assertIs(
+        common_traits.JSONConvertible.class_from_typename(typename(B)), B)
+    self.assertIn(
+        (typename(B), B),
+        list(common_traits.JSONConvertible.registered_types()))
+
+    class C(B):
+      auto_register = False
+
+    # Auto-register is off.
+    self.assertFalse(common_traits.JSONConvertible.is_registered(typename(C)))
 
     with self.assertRaisesRegex(
         KeyError, 'Type .* has already been registered with class .*'):
-      common_traits.JSONConvertible.register('A', B)
+      common_traits.JSONConvertible.register(typename(B), C)
 
-    common_traits.JSONConvertible.register('A', B, override_existing=True)
+    common_traits.JSONConvertible.register(
+        typename(B), C, override_existing=True)
     self.assertIn(
-        ('A', B),
+        (typename(B), C),
         list(common_traits.JSONConvertible.registered_types()))
+
+  def test_json_conversion(self):
+
+    class X(common_traits.JSONConvertible):
+
+      def __init__(self, x):
+        self.x = x
+
+      def to_json(self):
+        return X.to_json_dict(dict(x=self.x))
+
+      def __eq__(self, other):
+        return isinstance(other, X) and self.x == other.x
+
+      def __ne__(self, other):
+        return not self.__eq__(other)
+
+    typename = lambda cls: f'{cls.__module__}.{cls.__name__}'
+    json_value = common_traits.to_json([(X(1), 2), {'y': X(3)}])
+    self.assertEqual(json_value, [
+        ['__tuple__', {'_type': typename(X), 'x': 1}, 2],
+        {'y': {'_type': typename(X), 'x': 3}}
+    ])
+    self.assertEqual(common_traits.from_json(json_value),
+                     [(X(1), 2), {'y': X(3)}])
+
+    # Test bad cases.
+    with self.assertRaisesRegex(
+        ValueError, 'Tuple should have at least one element besides .*'):
+      common_traits.from_json(['__tuple__'])
+
+    with self.assertRaisesRegex(
+        TypeError, 'Type name .* is not registered'):
+      common_traits.from_json({'_type': '__main__.ABC'})
 
 
 if __name__ == '__main__':

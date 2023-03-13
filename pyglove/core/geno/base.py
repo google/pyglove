@@ -1089,8 +1089,8 @@ class DNA(symbolic.Object):
     """
     if key_type not in ['id', 'name_or_id', 'dna_spec']:
       raise ValueError(
-          f'\'key_type\' must be either \'id\', \'name_or_id\' or \'dna_spec\'. '
-          f'Encountered: {key_type!r}.')
+          f'\'key_type\' must be either \'id\', \'name_or_id\' '
+          f'or \'dna_spec\'. Encountered: {key_type!r}.')
 
     if value_type not in ['dna', 'value', 'choice',
                           'literal', 'choice_and_literal']:
@@ -1401,7 +1401,7 @@ class DNA(symbolic.Object):
 
     if type_info:
       json_value = {
-          symbolic._TYPE_NAME_KEY: self.__class__.type_name,  # pylint: disable=protected-access
+          object_utils.JSONConvertible.TYPE_NAME_KEY: self.__class__.type_name,
           'format': 'compact',
           'value': symbolic.to_json(value),
       }
