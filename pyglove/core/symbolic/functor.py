@@ -243,9 +243,14 @@ class Functor(pg_object.Object, object_utils.Functor):
     return (len(self._non_default_args) + len(self._default_args)
             == len(self._sym_attributes))
 
-  @abc.abstractmethod
   def _call(self, *args, **kwargs) -> Callable:  # pylint: disable=g-bare-generic
     """Actual function logic. Subclasses should implement this method."""
+    raise NotImplementedError()
+
+  # TODO(b/183649930): We pretend that _call is not abstract to avoid
+  # [not-instantiable] errors from pytype.
+  if not typing.TYPE_CHECKING:
+    _call = abc.abstractmethod(_call)
 
   def __call__(self, *args, **kwargs) -> Any:
     """Call with late bound arguments.
@@ -618,4 +623,3 @@ def as_functor(
     Functor object from input function.
   """
   return functor_class(func)(ignore_extra_args=ignore_extra_args)  # pytype: disable=not-instantiable
-
