@@ -223,5 +223,144 @@ class PowerTest(unittest.TestCase):
         pg.eq(base.Var('x') ** 2, basic_ops.Power(base.Var('x'), 2)))
 
 
+class GreaterThanTest(unittest.TestCase):
+  """Tests for Greater Than."""
+
+  def test_python_repr(self):
+    y = basic_ops.GreaterThan(base.Var('x'), 1)
+    self.assertEqual(base.python_repr(y), 'x > 1')
+    y = basic_ops.GreaterThan(1, base.Var('x'))
+    self.assertEqual(base.python_repr(y), '1 > x')
+
+    z = basic_ops.GreaterThan(
+        base.Var('x'), basic_ops.Add(base.Var('x'), base.Var('y'))
+    )
+    self.assertEqual(base.python_repr(z), 'x > x + y')
+
+    z = basic_ops.GreaterThan(
+        base.Var('x'), basic_ops.LessThan(base.Var('x'), base.Var('y'))
+    )
+    self.assertEqual(base.python_repr(z), 'x > (x < y)')
+
+  def test_evaluate(self):
+    x = basic_ops.GreaterThan(base.Var('x'), 1)
+    variables = dict(x=3)
+    self.assertTrue(x.evaluate(variables))
+
+    z = basic_ops.GreaterThan(
+        base.Var('x'), basic_ops.Add(base.Var('x'), base.Var('y'))
+    )
+    variables = dict(x=1, y=2)
+    self.assertFalse(z.evaluate(variables))
+
+  def test_operator_overload(self):
+    self.assertTrue(
+        pg.eq(base.Var('x') > 1, basic_ops.GreaterThan(base.Var('x'), 1))
+    )
+    self.assertTrue(
+        pg.eq(
+            base.Var('x') > base.Var('y'),
+            basic_ops.GreaterThan(base.Var('x'), base.Var('y')),
+        )
+    )
+
+
+class LessThanTest(unittest.TestCase):
+  """Tests for Less Than."""
+
+  def test_python_repr(self):
+    y = basic_ops.LessThan(
+        base.Var('x'), basic_ops.Divide(base.Var('a'), base.Var('b'))
+    )
+    self.assertEqual(base.python_repr(y), 'x < a / b')
+
+  def test_evaluate(self):
+    x = basic_ops.LessThan(base.Var('x'), 1)
+    variables = dict(x=3)
+    self.assertFalse(x.evaluate(variables))
+
+    z = basic_ops.LessThan(
+        base.Var('x'), basic_ops.Add(base.Var('x'), base.Var('y'))
+    )
+    variables = dict(x=1, y=2)
+    self.assertTrue(z.evaluate(variables))
+
+  def test_operator_overload(self):
+    self.assertTrue(
+        pg.eq(base.Var('x') < 1, basic_ops.LessThan(base.Var('x'), 1))
+    )
+    self.assertTrue(
+        pg.eq(
+            base.Var('x') < base.Var('y'),
+            basic_ops.LessThan(base.Var('x'), base.Var('y')),
+        )
+    )
+
+
+class EqualsTest(unittest.TestCase):
+  """Tests for Equals."""
+
+  def test_python_repr(self):
+    y = basic_ops.Equals(
+        base.Var('x'), basic_ops.Divide(base.Var('a'), base.Var('b'))
+    )
+    self.assertEqual(base.python_repr(y), 'x == a / b')
+
+  def test_evaluate(self):
+    x = basic_ops.Equals(base.Var('x'), 1)
+    variables = dict(x=3)
+    self.assertFalse(x.evaluate(variables))
+
+    z = basic_ops.Equals(
+        base.Var('x'), basic_ops.Multiply(base.Var('x'), base.Var('y'))
+    )
+    variables = dict(x=1, y=2)
+    print(base.python_repr(z))
+    self.assertFalse(z.evaluate(variables))
+
+  def test_operator_overload(self):
+    self.assertTrue(
+        pg.eq(base.Var('x') == 1, basic_ops.Equals(base.Var('x'), 1))
+    )
+    self.assertTrue(
+        pg.eq(
+            base.Var('x') == base.Var('y'),
+            basic_ops.Equals(base.Var('x'), base.Var('y')),
+        )
+    )
+
+
+class NotEqualsTest(unittest.TestCase):
+  """Tests for NotEquals."""
+
+  def test_python_repr(self):
+    y = basic_ops.NotEquals(
+        base.Var('x'), basic_ops.Add(base.Var('a'), base.Var('b'))
+    )
+    self.assertEqual(base.python_repr(y), 'x != (a + b)')
+
+  def test_evaluate(self):
+    x = basic_ops.NotEquals(base.Var('x'), 1)
+    variables = dict(x=3)
+    self.assertTrue(x.evaluate(variables))
+
+    z = basic_ops.Equals(
+        base.Var('x'), basic_ops.Divide(base.Var('x'), base.Var('y'))
+    )
+    variables = dict(x=1, y=3)
+    self.assertFalse(z.evaluate(variables))
+
+  def test_operator_overload(self):
+    self.assertTrue(
+        pg.eq(base.Var('x') != 1, basic_ops.NotEquals(base.Var('x'), 1))
+    )
+    self.assertTrue(
+        pg.eq(
+            base.Var('x') != base.Var('y'),
+            basic_ops.NotEquals(base.Var('x'), base.Var('y')),
+        )
+    )
+
+
 if __name__ == '__main__':
   unittest.main()

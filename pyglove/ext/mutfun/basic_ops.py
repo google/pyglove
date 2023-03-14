@@ -25,7 +25,7 @@ class Operator(base.Instruction):
   # For example, multiply has larger ORDER value than addition.
   ORDER: Optional[int] = None
 
-  # Operator str, which will be used to create Python program represenation.
+  # Operator str, which will be used to create Python program representation.
   OPERATOR_STR: Optional[str] = None
 
   def maybe_parenthesize(self, child: Any) -> str:
@@ -58,7 +58,7 @@ class UnaryOperator(Operator):
 
 class Negate(UnaryOperator):
   """Negates the operrand."""
-  ORDER = 5
+  ORDER = 7
   OPERATOR_STR = '-'
   OPERATOR_FN = lambda cls, x: -x
 
@@ -88,51 +88,83 @@ class BinaryOperator(Operator):
 
 class Add(BinaryOperator):
   """Add operator."""
-  ORDER = 1
+  ORDER = 3
   OPERATOR_STR = '+'
   OPERATOR_FN = lambda cls, x, y: x + y
 
 
 class Substract(BinaryOperator):
   """Substract operator."""
-  ORDER = 1
+  ORDER = 3
   OPERATOR_STR = '-'
   OPERATOR_FN = lambda cls, x, y: x - y
 
 
 class Multiply(BinaryOperator):
   """Multiply operator."""
-  ORDER = 2
+  ORDER = 4
   OPERATOR_STR = '*'
   OPERATOR_FN = lambda cls, x, y: x * y
 
 
 class Divide(BinaryOperator):
   """Divide operator."""
-  ORDER = 2
+  ORDER = 4
   OPERATOR_STR = '/'
   OPERATOR_FN = lambda cls, x, y: x / y
 
 
 class FloorDivide(BinaryOperator):
   """Floor divide operator."""
-  ORDER = 2
+  ORDER = 4
   OPERATOR_STR = '//'
   OPERATOR_FN = lambda cls, x, y: x // y
 
 
 class Mod(BinaryOperator):
   """Mod operator."""
-  ORDER = 2
+  ORDER = 4
   OPERATOR_STR = '%'
   OPERATOR_FN = lambda cls, x, y: x % y
 
 
 class Power(BinaryOperator):
   """Power operator."""
-  ORDER = 3
+  ORDER = 6
   OPERATOR_STR = '**'
   OPERATOR_FN = lambda cls, x, y: x ** y
+
+
+class GreaterThan(BinaryOperator):
+  """Greater than operator."""
+
+  ORDER = 2
+  OPERATOR_STR = '>'
+  OPERATOR_FN = lambda cls, x, y: x > y
+
+
+class Equals(BinaryOperator):
+  """Equals operation."""
+
+  ORDER = 3
+  OPERATOR_STR = '=='
+  OPERATOR_FN = lambda cls, x, y: x == y
+
+
+class NotEquals(BinaryOperator):
+  """Not Equals operator."""
+
+  ORDER = 3
+  OPERATOR_STR = '!='
+  OPERATOR_FN = lambda cls, x, y: x != y
+
+
+class LessThan(BinaryOperator):
+  """Less than operator."""
+
+  ORDER = 2
+  OPERATOR_STR = '<'
+  OPERATOR_FN = lambda cls, x, y: x < y
 
 
 # NOTE(daiyip): This enables users to apply common operators to symbolic
@@ -155,5 +187,8 @@ base.Instruction.__rmod__ = lambda self, x: Mod(x, self)
 base.Instruction.__mod__ = lambda self, y: Mod(self, y)
 base.Instruction.__rpow__ = lambda self, x: Power(x, self)
 base.Instruction.__pow__ = lambda self, y: Power(self, y)
-
+base.Instruction.__gt__ = lambda self, y: GreaterThan(self, y)
+base.Instruction.__lt__ = lambda self, y: LessThan(self, y)
+base.Instruction.__eq__ = lambda self, y: Equals(self, y)
+base.Instruction.__ne__ = lambda self, y: NotEquals(self, y)
 # pylint: enable=unnecessary-lambda
