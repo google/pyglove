@@ -1156,6 +1156,29 @@ class ObjectTest(unittest.TestCase):
     pa = A(a)
     self.assertIs(a.sym_parent, pa)
 
+  def test_sym_root(self):
+
+    @pg_members([
+        ('x', pg_typing.Any()),
+    ])
+    class A(Object):
+      pass
+
+    a = A(dict(x=A([A(1)])))
+    self.assertIs(a.sym_root, a)
+
+    self.assertIs(a.x.sym_root, a)
+    self.assertIs(a.x.x.sym_root, a)
+    self.assertIs(a.x.x.x.sym_root, a)
+    self.assertIs(a.x.x.x[0].sym_root, a)
+
+    pa = A(a)
+    self.assertIs(a.sym_root, pa)
+    self.assertIs(a.x.sym_root, pa)
+    self.assertIs(a.x.x.sym_root, pa)
+    self.assertIs(a.x.x.x.sym_root, pa)
+    self.assertIs(a.x.x.x[0].sym_root, pa)
+
   def test_sym_path(self):
 
     @pg_members([

@@ -41,7 +41,7 @@ Property :attr:`sym_parent <pyglove.symbolic.Symbolic.sym_parent>` is the API fo
 symbolic types to access their containing node (parent) in the tree. For example, the ``Cage``
 object in the `zoo` has ``exhibits`` (a symbolic list) as its parent::
 
-    assert zoo.exhibits[0].sym_parent == zoo.exhibits[0]
+    assert zoo.exhibits[0].sym_parent is zoo.exhibits[0]
 
 
 .. tip::
@@ -56,6 +56,16 @@ object in the `zoo` has ``exhibits`` (a symbolic list) as its parent::
          pool  = Pool(animal=shark)
          assert shark.sym_parent is pool
          assert shark.sym_path == 'x'
+
+Root
+====
+
+Similarly, users can access the root of current symbolic tree via
+property :attr:`sym_root <pyglove.symbolic.Symbolic.sym_root>`. For example::
+
+  assert zoo.sym_root is zoo
+  assert zoo.exhibits[0].sym_root is zoo
+  assert zoo.exhibits[0].animal.sym_root is zoo
 
 
 Child Nodes

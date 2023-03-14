@@ -238,6 +238,14 @@ class Symbolic(object_utils.JSONConvertible,
       return None
     return self.sym_parent.sym_attr_field(self.sym_path.key)
 
+  @property
+  def sym_root(self) -> 'Symbolic':
+    """Returns the root of the symbolic tree."""
+    root = self
+    while root.sym_parent is not None:
+      root = root.sym_parent
+    return root
+
   @abc.abstractmethod
   def sym_attr_field(self, key: Union[str, int]) -> Optional[pg_typing.Field]:
     """Returns the field definition for a symbolic attribute."""

@@ -1104,6 +1104,15 @@ class DictTest(unittest.TestCase):
     pd = Dict(a=sd)
     self.assertIs(sd.sym_parent, pd)
 
+  def test_sym_root(self):
+    sd = Dict(x=dict(a=1), y=[])
+    self.assertIs(sd.sym_root, sd)
+    self.assertIs(sd.x.sym_parent, sd)
+    self.assertIs(sd.y.sym_parent, sd)
+
+    pd = Dict(a=sd)
+    self.assertIs(sd.sym_root, pd)
+
   def test_sym_path(self):
     sd = Dict(x=dict(a=dict()), y=[dict(b=dict())])
     self.assertEqual(sd.sym_path, '')

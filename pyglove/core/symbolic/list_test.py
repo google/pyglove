@@ -958,6 +958,18 @@ class ListTest(unittest.TestCase):
     pl = List([sl])
     self.assertIs(sl.sym_parent, pl)
 
+  def test_sym_root(self):
+    sl = List([[0], dict(x=1)])
+    self.assertIs(sl.sym_root, sl)
+
+    self.assertIs(sl[0].sym_root, sl)
+    self.assertIs(sl[1].sym_root, sl)
+
+    pl = List([sl])
+    self.assertIs(sl.sym_root, pl)
+    self.assertIs(sl[0].sym_root, pl)
+    self.assertIs(sl[1].sym_root, pl)
+
   def test_sym_path(self):
     sl = List([dict(a=dict()), [dict(b=[0])]])
     self.assertEqual(sl.sym_path, '')
