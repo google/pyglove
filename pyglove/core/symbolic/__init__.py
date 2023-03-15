@@ -110,6 +110,7 @@ from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 
 # Symbolic helper classes.
 from pyglove.core.symbolic.base import FieldUpdate
+from pyglove.core.symbolic.base import DescendantQueryOption
 from pyglove.core.symbolic.base import TraverseAction
 from pyglove.core.symbolic.list import Insertion
 from pyglove.core.symbolic.diff import Diff

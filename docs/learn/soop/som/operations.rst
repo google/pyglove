@@ -34,12 +34,24 @@ nodes in the tree. To do so, PyGlove maintains bi-directional links between
 containing/contained symbolic objects, allowing update notifications to
 propagate through them.
 
+Root
+====
+
+Users can access the root of current symbolic tree via property
+:attr:`sym_root <pyglove.symbolic.Symbolic.sym_root>`. For example::
+
+  assert zoo.sym_root is zoo
+  assert zoo.exhibits[0].sym_root is zoo
+  assert zoo.exhibits[0].animal.sym_root is zoo
+
+
 Parent Node
 ===========
 
-Property :attr:`sym_parent <pyglove.symbolic.Symbolic.sym_parent>` is the API for all
-symbolic types to access their containing node (parent) in the tree. For example, the ``Cage``
-object in the `zoo` has ``exhibits`` (a symbolic list) as its parent::
+Similarly, users can access the immediate parent (the containing node) of a
+symbolic value via property
+:attr:`sym_parent <pyglove.symbolic.Symbolic.sym_parent>`. For example, the
+``Cage`` object in the `zoo` has ``exhibits`` (a symbolic list) as its parent::
 
     assert zoo.exhibits[0].sym_parent is zoo.exhibits[0]
 
@@ -57,16 +69,17 @@ object in the `zoo` has ``exhibits`` (a symbolic list) as its parent::
          assert shark.sym_parent is pool
          assert shark.sym_path == 'x'
 
-Root
-====
 
-Similarly, users can access the root of current symbolic tree via
-property :attr:`sym_root <pyglove.symbolic.Symbolic.sym_root>`. For example::
+Ancestor
+========
 
-  assert zoo.sym_root is zoo
-  assert zoo.exhibits[0].sym_root is zoo
-  assert zoo.exhibits[0].animal.sym_root is zoo
+:meth:`sym_ancestor <pyglove.symbolic.Symbolic.sym_ancestor>` can be useful when
+users require an ancestor in the containing chain that meets specific criteria
+instead of the root or immediate parent. For instance, the following code
+illustrates how to retrieve the nearest ``Zoo`` object from an ``Animal`` object
+located in a zoo::
 
+  assert zoo.exhibts[0].animal.sym_ancestor(lambda x: isinstance(x, Zoo)) is zoo
 
 Child Nodes
 ===========
@@ -162,6 +175,21 @@ For example::
 
     zoo.sym_hasattr('name') == True
     zoo.sym_getattr('name') == 'San Diego Zoo'
+
+
+Descendants
+===========
+
+In addition to accessing immediate child nodes, 
+:meth:`sym_descendants <pyglove.symbolic.Symbolic.sym_descendants>`
+is a handy tool to retrieve all nodes in the sub-tree. Users can also specify a filter
+function (using the argument "where") and choose whether to include
+intermediate nodes, leaves, or both in the returned nodes (using the argument
+"option"). For instance, consider the following code, which demonstrates how to
+select all animals from a zoo::
+
+  assert zoo.sym_descendants(lambda x: isinstance(x, Animal)) == [
+      Python('Bob', color='black'), Shark('Jack')]
 
 Location
 ========

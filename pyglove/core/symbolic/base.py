@@ -90,6 +90,19 @@ class FieldUpdate(object_utils.Formattable):
     return not self.__eq__(other)
 
 
+class DescendantQueryOption(enum.Enum):
+  """Options for querying descendants through `sym_descendant`."""
+
+  # Returning all matched descendants.
+  ALL = 0
+
+  # Returning only the immediate matched descendants.
+  IMMEDIATE = 1
+
+  # Returning only the leaf matched descendants.
+  LEAF = 2
+
+
 class Symbolic(object_utils.JSONConvertible,
                object_utils.MaybePartial,
                object_utils.Formattable):
@@ -245,6 +258,62 @@ class Symbolic(object_utils.JSONConvertible,
     while root.sym_parent is not None:
       root = root.sym_parent
     return root
+
+  def sym_ancestor(
+      self,
+      where: Optional[Callable[[Any], bool]] = None,
+      ) -> Optional['Symbolic']:
+    """Returns the nearest ancestor of specific classes."""
+    ancestor = self.sym_parent
+    where = where or (lambda x: True)
+    while ancestor is not None and not where(ancestor):
+      ancestor = ancestor.sym_parent
+    return ancestor
+
+  def sym_descendants(
+      self,
+      where: Optional[Callable[[Any], bool]] = None,
+      option: DescendantQueryOption = DescendantQueryOption.ALL,
+      include_self: bool = False) -> List[Any]:
+    """Returns all descendants of specific classes.
+
+    Args:
+      where: Optional callable object as the filter of descendants to return.
+      option: Descendant query options, indicating whether all matched,
+        immediate matched or only the matched leaf nodes will be returned.
+      include_self: If True, `self` will be included in the query, otherwise
+        only strict descendants are included.
+
+    Returns:
+      A list of objects that match the descendant_cls.
+    """
+    descendants = []
+    where = where or (lambda x: True)
+
+    def visit(k, v, p):
+      del k, p
+      if not where(v):
+        return TraverseAction.ENTER
+
+      if not include_self and self is v:
+        return TraverseAction.ENTER
+
+      if option == DescendantQueryOption.IMMEDIATE:
+        descendants.append(v)
+        return TraverseAction.CONTINUE
+
+      # Dealing with option = ALL or LEAF.
+      leaf_descendants = []
+      if isinstance(v, Symbolic):
+        leaf_descendants = v.sym_descendants(where, option)
+
+      if option is DescendantQueryOption.ALL or not leaf_descendants:
+        descendants.append(v)
+      descendants.extend(leaf_descendants)
+      return TraverseAction.CONTINUE
+
+    traverse(self, visit)
+    return descendants
 
   @abc.abstractmethod
   def sym_attr_field(self, key: Union[str, int]) -> Optional[pg_typing.Field]:

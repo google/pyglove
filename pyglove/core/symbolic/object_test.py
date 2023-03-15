@@ -1179,6 +1179,24 @@ class ObjectTest(unittest.TestCase):
     self.assertIs(a.x.x.x.sym_root, pa)
     self.assertIs(a.x.x.x[0].sym_root, pa)
 
+  def test_sym_ancestor(self):
+
+    @pg_members([
+        ('x', pg_typing.Any()),
+    ])
+    class A(Object):
+      pass
+
+    a = A(dict(x=A([A(1)])))
+    self.assertIs(a.x.sym_ancestor(), a)
+    self.assertIs(a.x.sym_ancestor(lambda x: isinstance(x, A)), a)
+    self.assertIsNone(a.x.sym_ancestor(lambda x: isinstance(x, int)), a)
+    self.assertIs(a.x.x.sym_ancestor(lambda x: isinstance(x, A)), a)
+    self.assertIs(a.x.x.x[0].sym_ancestor(lambda x: isinstance(x, A)), a.x.x)
+    self.assertIs(a.x.x.x[0].sym_ancestor(lambda x: isinstance(x, list)),
+                  a.x.x.x)
+    self.assertIs(a.x.x.x[0].sym_ancestor(lambda x: isinstance(x, dict)), a.x)
+
   def test_sym_path(self):
 
     @pg_members([
@@ -2266,6 +2284,106 @@ class QueryTest(unittest.TestCase):
         ValueError, '\'path_regex\' and \'where\' must be None when '
         '\'custom_selector\' is provided'):
       pg_query(self._v, path_regex=r'x', custom_selector=lambda: True)
+
+
+class SymDescendantsTests(unittest.TestCase):
+  """Tests for `sym_descendants`."""
+
+  def setUp(self):
+    super().setUp()
+
+    @pg_members([
+        ('x', pg_typing.Any()),
+    ])
+    class A(Object):
+      pass
+
+    self._a = A(dict(x=A([A(1)]), y=[A(2)]))
+
+  def test_descendants_with_no_filter(self):
+    a = self._a
+    self.assertEqual(
+        a.sym_descendants(),
+        [
+            a.x,
+            a.x.x,
+            a.x.x.x,
+            a.x.x.x[0],
+            a.x.x.x[0].x,
+            a.x.y,
+            a.x.y[0],
+            a.x.y[0].x,
+        ])
+
+    self.assertEqual(
+        a.sym_descendants(option=base.DescendantQueryOption.IMMEDIATE),
+        [a.x])
+
+    self.assertEqual(
+        a.sym_descendants(option=base.DescendantQueryOption.LEAF),
+        [
+            a.x.x.x[0].x,
+            a.x.y[0].x,
+        ])
+
+  def test_descendants_with_filter(self):
+    a = self._a
+    where = lambda x: isinstance(x, a.__class__)
+    self.assertEqual(
+        a.sym_descendants(where),
+        [
+            a.x.x,
+            a.x.x.x[0],
+            a.x.y[0],
+        ])
+
+    self.assertEqual(
+        a.sym_descendants(where, base.DescendantQueryOption.IMMEDIATE),
+        [
+            a.x.x,
+            a.x.y[0],
+        ])
+
+    self.assertEqual(
+        a.sym_descendants(where, base.DescendantQueryOption.LEAF),
+        [
+            a.x.x.x[0],
+            a.x.y[0],
+        ])
+
+    self.assertEqual(
+        a.sym_descendants(
+            where, base.DescendantQueryOption.IMMEDIATE, include_self=True),
+        [a])
+
+  def test_descendants_with_including_self(self):
+    a = self._a
+    self.assertEqual(
+        a.sym_descendants(include_self=True),
+        [
+            a,
+            a.x,
+            a.x.x,
+            a.x.x.x,
+            a.x.x.x[0],
+            a.x.x.x[0].x,
+            a.x.y,
+            a.x.y[0],
+            a.x.y[0].x,
+        ])
+
+    self.assertEqual(
+        a.sym_descendants(
+            option=base.DescendantQueryOption.IMMEDIATE, include_self=True),
+        [a])
+
+    self.assertEqual(
+        a.sym_descendants(
+            option=base.DescendantQueryOption.LEAF, include_self=True),
+        [
+            a.x.x.x[0].x,
+            a.x.y[0].x,
+        ])
 
 
 class SerializationTest(unittest.TestCase):
