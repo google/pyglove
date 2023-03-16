@@ -318,17 +318,6 @@ class EqualsTest(unittest.TestCase):
     print(base.python_repr(z))
     self.assertFalse(z.evaluate(variables))
 
-  def test_operator_overload(self):
-    self.assertTrue(
-        pg.eq(base.Var('x') == 1, basic_ops.Equals(base.Var('x'), 1))
-    )
-    self.assertTrue(
-        pg.eq(
-            base.Var('x') == base.Var('y'),
-            basic_ops.Equals(base.Var('x'), base.Var('y')),
-        )
-    )
-
 
 class NotEqualsTest(unittest.TestCase):
   """Tests for NotEquals."""
@@ -349,17 +338,6 @@ class NotEqualsTest(unittest.TestCase):
     )
     variables = dict(x=1, y=3)
     self.assertFalse(z.evaluate(variables))
-
-  def test_operator_overload(self):
-    self.assertTrue(
-        pg.eq(base.Var('x') != 1, basic_ops.NotEquals(base.Var('x'), 1))
-    )
-    self.assertTrue(
-        pg.eq(
-            base.Var('x') != base.Var('y'),
-            basic_ops.NotEquals(base.Var('x'), base.Var('y')),
-        )
-    )
 
 
 if __name__ == '__main__':

@@ -189,6 +189,4 @@ base.Instruction.__rpow__ = lambda self, x: Power(x, self)
 base.Instruction.__pow__ = lambda self, y: Power(self, y)
 base.Instruction.__gt__ = lambda self, y: GreaterThan(self, y)
 base.Instruction.__lt__ = lambda self, y: LessThan(self, y)
-base.Instruction.__eq__ = lambda self, y: Equals(self, y)
-base.Instruction.__ne__ = lambda self, y: NotEquals(self, y)
 # pylint: enable=unnecessary-lambda

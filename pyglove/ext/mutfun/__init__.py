@@ -106,6 +106,8 @@ from pyglove.ext.mutfun.base import python_repr
 
 # Basic operators.
 from pyglove.ext.mutfun.basic_ops import Operator
+from pyglove.ext.mutfun.basic_ops import UnaryOperator
+from pyglove.ext.mutfun.basic_ops import Negate
 from pyglove.ext.mutfun.basic_ops import BinaryOperator
 from pyglove.ext.mutfun.basic_ops import Add
 from pyglove.ext.mutfun.basic_ops import Substract
@@ -114,5 +116,10 @@ from pyglove.ext.mutfun.basic_ops import Divide
 from pyglove.ext.mutfun.basic_ops import FloorDivide
 from pyglove.ext.mutfun.basic_ops import Mod
 from pyglove.ext.mutfun.basic_ops import Power
+from pyglove.ext.mutfun.basic_ops import Equals
+from pyglove.ext.mutfun.basic_ops import NotEquals
+from pyglove.ext.mutfun.basic_ops import GreaterThan
+from pyglove.ext.mutfun.basic_ops import LessThan
+
 
 # pylint: enable=g-bad-import-order
