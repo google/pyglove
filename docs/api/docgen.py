@@ -131,7 +131,15 @@ class Api:
   @property
   def access_paths(self) -> List[str]:
     """Returns all access paths. E.g. ['pg.Dict', 'pg.symbolic.Dict']."""
-    return sorted(self._access_paths, key=len)
+    def order(path):
+      names = path.split('.')
+      return (len(names), names[-1] != self.name)
+    return sorted(self._access_paths, key=order)
+
+  @property
+  def preferred_path(self) -> str:
+    """Returns preferred path."""
+    return self.access_paths[0]
 
   @property
   @abc.abstractmethod
@@ -376,7 +384,7 @@ class Module(Api):
     return apis
 
 
-def get_api(pg) -> List[Module]:
+def get_api(pg) -> Module:
   """Get API entries from PyGlove module."""
   symbol_to_api = {}
 
@@ -452,7 +460,7 @@ def generate_api_docs(
     import_root: Optional[str] = None,
     template_root: Optional[str] = None,
     output_root: Optional[str] = None,
-    overwrite: bool = True):
+    overwrite: bool = True) -> Module:
   """Generate API docs."""
 
   if import_root is not None:
@@ -485,10 +493,12 @@ def generate_api_docs(
   # api = get_api(pg)
   # e = api['evolution']
   # print(e, e.source_category, e.access_paths, e.canonical_path)
-  visit(get_api(pg))
+  pyglove_api = get_api(pg)
+  visit(pyglove_api)
   print(f'API doc generation completed '
         f'(generated={stats.num_files - stats.num_skipped}, '
         f'skipped={stats.num_skipped})')
+  return pyglove_api
 
 
 def main(*unused_args, **unused_kwargs):

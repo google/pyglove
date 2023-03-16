@@ -1,6 +1,6 @@
 .. _{{func.rst_label}}:
 
-{{func.canonical_path}}
+{{func.preferred_path}}
 =====================
 
 Accessible via {{func.rst_access_paths}}.

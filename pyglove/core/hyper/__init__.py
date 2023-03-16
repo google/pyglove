@@ -15,9 +15,9 @@
 
 In PyGlove, an object space is represented by a hyper object, which is an
 symbolic object that is placeheld by hyper primitives
-(:class:`pyglove.hyper.HyperPrimitive`). Through hyper objects, object templates
-(:class:`pyglove.hyper.ObjectTemplate`) can be obtained to generate objects
-based on program genomes (:class:`pyglove.DNA`).
+(:class:`pg.hyper.HyperPrimitive`). Through hyper objects, object templates
+(:class:`pg.hyper.ObjectTemplate`) can be obtained to generate objects
+based on program genomes (:class:`pg.DNA`).
 
  .. graphviz::
     :align: center
@@ -33,32 +33,34 @@ based on program genomes (:class:`pyglove.DNA`).
       manyof [label="ManyOf" href="manyof_class.html"];
       float [label="Float" href="float.html"];
       custom [label="CustomHyper" href="custom_hyper.html"];
+      evolve [label="Evolvable" href="evolvable.html"];
       hyper -> template;
       hyper -> primitive;
       primitive -> choices;
       choices -> oneof;
       choices -> manyof;
       primitive -> float;
-      primitive -> custom
+      primitive -> custom;
+      custom -> evolve;
     }
 
 Hyper values map 1:1 to genotypes as the following:
 
-+-------------------------------------+----------------------------------------+
-| Hyper class                         | Genotype class                         |
-+=====================================+========================================+
-|:class:`pyglove.hyper.HyperValue`    |:class:`pyglove.DNASpec`                |
-+-------------------------------------+----------------------------------------+
-|:class:`pyglove.hyper.ObjectTemplate`|:class:`pyglove.geno.Space`             |
-+-------------------------------------+----------------------------------------+
-|:class:`pyglove.hyper.HyperPrimitive`|:class:`pyglove.geno.DecisionPoint`     |
-+-------------------------------------+----------------------------------------+
-|:class:`pyglove.hyper.Choices`       |:class:`pyglove.geno.Choices`           |
-+-------------------------------------+----------------------------------------+
-|:class:`pyglove.hyper.Float`         |:class:`pyglove.geno.Float`             |
-+-------------------------------------+----------------------------------------+
-|:class:`pyglove.hyper.CustomHyper` :class:`pyglove.geno.CustomDecisionPoint`  |
-+------------------------------------------------------------------------------+
++---------------------------------+----------------------------------------+
+| Hyper class                     | Genotype class                         |
++=================================+========================================+
+|:class:`pg.hyper.HyperValue`     |:class:`pg.DNASpec`                     |
++---------------------------------+----------------------------------------+
+|:class:`pg.hyper.ObjectTemplate` |:class:`pg.geno.Space`                  |
++---------------------------------+----------------------------------------+
+|:class:`pg.hyper.HyperPrimitive` |:class:`pg.geno.DecisionPoint`          |
++---------------------------------+----------------------------------------+
+|:class:`pg.hyper.Choices`        |:class:`pg.geno.Choices`                |
++---------------------------------+----------------------------------------+
+|:class:`pg.hyper.Float`          |:class:`pg.geno.Float`                  |
++---------------------------------+----------------------------------------+
+|:class:`pg.hyper.CustomHyper`    |:class:`pg.geno.CustomDecisionPoint`    |
++---------------------------------+----------------------------------------+
 """
 
 # pylint: disable=g-bad-import-order

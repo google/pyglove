@@ -21,41 +21,47 @@ Overview
 Python objects. It sits at the bottom of all PyGlove modules and empowers other
 modules with the following features:
 
-  +---------------------+--------------------------------------------------------------------------------+
-  | Functionality       | API                                                                            |
-  +=====================+================================================================================+
-  | Formatting          | :class:`pg.Formattable <pyglove.object_utils.Formattable>`,                    |
-  |                     |                                                                                |
-  |                     | :func:`pg.Format <pyglove.object_utils.format>`,                               |
-  |                     |                                                                                |
-  |                     | :func:`pg.print <pyglove.object_utils.print>`,                                 |
-  |                     |                                                                                |
-  |                     | :func:`pg.object_utils.kvlist_str <pyglove.object_utils.kvlist_str>`,          |
-  |                     |                                                                                |
-  |                     | :func:`pg.object_utils.quote_if_str <pyglove.object_utils.quote_if_str>`,      |
-  |                     |                                                                                |
-  |                     | :func:`pg.object_utils.message_on_path <pyglove.object_utils.message_on_path>` |
-  +---------------------+--------------------------------------------------------------------------------+
-  | Serialization       | :class:`pg.JSONConvertible <pyglove.object_utils.JSONConvertible>`             |
-  +---------------------+--------------------------------------------------------------------------------+
-  | Partial construction| :class:`pg.MaybePartial <pyglove.object_utils.MaybePartial>`,                  |
-  |                     |                                                                                |
-  |                     | :const:`pg.MISSING_VALUE <pyglove.object_utils.MISSING_VALUE>`.                |
-  +---------------------+--------------------------------------------------------------------------------+
-  | Hierarchical key    | :class:`pg.KeyPath <pyglove.object_utils.KeyPath>`                             |
-  | representation      |                                                                                |
-  +---------------------+--------------------------------------------------------------------------------+
-  | Hierarchical object | :func:`pg.object_utils.traverse <pyglove.object_utils.traverse>`               |
-  | traversal           |                                                                                |
-  +---------------------+--------------------------------------------------------------------------------+
-  | Hierarchical object | :func:`pg.object_utils.transform <pyglove.object_utils.transform>`,            |
-  | transformation      |                                                                                |
-  |                     | :func:`pg.object_utils.merge <pyglove.object_utils.merge>`,                    |
-  |                     |                                                                                |
-  |                     | :func:`pg.object_utils.canonicalize <pyglove.object_utils.canonicalize>`,      |
-  |                     |                                                                                |
-  |                     | :func:`pg.object_utils.flatten <pyglove.object_utils.flatten>`                 |
-  +---------------------+--------------------------------------------------------------------------------+
+  +---------------------+--------------------------------------------+
+  | Functionality       | API                                        |
+  +=====================+============================================+
+  | Formatting          | :class:`pg.Formattable`,                   |
+  |                     |                                            |
+  |                     | :func:`pg.format`,                         |
+  |                     |                                            |
+  |                     | :func:`pg.print`,                          |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.kvlist_str`,        |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.quote_if_str`,      |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.message_on_path`    |
+  +---------------------+--------------------------------------------+
+  | Serialization       | :class:`pg.JSONConvertible`,               |
+  |                     |                                            |
+  |                     | :func:`pg.registered_types`,               |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.to_json`,           |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.from_json`,         |
+  +---------------------+--------------------------------------------+
+  | Partial construction| :class:`pg.MaybePartial`,                  |
+  |                     |                                            |
+  |                     | :const:`pg.MISSING_VALUE`.                 |
+  +---------------------+--------------------------------------------+
+  | Hierarchical key    | :class:`pg.KeyPath`                        |
+  | representation      |                                            |
+  +---------------------+--------------------------------------------+
+  | Hierarchical object | :func:`pg.object_utils.traverse`           |
+  | traversal           |                                            |
+  +---------------------+--------------------------------------------+
+  | Hierarchical object | :func:`pg.object_utils.transform`,         |
+  | transformation      |                                            |
+  |                     | :func:`pg.object_utils.merge`,             |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.canonicalize`,      |
+  |                     |                                            |
+  |                     | :func:`pg.object_utils.flatten`            |
+  +---------------------+--------------------------------------------+
 """
 # pylint: enable=line-too-long
 # pylint: disable=g-bad-import-order

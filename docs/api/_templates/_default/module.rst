@@ -1,6 +1,6 @@
 .. _{{module.rst_label}}:
 
-{{module.canonical_path}}
+{{module.preferred_path}}
 =====================
 
 .. automodule:: {{module.rst_import_name}}

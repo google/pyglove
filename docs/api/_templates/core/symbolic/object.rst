@@ -1,6 +1,6 @@
 .. _{{cls.rst_label}}:
 
-{{cls.canonical_path}}
+{{cls.preferred_path}}
 ================
 
 Accessible via {{cls.rst_access_paths}}.

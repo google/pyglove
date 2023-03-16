@@ -368,57 +368,60 @@ class DecisionPoint(DNASpec):
     return False
 
 
+# pylint: disable=line-too-long
 @functools.total_ordering
 class DNA(symbolic.Object):
-  """A tree of numbers that encodes an symbolic object.
+  """The genome of a symbolic object relative to its search space.
 
-  Each DNA object represents a node in a tree, which has a value and a list of
-  DNA as its children. DNA value can be None, int or float, with valid form as
-  following:
+  DNA is a hierarchical structure - each DNA node has a value, and a list of
+  child DNA nodes. The root node represents the genome that encodes an entire
+  object relative to its space. The value of a DNA node could be None, an
+  integer, a float number or a string, dependening on its specification
+  (:class:`pg.DNASpec`). A valid DNA has a form of the following.
 
-    +-----------------------+-----------------+-----------------------------+
-    |  Encoder type         | Possible values |   Child nodes               |
-    |  (DNASpec type)       |                 |                             |
-    +=======================+=================+=============================+
-    |hyper.ObjectTemplate   |None             |DNA of child decision points |
-    |(geno.Space)           |(elements > 1)   |(Choices/Float) in the       |
-    |                       |                 |template.                    |
-    +-----------------------+-----------------+-----------------------------+
-    |                       |None             |Children of elements[0]      |
-    |                       |(elements == 1   |                             |
-    |                       |and elements[0]. |                             |
-    |                       |num_choices > 1) |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |                       |int              |Children of:                 |
-    |                       |(elements == 1   |elements[0][0]               |
-    |                       |and elements[0]. |                             |
-    |                       |num_choices ==1) |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |                       |float            |Empty                        |
-    |                       |(elements == 1   |                             |
-    |                       |and elements[0]  |                             |
-    |                       |is geno.Float    |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |hyper.OneOf            |int              |Children of Space            |
-    |(geno.Choices)         |(candidate index |for the chosen candidate     |
-    |                       |as choice)       |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |hyper.ManyOf           |None             |DNA of each chosen candidate |
-    |(geno.Choices)         |(num_choices > 1 |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |                       |int              |Children of chosen candidate |
-    |                       |(num_choices==1) |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |hyper.Float            |float            |Empty                        |
-    |(geno.Float)           |                 |                             |
-    +-----------------------+-----------------+-----------------------------+
-    |hyper.CustomHyper      |string           |User defined.                |
-    |(geno.CustomDecision   |                 |                             |
-    |Point)                 |                 |                             |
-    +-----------------------+-----------------+-----------------------------+
+  +--------------------------------------+-----------------+-----------------------------+
+  |  Hyper value type                    | Possible values |   Child nodes               |
+  |  (DNASpec type)                      |                 |                             |
+  +======================================+=================+=============================+
+  |:class:`pg.hyper.ObjectTemplate`      | None            |DNA of child decision points |
+  |(:class:`pg.geno.Space`)              |(elements > 1)   |(Choices/Float) in the       |
+  |                                      |                 |template.                    |
+  +--------------------------------------+-----------------+-----------------------------+
+  |                                      |None             |Children of elements[0]      |
+  |                                      |(elements == 1   |                             |
+  |                                      |and elements[0]. |                             |
+  |                                      |num_choices > 1) |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |                                      |int              |Children of:                 |
+  |                                      |(elements == 1   |elements[0][0]               |
+  |                                      |and elements[0]. |                             |
+  |                                      |num_choices ==1) |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |                                      |float            |Empty                        |
+  |                                      |(elements == 1   |                             |
+  |                                      |and elements[0]  |                             |
+  |                                      |is geno.Float)   |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |:func:`pg.oneof`                      |int              |Children of Space            |
+  |(:class:`pg.geno.Choices`)            |(candidate index |for the chosen candidate     |
+  |                                      |as choice)       |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |:func:`pg.manyof`                     |None             |DNA of each chosen candidate |
+  |(:class:`pg.geno.Choices)             |(num_choices > 1 |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |                                      |int              |Children of chosen candidate |
+  |                                      |(num_choices==1) |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |:func:`pg.floatv`                     |float            |Empty                        |
+  |(:class:`pg.geno.Float` )             |                 |                             |
+  +--------------------------------------+-----------------+-----------------------------+
+  |:class:`pg.hyper.CustomHyper`         |string           |User defined.                |
+  |(:class:`pg.geno.CustomDecisionPoint`)|(serialized      |                             |
+  |                                      | object)         |                             |
+  +--------------------------------------+-----------------+-----------------------------+
 
-  DNA can also be represented as a mix of JSON number, list and tuples for a
-  more intuitive illustration, formally defined as::
+  DNA can also be represented in a compact form - a tree of numbers/strs,
+  formally defined as::
 
     <dna> := empty | <decision>
     <decision>: = <single-decision>
@@ -463,6 +466,7 @@ class DNA(symbolic.Object):
     # is defined by the user.
     DNA('abc')
   """
+  # pylint: enable=line-too-long
 
   # Allow assignment on symbolic attributes.
   allow_symbolic_assignment = True

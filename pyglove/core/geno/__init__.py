@@ -48,22 +48,23 @@ for optimization.
 
 Genotypes map 1:1 to hyper primitives as the following:
 
-+----------------------------------------+-------------------------------------+
-| Genotype class                         | Hyper class                         |
-+========================================+=====================================+
-|:class:`pyglove.DNASpec`                |:class:`pyglove.hyper.HyperValue`    |
-+----------------------------------------+-------------------------------------+
-|:class:`pyglove.geno.Space`             |:class:`pyglove.hyper.ObjectTemplate`|
-+----------------------------------------+-------------------------------------+
-|:class:`pyglove.geno.DecisionPoint`     |:class:`pyglove.hyper.HyperPrimitive`|
-+----------------------------------------+-------------------------------------+
-|:class:`pyglove.geno.Choices`           |:class:`pyglove.hyper.Choices`       |
-+----------------------------------------+-------------------------------------+
-|:class:`pyglove.geno.Float`             |:class:`pyglove.hyper.Float`         |
-+----------------------------------------+-------------------------------------+
-|:class:`pyglove.geno.CustomDecisionPoint` :class:`pyglove.hyper.CustomHyper`  |
-+-----------------------------------------+------------------------------------+
-
++-------------------------------------+--------------------------------------+
+| Genotype class                      | Hyper class                          |
++=====================================+======================================+
+|:class:`pg.DNASpec`                  | :class:`pg.hyper.HyperValue`         |
++-------------------------------------+--------------------------------------+
+|:class:`pg.geno.Space`               | :class:`pg.hyper.ObjectTemplate`     |
++-------------------------------------+--------------------------------------+
+|:class:`pg.geno.DecisionPoint`       | :class:`pg.hyper.HyperPrimitive`     |
++-------------------------------------+--------------------------------------+
+|:class:`pg.geno.Choices`             | :class:`pg.hyper.Choices`            |
+|                                     | (:func:`pg.oneof`, :func:`pg.manyof`)|
++-------------------------------------+--------------------------------------+
+|:class:`pg.geno.Float`               | :class:`pg.floatv`                   |
++-------------------------------------+--------------------------------------+
+|:class:`pg.geno.CustomDecisionPoint` | :class:`pg.hyper.CustomHyper`        |
+|                                     | (:func:`pg.evolve`)                  |
++-------------------------------------+--------------------------------------+
 """
 
 # pylint: disable=g-bad-import-order

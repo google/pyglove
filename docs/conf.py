@@ -31,22 +31,39 @@
 import importlib
 import inspect
 import os
+import re
 import sys
+
+from sphinx.domains.python import PyXRefRole
+
 
 # Set parent directory to path in order to import pyglove.
 sys.path.insert(0, os.path.abspath('..'))
 pyglove_module = importlib.import_module('pyglove')
+access_path_to_api = {}
 
 
 def generate_api_docs(_):
   docgen = importlib.import_module('docs.api.docgen')
   print('Generating API docs from templates...')
-  docgen.generate_api_docs()
+  pyglove_api = docgen.generate_api_docs()
+  for api in pyglove_api.all_apis():
+    if api.qualname:
+      access_path_to_api[api.qualname] = api
+    for path in api.access_paths:
+      access_path_to_api[path] = api
 
 
 def setup(app):
   app.connect('builder-inited', generate_api_docs)
-
+  app.add_role_to_domain('py', 'class', PgXRefRole())
+  app.add_role_to_domain('py', 'const', PgXRefRole())
+  app.add_role_to_domain('py', 'obj', PgXRefRole())
+  app.add_role_to_domain('py', 'data', PgXRefRole())
+  app.add_role_to_domain('py', 'func', PgXRefRole())
+  app.add_role_to_domain('py', 'meth', PgXRefRole())
+  app.add_role_to_domain('py', 'attr', PgXRefRole())
+  app.add_role_to_domain('py', 'mod', PgXRefRole())
 
 # Consider to include versioning.
 branch = os.getenv('BRANCH') or 'main'
@@ -97,6 +114,49 @@ def linkcode_resolve(domain, info):
   except Exception as e:  # pylint: disable=broad-except
     print(f'Found error when resolving {module_name}.{entity_name}: {e}')
     return None
+
+
+class PgXRefRole(PyXRefRole):
+  """Custom XRefRole for PyGlove code.
+
+  This role is introduced to consistently use the preferred name for the same
+  symbol, though they could be referenced with different paths. For example,
+  both :class:`pg.DNA` and :class:`pyglove.geno.DNA` will refer to class
+  ``pg.DNA``, while "pg.DNA" will be used as the the title for both references.
+  """
+
+  def process_link(self, env, refnode, has_explicit_title: bool,
+                   title: str, target: str) -> tuple[str, str]:
+    """Processes link."""
+    title, target = super().process_link(
+        env, refnode, has_explicit_title, title, target)
+
+    def noramlized_title_and_target(api, attr_name=None):
+      new_title = title
+      if not has_explicit_title:
+        new_title = api.preferred_path
+      new_target = api.canonical_path
+      if attr_name:
+        new_target = '.'.join([new_target, attr_name])
+      new_target = re.sub(r'^pg\.', 'pyglove.', new_target)
+      return (new_title, new_target)
+
+    # Try with target directly.
+    if target in access_path_to_api:
+      return noramlized_title_and_target(access_path_to_api[target])
+
+    # Replace target prefix and try again.
+    target = re.sub(r'^pyglove\.(?:core|ext)?\.?', 'pg.', target)
+    if target in access_path_to_api:
+      return noramlized_title_and_target(access_path_to_api[target])
+    else:
+      # new_target may be class members.
+      name_items = target.split('.')
+      class_name, attr_name = '.'.join(name_items[:-1]), name_items[-1]
+      if class_name in access_path_to_api:
+        return noramlized_title_and_target(
+            access_path_to_api[class_name], attr_name)
+    return (title, target)
 
 
 # -- Project information -----------------------------------------------------
