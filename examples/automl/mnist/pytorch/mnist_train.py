@@ -101,9 +101,8 @@ def train_and_eval(lr=1.0, batch_size=64, epochs=1, dry_run=False) -> float:
       transforms.ToTensor(),
       transforms.Normalize((0.1307,), (0.3081,))
   ])
-  dataset1 = datasets.MNIST(
-      '../data', train=True, download=True, transform=transform)
-  dataset2 = datasets.MNIST('../data', train=False, transform=transform)
+  dataset1 = datasets.MNIST('.', train=True, download=True, transform=transform)
+  dataset2 = datasets.MNIST('.', train=False, transform=transform)
   train_loader = torch.utils.data.DataLoader(dataset1, batch_size=batch_size)
   test_loader = torch.utils.data.DataLoader(dataset2, batch_size=128)
 
