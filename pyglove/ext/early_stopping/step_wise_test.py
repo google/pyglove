@@ -100,11 +100,12 @@ class EarlyStopByValueTest(unittest.TestCase):
 
   def test_minimize_a_metric(self):
     policy = step_wise.early_stop_by_value([
-        # Gate 1 at step 1, stop when loss > 0.3.
-        (1, 0.3),
-
-        # Gate 2 at step 3, stop when loss > 0.8.
+        # Unorder the gating steps to make sure it still work.
+        # Gate 1 at step 3, stop when loss > 0.8.
         (3, 0.8),
+
+        # Gate 2 at step 1, stop when loss > 0.3.
+        (1, 0.3),
     ], maximize=False, metric='loss')()
 
     # STEP 1

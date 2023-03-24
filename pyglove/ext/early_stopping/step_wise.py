@@ -42,6 +42,8 @@ class StepWise(base.EarlyStopingPolicyBase):
 
   def _on_bound(self):
     super()._on_bound()
+    self.rebind(
+        plan=sorted(self.plan, key=lambda x: x[0]), skip_notification=True)
     self._gate_history: List[List[pg.tuning.Measurement]] = [
         [] for _ in range(len(self.plan))]
     self._trial_gate_decision: Dict[int, Tuple[int, bool]] = {}
@@ -69,12 +71,12 @@ class StepWise(base.EarlyStopingPolicyBase):
 
   def _get_gate_index(self, trial: pg.tuning.Trial) -> int:
     """Gets the index of gate for a trial."""
-    previous = None if len(trial.measurements) < 2 else trial.measurements[-2]
-    current = trial.measurements[-1]
-    for i, (step, _) in enumerate(self.plan):
-      if (previous is None or previous.step < step) and current.step >= step:
-        return i
-    return -1
+    step = trial.measurements[-1].step
+    index = -1
+    for i, (gating_step, _) in enumerate(self.plan):
+      if gating_step <= step:
+        index = i
+    return index
 
   def recover(self, history: Iterable[pg.tuning.Trial]):
     """Recovers the policy state based on history."""
@@ -156,7 +158,8 @@ def early_stop_by_value(
   def _make_predicate(threshold: float):
     def _predicate(m: pg.tuning.Measurement, unused_history):
       v = _value(m)
-      return _cmp(v, threshold)
+      ret = _cmp(v, threshold)
+      return ret
     return _predicate
 
   return StepWise([
