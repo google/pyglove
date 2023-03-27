@@ -426,6 +426,12 @@ class CodeTest(unittest.TestCase):
     self.assertEqual(
         list(base.Instruction.select_types(lambda cls: cls is Xor)),
         [Xor])
+    self.assertEqual(
+        list(
+            base.Instruction.select_types(lambda cls: cls is base.Instruction)
+        ),
+        [],
+    )
 
 
 class AssignTest(unittest.TestCase):

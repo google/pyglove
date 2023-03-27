@@ -382,11 +382,9 @@ class Instruction(Code):
       where: Callable[[Type['Instruction']], bool] = lambda x: True
       ) -> Iterable[Type['Instruction']]:
     """Selects all instruction types that match the condition."""
-    for _, cls in pg.registered_types():
-      if (issubclass(cls, Instruction)
-          and cls is not Instruction
-          and where(cls)):
-        yield cls
+    for _, t in pg.registered_types():
+      if issubclass(t, Instruction) and t is not Instruction and where(t):
+        yield t
 
 #
 # Symbol reference.
