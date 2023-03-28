@@ -395,10 +395,10 @@ class Choices(DecisionPoint):
             size = 0
             for i in range(k + 1):
               size += (s[0] ** i) * _space_size(s[1:], k - i)
-            return size
+            return size  # pytype: disable=bad-return-type  # always-use-return-annotations
           else:
             # When choice is neither distinct nor sorted,
-            return _space_size(s, 1) ** k
+            return _space_size(s, 1) ** k  # pytype: disable=bad-return-type  # always-use-return-annotations
         self._space_size = _space_size(sub_space_sizes, self.num_choices)
     return self._space_size
 
