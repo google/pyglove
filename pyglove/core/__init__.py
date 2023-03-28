@@ -63,6 +63,7 @@ set_origin_stacktrace_limit = symbolic.set_origin_stacktrace_limit
 # Context manager for scoped flags.
 allow_partial = symbolic.allow_partial
 allow_writable_accessors = symbolic.allow_writable_accessors
+auto_call_functors = symbolic.auto_call_functors
 notify_on_change = symbolic.notify_on_change
 enable_type_check = symbolic.enable_type_check
 track_origin = symbolic.track_origin

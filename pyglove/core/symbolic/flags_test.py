@@ -125,6 +125,15 @@ class ScopedFlagsTest(unittest.TestCase):
       self.assertTrue(flags.is_under_partial_scope())
     self.assertFalse(flags.is_under_partial_scope())
 
+  def test_auto_call_functors(self):
+    self.assertFalse(flags.should_call_functors_during_init())
+    with flags.auto_call_functors(True):
+      self.assertTrue(flags.should_call_functors_during_init())
+      with flags.auto_call_functors(False):
+        self.assertFalse(flags.should_call_functors_during_init())
+      self.assertTrue(flags.should_call_functors_during_init())
+    self.assertFalse(flags.should_call_functors_during_init())
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -122,6 +122,7 @@ _TLS_ENABLE_ORIGIN_TRACKING = '_enable_origin_tracking'
 _TLS_ACCESSOR_WRITABLE = '_accessor_writable'
 _TLS_ALLOW_PARTIAL = '_allow_partial'
 _TLS_SEALED = '_sealed'
+_TLS_AUTO_CALL_FUNCTORS = '_allow_auto_call_functors'
 
 
 def notify_on_change(enabled: bool = True) -> ContextManager[None]:
@@ -332,3 +333,34 @@ def allow_partial(allow: Optional[bool] = True) -> ContextManager[None]:
 def is_under_partial_scope() -> Optional[bool]:
   """Return True if partial value is allowed in current context."""
   return thread_local.get_value(_TLS_ALLOW_PARTIAL, None)
+
+
+def auto_call_functors(enabled: bool = True) -> ContextManager[None]:
+  """Returns a context manager to enable or disable auto call for functors.
+
+  `auto_call_functors` is thread-safe and can be nested. For example::
+
+    @pg.symbolize
+    def foo(x, y):
+      return x + y
+
+    with pg.auto_call_functors(True):
+      a = foo(1, 2)
+      assert a == 3
+      with pg.auto_call_functors(False):
+        b = foo(1, 2)
+        assert isinstance(b, foo)
+
+  Args:
+    enabled: If True, enable auto call for functors.
+      Otherwise, auto call will be disabled.
+
+  Returns:
+    A context manager for enabling/disabling auto call for functors.
+  """
+  return thread_local.value_scope(_TLS_AUTO_CALL_FUNCTORS, enabled, False)
+
+
+def should_call_functors_during_init() -> Optional[bool]:
+  """Return True functors should be automatically called during __init__."""
+  return thread_local.get_value(_TLS_AUTO_CALL_FUNCTORS, None)

@@ -71,6 +71,13 @@ class Functor(pg_object.Object, object_utils.Functor):
   # Signature of this function.
   signature: pg_typing.Signature
 
+  def __new__(cls, *args, **kwargs):
+    instance = object.__new__(cls)
+    if flags.should_call_functors_during_init():
+      instance.__init__(*args, **kwargs)
+      return instance()
+    return instance
+
   def __init__(
       self,
       *args,

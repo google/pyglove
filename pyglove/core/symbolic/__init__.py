@@ -57,6 +57,8 @@ from pyglove.core.symbolic.flags import is_under_partial_scope
 from pyglove.core.symbolic.flags import notify_on_change
 from pyglove.core.symbolic.flags import is_change_notification_enabled
 
+from pyglove.core.symbolic.flags import auto_call_functors
+from pyglove.core.symbolic.flags import should_call_functors_during_init
 
 # Symbolic types and their definition helpers.
 from pyglove.core.symbolic.base import Symbolic

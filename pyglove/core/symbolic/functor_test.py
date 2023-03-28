@@ -19,6 +19,7 @@ import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.base import from_json_str as pg_from_json_str
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.functor import as_functor as pg_as_functor
@@ -809,6 +810,19 @@ class FunctorTest(unittest.TestCase):
     # Bound argument `x` with partial object is considered missing.
     x = f.partial(x=A.partial())
     self.assertEqual(x.missing_values(), {'x.x': MISSING_VALUE})
+
+  def test_auto_call(self):
+    @pg_functor
+    def f(x, y):
+      return x + y
+
+    with flags.auto_call_functors():
+      self.assertEqual(f(1, 2), 3)
+      with self.assertRaisesRegex(
+          TypeError, '.* missing 1 required positional argument'):
+        _ = f(1)  # pylint: disable=no-value-for-parameter
+
+    self.assertIsInstance(f(1, 2), Functor)
 
 
 if __name__ == '__main__':
