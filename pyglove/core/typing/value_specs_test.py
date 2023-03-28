@@ -77,7 +77,7 @@ class BoolTest(unittest.TestCase):
       vs.Bool().apply(None)
 
   def test_is_compatible(self):
-    v= vs.Bool()
+    v = vs.Bool()
     self.assertTrue(v.is_compatible(v))
     self.assertTrue(vs.Bool().is_compatible(vs.Bool()))
     self.assertTrue(vs.Bool().noneable().is_compatible(vs.Bool()))
@@ -344,8 +344,8 @@ class IntTest(unittest.TestCase):
 
     # Child extends base with constraints will intersect valid range.
     self.assertEqual(
-        vs.Int(min_value=2,
-                   max_value=5).extend(vs.Int(min_value=2, max_value=6)),
+        vs.Int(min_value=2, max_value=5).extend(
+            vs.Int(min_value=2, max_value=6)),
         vs.Int(min_value=2, max_value=5))
 
     # Child may extend a noneable base into non-noneable.
@@ -353,9 +353,8 @@ class IntTest(unittest.TestCase):
 
     # Child may extend a union that has the same type.
     self.assertEqual(
-        vs.Int().extend(
-            vs.Union([vs.Int(min_value=1),
-                          vs.Bool()])), vs.Int(min_value=1))
+        vs.Int().extend(vs.Union([vs.Int(min_value=1), vs.Bool()])),
+        vs.Int(min_value=1))
 
     with self.assertRaisesRegex(TypeError,
                                 '.* cannot extend .*: incompatible type.'):
@@ -821,15 +820,13 @@ class ListTest(unittest.TestCase):
         raise ValueError('Sum expected to be larger than zero')
 
     self.assertEqual(
-        vs.List(vs.Int(),
-                    user_validator=_sum_greater_than_zero).apply([0, 1]),
+        vs.List(vs.Int(), user_validator=_sum_greater_than_zero).apply([0, 1]),
         [0, 1])
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
-      vs.List(
-          vs.List(vs.Int(),
-                      user_validator=_sum_greater_than_zero)).apply([[-1]])
+      vs.List(vs.List(
+          vs.Int(), user_validator=_sum_greater_than_zero)).apply([[-1]])
 
   def test_is_compatible(self):
     self.assertTrue(
@@ -1124,8 +1121,8 @@ class TupleTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
-      vs.Tuple([vs.Tuple([vs.Int()],
-               user_validator=_sum_greater_than_zero)]).apply(((-1,),))
+      vs.Tuple([vs.Tuple([vs.Int()], user_validator=_sum_greater_than_zero)]
+               ).apply(((-1,),))
 
   def test_is_compatible(self):
     self.assertTrue(vs.Tuple(vs.Int()).is_compatible(vs.Tuple(vs.Int())))
@@ -1262,8 +1259,7 @@ class TupleTest(unittest.TestCase):
     # Child cannot extend a non-noneable base to noneable.
     with self.assertRaisesRegex(
         TypeError, '.* cannot extend .*: None is not allowed in base spec.'):
-      vs.Tuple([vs.Int()
-                   ]).noneable().extend(vs.Tuple([vs.Int()]))
+      vs.Tuple([vs.Int()]).noneable().extend(vs.Tuple([vs.Int()]))
 
     # Child with larger max_size cannot extend base with smaller max_size.
     with self.assertRaisesRegex(

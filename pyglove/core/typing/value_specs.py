@@ -50,9 +50,13 @@ class ValueSpecBase(ValueSpec):
               typing.Tuple[typing.Type[typing.Any], ...]
           ]],
       default: typing.Any = MISSING_VALUE,
+      is_noneable: bool = False,
+      *,
       user_validator: typing.Optional[
           typing.Callable[[typing.Any], None]] = None,
-      is_noneable: bool = False):  # pyformat: disable
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None,
+      ):  # pyformat: disable
     """Constructor of ValueSpecBase.
 
       This class provides common facilities for implementing ValueSpec,
@@ -66,12 +70,15 @@ class ValueSpecBase(ValueSpec):
       default: (Optional) Default value. If not specified, it always require
         user to provide. Or it can be any value that can be accepted by this
         spec, or None, which automatically add Noneable property to the spec.
+      is_noneable: (Optional) If True, None is acceptable for this spec.
       user_validator: (Optional) user function or callable object for additional
         validation on applied value, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validation provided by built-in constraint, like `min_value` for
         `schema.Int`.
-      is_noneable: (Optional) If True, None is acceptable for this spec.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     super().__init__()
     self._value_type = value_type
@@ -79,6 +86,7 @@ class ValueSpecBase(ValueSpec):
     self._frozen = False
     self._default = MISSING_VALUE
     self._user_validator = user_validator
+    self._value_generator = value_generator
     self.set_default(default)
 
   @property
@@ -137,8 +145,13 @@ class ValueSpecBase(ValueSpec):
   @property
   def user_validator(
       self) -> typing.Optional[typing.Callable[[typing.Any], None]]:
-    """Returns user validator for custom validation logic."""
+    """Returns the associated user validator for custom validation logic."""
     return self._user_validator
+
+  @property
+  def value_generator(self) -> typing.Callable[[ValueSpec], typing.Any]:
+    """Returns the associated value generator."""
+    return self._value_generator
 
   def extend(self, base: ValueSpec) -> ValueSpec:
     """Extend current value spec on top of a base spec."""
@@ -316,21 +329,29 @@ class ValueSpecBase(ValueSpec):
 class PrimitiveType(ValueSpecBase):
   """Base class of value specification for primitive types."""
 
-  def __init__(self,
-               value_type: typing.Union[typing.Type[typing.Any],
-                                        typing.Tuple[typing.Type[typing.Any],
-                                                     ...]],
-               default: typing.Any = MISSING_VALUE,
-               is_noneable: bool = False):
+  def __init__(
+      self,
+      value_type: typing.Union[typing.Type[typing.Any],
+                               typing.Tuple[typing.Type[typing.Any], ...]],
+      default: typing.Any = MISSING_VALUE,
+      is_noneable: bool = False,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor.
 
     Args:
       value_type: Acceptable value type(s).
       default: Default value.
       is_noneable: If True, None is acceptable.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     super().__init__(
-        value_type, default, is_noneable=is_noneable)
+        value_type, default, is_noneable=is_noneable,
+        value_generator=value_generator)
 
 
 class Bool(PrimitiveType):
@@ -354,13 +375,22 @@ class Bool(PrimitiveType):
     pg.typing.Bool().freeze(True)
   """
 
-  def __init__(self, default: typing.Optional[bool] = MISSING_VALUE):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[bool] = MISSING_VALUE,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: Default value for the value spec.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
-    super().__init__(bool, default)
+    super().__init__(bool, default, value_generator=value_generator)
 
 
 class Str(PrimitiveType):
@@ -387,17 +417,25 @@ class Str(PrimitiveType):
     pg.typing.Str().freeze('foo')
   """
 
-  def __init__(self,
-               default: typing.Optional[str] = MISSING_VALUE,
-               regex: typing.Optional[str] = None):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[str] = MISSING_VALUE,
+      regex: typing.Optional[str] = None,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: Default value for this value spec.
       regex: Optional regular expression for acceptable value.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     self._regex = re.compile(regex) if regex else None
-    super().__init__(str, default)
+    super().__init__(str, default, value_generator=value_generator)
 
   def _validate(self, path: object_utils.KeyPath, value: str) -> None:
     """Validates applied value."""
@@ -459,7 +497,11 @@ class Number(PrimitiveType):
       value_type,  # typing.Type[numbers.Number]
       default: typing.Optional[numbers.Number] = MISSING_VALUE,
       min_value: typing.Optional[numbers.Number] = None,
-      max_value: typing.Optional[numbers.Number] = None):  # pytype: disable=annotation-type-mismatch
+      max_value: typing.Optional[numbers.Number] = None,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -467,6 +509,9 @@ class Number(PrimitiveType):
       default: Default value for this spec.
       min_value: (Optional) minimum value of acceptable values.
       max_value: (Optional) maximum value of acceptable values.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     if (min_value is not None and max_value is not None and
         min_value > max_value):
@@ -475,7 +520,7 @@ class Number(PrimitiveType):
           f'Encountered: min_value={min_value}, max_value={max_value}.')
     self._min_value = min_value
     self._max_value = max_value
-    super().__init__(value_type, default)
+    super().__init__(value_type, default, value_generator=value_generator)
 
   @property
   def min_value(self) -> typing.Optional[numbers.Number]:
@@ -576,18 +621,27 @@ class Int(Number):
     pg.typing.Int().freeze(1)
   """
 
-  def __init__(self,
-               default: typing.Optional[int] = MISSING_VALUE,
-               min_value: typing.Optional[int] = None,
-               max_value: typing.Optional[int] = None):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[int] = MISSING_VALUE,
+      min_value: typing.Optional[int] = None,
+      max_value: typing.Optional[int] = None,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: (Optional) default value for this spec.
       min_value: (Optional) minimum value of acceptable values.
       max_value: (Optional) maximum value of acceptable values.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
-    super().__init__(int, default, min_value, max_value)
+    super().__init__(
+        int, default, min_value, max_value, value_generator=value_generator)
 
 
 class Float(Number):
@@ -614,18 +668,27 @@ class Float(Number):
     pg.typing.Float().freeze(1)
   """
 
-  def __init__(self,
-               default: typing.Optional[float] = MISSING_VALUE,
-               min_value: typing.Optional[float] = None,
-               max_value: typing.Optional[float] = None):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[float] = MISSING_VALUE,
+      min_value: typing.Optional[float] = None,
+      max_value: typing.Optional[float] = None,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: (Optional) default value for this spec.
       min_value: (Optional) minimum value of acceptable values.
       max_value: (Optional) maximum value of acceptable values.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
-    super().__init__(float, default, min_value, max_value)
+    super().__init__(
+        float, default, min_value, max_value, value_generator=value_generator)
 
 
 class Enum(PrimitiveType):
@@ -646,12 +709,22 @@ class Enum(PrimitiveType):
     pg.typing.Enum('a', ['a', 'b', 'c']).freeze('a')
   """
 
-  def __init__(self, default: typing.Any, values: typing.List[typing.Any]):
+  def __init__(
+      self,
+      default: typing.Any,
+      values: typing.List[typing.Any],
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor.
 
     Args:
       default: default value for this spec.
       values: all acceptable values.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     if not isinstance(values, list) or not values:
       raise ValueError(
@@ -682,7 +755,8 @@ class Enum(PrimitiveType):
     if value_type is not None and issubclass(value_type, str):
       value_type = str
     self._values = values
-    super().__init__(value_type, default, is_noneable=is_noneable)
+    super().__init__(value_type, default,
+                     is_noneable=is_noneable, value_generator=value_generator)
 
   def noneable(self) -> 'Enum':
     """Noneable is specially treated for Enum."""
@@ -768,8 +842,12 @@ class List(ValueSpecBase):
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
+      *,
       user_validator: typing.Optional[
-          typing.Callable[[typing.List[typing.Any]], None]] = None):  # pytype: disable=annotation-type-mismatch
+          typing.Callable[[typing.List[typing.Any]], None]] = None,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -783,6 +861,9 @@ class List(ValueSpecBase):
         validation on the applied list, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating list size constraint.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     if not isinstance(element_value, ValueSpec):
       raise ValueError('List element spec should be an ValueSpec object.')
@@ -811,7 +892,9 @@ class List(ValueSpecBase):
     self._element = Field(
         key_specs.ListKey(min_size, max_size),
         element_value, 'Field of list element')
-    super().__init__(list, default, user_validator)
+    super().__init__(
+        list, default,
+        user_validator=user_validator, value_generator=value_generator)
 
   @property
   def element(self) -> Field:
@@ -947,8 +1030,12 @@ class Tuple(ValueSpecBase):
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
+      *,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Tuple[typing.Any, ...]], None]] = None):  # pytype: disable=annotation-type-mismatch
+          typing.Callable[[typing.Tuple[typing.Any, ...]], None]] = None,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -965,6 +1052,9 @@ class Tuple(ValueSpecBase):
         validation on the applied tuple, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating tuple size constraint.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     if isinstance(element_values, ValueSpec):
       if size is not None and (min_size is not None or max_size is not None):
@@ -1018,7 +1108,9 @@ class Tuple(ValueSpecBase):
     self._min_size = min_size
     self._max_size = max_size
     self._elements = elements
-    super().__init__(tuple, default, user_validator)
+    super().__init__(
+        tuple, default,
+        user_validator=user_validator, value_generator=value_generator)
 
   @property
   def fixed_length(self) -> bool:
@@ -1254,8 +1346,12 @@ class Dict(ValueSpecBase):
       schema_or_field_list: typing.Optional[typing.Union[
           Schema, typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
       ]] = None,  # pylint: disable=bad-whitespace
+      *,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Dict[typing.Any, typing.Any]], None]] = None):
+          typing.Callable[[typing.Dict[typing.Any, typing.Any]], None]] = None,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor.
 
     Args:
@@ -1268,6 +1364,9 @@ class Dict(ValueSpecBase):
         validation on the applied dict, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating nested members by their schema if present.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     default_value = MISSING_VALUE
     schema = None
@@ -1279,7 +1378,9 @@ class Dict(ValueSpecBase):
             schema_or_field_list, allow_nonconst_keys=True)
       default_value = schema.apply({}, allow_partial=True)
     self._schema = schema
-    super().__init__(dict, MISSING_VALUE, user_validator)
+    super().__init__(
+        dict, MISSING_VALUE,
+        user_validator=user_validator, value_generator=value_generator)
     self.set_default(default_value, use_default_apply=False)
 
   @property
@@ -1375,8 +1476,12 @@ class Object(ValueSpecBase):
       self,
       cls: typing.Type[typing.Any],
       default: typing.Any = MISSING_VALUE,
+      *,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]] = None):
+          typing.Callable[[typing.Any], None]] = None,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor.
 
     Args:
@@ -1386,6 +1491,9 @@ class Object(ValueSpecBase):
         validation on the applied object, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating object type constraint.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     if cls is None:
       raise TypeError('"cls" for Object spec cannot be None.')
@@ -1393,7 +1501,9 @@ class Object(ValueSpecBase):
       raise TypeError('"cls" for Object spec should be a type.')
     if cls is object:
       raise TypeError('<class \'object\'> is too general for Object spec.')
-    super().__init__(cls, default, user_validator)
+    super().__init__(
+        cls, default,
+        user_validator=user_validator, value_generator=value_generator)
 
   @property
   def cls(self) -> typing.Type[typing.Any]:
@@ -1502,9 +1612,13 @@ class Callable(ValueSpecBase):
           typing.List[typing.Tuple[str, ValueSpec]]] = None,
       returns: typing.Optional[ValueSpec] = None,
       default: typing.Any = MISSING_VALUE,
+      callable_type: typing.Optional[typing.Type[typing.Any]] = None,
+      *,
       user_validator: typing.Optional[
           typing.Callable[[typing.Callable], None]] = None,  # pylint: disable=g-bare-generic
-      callable_type: typing.Optional[typing.Type] = None):  # pylint: disable=g-bare-generic
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor."""
     args = args or []
     kw = kw or []
@@ -1536,7 +1650,9 @@ class Callable(ValueSpecBase):
     self._args = args
     self._kw = kw
     self._return_value = returns
-    super().__init__(callable_type, default, user_validator)
+    super().__init__(
+        callable_type, default,
+        user_validator=user_validator, value_generator=value_generator)
 
   @property
   def args(self) -> typing.List[ValueSpec]:
@@ -1746,8 +1862,12 @@ class Functor(Callable):
           typing.List[typing.Tuple[str, ValueSpec]]] = None,
       returns: typing.Optional[ValueSpec] = None,
       default: typing.Any = MISSING_VALUE,
+      *,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Callable], None]] = None):  # pylint: disable=g-bare-generic
+          typing.Callable[[typing.Callable[..., typing.Any]], None]] = None,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor."""
     super().__init__(
         args=args,
@@ -1781,12 +1901,16 @@ class Type(ValueSpecBase):
 
   def __init__(
       self,
-      t: typing.Type,  # pylint: disable=g-bare-generic
-      default: typing.Type = MISSING_VALUE):  # pylint: disable=g-bare-generic  # pytype: disable=annotation-type-mismatch
+      t: typing.Type[typing.Any],
+      default: typing.Type[typing.Any] = MISSING_VALUE,
+      *,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):  # pytype: disable=annotation-type-mismatch
     if not isinstance(t, type):
       raise TypeError(f'{t!r} is not a type.')
     self._expected_type = t
-    super().__init__(type, default)
+    super().__init__(type, default, value_generator=value_generator)
 
   @property
   def type(self):
@@ -1850,14 +1974,21 @@ class Union(ValueSpecBase):
     ], default={'x': 1})
   """
 
-  def __init__(self,
-               candidates: typing.List[ValueSpec],
-               default: typing.Any = MISSING_VALUE):
+  def __init__(
+      self,
+      candidates: typing.List[ValueSpec],
+      default: typing.Any = MISSING_VALUE,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor.
 
     Args:
       candidates: Value spec for candidate types.
       default: (Optional) default value of this spec.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
     if not isinstance(candidates, list) or len(candidates) < 2:
       raise ValueError(
@@ -1914,7 +2045,7 @@ class Union(ValueSpecBase):
 
     Args:
       dest_spec: destination value spec which is a superset of the value spec
-        to return. E.g. Any (dest_spec) is superset of Int (child spec).
+        to return. E.g. typing.Any (dest_spec) is superset of Int (child spec).
 
     Returns:
       The first value spec under Union with which the destination value spec
@@ -2067,8 +2198,12 @@ class Any(ValueSpecBase):
       self,
       default: typing.Any = MISSING_VALUE,
       annotation: typing.Any = MISSING_VALUE,
+      *,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]] = None):
+          typing.Callable[[typing.Any], None]] = None,
+      value_generator: typing.Optional[
+          typing.Callable[[ValueSpec], typing.Any]] = None
+      ):
     """Constructor.
 
     Args:
@@ -2077,8 +2212,13 @@ class Any(ValueSpecBase):
       user_validator: (Optional) user function or callable object for additional
         validation on the applied value, which can reject a value by raising
         Exceptions.
+      value_generator: (Optional) callable object for generating values from
+        current spec. ``value_generator`` allows users to generate values from
+        a value spec based on pre-defined rules.
     """
-    super().__init__(object, default, user_validator, is_noneable=True)
+    super().__init__(
+        object, default, is_noneable=True,
+        user_validator=user_validator, value_generator=value_generator)
     self._annotation = annotation
 
   def is_compatible(self, other: ValueSpec) -> bool:

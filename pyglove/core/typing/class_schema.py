@@ -326,7 +326,13 @@ class ValueSpec(object_utils.Formattable):
   @abc.abstractmethod
   def user_validator(
       self) -> Optional[Callable[[Any], None]]:
-    """Returns a user validator which is used for custom validation logic."""
+    """Returns the associated user validator for custom validation logic."""
+
+  @property
+  @abc.abstractmethod
+  def value_generator(
+      self) -> Optional[Callable[['ValueSpec'], Any]]:
+    """Returns the associated value generator for current value spec."""
 
   @abc.abstractmethod
   def is_compatible(self, other: 'ValueSpec') -> bool:
