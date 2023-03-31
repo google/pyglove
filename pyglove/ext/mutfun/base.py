@@ -386,6 +386,50 @@ class Instruction(Code):
       if issubclass(t, Instruction) and t is not Instruction and where(t):
         yield t
 
+
+#
+# Control flow
+#
+
+
+class ControlFlow(Instruction):
+  """Base class for control flows."""
+
+
+@pg.members([
+    ('predicate', instruction_operrand()),
+    ('true_branch', pg.typing.List(pg.typing.Object(Code))),
+    ('false_branch', pg.typing.List(pg.typing.Object(Code)).noneable()),
+])
+class If(ControlFlow):
+  """If statement."""
+
+  def evaluate(self, context: Dict[str, Any]):
+    cond = evaluate(self.predicate, context)
+    if cond:
+      for s in self.true_branch:
+        evaluate(s, context)
+    elif self.false_branch is not None:
+      for i in self.false_branch:
+        evaluate(i, context)
+    return None
+
+  def python_repr(self, block_indent: int = 0) -> str:
+    expr = str(self.predicate)
+    r = indent(f'if {expr}:\n', block_indent)
+    for i, instruction in enumerate(self.true_branch):
+      r += instruction.python_repr(block_indent + 1) + (
+          '' if i == len(self.true_branch) - 1 else '\n'
+      )
+    if self.false_branch:
+      r += indent('\nelse:\n', block_indent)
+      for j, instruction in enumerate(self.false_branch):
+        r += instruction.python_repr(block_indent + 1) + (
+            '' if j == len(self.false_branch) - 1 else '\n'
+        )
+    return r
+
+
 #
 # Symbol reference.
 #

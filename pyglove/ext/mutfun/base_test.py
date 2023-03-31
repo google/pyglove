@@ -451,6 +451,64 @@ class AssignTest(unittest.TestCase):
     self.assertEqual(variables, dict(x=1))
 
 
+class IfTest(unittest.TestCase):
+  """Tests for If."""
+
+  def test_evaluate(self):
+    one = base.Assign('x', 1)
+    two = base.Assign('y', 2)
+    i = base.If(predicate=2, true_branch=[one], false_branch=[two])
+    variables = dict(x=2, y=3)
+    self.assertIsNone(i.evaluate(variables))
+    self.assertEqual(variables, dict(x=1, y=3))
+
+    variables = dict(x=2, y=3)
+    i = base.If(predicate=False, true_branch=[one])
+    self.assertIsNone(i.evaluate(variables))
+    self.assertEqual(variables, dict(x=2, y=3))
+
+    variables = dict(x=2, y=3)
+    i = base.If(predicate=False, true_branch=[one], false_branch=[two])
+    self.assertIsNone(i.evaluate(variables))
+    self.assertEqual(variables, dict(x=2, y=2))
+
+  def test_python_repr(self):
+    g = Xor(base.Var('b'), 2)
+    one = base.Assign('x', 1)
+    two = base.Assign('x', 2)
+    i = base.If(predicate=g, true_branch=[one], false_branch=[two])
+    self.assertEqual(
+        i.python_repr(0),
+        inspect.cleandoc("""
+          if b ^ 2:
+            x = 1
+          else:
+            x = 2
+          """),
+    )
+    nested = base.If(predicate=True, true_branch=[one])
+    self.assertEqual(
+        nested.python_repr(0),
+        inspect.cleandoc("""
+          if True:
+            x = 1
+          """),
+    )
+    composite_if = base.If(
+        predicate=g, true_branch=[nested], false_branch=[two]
+    )
+    self.assertEqual(
+        composite_if.python_repr(0),
+        inspect.cleandoc("""
+          if b ^ 2:
+            if True:
+              x = 1
+          else:
+            x = 2
+          """),
+    )
+
+
 class FunctionTest(unittest.TestCase):
   """Tests for Function."""
 
