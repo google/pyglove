@@ -33,7 +33,7 @@ class Xor(base.Instruction):
         block_indent)
 
   def evaluate(self, variables: Dict[str, Any]) -> Any:
-    return self.x.evaluate(variables) ^ self.y.evaluate(variables)
+    return base.evaluate(self.x, variables) ^ base.evaluate(self.y, variables)
 
 
 class CodeTest(unittest.TestCase):
@@ -472,6 +472,17 @@ class IfTest(unittest.TestCase):
     self.assertIsNone(i.evaluate(variables))
     self.assertEqual(variables, dict(x=2, y=2))
 
+    variables = dict()
+    i = base.If(
+        predicate=one,
+        true_branch=[
+            base.Assign('y', Xor(base.Var('x'), 1)),
+            base.Assign('z', base.Var('y')),
+        ],
+    )
+    self.assertIsNone(i.evaluate(variables))
+    self.assertEqual(variables, dict(x=1, y=0, z=0))
+
   def test_python_repr(self):
     g = Xor(base.Var('b'), 2)
     one = base.Assign('x', 1)
@@ -480,19 +491,19 @@ class IfTest(unittest.TestCase):
     self.assertEqual(
         i.python_repr(0),
         inspect.cleandoc("""
-          if b ^ 2:
-            x = 1
-          else:
-            x = 2
-          """),
+            if b ^ 2:
+              x = 1
+            else:
+              x = 2
+            """),
     )
     nested = base.If(predicate=True, true_branch=[one])
     self.assertEqual(
         nested.python_repr(0),
         inspect.cleandoc("""
-          if True:
-            x = 1
-          """),
+            if True:
+              x = 1
+            """),
     )
     composite_if = base.If(
         predicate=g, true_branch=[nested], false_branch=[two]
@@ -500,13 +511,57 @@ class IfTest(unittest.TestCase):
     self.assertEqual(
         composite_if.python_repr(0),
         inspect.cleandoc("""
-          if b ^ 2:
-            if True:
-              x = 1
-          else:
-            x = 2
+            if b ^ 2:
+              if True:
+                x = 1
+            else:
+              x = 2
+            """),
+    )
+
+
+class WhileTest(unittest.TestCase):
+  """Tests for While loop."""
+
+  def setUp(self):
+    super().setUp()
+    one = base.Assign('x', 1)
+    xor = base.Assign('y', Xor(base.Var('y'), base.Var('x')))
+    self._while_true = base.While(predicate=True, body=[one, xor])
+    self._while_false = base.While(predicate=False, body=[one])
+    self._while_true_to_false = base.While(predicate=xor, body=[one])
+
+  def test_python_repr(self):
+    self.assertEqual(
+        self._while_true.python_repr(0),
+        inspect.cleandoc("""
+          while True:
+            x = 1
+            y = y ^ x
           """),
     )
+    self.assertEqual(
+        self._while_false.python_repr(0),
+        inspect.cleandoc("""
+          while False:
+            x = 1
+          """),
+    )
+    self.assertEqual(
+        self._while_true_to_false.python_repr(0),
+        inspect.cleandoc("""
+          while y = y ^ x:
+            x = 1
+          """),
+    )
+
+  def test_evaluate(self):
+    variables = dict(x=0)
+    self.assertIsNone(self._while_false.evaluate(variables))
+    self.assertEqual(variables, dict(x=0))
+    variables = dict(x=0, y=1)
+    self.assertIsNone(self._while_true_to_false.evaluate(variables))
+    self.assertEqual(variables, dict(x=1, y=0))
 
 
 class FunctionTest(unittest.TestCase):

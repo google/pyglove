@@ -430,6 +430,29 @@ class If(ControlFlow):
     return r
 
 
+@pg.members([
+    ('predicate', instruction_operrand()),
+    ('body', pg.typing.List(pg.typing.Object(Code))),
+])
+class While(ControlFlow):
+  """While loop control flow."""
+
+  def evaluate(self, context: Dict[str, Any]):
+    while evaluate(self.predicate, context):
+      for s in self.body:
+        evaluate(s, context)
+    return None
+
+  def python_repr(self, block_indent: int = 0) -> str:
+    expr = str(self.predicate)
+    r = indent(f'while {expr}:\n', block_indent)
+    for i, instruction in enumerate(self.body):
+      r += instruction.python_repr(block_indent + 1) + (
+          '' if i == len(self.body) - 1 else '\n'
+      )
+    return r
+
+
 #
 # Symbol reference.
 #
