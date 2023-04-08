@@ -28,7 +28,9 @@ def update_schema(
         Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
         Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]],
     metadata: Optional[Dict[str, Any]] = None,
+    *,
     init_arg_list: Optional[Sequence[str]] = None,
+    description: Optional[str] = None,
     extend: bool = True,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
@@ -77,6 +79,7 @@ def update_schema(
       If not provided, the `init_arg_list` will be automatically generated
       from symbolic attributes defined from ``pg.members`` in their declaration
       order, from the base classes to the subclass.
+    description: Description of current schema.
     extend: If True, extend existing schema using `fields`. Otherwise replace
       existing schema with a new schema created from `fields`.
     serialization_key: An optional string to be used as the serialization key
@@ -98,7 +101,8 @@ def update_schema(
           name=cls.type_name,
           base_schema_list=[cls.schema] if extend else [],
           allow_nonconst_keys=True,
-          metadata=metadata))
+          metadata=metadata,
+          description=description))
 
   setattr(cls, '__schema__', cls_schema)
   setattr(cls, '__sym_fields', pg_typing.Dict(cls_schema))

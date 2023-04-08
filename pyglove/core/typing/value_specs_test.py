@@ -13,14 +13,13 @@
 # limitations under the License.
 """Tests for pyglove.core.typing.value_specs."""
 
-import copy
 import inspect
 import typing
 import unittest
 
 from pyglove.core import object_utils
-from pyglove.core.typing import class_schema
 from pyglove.core.typing import callable_signature
+from pyglove.core.typing import class_schema
 from pyglove.core.typing import typed_missing
 from pyglove.core.typing import value_specs as vs
 from pyglove.core.typing.class_schema import ValueSpec
@@ -77,7 +76,7 @@ class BoolTest(unittest.TestCase):
       vs.Bool().apply(None)
 
   def test_is_compatible(self):
-    v= vs.Bool()
+    v = vs.Bool()
     self.assertTrue(v.is_compatible(v))
     self.assertTrue(vs.Bool().is_compatible(vs.Bool()))
     self.assertTrue(vs.Bool().noneable().is_compatible(vs.Bool()))
@@ -344,8 +343,8 @@ class IntTest(unittest.TestCase):
 
     # Child extends base with constraints will intersect valid range.
     self.assertEqual(
-        vs.Int(min_value=2,
-                   max_value=5).extend(vs.Int(min_value=2, max_value=6)),
+        vs.Int(min_value=2, max_value=5).extend(
+            vs.Int(min_value=2, max_value=6)),
         vs.Int(min_value=2, max_value=5))
 
     # Child may extend a noneable base into non-noneable.
@@ -354,8 +353,7 @@ class IntTest(unittest.TestCase):
     # Child may extend a union that has the same type.
     self.assertEqual(
         vs.Int().extend(
-            vs.Union([vs.Int(min_value=1),
-                          vs.Bool()])), vs.Int(min_value=1))
+            vs.Union([vs.Int(min_value=1), vs.Bool()])), vs.Int(min_value=1))
 
     with self.assertRaisesRegex(TypeError,
                                 '.* cannot extend .*: incompatible type.'):
@@ -790,10 +788,8 @@ class ListTest(unittest.TestCase):
             typed_missing.MISSING_VALUE, allow_partial=True),
         typed_missing.MISSING_VALUE)
     self.assertEqual(
-        vs.List(vs.Dict([('a', vs.Str())
-                                ])).apply([{}], allow_partial=True), [{
-                                    'a': typed_missing.MissingValue(vs.Str())
-                                }])
+        vs.List(vs.Dict([('a', vs.Str())])).apply([{}], allow_partial=True),
+        [{'a': typed_missing.MissingValue(vs.Str())}])
 
     with self.assertRaisesRegex(ValueError, 'Value cannot be None'):
       vs.List(vs.Int()).apply(None)
@@ -821,15 +817,14 @@ class ListTest(unittest.TestCase):
         raise ValueError('Sum expected to be larger than zero')
 
     self.assertEqual(
-        vs.List(vs.Int(),
-                    user_validator=_sum_greater_than_zero).apply([0, 1]),
+        vs.List(vs.Int(), user_validator=_sum_greater_than_zero).apply([0, 1]),
         [0, 1])
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
       vs.List(
-          vs.List(vs.Int(),
-                      user_validator=_sum_greater_than_zero)).apply([[-1]])
+          vs.List(vs.Int(), user_validator=_sum_greater_than_zero)).apply(
+              [[-1]])
 
   def test_is_compatible(self):
     self.assertTrue(
@@ -1124,8 +1119,8 @@ class TupleTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
-      vs.Tuple([vs.Tuple([vs.Int()],
-               user_validator=_sum_greater_than_zero)]).apply(((-1,),))
+      vs.Tuple([vs.Tuple(
+          [vs.Int()], user_validator=_sum_greater_than_zero)]).apply(((-1,),))
 
   def test_is_compatible(self):
     self.assertTrue(vs.Tuple(vs.Int()).is_compatible(vs.Tuple(vs.Int())))
@@ -1262,8 +1257,7 @@ class TupleTest(unittest.TestCase):
     # Child cannot extend a non-noneable base to noneable.
     with self.assertRaisesRegex(
         TypeError, '.* cannot extend .*: None is not allowed in base spec.'):
-      vs.Tuple([vs.Int()
-                   ]).noneable().extend(vs.Tuple([vs.Int()]))
+      vs.Tuple([vs.Int()]).noneable().extend(vs.Tuple([vs.Int()]))
 
     # Child with larger max_size cannot extend base with smaller max_size.
     with self.assertRaisesRegex(
@@ -1572,10 +1566,10 @@ class ObjectTest(unittest.TestCase):
       def missing_values(self):
         return {'SOME_KEY': 'SOME_VALUE'}
 
-    self.A = A
-    self.B = B
-    self.C = C
-    self.D = D
+    self.A = A  # pylint: disable=invalid-name
+    self.B = B  # pylint: disable=invalid-name
+    self.C = C  # pylint: disable=invalid-name
+    self.D = D  # pylint: disable=invalid-name
 
   def test_value_type(self):
     self.assertEqual(vs.Object(self.A).value_type, self.A)
@@ -1957,7 +1951,7 @@ class CallableTest(unittest.TestCase):
           ],
           varargs=callable_signature.Argument('args', vs.Int()),
           varkw=callable_signature.Argument('kwargs', vs.Int()),
-          return_value=vs.Object(ValueError))
+          return_value=callable_signature.ReturnValue(vs.Object(ValueError)))
 
       def __init__(self, value):
         self.value = value
@@ -2210,8 +2204,8 @@ class UnionTest(unittest.TestCase):
     class B(A):
       pass
 
-    self.A = A
-    self.B = B
+    self.A = A   # pylint: disable=invalid-name
+    self.B = B   # pylint: disable=invalid-name
 
   def test_value_type(self):
     self.assertEqual(
@@ -2233,8 +2227,7 @@ class UnionTest(unittest.TestCase):
     self.assertFalse(
         vs.Union([vs.Int(), vs.Bool()]).candidates[0].is_noneable)
     self.assertTrue(
-        vs.Union([vs.Int(),
-                      vs.Bool()]).noneable().candidates[0].is_noneable)
+        vs.Union([vs.Int(), vs.Bool()]).noneable().candidates[0].is_noneable)
     self.assertTrue(
         vs.Union([vs.Int().noneable(), vs.Bool()]).is_noneable)
 
@@ -2483,7 +2476,8 @@ class AnyTest(unittest.TestCase):
 
   def test_annotation(self):
     self.assertEqual(vs.Any().annotation, typed_missing.MISSING_VALUE)
-    self.assertEqual(vs.Any().noneable().annotation, typed_missing.MISSING_VALUE)
+    self.assertEqual(vs.Any().noneable().annotation,
+                     typed_missing.MISSING_VALUE)
     self.assertEqual(vs.Any(annotation=int).noneable().annotation, int)
 
   def test_eq(self):
@@ -2570,7 +2564,8 @@ class ValueSpecTest(unittest.TestCase):
         ValueSpec.from_annotation((1, 1.0, 'b'), True),
         vs.Tuple([vs.Int(), vs.Float(), vs.Str()]).set_default((1, 1.0, 'b')),
     )
-    self.assertEqual(ValueSpec.from_annotation(None, True), vs.Any().noneable())
+    self.assertEqual(ValueSpec.from_annotation(None, True),
+                     vs.Any().freeze(None))
     self.assertEqual(ValueSpec.from_annotation(int, True), vs.Int())
     self.assertEqual(ValueSpec.from_annotation(float, True), vs.Float())
     self.assertEqual(ValueSpec.from_annotation(str, True), vs.Str())
@@ -2601,6 +2596,30 @@ class ValueSpecTest(unittest.TestCase):
     self.assertEqual(
         ValueSpec.from_annotation(int, False), vs.Any(annotation=int)
     )
+    self.assertEqual(
+        ValueSpec.from_annotation(inspect.Parameter.empty, False), vs.Any()
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(inspect.Parameter.empty, True), vs.Any()
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Any, False),
+        vs.Any(annotation=typing.Any)
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Any, True), vs.Any()
+    )
+
+    class Foo:
+      pass
+
+    self.assertEqual(
+        ValueSpec.from_annotation(Foo, True), vs.Object(Foo)
+    )
+    self.assertEqual(
+        ValueSpec.from_annotation(Foo, False), vs.Any(annotation=Foo)
+    )
+
 
 
 if __name__ == '__main__':

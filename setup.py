@@ -38,9 +38,22 @@ def _get_version():
   return version
 
 
-def _parse_requirements(requirements_txt_path):
+def _parse_requirements(requirements_txt_path: str) -> list[str]:
+  """Returns a list of dependencies for setup() from requirements.txt."""
+
+  def _strip_comments_from_line(s: str) -> str:
+    """Parses a line of a requirements.txt file."""
+    requirement, *_ = s.split('#')
+    return requirement.strip()
+
+  # Currently a requirements.txt is being used to specify dependencies. In order
+  # to avoid specifying it in two places, we're going to use that file as the
+  # source of truth.
   with open(requirements_txt_path) as fp:
-    return fp.read().splitlines()
+    # Parse comments.
+    lines = [_strip_comments_from_line(line) for line in fp.read().splitlines()]
+    # Remove empty lines and direct github repos (not allowed in PyPI setups)
+    return [l for l in lines if (l and 'github.com' not in l)]
 
 
 _VERSION = _get_version()
@@ -57,7 +70,7 @@ setup(
     author_email='pyglove-authors@google.com',
     # Contained modules and scripts.
     packages=find_namespace_packages(include=['pyglove*']),
-    install_requires=[],
+    install_requires=_parse_requirements('requirements.txt'),
     extras_require={},
     requires_python='>=3.7',
     include_package_data=True,
@@ -76,5 +89,7 @@ setup(
         'Topic :: Software Development :: Libraries :: Python Modules',
         'Topic :: Software Development :: Libraries',
     ],
-    keywords='ai machine learning automl mutable symbolic framework meta-programming',
+    keywords=(
+        'ai machine learning automl mutable symbolic '
+        'framework meta-programming'),
 )

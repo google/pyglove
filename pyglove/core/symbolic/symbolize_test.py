@@ -74,7 +74,8 @@ class SymbolizeFunctionsTest(unittest.TestCase):
         (pg_typing.Argument('x', pg_typing.Int())),
         (pg_typing.Argument('y', pg_typing.Str()))
     ])
-    self.assertEqual(f.signature.return_value, pg_typing.Int())
+    self.assertEqual(f.signature.return_value,
+                     pg_typing.ReturnValue(pg_typing.Int()))
 
   def test_symbolize_with_serialization_key(self):
     @pg_symbolize(serialization_key='BAR', additional_keys=['RRR'])

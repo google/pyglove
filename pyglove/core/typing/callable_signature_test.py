@@ -39,9 +39,10 @@ class SignatureTest(unittest.TestCase):
         str(signature),
         'Signature(\'pyglove.core.typing.callable_signature_test.SignatureTest.test_basics.<locals>.foo\', '
         'args=[\n'
-        '  Argument(name=\'a\', value_spec=Any()),\n'
+        '  Argument(name=\'a\', value_spec=Any(), description=None),\n'
         '  Argument(name=\'b\', value_spec=Any('
-        'default=1, annotation=<class \'int\'>))\n])')
+        'default=1, annotation=<class \'int\'>), description=None)\n], '
+        'returns=ReturnValue(value_spec=None, description=None))')
 
     self.assertEqual(signature.named_args, [
         callable_signature.Argument('a', vs.Any()),
@@ -80,20 +81,37 @@ class SignatureTest(unittest.TestCase):
     """Tests `get_signature` on regular functions."""
 
     def foo(a, b: int = 1, **kwargs):
+      """Function foo.
+
+      Foo with long doc string.
+
+
+      Args:
+        a: The first argument.
+        b: The second argument.
+        **kwargs: Other arguments.
+
+      Returns:
+        Nothing.
+      """
       del a, b, kwargs
 
-    signature = callable_signature.get_signature(foo)
+    signature = callable_signature.get_signature(foo, parse_doc_str=True)
+    self.assertEqual(
+        signature.description,
+        'Function foo.\n\nFoo with long doc string.')
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.FUNCTION)
     self.assertEqual(signature.args, [
-        callable_signature.Argument('a', vs.Any()),
+        callable_signature.Argument('a', vs.Any(), 'The first argument.'),
         callable_signature.Argument(
-            'b', vs.Any(default=1).annotate(int)),
+            'b', vs.Any(default=1).annotate(int), 'The second argument.'),
     ])
     self.assertEqual(signature.kwonlyargs, [])
     self.assertIsNone(signature.varargs)
-    self.assertEqual(signature.varkw,
-                     callable_signature.Argument('kwargs', vs.Any()))
+    self.assertEqual(
+        signature.varkw,
+        callable_signature.Argument('kwargs', vs.Any(), 'Other arguments.'))
     self.assertFalse(signature.has_varargs)
     self.assertTrue(signature.has_varkw)
     self.assertTrue(signature.has_wildcard_args)
@@ -105,7 +123,8 @@ class SignatureTest(unittest.TestCase):
 
   def test_lambda(self):
     """Tests `get_signature` on lambda function."""
-    signature = callable_signature.get_signature(lambda x: x)
+    signature = callable_signature.get_signature(
+        lambda x: x, parse_doc_str=True)
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.FUNCTION)
     self.assertEqual(
@@ -117,6 +136,7 @@ class SignatureTest(unittest.TestCase):
     self.assertFalse(signature.has_varkw)
     self.assertFalse(signature.has_wildcard_args)
     self.assertIsNone(signature.get_value_spec('y'))
+    self.assertIsNone(signature.return_value.value_spec)
 
   def test_method(self):
     """Tests get_signature on class methods."""
@@ -125,6 +145,14 @@ class SignatureTest(unittest.TestCase):
 
       @classmethod
       def foo(cls, x: int = 1):
+        """Method foo.
+
+        Args:
+          x: An integer.
+
+        Returns:
+          `x` itself.
+        """
         return x
 
       def bar(self, y: int, *args, z=1):
@@ -136,17 +164,21 @@ class SignatureTest(unittest.TestCase):
         return z
 
     # Test class static method.
-    signature = callable_signature.get_signature(A.foo)
+    signature = callable_signature.get_signature(
+        A.foo, auto_typing=True, parse_doc_str=True)
+    self.assertEqual(signature.description, 'Method foo.')
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.METHOD)
     self.assertEqual(
         signature.args,
         [callable_signature.Argument(
-            'x', vs.Any(default=1).annotate(int))])
+            'x', vs.Int(default=1), 'An integer.')])
     self.assertEqual(signature.kwonlyargs, [])
+    self.assertEqual(signature.return_value,
+                     callable_signature.ReturnValue(None, '`x` itself.'))
 
     # Test instance method.
-    signature = callable_signature.get_signature(A().bar)
+    signature = callable_signature.get_signature(A().bar, parse_doc_str=True)
     self.assertEqual(
         signature.callable_type, callable_signature.CallableType.METHOD)
     self.assertEqual(
@@ -195,7 +227,7 @@ class SignatureTest(unittest.TestCase):
   def test_make_function(self):
     """Tests `Signature.make_function`."""
 
-    def func1(x, y=1):
+    def func1(x, y=1) -> int:
       del x, y
 
     def func2(x=1, *, y):
@@ -213,11 +245,13 @@ class SignatureTest(unittest.TestCase):
     def func6(x=1, *, y, **z):
       del x, y, z
 
-    for func in [func1, func2, func3, func4, func5, func6]:
-      new_func = callable_signature.get_signature(func).make_function(['pass'])
-      old_signature = inspect.signature(func)
-      new_signature = inspect.signature(new_func)
-      self.assertEqual(old_signature, new_signature)
+    for auto_typing in [True, False]:
+      for func in [func1, func2, func3, func4, func5, func6]:
+        new_func = callable_signature.get_signature(
+            func, auto_typing, parse_doc_str=True).make_function(['pass'])
+        old_signature = inspect.signature(func)
+        new_signature = inspect.signature(new_func)
+        self.assertEqual(old_signature, new_signature)
 
 
 if __name__ == '__main__':

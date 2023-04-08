@@ -364,8 +364,8 @@ class Functor(pg_object.Object, object_utils.Functor):
         list_args.extend(varargs)
 
     return_value = self._call(*list_args, **keyword_args)
-    if self.signature.return_value and flags.is_type_check_enabled():
-      return_value = self.signature.return_value.apply(
+    if self.signature.return_value.value_spec and flags.is_type_check_enabled():
+      return_value = self.signature.return_value.value_spec.apply(
           return_value, root_path=self.sym_path + 'returns')
     if flags.is_tracking_origin() and isinstance(return_value, base.Symbolic):
       return_value.sym_setorigin(self, 'return')
@@ -435,7 +435,10 @@ def functor(
         typing.cast(Callable[..., Any], args),
         add_to_registry=True, **kwargs)
   return lambda fn: functor_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
-      fn, args, returns, base_class, add_to_registry=True, **kwargs)
+      fn, args, returns,
+      base_class=base_class,
+      add_to_registry=True,
+      **kwargs)
 
 
 def functor_class(
@@ -445,7 +448,9 @@ def functor_class(
         Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]]
     ] = None,   # pylint: disable=bad-continuation
     returns: Optional[pg_typing.ValueSpec] = None,
+    *,
     base_class: Optional[Type['Functor']] = None,
+    auto_typing: bool = False,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
     add_to_registry: bool = False,
@@ -493,6 +498,9 @@ def functor_class(
     returns: Optional schema specification for the return value.
     base_class: Optional base class (derived from `symbolic.Functor`).
       If None, returned type will inherit from `Functor` directly.
+    auto_typing: If True, the value spec for constraining each argument
+      will be inferred from its annotation. Otherwise the value specs for all
+      arguments will be `pg.typing.Any()`.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
       This is introduced for scenarios when we want to relocate a class, before
@@ -515,7 +523,7 @@ def functor_class(
     ValueError: default values of symbolic arguments are not compatible
       with  function signature.
   """
-  signature = pg_typing.get_signature(func)
+  signature = pg_typing.get_signature(func, auto_typing, parse_doc_str=True)
   arg_fields = pg_typing.get_arg_fields(signature, args)
   if returns is not None and pg_typing.MISSING_VALUE != returns.default:
     raise ValueError('return value spec should not have default value.')
@@ -549,15 +557,17 @@ def functor_class(
       cls,
       arg_fields,
       init_arg_list=init_arg_list,
+      description=signature.description,
       serialization_key=serialization_key,
       additional_keys=additional_keys,
       add_to_registry=add_to_registry)
 
   # Update signature with symbolic value specs.
-  def _value_spec_by_name(name: str):
-    field = cls.schema.get_field(name)  # pytype: disable=attribute-error  # re-none
+  def _updated_arg_spec(arg: pg_typing.Argument):
+    field = cls.schema.get_field(arg.name)  # pytype: disable=attribute-error  # re-none
     assert field is not None
-    return field.value
+    return pg_typing.Argument(arg.name, field.value, arg.description)
+
   varkw_field = cls.schema.dynamic_field  # pytype: disable=attribute-error  # re-none
   assert signature.has_varkw == (varkw_field is not None), varkw_field
   signature = pg_typing.Signature(
@@ -565,21 +575,16 @@ def functor_class(
       name=signature.name,
       module_name=signature.module_name,
       qualname=signature.qualname,
-      args=[
-          pg_typing.Argument(arg.name, _value_spec_by_name(arg.name))
-          for arg in signature.args
-      ],
-      kwonlyargs=[
-          pg_typing.Argument(arg.name, _value_spec_by_name(arg.name))
-          for arg in signature.kwonlyargs
-      ],
+      args=[_updated_arg_spec(arg) for arg in signature.args],
+      kwonlyargs=[_updated_arg_spec(arg) for arg in signature.kwonlyargs],
       varargs=(
-          pg_typing.Argument(signature.varargs.name,
-                             _value_spec_by_name(signature.varargs.name))
-          if signature.varargs else None),
-      varkw=(pg_typing.Argument(signature.varkw.name, varkw_field.value)
+          _updated_arg_spec(signature.varargs) if signature.varargs else None),
+      varkw=(_updated_arg_spec(signature.varkw)
              if signature.has_varkw else None),
-      return_value=returns or signature.return_value)
+      return_value=pg_typing.ReturnValue(
+          returns or signature.return_value.value_spec,
+          signature.return_value.description),
+      description=signature.description)
   setattr(cls, 'signature', signature)
 
   # Update signature for the __init__ method.
@@ -602,7 +607,9 @@ def functor_class(
       ] + signature.args,
       kwonlyargs=signature.kwonlyargs,
       varargs=varargs,
-      varkw=signature.varkw)
+      varkw=signature.varkw,
+      return_value=signature.return_value,
+      description=signature.description)
   pseudo_init = init_signature.make_function(['pass'])
 
   @functools.wraps(pseudo_init)

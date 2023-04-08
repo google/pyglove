@@ -183,7 +183,8 @@ class SchemaTest(unittest.TestCase):
 
   def test_basics(self):
     s = Schema([Field('a', vs.Int())], 'schema1',
-               [class_schema.create_schema([('b', vs.Bool())])])
+               [class_schema.create_schema([('b', vs.Bool())])],
+               description='Schema1')
 
     # Test Schema.fields.
     self.assertEqual(
@@ -219,6 +220,9 @@ class SchemaTest(unittest.TestCase):
     # Test Schema.set_name
     s.set_name('schema2')
     self.assertEqual(s.name, 'schema2')
+
+    # Test Schema.description
+    self.assertEqual(s.description, 'Schema1')
 
     # Test equal.
     self.assertEqual(s, s)
@@ -732,7 +736,7 @@ class CreateSchemaTest(unittest.TestCase):
     self.assertEqual(
         s['m'], Field('m', vs.Dict().set_default({'brand': 'google'}))
     )
-    self.assertEqual(s['n'], Field('n', vs.Any().noneable()))
+    self.assertEqual(s['n'], Field('n', vs.Any().freeze(None)))
 
   def test_bad_cases(self):
     with self.assertRaisesRegex(

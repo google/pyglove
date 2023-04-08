@@ -22,7 +22,7 @@ direct manipulation of objects that makes meta-programs much easier to write.
 It has been used to handle complex machine learning scenarios, such as AutoML,
 as well as facilitating daily programming tasks with extra flexibility.
 
-PyGlove is lightweight and has no dependencies beyond the Python interpreter.
+PyGlove is lightweight and has very few dependencies beyond the Python interpreter.
 It provides:
 
 * A mutable symbolic object model for Python;

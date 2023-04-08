@@ -1628,13 +1628,16 @@ class Callable(ValueSpecBase):
                 path))
 
     # Check return value
-    if (self._return_value and signature.return_value and
-        not self._return_value.is_compatible(signature.return_value)):
+    if (self._return_value
+        and signature.return_value.value_spec
+        and not isinstance(signature.return_value.value_spec, Any)
+        and not self._return_value.is_compatible(
+            signature.return_value.value_spec)):
       raise TypeError(
           object_utils.message_on_path(
               f'Value spec for return value is not compatible. '
               f'Expected: {self._return_value!r}, '
-              f'Actual: {signature.return_value!r} ({value!r}).',
+              f'Actual: {signature.return_value.value_spec!r} ({value!r}).',
               path))
 
   def _extend(self, base: 'Callable') -> None:
@@ -2119,10 +2122,10 @@ def _any_if_no_annotation(annotation: typing.Any):
 
 
 def _from_annotation(
-    annotation: typing.Any, runtime_type_check=False
+    annotation: typing.Any, auto_typing=False
 ) -> ValueSpec:
   """Creates a value spec from annotation."""
-  if not runtime_type_check:
+  if not auto_typing:
     value_spec = Any()
     if annotation != inspect.Parameter.empty:
       value_spec.annotate(annotation)
@@ -2133,6 +2136,10 @@ def _from_annotation(
 
   if isinstance(annotation, ValueSpec):
     return annotation
+  elif annotation == inspect.Parameter.empty:
+    return Any()
+  elif annotation is None:
+    return Any().freeze(None)
   elif isinstance(annotation, bool):
     return Bool(annotation)
   elif isinstance(annotation, int):
@@ -2141,8 +2148,6 @@ def _from_annotation(
     return Float(annotation)
   elif isinstance(annotation, str):
     return Str(annotation)
-  elif isinstance(annotation, type(None)):
-    return Any().noneable()
   elif isinstance(annotation, (list, typing.List)):
     vs = (
         _from_annotation(type(annotation[0]), True)
@@ -2173,6 +2178,8 @@ def _from_annotation(
     return Tuple(Any())
   elif annotation is str:
     return Str()
+  elif annotation is typing.Any:
+    return Any()
   elif origin is typing.Union:
     if type(None) in args and len(args) == 2:
       return _from_annotation(_get_optional_arg(args), True).noneable()
@@ -2186,13 +2193,12 @@ def _from_annotation(
         if args
         else Tuple(Any())
     )
-
+  elif inspect.isclass(annotation):
+    return Object(annotation)
   else:
     raise TypeError(
-        'Only types (bool, int, float, str, list, dict) are supported.'
+        'Only types (bool, int, float, str, list, dict) are supported. '
         f'Encountered {annotation}.'
-        'Consider using schema.Enum '
-        'and schema.Object for complex types.'
     )
 
 

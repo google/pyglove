@@ -430,7 +430,7 @@ class ValueSpec(object_utils.Formattable):
 
   @classmethod
   def from_annotation(
-      cls, annotation: Any, runtime_type_check=False
+      cls, annotation: Any, auto_typing: bool = False
   ) -> 'ValueSpec':
     """Gets a concrete ValueSpec from annotation."""
     assert False, 'Overridden in `value_specs.py`.'
@@ -717,8 +717,10 @@ class Schema(object_utils.Formattable):
       fields: List[Field],
       name: Optional[str] = None,
       base_schema_list: Optional[List['Schema']] = None,
+      *,
       allow_nonconst_keys: bool = False,
-      metadata: Optional[Dict[str, Any]] = None):
+      metadata: Optional[Dict[str, Any]] = None,
+      description: Optional[str] = None):
     """Constructor.
 
     Args:
@@ -730,6 +732,7 @@ class Schema(object_utils.Formattable):
         latter schema will override those from the former ones.
       allow_nonconst_keys: Whether immediate fields can use non-const keys.
       metadata: Optional dict of user objects as schema-level metadata.
+      description: Description for the class or object that uses this schema.
 
     Raises:
       TypeError: Argument `fields` is not a list.
@@ -747,6 +750,7 @@ class Schema(object_utils.Formattable):
     self._allow_nonconst_keys = allow_nonconst_keys
     self._fields = {f.key: f for f in fields}
     self._metadata = metadata or {}
+    self._description = description
 
     self._dynamic_field = None
     for f in fields:
@@ -857,6 +861,10 @@ class Schema(object_utils.Formattable):
         if key_spec.match(key):
           return field
     return None
+
+  @property
+  def description(self) -> Optional[str]:
+    return self._description
 
   @property
   def dynamic_field(self) -> Optional[Field]:
@@ -1111,7 +1119,8 @@ def create_schema(
     name: Optional[str] = None,
     base_schema_list: Optional[List[Schema]] = None,
     allow_nonconst_keys: bool = False,
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: Optional[Dict[str, Any]] = None,
+    description: Optional[str] = None,
 ) -> Schema:
   """Creates ``Schema`` from a list of ``Field``s or equivalences.
 
@@ -1129,6 +1138,7 @@ def create_schema(
     base_schema_list: A list of schema objects as bases.
     allow_nonconst_keys: Whether to allow non const keys in schema.
     metadata: Optional dict of user objects as schema-level metadata.
+    description: Optional description for the schema.
 
   Returns:
     Schema object.
@@ -1191,4 +1201,5 @@ def create_schema(
       name=name,
       base_schema_list=base_schema_list,
       allow_nonconst_keys=allow_nonconst_keys,
-      metadata=metadata)
+      metadata=metadata,
+      description=description)

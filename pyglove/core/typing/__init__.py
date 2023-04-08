@@ -346,6 +346,7 @@ from pyglove.core.typing.custom_typing import CustomTyping
 
 # Callable signature.
 from pyglove.core.typing.callable_signature import Argument
+from pyglove.core.typing.callable_signature import ReturnValue
 from pyglove.core.typing.callable_signature import CallableType
 from pyglove.core.typing.callable_signature import Signature
 from pyglove.core.typing.callable_signature import get_signature

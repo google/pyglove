@@ -19,6 +19,7 @@ import inspect
 import typing
 from typing import Any, Callable, Dict, List, Optional
 
+import docstring_parser
 from pyglove.core import object_utils
 from pyglove.core.typing import class_schema
 
@@ -28,14 +29,42 @@ class Argument:
   """Definition for a callable argument."""
   name: str
   value_spec: class_schema.ValueSpec
+  description: Optional[str] = None
 
   @classmethod
   def from_annotation(
       cls,
       name: str,
-      annotation: Any = inspect.Parameter.empty):
+      annotation: Any = inspect.Parameter.empty,
+      description: Optional[str] = None,
+      *,
+      auto_typing: bool = False):
     """Creates an argument from annotation."""
-    return Argument(name, class_schema.ValueSpec.from_annotation(annotation))
+    return Argument(
+        name,
+        class_schema.ValueSpec.from_annotation(annotation, auto_typing),
+        description)
+
+
+@dataclasses.dataclass
+class ReturnValue:
+  """Definition for a callable return value."""
+  value_spec: Optional[class_schema.ValueSpec] = None
+  description: Optional[str] = None
+
+  @classmethod
+  def from_annotation(
+      cls,
+      annotation: Any = inspect.Parameter.empty,
+      description: Optional[str] = None,
+      *,
+      auto_typing: bool = False):
+    """Creates a return value from annotation."""
+    value_spec = None
+    if annotation != inspect.Parameter.empty:
+      value_spec = class_schema.ValueSpec.from_annotation(
+          annotation, auto_typing)
+    return ReturnValue(value_spec, description)
 
 
 class CallableType(enum.Enum):
@@ -58,8 +87,9 @@ class Signature(object_utils.Formattable):
                kwonlyargs: Optional[List[Argument]] = None,
                varargs: Optional[Argument] = None,
                varkw: Optional[Argument] = None,
-               return_value: Optional[class_schema.ValueSpec] = None,
-               qualname: Optional[str] = None):
+               return_value: Optional[ReturnValue] = None,
+               qualname: Optional[str] = None,
+               description: Optional[str] = None):
     """Constructor.
 
     Args:
@@ -72,8 +102,9 @@ class Signature(object_utils.Formattable):
         for `*args`.
       varkw: Specification for wildcard keyword argument, e.g, 'kwargs' is the
         name for `**kwargs`.
-      return_value: Optional value spec for return value.
+      return_value: Optional return value signature.
       qualname: Optional qualified name.
+      description: Optional description for the callable type.
     """
     args = args or []
     self.callable_type = callable_type
@@ -83,8 +114,9 @@ class Signature(object_utils.Formattable):
     self.kwonlyargs = kwonlyargs or []
     self.varargs = varargs
     self.varkw = varkw
-    self.return_value = return_value
+    self.return_value = return_value or ReturnValue()
     self.qualname = qualname or name
+    self.description = description
 
   @property
   def named_args(self):
@@ -165,7 +197,10 @@ class Signature(object_utils.Formattable):
     return f'{self.__class__.__name__}({details})'
 
   @classmethod
-  def from_callable(cls, callable_object: Callable) -> 'Signature':  # pylint: disable=g-bare-generic
+  def from_callable(cls,
+                    callable_object: Callable[..., Any],
+                    auto_typing: bool = False,
+                    parse_doc_str: bool = False) -> 'Signature':
     """Creates Signature from a callable object."""
     callable_object = typing.cast(object, callable_object)
     if not callable(callable_object):
@@ -181,13 +216,45 @@ class Signature(object_utils.Formattable):
         raise TypeError(f'{callable_object!r}.__call__ is not a method.')
       func = callable_object.__call__
 
-    def make_arg_spec(param: inspect.Parameter) -> Argument:
-      value_spec = class_schema.ValueSpec.from_annotation(param.annotation)
-      if param.default != inspect.Parameter.empty:
-        value_spec.set_default(param.default)
-      return Argument(param.name, value_spec)
-
     sig = inspect.signature(func)
+    docstr = getattr(func, '__doc__', None)
+    if docstr and parse_doc_str:
+      docstr_meta = docstring_parser.parse(docstr)
+      if docstr_meta.long_description:
+        parts = [docstr_meta.short_description, docstr_meta.long_description]
+        if docstr_meta.blank_after_short_description:
+          parts.insert(1, '')
+        description = '\n'.join(parts).rstrip()
+      else:
+        description = docstr_meta.short_description
+      param_descriptions = {p.arg_name: p.description
+                            for p in docstr_meta.params}
+      if docstr_meta.returns:
+        return_description = docstr_meta.returns.description
+      else:
+        return_description = None
+    else:
+      description = None
+      param_descriptions = {}
+      return_description = None
+
+    def make_arg_spec(param: inspect.Parameter) -> Argument:
+      if param.kind == param.VAR_POSITIONAL:
+        param_docstr_name = '*' + param.name
+      elif param.kind == param.VAR_KEYWORD:
+        param_docstr_name = '**' + param.name
+      else:
+        param_docstr_name = param.name
+
+      arg_spec = Argument.from_annotation(
+          param.name,
+          param.annotation,
+          param_descriptions.get(param_docstr_name),
+          auto_typing=auto_typing)
+      if param.default != inspect.Parameter.empty:
+        arg_spec.value_spec.set_default(param.default)
+      return arg_spec
+
     args = []
     kwonly_args = []
     varargs = None
@@ -206,6 +273,9 @@ class Signature(object_utils.Formattable):
         assert param.kind == inspect.Parameter.VAR_KEYWORD, param.kind
         varkw = arg_spec
 
+    return_value = ReturnValue.from_annotation(
+        sig.return_annotation, return_description, auto_typing=auto_typing)
+
     if inspect.ismethod(func):
       callable_type = CallableType.METHOD
     else:
@@ -216,7 +286,12 @@ class Signature(object_utils.Formattable):
         name=func.__name__,
         module_name=getattr(func, '__module__', 'wrapper'),
         qualname=func.__qualname__,
-        args=args, kwonlyargs=kwonly_args, varargs=varargs, varkw=varkw)
+        args=args,
+        kwonlyargs=kwonly_args,
+        varargs=varargs,
+        varkw=varkw,
+        return_value=return_value,
+        description=description)
 
   def make_function(
       self,
@@ -266,19 +341,27 @@ class Signature(object_utils.Formattable):
       _append_arg(self.varkw.name, self.varkw.value_spec, arg_prefix='**')
 
     # Generate function.
+    if self.return_value.value_spec:
+      return_type = self.return_value.value_spec.annotation
+    else:
+      return_type = object_utils.MISSING_VALUE
+
     fn = object_utils.make_function(
         self.name,
         args=args,
         body=body,
         exec_globals=exec_globals,
         exec_locals=exec_locals,
-        return_type=self.return_value or object_utils.MISSING_VALUE)
+        return_type=return_type)
     fn.__module__ = self.module_name
     fn.__name__ = self.name
     fn.__qualname__ = self.qualname
     return fn
 
 
-def get_signature(func: Callable) -> Signature:  # pylint:disable=g-bare-generic
+def get_signature(
+    func: Callable[..., Any],
+    auto_typing: bool = False,
+    parse_doc_str: bool = False) -> Signature:
   """Gets signature from a python callable."""
-  return Signature.from_callable(func)
+  return Signature.from_callable(func, auto_typing, parse_doc_str)

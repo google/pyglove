@@ -114,7 +114,7 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(
         f.signature.kwonlyargs,
         [pg_typing.Argument('c', pg_typing.Any(default=0))])
-    self.assertIsNone(f.signature.return_value, None)
+    self.assertEqual(f.signature.return_value, pg_typing.ReturnValue())
     self.assertTrue(f.signature.has_varargs)
     self.assertIsInstance(f.partial(), Functor)
     self.assertEqual(f.partial()(1, 2), 3)
@@ -146,7 +146,8 @@ class FunctorTest(unittest.TestCase):
             pg_typing.Field('a', pg_typing.Int(default=1)),
             pg_typing.Field('b', pg_typing.Int(default=2)),
         ])
-    self.assertEqual(f.signature.return_value, pg_typing.Int())
+    self.assertEqual(f.signature.return_value,
+                     pg_typing.ReturnValue(pg_typing.Int()))
     self.assertFalse(f.signature.has_varargs)
     self.assertFalse(f.signature.has_varkw)
     self.assertEqual(f.partial()(), 3)
@@ -283,7 +284,7 @@ class FunctorTest(unittest.TestCase):
     self.assertIsInstance(f, Functor)
     self.assertEqual(
         f.signature.args, [pg_typing.Argument('x', pg_typing.Any())])
-    self.assertIsNone(f.signature.return_value)
+    self.assertEqual(f.signature.return_value, pg_typing.ReturnValue())
     self.assertEqual(f(1), 1)
 
   def test_bad_definition(self):
