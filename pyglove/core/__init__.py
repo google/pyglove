@@ -263,12 +263,13 @@ MISSING_VALUE = object_utils.MISSING_VALUE
 Formattable = object_utils.Formattable
 MaybePartial = object_utils.MaybePartial
 JSONConvertible = object_utils.JSONConvertible
+DocStr = object_utils.DocStr
 
 registered_types = object_utils.registered_types
 is_partial = object_utils.is_partial
 format = object_utils.format   # pylint: disable=redefined-builtin
 print = object_utils.print    # pylint: disable=redefined-builtin
-
+docstr = object_utils.docstr
 
 #
 # Symbols from `logging.py`.

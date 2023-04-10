@@ -12,13 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # pylint: disable=line-too-long
-"""Utility library for handling hierarchical Python objects.
+"""Utility library that provides common traits for objects in Python.
 
 Overview
 --------
 
-``pg.object_utils`` facilitates the handling of hierarchical
-Python objects. It sits at the bottom of all PyGlove modules and empowers other
+``pg.object_utils`` sits at the bottom of all PyGlove modules and empowers other
 modules with the following features:
 
   +---------------------+--------------------------------------------+
@@ -61,6 +60,10 @@ modules with the following features:
   |                     | :func:`pg.object_utils.canonicalize`,      |
   |                     |                                            |
   |                     | :func:`pg.object_utils.flatten`            |
+  +---------------------+--------------------------------------------+
+  | Code generation     | :class:`pg.object_utils.make_function`     |
+  +---------------------+--------------------------------------------+
+  | Docstr handling     | :class:`pg.docstr`,                        |
   +---------------------+--------------------------------------------+
 """
 # pylint: enable=line-too-long
@@ -112,5 +115,14 @@ from pyglove.core.object_utils.formatting import bracket_chars
 # Handling code generation.
 from pyglove.core.object_utils.codegen import make_function
 
+# Handling docstrings.
+from pyglove.core.object_utils.docstr_utils import DocStr
+from pyglove.core.object_utils.docstr_utils import DocStrStyle
+from pyglove.core.object_utils.docstr_utils import DocStrEntry
+from pyglove.core.object_utils.docstr_utils import DocStrExample
+from pyglove.core.object_utils.docstr_utils import DocStrArgument
+from pyglove.core.object_utils.docstr_utils import DocStrReturns
+from pyglove.core.object_utils.docstr_utils import DocStrRaises
+from pyglove.core.object_utils.docstr_utils import docstr
 
 # pylint: enable=g-bad-import-order
