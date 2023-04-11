@@ -94,13 +94,12 @@ class FunctorTest(unittest.TestCase):
 
     self.assertEqual(
         list(f.schema.values()), [
-            pg_typing.Field('a', pg_typing.Any(), 'Argument \'a\'.'),
-            pg_typing.Field('b', pg_typing.Any(), 'Argument \'b\'.'),
-            pg_typing.Field('args', pg_typing.List(pg_typing.Any(), default=[]),
-                            'Wildcard positional arguments.'),
-            pg_typing.Field('c', pg_typing.Any(default=0), 'Argument \'c\'.'),
-            pg_typing.Field(pg_typing.StrKey(), pg_typing.Any(),
-                            'Wildcard keyword arguments.'),
+            pg_typing.Field('a', pg_typing.Any()),
+            pg_typing.Field('b', pg_typing.Any()),
+            pg_typing.Field('args',
+                            pg_typing.List(pg_typing.Any(), default=[])),
+            pg_typing.Field('c', pg_typing.Any(default=0)),
+            pg_typing.Field(pg_typing.StrKey(), pg_typing.Any()),
         ])
     self.assertEqual(f.signature.args, [
         pg_typing.Argument('a', pg_typing.Any()),
@@ -160,6 +159,37 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(f.partial(a=1, b=1, override_args=True)(a=2, b=2), 4)
     self.assertEqual(f.partial(2, 4, override_args=True)(1), 5)
 
+  def test_auto_doc(self):
+    @pg_functor([
+        ('a', pg_typing.Int()),
+        ('b', pg_typing.Int()),
+    ], returns=pg_typing.Int(), auto_doc=True)
+    def f(a=1, b=2):
+      """Compute the sum.
+      
+      Args:
+        a: an integer.
+        b: another integer.
+      
+      Returns:
+        Sum of two integers.
+      """
+      return a + b
+
+    self.assertEqual(f.schema.description, 'Compute the sum.')
+    self.assertEqual(
+        list(f.schema.values()), [
+            pg_typing.Field('a', pg_typing.Int(default=1), 'an integer.'),
+            pg_typing.Field('b', pg_typing.Int(default=2), 'another integer.'),
+        ])
+    self.assertEqual(f.signature.return_value, pg_typing.Int())
+    self.assertFalse(f.signature.has_varargs)
+    self.assertFalse(f.signature.has_varkw)
+    self.assertEqual(f.partial()(), 3)
+    self.assertEqual(f.partial(a=2)(b=2), 4)
+    self.assertEqual(f.partial(a=3, b=2)(), 5)
+    self.assertEqual(f.partial(1, 2)(), 3)
+
   def test_partial_typing(self):
     @pg_functor([
         ('c', pg_typing.Int()),
@@ -178,7 +208,7 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(
         list(f.schema.values()), [
             pg_typing.Field('a', pg_typing.Int()),
-            pg_typing.Field('b', pg_typing.Any(default=1), 'Argument \'b\'.'),
+            pg_typing.Field('b', pg_typing.Any(default=1)),
             pg_typing.Field('c', pg_typing.Int(default=1)),
         ])
     self.assertEqual(f.partial()(a=2), 4)

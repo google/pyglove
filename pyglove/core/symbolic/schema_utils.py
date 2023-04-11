@@ -29,7 +29,9 @@ def update_schema(
         Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]],
     metadata: Optional[Dict[str, Any]] = None,
     init_arg_list: Optional[Sequence[str]] = None,
+    *,
     extend: bool = True,
+    description: Optional[str] = None,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
     add_to_registry: bool = True) -> None:
@@ -79,6 +81,7 @@ def update_schema(
       order, from the base classes to the subclass.
     extend: If True, extend existing schema using `fields`. Otherwise replace
       existing schema with a new schema created from `fields`.
+    description: An optional description to set.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
       This is introduced for scenarios when we want to relocate a class, before
@@ -108,6 +111,9 @@ def update_schema(
     init_arg_list = metadata.pop('init_arg_list', auto_init_arg_list(cls))
   validate_init_arg_list(init_arg_list, cls_schema)
   cls_schema.metadata['init_arg_list'] = init_arg_list
+
+  if description is not None:
+    cls_schema.set_description(description)
 
   if add_to_registry:
     register_serialization_keys(
@@ -211,3 +217,18 @@ def formalize_schema(schema: pg_typing.Schema) -> pg_typing.Schema:  # pylint: d
 
   object_utils.traverse(schema.fields, _formalize_field)
   return schema
+
+
+def schema_description_from_docstr(
+    docstr: Optional[object_utils.DocStr],
+    include_long_description: bool = False) -> Optional[str]:
+  """Gets schema description from DocStr."""
+  if docstr is None:
+    return None
+  description = docstr.short_description
+  if include_long_description:
+    if docstr.blank_after_short_description:
+      description += '\n'
+    if docstr.long_description:
+      description += '\n' + docstr.long_description
+  return description.rstrip('\n')

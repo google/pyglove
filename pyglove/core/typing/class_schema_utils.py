@@ -13,7 +13,7 @@
 # limitations under the License.
 """Typing helpers."""
 
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from pyglove.core import object_utils
 from pyglove.core.typing import callable_signature
@@ -28,7 +28,8 @@ def get_arg_fields(
         Tuple[Union[str, class_schema.KeySpec], class_schema.ValueSpec, str],
         Tuple[Union[str, class_schema.KeySpec],
               class_schema.ValueSpec, str, Any]]]
-    ] = None   # pylint: disable=bad-continuation
+    ] = None,   # pylint: disable=bad-continuation
+    args_docstr: Optional[Dict[str, object_utils.DocStrArgument]] = None
 ) -> List[class_schema.Field]:
   """Get schema fields for the arguments from a function or method signature.
 
@@ -49,6 +50,9 @@ def get_arg_fields(
       * `description` - an optional string as the description for the argument.
       * `metadata-objects` - an optional list of any type, which can be
         used to generate code according to the schema.
+    args_docstr: (Optional) a dict of argument names to
+      :class:`pg.object_utils.DocStrArgument` object. If present, they will
+      be used as the description for the ``Field`` objects.
 
   Returns:
     `Field` objects for the arguments from the `signature` in declaration order.
@@ -68,6 +72,13 @@ def get_arg_fields(
   arg_dict = dict()
   kwarg_spec = None
   varargs_spec = None
+
+  def maybe_add_description(arg_name, field):
+    if args_docstr and not field.description:
+      arg_docstr = args_docstr.get(arg_name, None)
+      if arg_docstr is not None:
+        field.set_description(arg_docstr.description)
+    return field
 
   func_arg_names = set(signature.arg_names)
   # Extra legal argument names that are out of function signature, it is not
@@ -101,60 +112,63 @@ def get_arg_fields(
     decl_spec = arg_spec.value_spec
     if arg_name not in arg_dict:
       # Automatic generate symbolic declaration for missing arguments.
-      arg_field = (arg_name, decl_spec, f'Argument {arg_name!r}.')
+      arg_spec = (arg_name, decl_spec)
     else:
-      arg_field = arg_dict[arg_name]
-      if not decl_spec.is_compatible(arg_field[1]):
+      arg_spec = arg_dict[arg_name]
+      if not decl_spec.is_compatible(arg_spec[1]):
         raise TypeError(
-            f'{signature.id}: the value spec ({arg_field[1]!r}) of symbolic '
+            f'{signature.id}: the value spec ({arg_spec[1]!r}) of symbolic '
             f'argument {arg_name} is not compatible with the value spec '
             f'({decl_spec!r}) from function signature.')
-      if arg_field[1].default in [object_utils.MISSING_VALUE, None]:
-        arg_field[1].extend(decl_spec).set_default(decl_spec.default)
-      elif (decl_spec.default != arg_field[1].default
-            and (not isinstance(arg_field[1], vs.Dict)
+      if arg_spec[1].default in [object_utils.MISSING_VALUE, None]:
+        arg_spec[1].extend(decl_spec).set_default(decl_spec.default)
+      elif (decl_spec.default != arg_spec[1].default
+            and (not isinstance(arg_spec[1], vs.Dict)
                  or decl_spec.default != object_utils.MISSING_VALUE)):
         raise ValueError(
-            f'{signature.id}: the default value ({arg_field[1].default!r}) '
+            f'{signature.id}: the default value ({arg_spec[1].default!r}) '
             f'of symbolic argument {arg_name!r} does not equal to the default '
             f'value ({decl_spec.default!r}) specified at function signature '
             f'declaration.')
-    return arg_field
-
-  arg_fields = []
-
+    return maybe_add_description(arg_name, class_schema.Field(*arg_spec))
   # Add positional named arguments.
-  arg_fields.extend([get_arg_field(arg) for arg in signature.args])
+  arg_fields: List[class_schema.Field] = [
+      get_arg_field(arg) for arg in signature.args]
 
   # Add positional wildcard arguments.
   if signature.varargs:
     if varargs_spec is None:
       varargs_spec = (
           ks.ConstStrKey(signature.varargs.name),
-          vs.List(vs.Any()),
-          'Wildcard positional arguments.')
+          vs.List(vs.Any()))
     elif not isinstance(varargs_spec[1], vs.List):
       raise ValueError(
           f'{signature.id}: the value spec for positional wildcard argument '
           f'{varargs_spec[0]!r} must be a `pg.typing.List` instance. '
           f'Encountered: {varargs_spec[1]!r}.')
     varargs_spec[1].set_default([])
-    arg_fields.append(varargs_spec)
+    vararg_field = maybe_add_description(
+        f'*{signature.varargs.name}', class_schema.Field(*varargs_spec))
+    arg_fields.append(vararg_field)
 
   # Add keyword-only arguments.
   arg_fields.extend([get_arg_field(arg) for arg in signature.kwonlyargs])
 
   # Add extra arguments that are keyword wildcard.
   for arg_name in extra_arg_names:
-    arg_fields.append(arg_dict[arg_name])
+    arg_field = maybe_add_description(
+        arg_name,
+        class_schema.Field(*arg_dict[arg_name]))
+    arg_fields.append(arg_field)
 
   # Add keyword wildcard arguments.
   if signature.varkw:
     if kwarg_spec is None:
-      kwarg_spec = (ks.StrKey(), vs.Any(),
-                    'Wildcard keyword arguments.')
-    arg_fields.append(kwarg_spec)
-  return [class_schema.Field(*arg_decl) for arg_decl in arg_fields]
+      kwarg_spec = (ks.StrKey(), vs.Any())
+    varkw_field = maybe_add_description(
+        f'**{signature.varkw.name}', class_schema.Field(*kwarg_spec))
+    arg_fields.append(varkw_field)
+  return arg_fields
 
 
 def get_init_signature(

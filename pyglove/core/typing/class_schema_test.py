@@ -220,6 +220,13 @@ class SchemaTest(unittest.TestCase):
     s.set_name('schema2')
     self.assertEqual(s.name, 'schema2')
 
+    # Test Schema.description.
+    self.assertIsNone(s.description)
+
+    # Test Schema.set_description.
+    s.set_description('schema1')
+    self.assertEqual(s.description, 'schema1')
+
     # Test equal.
     self.assertEqual(s, s)
     self.assertNotEqual(s, class_schema.create_schema([]))

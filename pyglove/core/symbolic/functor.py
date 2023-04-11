@@ -446,6 +446,8 @@ def functor_class(
     ] = None,   # pylint: disable=bad-continuation
     returns: Optional[pg_typing.ValueSpec] = None,
     base_class: Optional[Type['Functor']] = None,
+    *,
+    auto_doc: bool = False,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
     add_to_registry: bool = False,
@@ -493,6 +495,9 @@ def functor_class(
     returns: Optional schema specification for the return value.
     base_class: Optional base class (derived from `symbolic.Functor`).
       If None, returned type will inherit from `Functor` directly.
+    auto_doc: If True, the descriptions of argument fields will be inherited
+      from funciton docstr if they are not explicitly specified through
+      ``args``.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
       This is introduced for scenarios when we want to relocate a class, before
@@ -515,8 +520,16 @@ def functor_class(
     ValueError: default values of symbolic arguments are not compatible
       with  function signature.
   """
+  args_docstr = None
+  description = None
+  if auto_doc:
+    docstr = object_utils.docstr(func)
+    if docstr:
+      args_docstr = docstr.args
+      description = schema_utils.schema_description_from_docstr(docstr)
+
   signature = pg_typing.get_signature(func)
-  arg_fields = pg_typing.get_arg_fields(signature, args)
+  arg_fields = pg_typing.get_arg_fields(signature, args, args_docstr)
   if returns is not None and pg_typing.MISSING_VALUE != returns.default:
     raise ValueError('return value spec should not have default value.')
 
@@ -549,6 +562,7 @@ def functor_class(
       cls,
       arg_fields,
       init_arg_list=init_arg_list,
+      description=description,
       serialization_key=serialization_key,
       additional_keys=additional_keys,
       add_to_registry=add_to_registry)

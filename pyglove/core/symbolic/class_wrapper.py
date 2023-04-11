@@ -65,6 +65,10 @@ class ClassWrapper(pg_object.Object, metaclass=ClassWrapperMeta):
 class _SubclassedWrapperBase(ClassWrapper):
   """Base for class wrappers using multi-inheritance."""
 
+  # If True, fill the descriptions of schema fields automatically from the
+  # class and __init__ docstrings.
+  auto_doc = False
+
   def __init__(self, *args, **kwargs):
     """Overridden __init__ to construct symbolic wrapper only."""
     # NOTE(daiyip): We avoid `__init__` to be called multiple times.
@@ -115,7 +119,8 @@ class _SubclassedWrapperBase(ClassWrapper):
       # In both cases, we need to generate an __init__ wrapper for
       # calling the symbolic initialization.
       setattr(cls, '__orig_init__', cls.__init__)
-      init_arg_list, arg_fields = _extract_init_args_and_fields(cls)
+      description, init_arg_list, arg_fields = _extract_init_signature(
+          cls, auto_doc=cls.auto_doc)
       @functools.wraps(cls.__init__)
       def _sym_init(self, *args, **kwargs):
         _SubclassedWrapperBase.__init__(self, *args, **kwargs)
@@ -134,7 +139,8 @@ class _SubclassedWrapperBase(ClassWrapper):
       # We do not extend existing schema which is inherited from the base
       # class.
       schema_utils.update_schema(
-          cls, arg_fields, init_arg_list=init_arg_list, extend=False)
+          cls, arg_fields, init_arg_list=init_arg_list,
+          extend=False, description=description)
     else:
       assert hasattr(cls, '__orig_init__')
 
@@ -202,8 +208,10 @@ class _SubclassedWrapperBase(ClassWrapper):
 
 def _subclassed_wrapper(
     user_cls,
+    *,
     use_symbolic_repr: bool,
     use_symbolic_comp: bool,
+    use_auto_doc: bool,
     reset_state_fn: Optional[Callable[[Any], None]],
     class_name: Optional[Text] = None,
     module_name: Optional[Text] = None):
@@ -227,6 +235,10 @@ def _subclassed_wrapper(
     # Disable auto register so we can use function module and name
     # for registration later.
     auto_register = False
+
+    # If True, set the descriptions of schema fields automatically from
+    # class and __init__ docstrings.
+    auto_doc = use_auto_doc
 
     # NOTE(daiyip): For class wrappers, all symbolic properties are exposed from
     # `self.sym_init_args`. Therefore we do not allow symbolic members to be
@@ -274,11 +286,13 @@ def wrap(
         Tuple[Union[Text, pg_typing.KeySpec], pg_typing.ValueSpec, Text],
         Tuple[Union[Text, pg_typing.KeySpec], pg_typing.ValueSpec, Text, Any]
     ]]] = None,
+    *,
     reset_state_fn: Optional[Callable[[Any], None]] = None,
     repr: bool = True,    # pylint: disable=redefined-builtin
     eq: bool = False,
     class_name: Optional[str] = None,
     module_name: Optional[str] = None,
+    auto_doc: bool = False,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
     override: Optional[Dict[str, Any]] = None
@@ -347,6 +361,8 @@ def wrap(
       If None, the wrapper class will use the class name of the wrapped class.
     module_name: An optional string used as module name for the wrapper class.
       If None, the wrapper class will use the module name of the wrapped class.
+    auto_doc: If True, the descriptions for init argument fields will be
+      extracted from docstring if present.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
       This is introduced for scenarios when we want to relocate a class, before
@@ -374,16 +390,20 @@ def wrap(
         use_symbolic_comp=eq,
         reset_state_fn=reset_state_fn,
         class_name=class_name,
-        module_name=module_name)
+        module_name=module_name,
+        use_auto_doc=auto_doc)
 
   if issubclass(cls, ClassWrapper):
     # Update init argument specifications according to user specified specs.
     # Replace schema instead of extending it.
-    init_arg_list, arg_fields = _extract_init_args_and_fields(cls, init_args)
+    description, init_arg_list, arg_fields = _extract_init_signature(
+        cls, init_args, auto_doc=auto_doc)
     schema_utils.update_schema(
-        cls, arg_fields,
+        cls,
+        arg_fields,
         init_arg_list=init_arg_list,
         extend=False,
+        description=description,
         serialization_key=serialization_key,
         additional_keys=additional_keys)
 
@@ -490,20 +510,41 @@ def apply_wrappers(
   return detouring.detour([(c.sym_wrapped_cls, c) for c in wrapper_classes])
 
 
-def _extract_init_args_and_fields(cls, arg_specs=None):
+def _extract_init_signature(
+    cls,
+    arg_specs=None,
+    auto_doc: bool = False):
   """Extract argument fields from class __init__ method."""
   init_method = getattr(cls, '__orig_init__', cls.__init__)
+
+  description = None
+  args_docstr = dict()
+  if auto_doc:
+    # Read args docstr from both class doc string and __init__ doc string.
+    if cls.__doc__:
+      cls_docstr = object_utils.DocStr.parse(cls.__doc__)
+      description = schema_utils.schema_description_from_docstr(
+          cls_docstr, include_long_description=True)
+      args_docstr = cls_docstr.args
+    if init_method.__doc__:
+      init_docstr = object_utils.DocStr.parse(init_method.__doc__)
+      args_docstr.update(init_docstr.args)
+
   if init_method is object.__init__:
-    arg_fields = arg_specs or []
+    if arg_specs:
+      raise ValueError(
+          f'{cls.__name__}.__init__ takes no argument while non-empty `args` '
+          f'is provided: {arg_specs}')
     init_arg_list = []
+    arg_fields = []
   else:
     signature = pg_typing.get_signature(init_method)
     if not signature.args or signature.args[0].name != 'self':
       raise ValueError(
           f'{cls.__name__}.__init__ must have `self` as the first argument.')
     # Remove field for 'self'.
-    arg_fields = pg_typing.get_arg_fields(signature, arg_specs)[1:]
+    arg_fields = pg_typing.get_arg_fields(signature, arg_specs, args_docstr)[1:]
     init_arg_list = [arg.name for arg in signature.args[1:]]
     if signature.has_varargs:
       init_arg_list.append(f'*{signature.varargs.name}')
-  return (init_arg_list, arg_fields)
+  return (description, init_arg_list, arg_fields)

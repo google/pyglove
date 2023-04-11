@@ -15,6 +15,7 @@
 
 import unittest
 
+from pyglove.core import object_utils
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import class_schema_utils
@@ -30,13 +31,12 @@ class GetArgFieldsTest(unittest.TestCase):
         lambda a, *args, b=1, **kwargs: 1)
     arg_fields = class_schema_utils.get_arg_fields(signature)
     self.assertEqual(arg_fields, [
-        class_schema.Field('a', vs.Any(), 'Argument \'a\'.'),
+        class_schema.Field('a', vs.Any()),
         class_schema.Field(
-            'args', vs.List(vs.Any(), default=[]),
-            'Wildcard positional arguments.'),
+            'args', vs.List(vs.Any(), default=[])),
         class_schema.Field(
-            'b', vs.Any().set_default(1), 'Argument \'b\'.'),
-        class_schema.Field(ks.StrKey(), vs.Any(), 'Wildcard keyword arguments.')
+            'b', vs.Any().set_default(1)),
+        class_schema.Field(ks.StrKey(), vs.Any())
     ])
 
   def test_full_typing(self):
@@ -50,11 +50,10 @@ class GetArgFieldsTest(unittest.TestCase):
     ])
     self.assertEqual(arg_fields, [
         class_schema.Field('a', vs.Int()),
-        class_schema.Field(
-            'args', vs.List(vs.Int(), default=[])),
+        class_schema.Field('args', vs.List(vs.Int(), default=[])),
         class_schema.Field('b', vs.Str(default='foo')),
         class_schema.Field('c', vs.Str()),
-        class_schema.Field(ks.StrKey(), vs.Any(), 'Wildcard keyword arguments.')
+        class_schema.Field(ks.StrKey(), vs.Any())
     ])
 
   def test_partial_typing(self):
@@ -63,7 +62,7 @@ class GetArgFieldsTest(unittest.TestCase):
         ('b', vs.Str()),
     ])
     self.assertEqual(arg_fields, [
-        class_schema.Field('a', vs.Any(), 'Argument \'a\'.'),
+        class_schema.Field('a', vs.Any()),
         class_schema.Field('b', vs.Str(default='foo')),
     ])
 
@@ -76,6 +75,32 @@ class GetArgFieldsTest(unittest.TestCase):
     ])
     self.assertEqual(arg_fields, [
         class_schema.Field('a', vs.Dict([('x', vs.Int())]))
+    ])
+
+  def test_use_docstr_as_description(self):
+    signature = callable_signature.get_signature(
+        lambda a, *args, b='foo', **kwargs: 1)
+    arg_fields = class_schema_utils.get_arg_fields(
+        signature,
+        [
+            ('a', vs.Int()),
+            ('b', vs.Str(default='foo'), 'Original description for b'),
+        ],
+        {
+            'a': object_utils.DocStrArgument(name='a', description='An int'),
+            'b': object_utils.DocStrArgument(name='b', description='A str'),
+            '*args': object_utils.DocStrArgument(name='*args',
+                                                 description='Args'),
+            '**kwargs': object_utils.DocStrArgument(name='**kwargs',
+                                                    description='Kwargs'),
+        })
+    self.assertEqual(arg_fields, [
+        class_schema.Field('a', vs.Int(), 'An int'),
+        class_schema.Field(
+            'args', vs.List(vs.Any(), default=[]), 'Args'),
+        class_schema.Field('b', vs.Str(default='foo'),
+                           'Original description for b'),
+        class_schema.Field(ks.StrKey(), vs.Any(), 'Kwargs')
     ])
 
   def test_bad_typing(self):

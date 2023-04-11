@@ -14,6 +14,7 @@
 """Tests for pyglove.symbolic.class_wrapper."""
 
 import copy
+import dataclasses
 import inspect
 import unittest
 
@@ -154,6 +155,48 @@ class WrapTest(unittest.TestCase):
     a = A1(1, p=2, q=3)
     self.assertEqual(a.z, 7)   # 1 + 1 + 2 + 3
     self.assertNotIn('z', a.sym_init_args)
+
+  def test_wrap_with_auto_doc(self):
+
+    class A:
+      """A test class."""
+
+      def __init__(self, x, y):
+        """Init method.
+        
+        Args:
+          x: Argument x.
+          y: Argument y.
+        """
+        self.x = x
+        self.y = y
+
+    A1 = pg_wrap(A, auto_doc=True)  # pylint: disable=invalid-name
+    self.assertEqual(A1.schema.description, 'A test class.')
+    self.assertEqual(list(A1.schema.fields.values()), [
+        pg_typing.Field('x', pg_typing.Any(), 'Argument x.'),
+        pg_typing.Field('y', pg_typing.Any(), 'Argument y.'),
+    ])
+
+  def test_wrap_dataclass_with_auto_doc(self):
+
+    @dataclasses.dataclass
+    class A:
+      """A test class.
+      
+      Attributes:
+        x: Argument x.
+        y: Argument y.
+      """
+      x: int
+      y: str
+
+    A1 = pg_wrap(A, auto_doc=True)  # pylint: disable=invalid-name
+    self.assertEqual(A1.schema.description, 'A test class.')
+    self.assertEqual(list(A1.schema.fields.values()), [
+        pg_typing.Field('x', pg_typing.Any(annotation=int), 'Argument x.'),
+        pg_typing.Field('y', pg_typing.Any(annotation=str), 'Argument y.'),
+    ])
 
   def test_automatic_reset_state(self):
 
@@ -409,6 +452,9 @@ class ClassWrapperTest(unittest.TestCase):
     self.assertEqual(repr(A1), f'Symbolic[{A1.sym_wrapped_cls!r}]')
     a = A1()
     self.assertIs(a.sym_wrapped, a)
+    with self.assertRaisesRegex(
+        ValueError, '.* takes no argument while non-empty `args` is provided'):
+      _ = pg_wrap(A, [('x', pg_typing.Int())])
 
     class B:
 

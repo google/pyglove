@@ -503,6 +503,10 @@ class Field(object_utils.Formattable):
     """Description of this field."""
     return self._description
 
+  def set_description(self, description: str) -> None:
+    """Sets the description for this field."""
+    self._description = description
+
   @property
   def key(self) -> KeySpec:
     """Key specification of this field."""
@@ -717,6 +721,8 @@ class Schema(object_utils.Formattable):
       fields: List[Field],
       name: Optional[str] = None,
       base_schema_list: Optional[List['Schema']] = None,
+      description: Optional[str] = None,
+      *,
       allow_nonconst_keys: bool = False,
       metadata: Optional[Dict[str, Any]] = None):
     """Constructor.
@@ -728,6 +734,7 @@ class Schema(object_utils.Formattable):
       base_schema_list: List of schema used as base. When present, fields
         from these schema will be copied to this schema. Fields from the
         latter schema will override those from the former ones.
+      description: Optional str as the description for the schema.
       allow_nonconst_keys: Whether immediate fields can use non-const keys.
       metadata: Optional dict of user objects as schema-level metadata.
 
@@ -746,6 +753,7 @@ class Schema(object_utils.Formattable):
     self._name = name
     self._allow_nonconst_keys = allow_nonconst_keys
     self._fields = {f.key: f for f in fields}
+    self._description = description
     self._metadata = metadata or {}
 
     self._dynamic_field = None
@@ -857,6 +865,15 @@ class Schema(object_utils.Formattable):
         if key_spec.match(key):
           return field
     return None
+
+  @property
+  def description(self) -> str:
+    """Returns the description for the schema."""
+    return self._description
+
+  def set_description(self, description: str) -> None:
+    """Sets the description for the schema."""
+    self._description = description
 
   @property
   def dynamic_field(self) -> Optional[Field]:
