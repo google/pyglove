@@ -802,11 +802,14 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
+      *,
+      python_format: bool = False,
       hide_default_values: bool = False,
       hide_missing_values: bool = False,
       exclude_keys: Optional[Set[str]] = None,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
+      key_as_attribute: bool = False,
       **kwargs) -> str:
     """Formats this Dict."""
     cls_name = cls_name or ''
@@ -848,8 +851,13 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             root_indent + 1,
             hide_default_values=hide_default_values,
             hide_missing_values=hide_missing_values,
+            python_format=python_format,
             **kwargs)
-        kv_strs.append(f'{k}={v_str}')
+        if not python_format or key_as_attribute:
+          kv_strs.append(f'{k}={v_str}')
+        else:
+          kv_strs.append(f'\'{k}\': {v_str}')
+
       s.append(', '.join(kv_strs))
       s.append(close_bracket)
     else:
@@ -871,8 +879,17 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             root_indent + 1,
             hide_default_values=hide_default_values,
             hide_missing_values=hide_missing_values,
+            python_format=python_format,
             **kwargs)
-        s.append(_indent(f'{k} = {v_str}', root_indent + 1))
+        if not python_format:
+          # Format in PyGlove's format (default).
+          s.append(_indent(f'{k} = {v_str}', root_indent + 1))
+        elif key_as_attribute:
+          # Format `pg.Objects` under Python format.
+          s.append(_indent(f'{k}={v_str}', root_indent + 1))
+        else:
+          # Format regular `pg.Dict` under Python format.
+          s.append(_indent(f'\'{k}\': {v_str}', root_indent + 1))
       s.append('\n')
       s.append(_indent(close_bracket, root_indent))
     return ''.join(s)

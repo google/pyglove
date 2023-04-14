@@ -62,8 +62,17 @@ class FieldUpdate(object_utils.Formattable):
              compact: bool = False,
              verbose: bool = True,
              root_indent: int = 0,
+             *,
+             python_format: bool = False,
+             hide_default_values: bool = False,
+             hide_missing_values: bool = False,
              **kwargs) -> str:
     """Formats this object."""
+    kwargs.update({
+        'python_format': python_format,
+        'hide_default_values': hide_default_values,
+        'hide_missing_values': hide_missing_values,
+    })
     details = object_utils.kvlist_str([
         ('parent_path', self.target.sym_path, None),
         ('path', self.path.path, None),

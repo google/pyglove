@@ -704,6 +704,8 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
+      *,
+      python_format: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.SQUARE,
       **kwargs) -> str:
@@ -719,8 +721,12 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       kv_strs = []
       for idx, elem in enumerate(self):
         v_str = object_utils.format(
-            elem, compact, verbose, root_indent + 1, **kwargs)
-        kv_strs.append(f'{idx}: {v_str}')
+            elem, compact, verbose, root_indent + 1,
+            python_format=python_format, **kwargs)
+        if python_format:
+          kv_strs.append(v_str)
+        else:
+          kv_strs.append(f'{idx}: {v_str}')
       s.append(', '.join(kv_strs))
       s.append(close_bracket)
     else:
@@ -731,8 +737,12 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
           else:
             s.append(',\n')
           v_str = object_utils.format(
-              elem, compact, verbose, root_indent + 1, **kwargs)
-          s.append(_indent(f'{idx} : {v_str}', root_indent + 1))
+              elem, compact, verbose, root_indent + 1,
+              python_format=python_format, **kwargs)
+          if python_format:
+            s.append(_indent(v_str, root_indent + 1))
+          else:
+            s.append(_indent(f'{idx} : {v_str}', root_indent + 1))
         s.append('\n')
         s.append(_indent(close_bracket, root_indent))
       else:

@@ -1533,6 +1533,44 @@ class FormatTest(unittest.TestCase):
         'A(x=2, y=MISSING_VALUE, z={p=[0: None, 1: True], '
         'q=\'foo\', t=\'foo\'})}]}}}]')
 
+  def test_compact_python_format(self):
+    self.assertEqual(
+        self._list.format(compact=True, python_format=True),
+        '[{\'a1\': 1, \'a2\': {\'b1\': {\'c1\': [{\'d1\': MISSING_VALUE, '
+        '\'d2\': True, \'d3\': A(x=2, y=MISSING_VALUE, z={\'p\': [None, True], '
+        '\'q\': \'foo\', \'t\': \'foo\'})}]}}}]')
+
+  def test_noncompact_python_format(self):
+    self.assertEqual(
+        self._list.format(compact=False, verbose=False, python_format=True),
+        inspect.cleandoc("""[
+          {
+            'a1': 1,
+            'a2': {
+              'b1': {
+                'c1': [
+                  {
+                    'd1': MISSING_VALUE(Str()),
+                    'd2': True,
+                    'd3': A(
+                      x=2,
+                      y=MISSING_VALUE(Str()),
+                      z={
+                        'p': [
+                          None,
+                          True
+                        ],
+                        'q': 'foo',
+                        't': 'foo'
+                      }
+                    )
+                  }
+                ]
+              }
+            }
+          }
+        ]"""))
+
   def test_noncompact_nonverbose(self):
     self.assertEqual(
         self._list.format(compact=False, verbose=False),
