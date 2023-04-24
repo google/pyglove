@@ -206,6 +206,11 @@ class Signature(object_utils.Formattable):
         assert param.kind == inspect.Parameter.VAR_KEYWORD, param.kind
         varkw = arg_spec
 
+    return_value = None
+    if sig.return_annotation is not inspect.Parameter.empty:
+      return_value = class_schema.ValueSpec.from_annotation(
+          sig.return_annotation)
+
     if inspect.ismethod(func):
       callable_type = CallableType.METHOD
     else:
@@ -216,7 +221,8 @@ class Signature(object_utils.Formattable):
         name=func.__name__,
         module_name=getattr(func, '__module__', 'wrapper'),
         qualname=func.__qualname__,
-        args=args, kwonlyargs=kwonly_args, varargs=varargs, varkw=varkw)
+        args=args, kwonlyargs=kwonly_args, varargs=varargs, varkw=varkw,
+        return_value=return_value)
 
   def make_function(
       self,
@@ -272,7 +278,8 @@ class Signature(object_utils.Formattable):
         body=body,
         exec_globals=exec_globals,
         exec_locals=exec_locals,
-        return_type=self.return_value or object_utils.MISSING_VALUE)
+        return_type=getattr(
+            self.return_value, 'annotation', object_utils.MISSING_VALUE))
     fn.__module__ = self.module_name
     fn.__name__ = self.name
     fn.__qualname__ = self.qualname

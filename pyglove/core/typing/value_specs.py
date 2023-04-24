@@ -1628,8 +1628,9 @@ class Callable(ValueSpecBase):
                 path))
 
     # Check return value
-    if (self._return_value and signature.return_value and
-        not self._return_value.is_compatible(signature.return_value)):
+    if (self._return_value and signature.return_value
+        and not isinstance(signature.return_value, Any)
+        and not self._return_value.is_compatible(signature.return_value)):
       raise TypeError(
           object_utils.message_on_path(
               f'Value spec for return value is not compatible. '

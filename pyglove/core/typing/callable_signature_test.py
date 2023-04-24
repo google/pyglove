@@ -195,7 +195,7 @@ class SignatureTest(unittest.TestCase):
   def test_make_function(self):
     """Tests `Signature.make_function`."""
 
-    def func1(x, y=1):
+    def func1(x, y=1) -> int:
       del x, y
 
     def func2(x=1, *, y):
@@ -210,7 +210,7 @@ class SignatureTest(unittest.TestCase):
     def func5(*, x=1, y):
       del x, y
 
-    def func6(x=1, *, y, **z):
+    def func6(x=1, *, y, **z) -> str:
       del x, y, z
 
     for func in [func1, func2, func3, func4, func5, func6]:
