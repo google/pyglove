@@ -221,7 +221,7 @@ class _InMemoryResult(Result):
     self._metadata[key] = value
 
   @property
-  def last_updated(self) -> datetime.datetime:
+  def last_updated(self) -> Optional[datetime.datetime]:
     """Last update time."""
     return self._last_update_time
 

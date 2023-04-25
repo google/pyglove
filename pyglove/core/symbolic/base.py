@@ -1267,7 +1267,7 @@ def traverse(x: Any,
                         object_utils.KeyPath(i, root_path), x):
           preorder_action = TraverseAction.STOP
           break
-    elif isinstance(x, Symbolic.ObjectType):
+    elif isinstance(x, Symbolic.ObjectType):  # pytype: disable=wrong-arg-types
       for k, v in x.sym_items():
         if not traverse(v, preorder_visitor_fn, postorder_visitor_fn,
                         object_utils.KeyPath(k, root_path), x):

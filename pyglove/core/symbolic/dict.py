@@ -410,7 +410,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Returns the field definition for a symbolic attribute."""
     if self._value_spec is None or self._value_spec.schema is None:
       return None
-    return self._value_spec.schema.get_field(key)
+    return self._value_spec.schema.get_field(key)  # pytype: disable=attribute-error
 
   def sym_hasattr(self, key: Union[str, int]) -> bool:
     """Tests if a symbolic attribute exists."""

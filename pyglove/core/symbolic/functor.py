@@ -592,7 +592,7 @@ def functor_class(
                              _value_spec_by_name(signature.varargs.name))
           if signature.varargs else None),
       varkw=(pg_typing.Argument(signature.varkw.name, varkw_field.value)
-             if signature.has_varkw else None),
+             if signature.varkw else None),
       return_value=returns or signature.return_value)
   setattr(cls, 'signature', signature)
 

@@ -199,6 +199,7 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
   def _decode(self) -> Any:
     """Decode DNA into a value."""
     dna = self._dna
+    assert dna is not None
     if not self._hyper_primitives and (dna.value is not None or dna.children):
       raise ValueError(
           object_utils.message_on_path(

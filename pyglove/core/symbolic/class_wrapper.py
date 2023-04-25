@@ -545,6 +545,6 @@ def _extract_init_signature(
     # Remove field for 'self'.
     arg_fields = pg_typing.get_arg_fields(signature, arg_specs, args_docstr)[1:]
     init_arg_list = [arg.name for arg in signature.args[1:]]
-    if signature.has_varargs:
+    if signature.varargs is not None:
       init_arg_list.append(f'*{signature.varargs.name}')
   return (description, init_arg_list, arg_fields)

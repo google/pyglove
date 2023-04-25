@@ -225,7 +225,7 @@ def schema_description_from_docstr(
   """Gets schema description from DocStr."""
   if docstr is None:
     return None
-  description = docstr.short_description
+  description = docstr.short_description or ''
   if include_long_description:
     if docstr.blank_after_short_description:
       description += '\n'

@@ -95,6 +95,7 @@ class ValueSpecBase(ValueSpec):
 
   @property
   def value_type(self) -> typing.Union[
+      None,
       typing.Type[typing.Any],
       typing.Tuple[typing.Type[typing.Any], ...]]:  # pyformat: disable
     """Returns acceptable value type(s) for current value spec."""

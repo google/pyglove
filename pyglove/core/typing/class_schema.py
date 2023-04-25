@@ -499,7 +499,7 @@ class Field(object_utils.Formattable):
     self._metadata = metadata or {}
 
   @property
-  def description(self) -> str:
+  def description(self) -> Optional[str]:
     """Description of this field."""
     return self._description
 

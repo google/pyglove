@@ -101,6 +101,7 @@ class Species:
   @property
   def representative(self) -> pg.DNA:
     """Returns the representative of current species."""
+    assert self._representative is not None
     return self._representative
 
   @property

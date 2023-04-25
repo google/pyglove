@@ -110,7 +110,7 @@ class Signature(object_utils.Formattable):
     for arg in self.named_args:
       if arg.name == name:
         return arg.value_spec
-    if self.has_varkw:
+    if self.varkw is not None:
       return self.varkw.value_spec
     return None
 

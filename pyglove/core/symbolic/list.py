@@ -256,7 +256,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     return self
 
   @property
-  def value_spec(self) -> pg_typing.List:
+  def value_spec(self) -> Optional[pg_typing.List]:
     """Returns value spec of this List."""
     return self._value_spec
 

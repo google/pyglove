@@ -77,7 +77,7 @@ class HyperValue(symbolic.NonDeterministic):  # pytype: disable=ignored-metaclas
     self._decoded_value = None
 
   @property
-  def dna(self) -> geno.DNA:
+  def dna(self) -> Optional[geno.DNA]:
     """Returns the DNA that is being used by this hyper value."""
     return self._dna
 
