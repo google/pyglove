@@ -13,14 +13,14 @@
 # limitations under the License.
 """Tests for pyglove.core.typing.value_specs."""
 
-import copy
-import inspect
+import contextlib
+import sys
 import typing
 import unittest
 
 from pyglove.core import object_utils
-from pyglove.core.typing import class_schema
 from pyglove.core.typing import callable_signature
+from pyglove.core.typing import class_schema
 from pyglove.core.typing import typed_missing
 from pyglove.core.typing import value_specs as vs
 from pyglove.core.typing.class_schema import ValueSpec
@@ -31,6 +31,12 @@ class BoolTest(unittest.TestCase):
 
   def test_value_type(self):
     self.assertEqual(vs.Bool().value_type, bool)
+
+  def test_forward_refs(self):
+    self.assertEqual(vs.Bool().forward_refs, set())
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Bool().type_resolved)
 
   def test_default(self):
     self.assertEqual(vs.Bool().default, typed_missing.MISSING_VALUE)
@@ -77,7 +83,7 @@ class BoolTest(unittest.TestCase):
       vs.Bool().apply(None)
 
   def test_is_compatible(self):
-    v= vs.Bool()
+    v = vs.Bool()
     self.assertTrue(v.is_compatible(v))
     self.assertTrue(vs.Bool().is_compatible(vs.Bool()))
     self.assertTrue(vs.Bool().noneable().is_compatible(vs.Bool()))
@@ -134,6 +140,12 @@ class StrTest(unittest.TestCase):
 
   def test_value_type(self):
     self.assertEqual(vs.Str().value_type, str)
+
+  def test_forward_refs(self):
+    self.assertEqual(vs.Str().forward_refs, set())
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Str().type_resolved)
 
   def test_default(self):
     self.assertEqual(vs.Str().default, typed_missing.MISSING_VALUE)
@@ -254,6 +266,12 @@ class IntTest(unittest.TestCase):
   def test_value_type(self):
     self.assertEqual(vs.Int().value_type, int)
 
+  def test_forward_refs(self):
+    self.assertEqual(vs.Int().forward_refs, set())
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Int().type_resolved)
+
   def test_default(self):
     self.assertEqual(vs.Int().default, typed_missing.MISSING_VALUE)
     self.assertEqual(vs.Int(1).default, 1)
@@ -344,18 +362,20 @@ class IntTest(unittest.TestCase):
 
     # Child extends base with constraints will intersect valid range.
     self.assertEqual(
-        vs.Int(min_value=2,
-                   max_value=5).extend(vs.Int(min_value=2, max_value=6)),
-        vs.Int(min_value=2, max_value=5))
+        vs.Int(min_value=2, max_value=5).extend(
+            vs.Int(min_value=2, max_value=6)
+        ),
+        vs.Int(min_value=2, max_value=5),
+    )
 
     # Child may extend a noneable base into non-noneable.
     self.assertFalse(vs.Int().extend(vs.Int().noneable()).is_noneable)
 
     # Child may extend a union that has the same type.
     self.assertEqual(
-        vs.Int().extend(
-            vs.Union([vs.Int(min_value=1),
-                          vs.Bool()])), vs.Int(min_value=1))
+        vs.Int().extend(vs.Union([vs.Int(min_value=1), vs.Bool()])),
+        vs.Int(min_value=1),
+    )
 
     with self.assertRaisesRegex(TypeError,
                                 '.* cannot extend .*: incompatible type.'):
@@ -419,6 +439,12 @@ class FloatTest(unittest.TestCase):
 
   def test_value_type(self):
     self.assertEqual(vs.Float().value_type, float)
+
+  def test_forward_refs(self):
+    self.assertEqual(vs.Float().forward_refs, set())
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Float().type_resolved)
 
   def test_default(self):
     self.assertEqual(vs.Float().default, typed_missing.MISSING_VALUE)
@@ -597,6 +623,12 @@ class EnumTest(unittest.TestCase):
     self.assertEqual(vs.Enum(b1, [b1, b2]).value_type, B)
     self.assertIsNone(vs.Enum(a, [a, b1, c]).value_type)
 
+  def test_forward_refs(self):
+    self.assertEqual(vs.Enum('a', ['a', None]).forward_refs, set())
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Enum('a', ['a', None]).type_resolved)
+
   def test_default(self):
     self.assertEqual(vs.Enum('a', ['a', 'b']).default, 'a')
     self.assertEqual(vs.Enum('a', ['a']).noneable().default, 'a')
@@ -699,6 +731,22 @@ class ListTest(unittest.TestCase):
   def test_value_type(self):
     self.assertEqual(vs.List(vs.Int()).value_type, list)
 
+  def test_forward_refs(self):
+    self.assertEqual(vs.List(vs.Int()).forward_refs, set())
+    self.assertEqual(
+        vs.List(vs.Object('A')).forward_refs, set([forward_ref('A')])
+    )
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.List(vs.Int()).type_resolved)
+    self.assertFalse(vs.List(vs.Object('A')).type_resolved)
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertTrue(vs.List(vs.Object('A')).type_resolved)
+
   def test_default(self):
     self.assertEqual(
         vs.List(vs.Int()).default, typed_missing.MISSING_VALUE)
@@ -737,6 +785,11 @@ class ListTest(unittest.TestCase):
     self.assertEqual(
         vs.List(vs.Int().noneable()).annotation,
         typing.List[typing.Optional[int]])
+    self.assertEqual(
+        vs.List(vs.Object(BoolTest)).annotation, typing.List[BoolTest]
+    )
+    # Unresolved forward declaration will use string as annotation.
+    self.assertEqual(vs.List(vs.Object('A')).annotation, typing.List['A'])
 
   def test_eq(self):
     self.assertEqual(vs.List(vs.Int()), vs.List(vs.Int()))
@@ -790,10 +843,27 @@ class ListTest(unittest.TestCase):
             typed_missing.MISSING_VALUE, allow_partial=True),
         typed_missing.MISSING_VALUE)
     self.assertEqual(
-        vs.List(vs.Dict([('a', vs.Str())
-                                ])).apply([{}], allow_partial=True), [{
-                                    'a': typed_missing.MissingValue(vs.Str())
-                                }])
+        vs.List(vs.Dict([('a', vs.Str())])).apply([{}], allow_partial=True),
+        [{'a': typed_missing.MissingValue(vs.Str())}],
+    )
+
+    l = vs.List(vs.Object('A'))
+
+    # Element spec `vs.Object('A')` is not resolved, thus we do not perform type
+    # checking on list element.
+    self.assertEqual(l.apply([1]), [1])
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      # Now 'A' is resolved, thus type check will occur.
+      with self.assertRaisesRegex(TypeError, 'Expect .* but encountered'):
+        l.apply([1])
+
+      # But objects of `A` are acceptable.
+      a = A()
+      self.assertEqual(l.apply([a]), [a])
 
     with self.assertRaisesRegex(ValueError, 'Value cannot be None'):
       vs.List(vs.Int()).apply(None)
@@ -821,15 +891,15 @@ class ListTest(unittest.TestCase):
         raise ValueError('Sum expected to be larger than zero')
 
     self.assertEqual(
-        vs.List(vs.Int(),
-                    user_validator=_sum_greater_than_zero).apply([0, 1]),
-        [0, 1])
+        vs.List(vs.Int(), user_validator=_sum_greater_than_zero).apply([0, 1]),
+        [0, 1],
+    )
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
-      vs.List(
-          vs.List(vs.Int(),
-                      user_validator=_sum_greater_than_zero)).apply([[-1]])
+      vs.List(vs.List(vs.Int(), user_validator=_sum_greater_than_zero)).apply(
+          [[-1]]
+      )
 
   def test_is_compatible(self):
     self.assertTrue(
@@ -938,6 +1008,28 @@ class TupleTest(unittest.TestCase):
     self.assertEqual(vs.Tuple([vs.Int()]).value_type, tuple)
     self.assertEqual(vs.Tuple(vs.Int()).value_type, tuple)
 
+  def test_forward_refs(self):
+    self.assertEqual(vs.Tuple(vs.Int()).forward_refs, set())
+    self.assertEqual(
+        vs.Tuple(vs.Object('A')).forward_refs, set([forward_ref('A')])
+    )
+    self.assertEqual(
+        vs.Tuple([vs.Object('A'), vs.Int(), vs.Object('B')]).forward_refs,
+        set([forward_ref('A'), forward_ref('B')]),
+    )
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Tuple(vs.Int()).type_resolved)
+    self.assertFalse(vs.Tuple(vs.Object('A')).type_resolved)
+    self.assertFalse(vs.Tuple([vs.Int(), vs.Object('A')]).type_resolved)
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertTrue(vs.Tuple(vs.Object('A')).type_resolved)
+      self.assertTrue(vs.Tuple([vs.Int(), vs.Object('A')]).type_resolved)
+
   def test_default(self):
     self.assertEqual(
         vs.Tuple(vs.Int()).default, typed_missing.MISSING_VALUE)
@@ -997,6 +1089,19 @@ class TupleTest(unittest.TestCase):
     self.assertEqual(
         vs.Tuple([vs.Int(), vs.Any()]).annotation,
         typing.Tuple[int, typing.Any])
+    self.assertEqual(
+        vs.Tuple(vs.Object('BoolTest')).annotation, typing.Tuple[BoolTest, ...]
+    )
+    self.assertEqual(
+        vs.Tuple(vs.Object('A')).annotation, typing.Tuple['A', ...]
+    )
+    self.assertEqual(
+        vs.Tuple([vs.Int(), vs.Object('BoolTest')]).annotation,
+        typing.Tuple[int, BoolTest],
+    )
+    self.assertEqual(
+        vs.Tuple([vs.Int(), vs.Object('A')]).annotation, typing.Tuple[int, 'A']
+    )
 
   def test_eq(self):
     v = vs.Tuple([vs.Int(), vs.Int()])
@@ -1124,8 +1229,9 @@ class TupleTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
-      vs.Tuple([vs.Tuple([vs.Int()],
-               user_validator=_sum_greater_than_zero)]).apply(((-1,),))
+      vs.Tuple(
+          [vs.Tuple([vs.Int()], user_validator=_sum_greater_than_zero)]
+      ).apply(((-1,),))
 
   def test_is_compatible(self):
     self.assertTrue(vs.Tuple(vs.Int()).is_compatible(vs.Tuple(vs.Int())))
@@ -1262,8 +1368,7 @@ class TupleTest(unittest.TestCase):
     # Child cannot extend a non-noneable base to noneable.
     with self.assertRaisesRegex(
         TypeError, '.* cannot extend .*: None is not allowed in base spec.'):
-      vs.Tuple([vs.Int()
-                   ]).noneable().extend(vs.Tuple([vs.Int()]))
+      vs.Tuple([vs.Int()]).noneable().extend(vs.Tuple([vs.Int()]))
 
     # Child with larger max_size cannot extend base with smaller max_size.
     with self.assertRaisesRegex(
@@ -1300,6 +1405,39 @@ class DictTest(unittest.TestCase):
   def test_value_type(self):
     self.assertIs(vs.Dict().value_type, dict)
 
+  def test_forward_refs(self):
+    self.assertEqual(vs.Dict().forward_refs, set())
+    self.assertEqual(
+        vs.Dict([
+            ('x', vs.Object('A')),
+            ('y', vs.Dict([
+                ('z', vs.Object('B'))
+            ]))
+        ]).forward_refs,
+        set((forward_ref('A'), forward_ref('B'))))
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Dict().type_resolved)
+    v = vs.Dict([
+        ('x', vs.Object('A')),
+        ('y', vs.Dict([
+            ('z', vs.Object('B'))
+        ]))
+    ])
+    self.assertFalse(v.type_resolved)
+
+    class A:
+      pass
+
+    class B:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertFalse(v.type_resolved)
+
+    with simulate_forward_declaration(A, B):
+      self.assertTrue(v.type_resolved)
+
   def test_default(self):
     self.assertEqual(
         vs.Dict([('a', vs.Int(), 'field 1')]).default,
@@ -1318,7 +1456,7 @@ class DictTest(unittest.TestCase):
         vs.Dict([
             ('a', vs.Int(1), 'field 1'),
             ('b', vs.Dict([
-                ('c', vs.Str(), 'field 2.1')
+                ('c', vs.Object('A'), 'field 2.1')
             ]), 'field 2')]).default,
         dict(a=1, b={'c': typed_missing.MISSING_VALUE}))
 
@@ -1411,6 +1549,27 @@ class DictTest(unittest.TestCase):
             'b': None
         })
 
+    # Tests with forward declaration.
+    v = vs.Dict([
+        ('a', vs.Int(), 'field 1'),
+        ('b', vs.Object('B'), 'field 2')
+    ])
+
+    # Before forward reference 'B' can be resolved, `b` can accept anything.
+    self.assertEqual(v.apply(dict(a=1, b=2)), dict(a=1, b=2))
+
+    # After forward reference 'B' can be resolved, `b` can accept only objects
+    # of `B`.
+    class B:
+      pass
+
+    b = B()
+    with simulate_forward_declaration(B):
+      self.assertEqual(v.apply(dict(a=1, b=b)), dict(a=1, b=b))
+      with self.assertRaisesRegex(TypeError, 'Expect .* but encountered'):
+        v.apply(dict(a=1, b=2))
+
+    # Tests for partial apply.
     self.assertEqual(
         vs.Dict([
             ('a', vs.Int(), 'field 1'),
@@ -1572,13 +1731,26 @@ class ObjectTest(unittest.TestCase):
       def missing_values(self):
         return {'SOME_KEY': 'SOME_VALUE'}
 
+    # pylint: disable=invalid-name
     self.A = A
     self.B = B
     self.C = C
     self.D = D
+    # pylint: enable=invalid-name
 
   def test_value_type(self):
     self.assertEqual(vs.Object(self.A).value_type, self.A)
+    v = vs.Object('A')
+
+    with simulate_forward_declaration(self.A):
+      self.assertIs(v.value_type, self.A)
+
+    with self.assertRaisesRegex(TypeError, "'A' does not exist in module .*"):
+      _ = vs.Object('A').value_type
+
+  def test_forward_refs(self):
+    self.assertEqual(vs.Object(self.A).forward_refs, set())
+    self.assertEqual(vs.Object('Foo').forward_refs, set([forward_ref('Foo')]))
 
   def test_default(self):
     self.assertEqual(vs.Object(self.A).default, typed_missing.MISSING_VALUE)
@@ -1588,9 +1760,11 @@ class ObjectTest(unittest.TestCase):
   def test_noneable(self):
     self.assertFalse(vs.Object(self.A).is_noneable)
     self.assertTrue(vs.Object(self.A).noneable().is_noneable)
+    self.assertTrue(vs.Object('Foo').noneable().is_noneable)
 
   def test_str(self):
     self.assertEqual(str(vs.Object(self.A)), 'Object(A)')
+    self.assertEqual(str(vs.Object('Foo')), 'Object(Foo)')
     self.assertEqual(
         str(vs.Object(self.A).noneable()),
         'Object(A, default=None, noneable=True)')
@@ -1600,6 +1774,9 @@ class ObjectTest(unittest.TestCase):
 
   def test_annotation(self):
     self.assertEqual(vs.Object(self.A).annotation, self.A)
+    with simulate_forward_declaration(self.A):
+      self.assertEqual(vs.Object('A').annotation, self.A)
+    self.assertEqual(vs.Object('Foo').annotation, 'Foo')
     self.assertEqual(
         vs.Object(self.A).noneable().annotation, typing.Optional[self.A])
 
@@ -1608,6 +1785,18 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(o, o)
     self.assertIsNone(o.schema)
     self.assertEqual(vs.Object(self.A), vs.Object(self.A))
+
+    class A:
+      pass
+
+    o = vs.Object('A')
+    # The local class 'A' is not a module level class.
+    self.assertNotEqual(o, vs.Object(A))
+    with simulate_forward_declaration(self.A):
+      self.assertEqual(o, vs.Object(self.A))
+
+    self.assertEqual(vs.Object('A'), vs.Object('A'))
+    self.assertNotEqual(vs.Object('A'), vs.Object('B'))
     self.assertEqual(
         vs.Object(self.A).noneable(), vs.Object(self.A).noneable())
     self.assertNotEqual(vs.Object(self.A).noneable(), vs.Object(self.A))
@@ -1636,6 +1825,16 @@ class ObjectTest(unittest.TestCase):
 
     d = self.D()
     self.assertEqual(vs.Object(self.C).apply(d, allow_partial=True), d)
+
+    v = vs.Object('A')
+    # 'A' is not resolved, so it could accept any object type.
+    self.assertIs(v.apply(1), 1)
+    with simulate_forward_declaration(self.A, self.B):
+      self.assertIs(v.apply(a), a)
+      self.assertIs(v.apply(b), b)
+      with self.assertRaisesRegex(TypeError, 'Expect .* but encountered'):
+        # 'A' is resolved, so it could not accept 1 any more.
+        _ = v.apply(1)
 
     with self.assertRaisesRegex(ValueError, 'Value cannot be None'):
       vs.Object(self.A).apply(None)
@@ -1668,7 +1867,16 @@ class ObjectTest(unittest.TestCase):
     self.assertTrue(vs.Object(self.A).is_compatible(vs.Object(self.A)))
     self.assertTrue(
         vs.Object(self.A).noneable().is_compatible(vs.Object(self.A)))
+
+    # Before a forward declaration can be resolved, `is_compatible` always
+    # returns True.
+    self.assertTrue(vs.Object('A').is_compatible(vs.Object('B')))
+    with simulate_forward_declaration(self.A, self.B):
+      self.assertTrue(vs.Object('A').is_compatible(vs.Object('B')))
+      self.assertFalse(vs.Object('B').is_compatible(vs.Object('A')))
+
     self.assertTrue(vs.Object(self.A).is_compatible(vs.Object(self.B)))
+    self.assertTrue(vs.Object('Foo').is_compatible(vs.Object('Bar')))
 
     self.assertFalse(vs.Object(self.A).is_compatible(vs.Int()))
     self.assertFalse(
@@ -1677,6 +1885,17 @@ class ObjectTest(unittest.TestCase):
     self.assertFalse(vs.Object(self.B).is_compatible(vs.Object(self.C)))
 
   def test_extend(self):
+    # Before a forward declaration can be resolved, `extend` will succeed
+    self.assertEqual(
+        vs.Object('A').extend(vs.Object('B')), vs.Object('A'))
+
+    # When forward declaration is resolved, `extend` will follow class
+    # relationships.
+    with simulate_forward_declaration(self.A, self.B):
+      with self.assertRaisesRegex(
+          TypeError, '.* cannot extend .*: incompatible class.'):
+        vs.Object('A').extend(vs.Object('B'))
+
     self.assertEqual(
         vs.Object(self.B).extend(vs.Object(self.A)),
         vs.Object(self.B))
@@ -1731,6 +1950,35 @@ class CallableTest(unittest.TestCase):
   def test_value_type(self):
     self.assertIsNone(vs.Callable().value_type)
     self.assertEqual(vs.Functor().annotation, object_utils.Functor)
+
+  def test_forward_refs(self):
+    self.assertEqual(vs.Callable().forward_refs, set())
+    self.assertEqual(
+        vs.Callable([vs.Int(), vs.Object('A')],
+                    kw=[('x', vs.Object('B'))],
+                    returns=vs.Object('C')).forward_refs,
+        set([forward_ref('A'), forward_ref('B'), forward_ref('C')]))
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Callable().type_resolved)
+    self.assertTrue(vs.Callable([vs.Object('BoolTest')]).type_resolved)
+    self.assertTrue(
+        vs.Callable(kw=[('x', vs.Object('BoolTest'))]).type_resolved)
+    self.assertTrue(vs.Callable(returns=vs.Object('BoolTest')).type_resolved)
+
+    self.assertFalse(vs.Callable([vs.Object('A')]).type_resolved)
+    self.assertFalse(
+        vs.Callable(kw=[('x', vs.Object('A'))]).type_resolved)
+    self.assertFalse(vs.Callable(returns=vs.Object('A')).type_resolved)
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertTrue(vs.Callable([vs.Object('A')]).type_resolved)
+      self.assertTrue(
+          vs.Callable(kw=[('x', vs.Object('A'))]).type_resolved)
+      self.assertTrue(vs.Callable(returns=vs.Object('A')).type_resolved)
 
   def test_default(self):
     self.assertEqual(vs.Callable().default, typed_missing.MISSING_VALUE)
@@ -2085,10 +2333,30 @@ class TypeTest(unittest.TestCase):
 
   def test_value_type(self):
     self.assertEqual(vs.Type(Exception).value_type, type)
+    self.assertEqual(vs.Type('A').value_type, type)
+
+  def test_forward_refs(self):
+    self.assertEqual(vs.Type(Exception).forward_refs, set())
+    self.assertEqual(vs.Type('A').forward_refs, set([forward_ref('A')]))
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Type(Exception).type_resolved)
+    self.assertTrue(vs.Type('BoolTest').type_resolved)
+    self.assertFalse(vs.Type('A').type_resolved)
 
   def test_type(self):
     self.assertIs(vs.Type(int).type, int)
     self.assertIs(vs.Type(Exception).type, Exception)
+    self.assertIs(vs.Type('BoolTest').type, BoolTest)
+
+    with self.assertRaisesRegex(TypeError, '.* does not exist'):
+      _ = vs.Type('A').type
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertIs(vs.Type('A').type, A)
 
   def test_default(self):
     self.assertEqual(vs.Type(Exception).default, typed_missing.MISSING_VALUE)
@@ -2109,6 +2377,8 @@ class TypeTest(unittest.TestCase):
 
   def test_annotation(self):
     self.assertEqual(vs.Type(Exception).annotation, typing.Type[Exception])
+    self.assertEqual(vs.Type('BoolTest').annotation, typing.Type[BoolTest])
+    self.assertEqual(vs.Type('A').annotation, typing.Type['A'])
     self.assertEqual(
         vs.Type(Exception).noneable().annotation,
         typing.Optional[typing.Type[Exception]])
@@ -2117,6 +2387,15 @@ class TypeTest(unittest.TestCase):
     t = vs.Type(Exception)
     self.assertEqual(t, t)
     self.assertEqual(vs.Type(Exception), vs.Type(Exception))
+    self.assertEqual(vs.Type('A'), vs.Type('A'))
+
+    class A:
+      pass
+
+    self.assertNotEqual(vs.Type('A'), vs.Type(A))
+    with simulate_forward_declaration(A):
+      self.assertEqual(vs.Type('A'), vs.Type(A))
+
     self.assertEqual(
         vs.Type(Exception).noneable(),
         vs.Type(Exception).noneable())
@@ -2135,6 +2414,21 @@ class TypeTest(unittest.TestCase):
     self.assertEqual(vs.Type(Exception).apply(ValueError), ValueError)
     self.assertIsNone(vs.Type(Exception).noneable().apply(None))
 
+    v = vs.Type('A')
+
+    # Before 'A' can be resolved, v could accept any type.
+    self.assertIs(v.apply(int), int)
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertIs(v.apply(A), A)
+
+      # After 'A' can be resolved, v could only accept 'A'.
+      with self.assertRaisesRegex(ValueError, '.* is not a subclass of .*'):
+        _ = v.apply(int)
+
     with self.assertRaisesRegex(ValueError, '.* is not a subclass of .*'):
       vs.Type(Exception).apply(int)
 
@@ -2144,6 +2438,25 @@ class TypeTest(unittest.TestCase):
   def test_is_compatible(self):
     self.assertTrue(vs.Type(Exception).is_compatible(vs.Type(Exception)))
     self.assertTrue(vs.Type(Exception).is_compatible(vs.Type(ValueError)))
+
+    # Before `A` can be accepted, it's always considered compatible.
+    self.assertTrue(vs.Type('A').is_compatible(vs.Type(Exception)))
+    self.assertTrue(vs.Type(Exception).is_compatible(vs.Type('A')))
+
+    # After `A` can be accepted, it can only accept subclasses of `A`.
+    class A:
+      pass
+
+    class B(A):
+      pass
+
+    with simulate_forward_declaration(A, B):
+      self.assertTrue(vs.Type('A').is_compatible(vs.Type('A')))
+      self.assertTrue(vs.Type('A').is_compatible(vs.Type('B')))
+      self.assertFalse(vs.Type('B').is_compatible(vs.Type('A')))
+      self.assertFalse(vs.Type(Exception).is_compatible(vs.Type('A')))
+      self.assertFalse(vs.Type('A').is_compatible(vs.Type(Exception)))
+
     self.assertTrue(
         vs.Type(Exception).noneable().is_compatible(vs.Type(ValueError)))
     self.assertFalse(
@@ -2210,13 +2523,54 @@ class UnionTest(unittest.TestCase):
     class B(A):
       pass
 
+    # pylint: disable=invalid-name
     self.A = A
     self.B = B
+    # pylint: enable=invalid-name
 
   def test_value_type(self):
     self.assertEqual(
         set(vs.Union([vs.Int(), vs.Bool()]).value_type),
         set([int, bool]))
+    v = vs.Union([vs.Object('A'), vs.Object('B')])
+    with simulate_forward_declaration(self.A, self.B):
+      self.assertEqual(set(v.value_type), set([self.A, self.B]))
+
+    v = vs.Union(
+        [vs.Int(), vs.Object('A'), vs.Union([vs.Int(), vs.Float()]).noneable()]
+    )
+    with simulate_forward_declaration(self.A):
+      self.assertEqual(set(v.value_type), set((int, self.A, float)))
+
+  def test_forward_refs(self):
+    self.assertEqual(
+        vs.Union([vs.Int(), vs.Object(self.A)]).forward_refs, set()
+    )
+    self.assertEqual(
+        vs.Union([vs.Int(), vs.Object('Foo')]).forward_refs,
+        set([forward_ref('Foo')]),
+    )
+    self.assertEqual(
+        vs.Union([
+            vs.Int(),
+            vs.Object('Bar'),
+            vs.Union([
+                vs.Float(),
+                vs.Object('Foo'),
+            ]).noneable(),
+        ]).forward_refs,
+        set([forward_ref('Bar'), forward_ref('Foo')]),
+    )
+
+  def test_type_resolved(self):
+    self.assertTrue(vs.Union([vs.Int(), vs.Float()]).type_resolved)
+    self.assertFalse(vs.Union([vs.Object('A'), vs.Float()]).type_resolved)
+
+    class A:
+      pass
+
+    with simulate_forward_declaration(A):
+      self.assertTrue(vs.Union([vs.Object('A'), vs.Float()]).type_resolved)
 
   def test_default(self):
     self.assertEqual(
@@ -2233,8 +2587,8 @@ class UnionTest(unittest.TestCase):
     self.assertFalse(
         vs.Union([vs.Int(), vs.Bool()]).candidates[0].is_noneable)
     self.assertTrue(
-        vs.Union([vs.Int(),
-                      vs.Bool()]).noneable().candidates[0].is_noneable)
+        vs.Union([vs.Int(), vs.Bool()]).noneable().candidates[0].is_noneable
+    )
     self.assertTrue(
         vs.Union([vs.Int().noneable(), vs.Bool()]).is_noneable)
 
@@ -2348,6 +2702,25 @@ class UnionTest(unittest.TestCase):
             typed_missing.MISSING_VALUE, allow_partial=True),
         typed_missing.MISSING_VALUE)
 
+    v = vs.Union([vs.Int(), vs.Object('A')])
+
+    # Before `A` could be resolved, `v` can accept anything.
+    self.assertEqual(v.apply('foo'), 'foo')
+
+    # After `A` is resolved, `v` can only accept subclasses of A.
+    class A:
+      pass
+
+    class B(A):
+      pass
+
+    b = B()
+    with simulate_forward_declaration(A):
+      self.assertIs(v.apply(b), b)
+      with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*'):
+        _ = v.apply('foo')
+
+    # Bad cases.
     with self.assertRaisesRegex(ValueError, 'Value cannot be None'):
       vs.Union([vs.Int(), vs.Str()]).apply(None)
 
@@ -2483,7 +2856,9 @@ class AnyTest(unittest.TestCase):
 
   def test_annotation(self):
     self.assertEqual(vs.Any().annotation, typed_missing.MISSING_VALUE)
-    self.assertEqual(vs.Any().noneable().annotation, typed_missing.MISSING_VALUE)
+    self.assertEqual(
+        vs.Any().noneable().annotation, typed_missing.MISSING_VALUE
+    )
     self.assertEqual(vs.Any(annotation=int).noneable().annotation, int)
 
   def test_eq(self):
@@ -2601,6 +2976,21 @@ class ValueSpecTest(unittest.TestCase):
     self.assertEqual(
         ValueSpec.from_annotation(int, False), vs.Any(annotation=int)
     )
+
+
+@contextlib.contextmanager
+def simulate_forward_declaration(*module_level_symbols):
+  try:
+    for symbol in module_level_symbols:
+      setattr(sys.modules[__name__], symbol.__name__, symbol)
+    yield
+  finally:
+    for symbol in module_level_symbols:
+      delattr(sys.modules[__name__], symbol.__name__)
+
+
+def forward_ref(name):
+  return class_schema.ForwardRef(sys.modules[__name__], name)
 
 
 if __name__ == '__main__':

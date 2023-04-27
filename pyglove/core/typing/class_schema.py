@@ -15,8 +15,11 @@
 
 import abc
 import copy
+import functools
+import inspect
 import sys
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, Union
+import types
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
 from pyglove.core import object_utils
 
@@ -89,6 +92,76 @@ class KeySpec(object_utils.Formattable):
   def from_str(cls, key: str) -> 'KeySpec':
     """Get a concrete ValueSpec from annotation."""
     assert False, 'Overridden in `key_specs.py`.'
+
+
+class ForwardRef(object_utils.Formattable):
+  """Forward type reference."""
+
+  def __init__(self, module: types.ModuleType, name: str):
+    self._module = module
+    self._name = name
+
+  @property
+  def module(self) -> types.ModuleType:
+    """Returns the module where the name is being referenced."""
+    return self._module
+
+  @property
+  def name(self) -> str:
+    """Returns the name of the type reference."""
+    return self._name
+
+  @property
+  def qualname(self) -> str:
+    """Returns the qualified name of the reference."""
+    return f'{self.module.__name__}.{self.name}'
+
+  def as_annotation(self) -> Union[Type[Any], str]:
+    """Returns the forward reference as an annotation."""
+    return self.cls if self.resolved else self.name
+
+  @property
+  def resolved(self) -> bool:
+    """Returns True if the symbol for the name is resolved.."""
+    return hasattr(self.module, self.name)
+
+  @functools.cached_property
+  def cls(self) -> Type[Any]:
+    """Returns the resolved reference class.."""
+    reference = getattr(self.module, self.name, None)
+    if reference is None:
+      raise TypeError(
+          f'{self.name!r} does not exist in module {self.module.__name__!r}'
+      )
+    elif not inspect.isclass(reference):
+      raise TypeError(
+          f'{self.name!r} from module {self.module.__name__!r} is not a class.'
+      )
+    return reference
+
+  def format(self, *args, **kwargs) -> str:
+    """Format this object."""
+    details = object_utils.kvlist_str([
+        ('module', self.module.__name__, None),
+        ('name', self.name, None),
+    ])
+    return f'{self.__class__.__name__}({details})'
+
+  def __eq__(self, other: Any) -> bool:
+    """Operator==."""
+    if self is other:
+      return True
+    elif isinstance(other, ForwardRef):
+      return self.module is other.module and self.name == other.name
+    elif inspect.isclass(other):
+      return self.resolved and self.cls is other
+
+  def __ne__(self, other: Any) -> bool:
+    """Operator!=."""
+    return not self.__eq__(other)
+
+  def __hash__(self) -> int:
+    return hash((self.module, self.name))
 
 
 class ValueSpec(object_utils.Formattable):
@@ -242,7 +315,12 @@ class ValueSpec(object_utils.Formattable):
   def value_type(self) -> Union[
       Type[Any],
       Tuple[Type[Any], ...]]:  # pyformat: disable
-    """Returns acceptable value type(s)."""
+    """Returns acceptable (resolved) value type(s)."""
+
+  @property
+  @abc.abstractmethod
+  def forward_refs(self) -> Set[ForwardRef]:
+    """Returns forward referenes used by the value spec."""
 
   @abc.abstractmethod
   def noneable(self) -> 'ValueSpec':
@@ -415,6 +493,11 @@ class ValueSpec(object_utils.Formattable):
       ValueError: If value is not acceptable, or value is MISSING_VALUE while
         allow_partial is set to False.
     """
+
+  @property
+  def type_resolved(self) -> bool:
+    """Returns True if all forward references are resolved."""
+    return not any(not ref.resolved for ref in self.forward_refs)
 
   def __ne__(self, other: Any) -> bool:
     """Operator !=."""

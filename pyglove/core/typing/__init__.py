@@ -304,6 +304,7 @@ from pyglove.core.typing.class_schema import ValueSpec
 from pyglove.core.typing.class_schema import Field
 from pyglove.core.typing.class_schema import Schema
 from pyglove.core.typing.class_schema import create_schema
+from pyglove.core.typing.class_schema import ForwardRef
 
 # Class schema helpers.
 from pyglove.core.typing.class_schema_utils import get_init_signature

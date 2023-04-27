@@ -15,6 +15,7 @@
 
 import copy
 import inspect
+import sys
 from typing import Optional, Union, List
 import unittest
 
@@ -25,6 +26,61 @@ from pyglove.core.typing import typed_missing
 from pyglove.core.typing import value_specs as vs
 from pyglove.core.typing.class_schema import Field
 from pyglove.core.typing.class_schema import Schema
+
+
+class ForwardRefTest(unittest.TestCase):
+  """Test for `ForwardRef` class."""
+
+  def setUp(self):
+    super().setUp()
+    self._module = sys.modules[__name__]
+
+  def test_basics(self):
+    r = class_schema.ForwardRef(self._module, 'FieldTest')
+    self.assertIs(r.module, self._module)
+    self.assertEqual(r.name, 'FieldTest')
+    self.assertEqual(r.qualname, f'{self._module.__name__}.FieldTest')
+
+  def test_resolved(self):
+    self.assertTrue(class_schema.ForwardRef(self._module, 'FieldTest').resolved)
+    self.assertFalse(class_schema.ForwardRef(self._module, 'Foo').resolved)
+
+  def test_as_annotation(self):
+    self.assertEqual(
+        class_schema.ForwardRef(self._module, 'FieldTest').as_annotation(),
+        FieldTest,
+    )
+    self.assertEqual(
+        class_schema.ForwardRef(self._module, 'Foo').as_annotation(), 'Foo'
+    )
+
+  def test_cls(self):
+    self.assertIs(
+        class_schema.ForwardRef(self._module, 'FieldTest').cls, FieldTest
+    )
+
+    with self.assertRaisesRegex(TypeError, '.* does not exist in module'):
+      _ = class_schema.ForwardRef(self._module, 'Foo').cls
+
+    with self.assertRaisesRegex(TypeError, '.* is not a class'):
+      _ = class_schema.ForwardRef(self._module, 'unittest').cls
+
+  def test_format(self):
+    self.assertEqual(
+        str(class_schema.ForwardRef(self._module, 'FieldTest')),
+        f'ForwardRef(module={self._module.__name__}, name=FieldTest)',
+    )
+
+  def test_eq_ne(self):
+    ref = class_schema.ForwardRef(self._module, 'FieldTest')
+    self.assertEqual(ref, ref)
+    self.assertEqual(ref, class_schema.ForwardRef(self._module, 'FieldTest'))
+    self.assertEqual(ref, FieldTest)
+    self.assertEqual(FieldTest, ref)
+
+    self.assertNotEqual(int, ref)
+    self.assertNotEqual(ref, class_schema.ForwardRef(unittest, 'FieldTest'))
+    self.assertNotEqual(ref, class_schema.ForwardRef(self._module, 'Foo'))
 
 
 class FieldTest(unittest.TestCase):

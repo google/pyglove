@@ -12,13 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Concrete value specifications for field definition."""
-
 import copy
+import functools
 import inspect
 import numbers
 import re
 import sys
 import typing
+import __main__
+
 from pyglove.core import object_utils
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
@@ -100,6 +102,11 @@ class ValueSpecBase(ValueSpec):
       typing.Tuple[typing.Type[typing.Any], ...]]:  # pyformat: disable
     """Returns acceptable value type(s) for current value spec."""
     return self._value_type
+
+  @property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns no forward references by default, subclasses can override."""
+    return set()
 
   @property
   def default(self) -> typing.Any:
@@ -216,13 +223,15 @@ class ValueSpecBase(ValueSpec):
       if not should_continue:
         return value
 
-    if self._value_type is not None and not isinstance(value, self._value_type):
+    if (self.type_resolved
+        and self.value_type is not None
+        and not isinstance(value, self.value_type)):
       converter = type_conversion.get_first_applicable_converter(
-          type(value), self._value_type)
+          type(value), self.value_type)
       if converter is None:
         raise TypeError(
             object_utils.message_on_path(
-                f'Expect {self._value_type} '
+                f'Expect {self.value_type} '
                 f'but encountered {type(value)!r}: {value}.', root_path))
       value = converter(value)
 
@@ -283,26 +292,22 @@ class ValueSpecBase(ValueSpec):
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
-    return self._value_type
+    return self.value_type
 
   def __eq__(self, other: typing.Any) -> bool:
     """Operator==."""
     if self is other:
       return True
-    if not isinstance(other, self.__class__):
+    if (not isinstance(other, self.__class__)
+        or self.default != other.default
+        or self.is_noneable != other.is_noneable
+        or self.frozen != other.frozen):
       return False
-    if isinstance(self._value_type, tuple):
-      self_value_types = list(self._value_type)
-    else:
-      self_value_types = [self._value_type]
-    if isinstance(other.value_type, tuple):
-      other_value_types = list(other.value_type)
-    else:
-      other_value_types = [self._value_type]
-    return (set(self_value_types) == set(other_value_types)
-            and self.default == other.default
-            and self.is_noneable == other.is_noneable
-            and self.frozen == other.frozen)
+    return self._eq(other)
+
+  def _eq(self, other: 'ValueSpec') -> bool:
+    """Subclasses can override."""
+    return True
 
   def format(self, **kwargs) -> str:
     """Format this object."""
@@ -445,11 +450,8 @@ class Str(PrimitiveType):
     ])
     return f'{self.__class__.__name__}({details})'
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return super().__eq__(other) and self.regex == other.regex
+  def _eq(self, other: 'Str') -> bool:
+    return self.regex == other.regex
 
 
 class Number(PrimitiveType):
@@ -533,13 +535,9 @@ class Number(PrimitiveType):
         return False
     return True
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return (super().__eq__(other) and
-            self.min_value == other.min_value and
-            self.max_value == other.max_value)
+  def _eq(self, other: 'Number') -> bool:
+    return (self.min_value == other.min_value
+            and self.max_value == other.max_value)
 
   def format(self, **kwargs) -> str:
     """Format this object."""
@@ -720,19 +718,14 @@ class Enum(PrimitiveType):
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
-    if self._value_type == str:
+    if self.value_type == str:
       return str
-    if self._value_type is None:
+    if self.value_type is None:
       return typing.Any
-    return self._value_type
+    return self.value_type
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return (super().__eq__(other)
-            and self._default == other._default  # pylint: disable=protected-access
-            and self.values == other.values)
+  def _eq(self, other: 'Enum') -> bool:
+    return self.values == other.values
 
   def format(self, **kwargs) -> str:
     """Format this object."""
@@ -820,6 +813,11 @@ class List(ValueSpecBase):
     return self._element
 
   @property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    return self._element.value.forward_refs
+
+  @property
   def min_size(self) -> int:
     """Returns max size of the list."""
     return self._element.key.min_value  # pytype: disable=attribute-error  # bind-properties
@@ -884,11 +882,8 @@ class List(ValueSpecBase):
     """Annotate with PyType annotation."""
     return typing.List[_any_if_no_annotation(self._element.value.annotation)]
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return super().__eq__(other) and self.element == other.element
+  def _eq(self, other: 'List') -> bool:
+    return self.element == other.element
 
   def format(self,
              compact: bool = False,
@@ -1041,6 +1036,14 @@ class Tuple(ValueSpecBase):
     """Returns Field specification for tuple elements."""
     return self._elements
 
+  @functools.cached_property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    forward_refs = set()
+    for elem in self.elements:
+      forward_refs.update(elem.value.forward_refs)
+    return forward_refs
+
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
     if self.fixed_length:
@@ -1153,12 +1156,8 @@ class Tuple(ValueSpecBase):
         return False
       return self.elements[0].value.is_compatible(other.elements[0].value)
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return (super().__eq__(other)
-            and self.elements == other.elements
+  def _eq(self, other: typing.Any) -> bool:
+    return (self.elements == other.elements
             and self.min_size == other.min_size
             and self.max_size == other.max_size)
 
@@ -1294,6 +1293,16 @@ class Dict(ValueSpecBase):
     self._default = None
     return self
 
+  @functools.cached_property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    if self.schema is None:
+      return set()
+    forward_refs = set()
+    for field in self.schema.fields.values():
+      forward_refs.update(field.value.forward_refs)
+    return forward_refs
+
   def _apply(self,
              value: typing.Dict[typing.Any, typing.Any],
              allow_partial: bool,
@@ -1327,11 +1336,8 @@ class Dict(ValueSpecBase):
     """Annotate with PyType annotation."""
     return typing.Dict[str, typing.Any]
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return super().__eq__(other) and self.schema == other.schema
+  def _eq(self, other: 'Dict') -> bool:
+    return self.schema == other.schema
 
   def format(self,
              compact: bool = False,
@@ -1365,6 +1371,9 @@ class Object(ValueSpecBase):
     # A required instance of class A and its subclasses.
     pg.typing.Object(A)
 
+    # A required instance of class A and its subclasses (forward declaration).
+    pg.typing.Object('A')
+
     # An optional instance of class A with None as its default value.
     pg.typing.Object(A).noneable()
 
@@ -1374,7 +1383,7 @@ class Object(ValueSpecBase):
 
   def __init__(
       self,
-      cls: typing.Type[typing.Any],
+      cls: typing.Union[typing.Type[typing.Any], str],
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
           typing.Callable[[typing.Any], None]] = None):
@@ -1390,16 +1399,36 @@ class Object(ValueSpecBase):
     """
     if cls is None:
       raise TypeError('"cls" for Object spec cannot be None.')
-    if not isinstance(cls, type):
-      raise TypeError('"cls" for Object spec should be a type.')
-    if cls is object:
-      raise TypeError('<class \'object\'> is too general for Object spec.')
+
+    forward_ref = None
+    if isinstance(cls, str):
+      forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), cls)
+    elif isinstance(cls, type):
+      if cls is object:
+        raise TypeError('<class \'object\'> is too general for Object spec.')
+    else:
+      raise TypeError('"cls" for Object spec should be a type or str.')
+
+    self._forward_ref = forward_ref
     super().__init__(cls, default, user_validator)
+
+  @property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    if self._forward_ref is None:
+      return set()
+    return set([self._forward_ref])
 
   @property
   def cls(self) -> typing.Type[typing.Any]:
     """Returns the class of this object spec."""
-    return self.value_type
+    if self._forward_ref is None:
+      return typing.cast(typing.Type[typing.Any], self._value_type)
+    return self._forward_ref.cls
+
+  @property
+  def value_type(self) -> typing.Type[typing.Any]:
+    return self.cls
 
   def _apply(self,
              value: typing.Any,
@@ -1424,28 +1453,33 @@ class Object(ValueSpecBase):
 
   def _extend(self, base: 'Object') -> None:
     """Object specific extension."""
-    if not issubclass(self.value_type, base.value_type):
+    if not base.is_compatible(self):
       raise TypeError(f'{self!r} cannot extend {base!r}: incompatible class.')
 
   def _is_compatible(self, other: 'Object') -> bool:
     """Object specific compatiblity check."""
+    # NOTE(daiyip): When either the current spec or the other spec contains
+    # unresolved forward declarations, we consider them compatible.
+    if not self.type_resolved or not other.type_resolved:
+      return True
     return issubclass(other.cls, self.cls)
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
-    return self.cls
+    if self._forward_ref is not None:
+      return self._forward_ref.as_annotation()
+    return self._value_type
 
   @property
   def schema(self) -> typing.Optional[Schema]:
     """Returns the schema of object class if available."""
     return getattr(self.value_type, 'schema', None)
 
-  def __eq__(self, other: typing.Any) -> bool:
+  def _eq(self, other: 'Object') -> bool:
     """Operator==."""
-    if self is other:
-      return True
-    return (super().__eq__(other) and
-            self.value_type == other.value_type)
+    if self.type_resolved:
+      return self.value_type == other.value_type
+    return self.forward_refs == other.forward_refs
 
   def format(self,
              compact: bool = False,
@@ -1455,8 +1489,13 @@ class Object(ValueSpecBase):
              hide_missing_values: bool = True,
              **kwargs) -> str:
     """Format this object."""
+    if self._forward_ref is not None:
+      name = self._forward_ref.name
+    else:
+      name = self._value_type.__name__
+
     details = object_utils.kvlist_str([
-        ('', self._value_type.__name__, None),
+        ('', name, None),
         ('default', object_utils.format(
             self._default,
             compact,
@@ -1538,6 +1577,18 @@ class Callable(ValueSpecBase):
     self._kw = kw
     self._return_value = returns
     super().__init__(callable_type, default, user_validator)
+
+  @functools.cached_property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    forward_refs = set()
+    for arg in self.args:
+      forward_refs.update(arg.forward_refs)
+    for _, arg in self.kw:
+      forward_refs.update(arg.forward_refs)
+    if self.return_value:
+      forward_refs.update(self.return_value.forward_refs)
+    return forward_refs
 
   @property
   def args(self) -> typing.List[ValueSpec]:
@@ -1695,10 +1746,8 @@ class Callable(ValueSpecBase):
       return_value = None
     return typing.Callable[args, return_value]  # pytype: disable=invalid-annotation
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    return (super().__eq__(other)
-            and self._args == other.args
+  def _eq(self, other: 'Callable') -> bool:
+    return (self._args == other.args
             and self._kw == other.kw
             and self._return_value == other.return_value)
 
@@ -1772,57 +1821,81 @@ class Type(ValueSpecBase):
     # A required type or subclass of A.
     pg.typing.Type(A)
 
+    # An required type or subclass of A (forward declaration).
+    pg.typing.Type('A')
+
     # An optional type or subclass of A.
     pg.typing.Type(A).noneable()
 
     # A required type or subclass of A with default value B
     # (B is a subclass of A).
     pg.typing.Type(A, default=B)
-
   """
 
   def __init__(
       self,
-      t: typing.Type,  # pylint: disable=g-bare-generic
+      t: typing.Union[typing.Type[typing.Any], str],
       default: typing.Type = MISSING_VALUE):  # pylint: disable=g-bare-generic  # pytype: disable=annotation-type-mismatch
-    if not isinstance(t, type):
+    forward_ref = None
+    if isinstance(t, str):
+      forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), t)
+    elif not isinstance(t, type):
       raise TypeError(f'{t!r} is not a type.')
     self._expected_type = t
+    self._forward_ref = forward_ref
     super().__init__(type, default)
 
   @property
-  def type(self):
+  def type(self) -> typing.Type[typing.Any]:
     """Returns desired type."""
+    if self._forward_ref is not None:
+      return self._forward_ref.cls
     return self._expected_type
+
+  @functools.cached_property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    if self._forward_ref is None:
+      return set()
+    return set([self._forward_ref])
 
   def _validate(self, path: object_utils.KeyPath, value: typing.Type) -> None:  # pylint: disable=g-bare-generic
     """Validate applied value."""
-    if not issubclass(value, self.type):
+    if self.type_resolved and not issubclass(value, self.type):
       raise ValueError(
           object_utils.message_on_path(
               f'{value!r} is not a subclass of {self.type!r}', path))
 
   def _is_compatible(self, other: 'Type') -> bool:
     """Type specific compatiblity check."""
+    # NOTE(daiyip): When either the current spec or the other spec contains
+    # unresolved forward declarations, we consider them compatible.
+    if not self.type_resolved or not other.type_resolved:
+      return True
     return issubclass(other.type, self.type)
 
   def _extend(self, base: 'Type') -> None:
     """Type specific extension."""
-    if not issubclass(self.type, base.type):
+    if not base.is_compatible(self):
       raise TypeError(f'{self!r} cannot extend {base!r}: incompatible type.')
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
-    return typing.Type[self._expected_type]
+    expected_type = self._expected_type
+    if self._forward_ref is not None:
+      expected_type = self._forward_ref.as_annotation()
+    return typing.Type[expected_type]  # pytype: disable=invalid-annotation
 
-  def __eq__(self, other: 'Type') -> bool:
+  def _eq(self, other: 'Type') -> bool:
     """Equals."""
-    return super().__eq__(other) and self.type == other.type
+    if self.type_resolved:
+      return self.type == other.type
+    return self.forward_refs == other.forward_refs
 
   def format(self, **kwargs):
     """Format this object."""
     details = object_utils.kvlist_str([
-        ('', self.type, None),
+        ('', self._expected_type, None),
         ('default', self._default, MISSING_VALUE),
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
@@ -1875,9 +1948,11 @@ class Union(ValueSpecBase):
       if c.is_noneable:
         has_noneable_candidate = True
 
-      # pytype: disable=attribute-error
-      spec_type = (c.__class__, c._value_type)  # pylint: disable=protected-access
-      # pytype: enable=attribute-error
+      # NOTE(daiyip): When forward declaration is present (e.g.
+      # `pg.typing.Object('A')`), calling `value_type` will trigger the
+      # resolution of the referred type. Therefore, we refer to `_value_type`
+      # instead of `value_type` to access the class name string in such cases.
+      spec_type = (c.__class__, getattr(c, '_value_type'))
       if spec_type not in candidates_by_type:
         candidates_by_type[spec_type] = []
       candidates_by_type[spec_type].append(c)
@@ -1890,13 +1965,47 @@ class Union(ValueSpecBase):
         raise ValueError(
             f'Found {len(cs)} value specs of the same type {spec_type}.')
 
+    candidate_types = set()
+    no_value_type_check = False
+    for c in candidates:
+      child_value_type = getattr(c, '_value_type')
+      if child_value_type is None:
+        no_value_type_check = True
+      elif isinstance(child_value_type, tuple):
+        candidate_types.update(child_value_type)
+      else:
+        candidate_types.add(child_value_type)
+
     self._candidates = candidates
-    candidate_types = {c.value_type for c in candidates}
-    union_value_type = (None
-                        if None in candidate_types else tuple(candidate_types))
+    union_value_type = None if no_value_type_check else tuple(candidate_types)
     super().__init__(union_value_type, default)
+
     if has_noneable_candidate:
       super().noneable()
+
+  @functools.cached_property
+  def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
+    """Returns forward references used in this spec."""
+    forward_refs = set()
+    for c in self._candidates:
+      forward_refs.update(c.forward_refs)
+    return forward_refs
+
+  @functools.cached_property
+  def value_type(
+      self) -> typing.Optional[typing.Tuple[typing.Type[typing.Any]]]:
+    # NOTE(daiyip): Override `value_type` property to delay the type resolution
+    # when forward declaration is invovled.
+    if self._value_type is None or not self.forward_refs:
+      return self._value_type
+
+    value_types = set()
+    for c in self._candidates:
+      child_value_type = c.value_type
+      if not isinstance(child_value_type, tuple):
+        child_value_type = (child_value_type,)
+      value_types.update(child_value_type)
+    return tuple(value_types)
 
   def noneable(self) -> 'Union':
     """Customized noneable for Union."""
@@ -1948,7 +2057,8 @@ class Union(ValueSpecBase):
              root_path: object_utils.KeyPath) -> typing.Any:
     """Union specific apply."""
     for c in self._candidates:
-      if c.value_type is None or isinstance(value, c.value_type):
+      if (c.type_resolved
+          and (c.value_type is None or isinstance(value, c.value_type))):
         return c.apply(value, allow_partial, child_transform, root_path)
 
     # NOTE(daiyip): This code is to support consider A as B scenario when there
@@ -1957,15 +2067,20 @@ class Union(ValueSpecBase):
     # tf.Tensor should be able to accept tf.Variable.
     matched_candidate = None
     for c in self._candidates:
-      if type_conversion.get_first_applicable_converter(
+      if c.type_resolved and type_conversion.get_first_applicable_converter(
           type(value), c.value_type) is not None:
         matched_candidate = c
         break
 
-    # `_apply` is entered only when there is a type match or conversion path.
-    assert matched_candidate is not None
-    return matched_candidate.apply(
-        value, allow_partial, child_transform, root_path)
+    if self.type_resolved:
+      # `_apply` is entered only when there is a type match or conversion path.
+      assert matched_candidate is not None
+      return matched_candidate.apply(
+          value, allow_partial, child_transform, root_path)
+
+    # Return value directly if the forward declaration of the current union
+    # is unsolved.
+    return value
 
   def _extend(self, base: 'Union') -> None:
     """Union specific extension."""
@@ -2031,10 +2146,7 @@ class Union(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if not super().__eq__(other):
-      return False
+  def _eq(self, other: 'Union') -> bool:
     if len(self.candidates) != len(other.candidates):
       return False
     for sc in self.candidates:
@@ -2107,12 +2219,8 @@ class Any(ValueSpecBase):
     """Returns type annotation."""
     return self._annotation
 
-  def __eq__(self, other: typing.Any) -> bool:
-    """Operator==."""
-    if self is other:
-      return True
-    return (super().__eq__(other)
-            and self.annotation == other.annotation)
+  def _eq(self, other: 'Any') -> bool:
+    return self.annotation == other.annotation
 
 
 def _any_if_no_annotation(annotation: typing.Any):
@@ -2200,6 +2308,18 @@ def _from_annotation(
 
 def _get_optional_arg(values: typing.Sequence[Any]) -> Any:
   return [x for x in values if x is not type(None)][0]
+
+
+def _get_spec_callsite_module():
+  """Returns the module of the callsite where ValueSpec objects are created."""
+  calling_module = None
+  callstack = inspect.stack()
+  current_source_file = sys.modules[__name__].__file__
+  for frame, file, *_ in callstack[1:]:
+    if file != current_source_file:
+      calling_module = inspect.getmodule(frame)
+      break
+  return calling_module or __main__
 
 
 ValueSpec.from_annotation = _from_annotation
