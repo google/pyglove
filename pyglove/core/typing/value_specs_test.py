@@ -14,6 +14,7 @@
 """Tests for pyglove.core.typing.value_specs."""
 
 import contextlib
+import inspect
 import sys
 import typing
 import unittest
@@ -1519,12 +1520,6 @@ class DictTest(unittest.TestCase):
       vs.Dict([(1, 1, 'field 1')])
 
     with self.assertRaisesRegex(
-        TypeError,
-        'Only types \\(bool, int, float, str, list, dict\\) are supported.',
-    ):
-      vs.Dict([('key', lambda x: x, 'field 1')])
-
-    with self.assertRaisesRegex(
         TypeError, 'Description \\(the 3rd element\\) of field definition '
         'should be text type.'):
       vs.Dict([('key', 1, 1)])
@@ -2923,59 +2918,166 @@ class AnyTest(unittest.TestCase):
       vs.Any().freeze()
 
 
-class ValueSpecTest(unittest.TestCase):
+class FromAnnotationTest(unittest.TestCase):
   """Tests for ValueSpec.fromAnnotation."""
 
-  def test_from_annotation(self):
-    self.assertEqual(ValueSpec.from_annotation(1, True), vs.Int(1))
-    self.assertEqual(ValueSpec.from_annotation(1.0, True), vs.Float(1.0))
-    self.assertEqual(ValueSpec.from_annotation(False, True), vs.Bool(False))
-    self.assertEqual(ValueSpec.from_annotation('abc', True), vs.Str('abc'))
+  def assert_from_annotation_with_default_value(self, annotation, expected):
     self.assertEqual(
-        ValueSpec.from_annotation([], True), vs.List(vs.Any()).set_default([])
-    )
+        ValueSpec.from_annotation(annotation, accept_value_as_annotation=True),
+        expected)
+
+  def test_from_values(self):
+    self.assert_from_annotation_with_default_value(1, vs.Int(1))
+    self.assert_from_annotation_with_default_value(1.0, vs.Float(1.0))
+    self.assert_from_annotation_with_default_value(False, vs.Bool(False))
+    self.assert_from_annotation_with_default_value('abc', vs.Str('abc'))
+    self.assert_from_annotation_with_default_value(
+        [], vs.List(vs.Any(), default=[]))
+    self.assert_from_annotation_with_default_value(
+        [1, 2], vs.List(vs.Int(), default=[1, 2]))
+    self.assert_from_annotation_with_default_value(
+        {}, vs.Dict().set_default({}))
+    self.assert_from_annotation_with_default_value(
+        (1, 1.0, 'b'),
+        vs.Tuple([vs.Int(), vs.Float(), vs.Str()]).set_default((1, 1.0, 'b')))
+
+    class A:
+      pass
+
+    a = A()
+    self.assert_from_annotation_with_default_value(
+        a,
+        vs.Object(A, default=a))
+
+    f = lambda: 0
+    self.assert_from_annotation_with_default_value(
+        f,
+        vs.Callable(default=f))
+
+    with self.assertRaisesRegex(TypeError, 'Cannot convert .*'):
+      _ = ValueSpec.from_annotation(1, auto_typing=True)
+
+  def test_no_annotation(self):
     self.assertEqual(
-        ValueSpec.from_annotation([1, 2], True),
-        vs.List(vs.Int()).set_default([1, 2]),
-    )
+        ValueSpec.from_annotation(inspect.Parameter.empty, False), vs.Any())
     self.assertEqual(
-        ValueSpec.from_annotation({}, True), vs.Dict().set_default({})
-    )
+        ValueSpec.from_annotation(inspect.Parameter.empty, True), vs.Any())
+
+  def test_none(self):
     self.assertEqual(
-        ValueSpec.from_annotation((1, 1.0, 'b'), True),
-        vs.Tuple([vs.Int(), vs.Float(), vs.Str()]).set_default((1, 1.0, 'b')),
-    )
-    self.assertEqual(ValueSpec.from_annotation(None, True), vs.Any().noneable())
+        ValueSpec.from_annotation(None, False), vs.Any().freeze(None))
+    self.assertEqual(
+        ValueSpec.from_annotation(None, True), vs.Any().freeze(None))
+    self.assertEqual(
+        ValueSpec.from_annotation(
+            None, accept_value_as_annotation=True), vs.Any().noneable())
+
+  def test_any(self):
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Any, False),
+        vs.Any(annotation=typing.Any))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Any, True),
+        vs.Any(annotation=typing.Any))
+
+  def test_bool(self):
+    self.assertEqual(ValueSpec.from_annotation(bool, True), vs.Bool())
+    self.assertEqual(
+        ValueSpec.from_annotation(bool, False), vs.Any(annotation=bool))
+    self.assertEqual(
+        ValueSpec.from_annotation(bool, False, True), vs.Any(annotation=bool))
+
+  def test_int(self):
     self.assertEqual(ValueSpec.from_annotation(int, True), vs.Int())
+    self.assertEqual(ValueSpec.from_annotation(int, True, True), vs.Int())
+    self.assertEqual(
+        ValueSpec.from_annotation(int, False), vs.Any(annotation=int))
+    self.assertEqual(
+        ValueSpec.from_annotation(int, False, True), vs.Any(annotation=int))
+
+  def test_float(self):
     self.assertEqual(ValueSpec.from_annotation(float, True), vs.Float())
+    self.assertEqual(ValueSpec.from_annotation(float, True, False), vs.Float())
+    self.assertEqual(
+        ValueSpec.from_annotation(float, False), vs.Any(annotation=float))
+    self.assertEqual(
+        ValueSpec.from_annotation(float, False, True), vs.Any(annotation=float))
+
+  def test_str(self):
     self.assertEqual(ValueSpec.from_annotation(str, True), vs.Str())
+    self.assertEqual(ValueSpec.from_annotation(str, True, False), vs.Str())
+    self.assertEqual(
+        ValueSpec.from_annotation(str, False), vs.Any(annotation=str))
+    self.assertEqual(
+        ValueSpec.from_annotation(str, False, True), vs.Any(annotation=str))
+
+    self.assertEqual(
+        ValueSpec.from_annotation('A', False, False), vs.Any(annotation='A'))
+    self.assertEqual(
+        ValueSpec.from_annotation('A', False, True), vs.Str('A'))
+    self.assertEqual(
+        ValueSpec.from_annotation('A', True), vs.Object('A'))
+    self.assertEqual(
+        ValueSpec.from_annotation('A', True, True), vs.Str('A'))
+
+  def test_list(self):
     self.assertEqual(ValueSpec.from_annotation(list, True), vs.List(vs.Any()))
     self.assertEqual(
-        ValueSpec.from_annotation(typing.List, True), vs.List(vs.Any())
-    )
+        ValueSpec.from_annotation(typing.List, True), vs.List(vs.Any()))
     self.assertEqual(
-        ValueSpec.from_annotation(list[int], True), vs.List(vs.Int())
-    )
-    self.assertEqual(ValueSpec.from_annotation(dict, True), vs.Dict())
-    self.assertEqual(ValueSpec.from_annotation(typing.Dict, True), vs.Dict())
+        ValueSpec.from_annotation(list[int], True), vs.List(vs.Int()))
+
+  def test_tuple(self):
     self.assertEqual(ValueSpec.from_annotation(tuple, True), vs.Tuple(vs.Any()))
     self.assertEqual(
-        ValueSpec.from_annotation(typing.Tuple, True), vs.Tuple(vs.Any())
-    )
+        ValueSpec.from_annotation(typing.Tuple, True), vs.Tuple(vs.Any()))
     self.assertEqual(
-        ValueSpec.from_annotation(tuple[int], True), vs.Tuple([vs.Int()])
-    )
+        ValueSpec.from_annotation(tuple[int], True), vs.Tuple([vs.Int()]))
+
+  def test_sequence(self):
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Sequence[int], True),
+        vs.Union([vs.List(vs.Int()), vs.Tuple(vs.Int())]))
+
+  def test_dict(self):
+    self.assertEqual(ValueSpec.from_annotation(dict, True), vs.Dict())
+    self.assertEqual(ValueSpec.from_annotation(typing.Dict, True), vs.Dict())
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Dict[str, int], True), vs.Dict())
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Mapping[str, int], True), vs.Dict())
+
+  def test_class(self):
+    class Foo:
+      pass
+
+    self.assertEqual(
+        ValueSpec.from_annotation(Foo, True), vs.Object(Foo))
+    self.assertEqual(
+        ValueSpec.from_annotation('Foo', True), vs.Object('Foo'))
+    self.assertEqual(
+        ValueSpec.from_annotation(Foo, False), vs.Any(annotation=Foo))
+
+  def test_optional(self):
     self.assertEqual(
         ValueSpec.from_annotation(typing.Optional[int], True),
-        vs.Int().noneable(),
-    )
+        vs.Int().noneable())
+    if vs._UnionType:
+      self.assertEqual(
+          ValueSpec.from_annotation(int | None, True),
+          vs.Int().noneable())
+
+  def test_union(self):
     self.assertEqual(
         ValueSpec.from_annotation(typing.Union[int, str], True),
-        vs.Union([vs.Int(), vs.Str()]),
-    )
+        vs.Union([vs.Int(), vs.Str()]))
     self.assertEqual(
-        ValueSpec.from_annotation(int, False), vs.Any(annotation=int)
-    )
+        ValueSpec.from_annotation(typing.Union[int, str, None], True),
+        vs.Union([vs.Int(), vs.Str()]).noneable())
+    if vs._UnionType:
+      self.assertEqual(
+          ValueSpec.from_annotation(int | str, True),
+          vs.Union([vs.Int(), vs.Str()]))
 
 
 @contextlib.contextmanager

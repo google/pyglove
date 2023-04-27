@@ -69,6 +69,10 @@ class _SubclassedWrapperBase(ClassWrapper):
   # class and __init__ docstrings.
   auto_doc = False
 
+  # If True, PyGlove typing will be enabled based on type annotations from
+  # the `__init__` method.
+  auto_typing = False
+
   def __init__(self, *args, **kwargs):
     """Overridden __init__ to construct symbolic wrapper only."""
     # NOTE(daiyip): We avoid `__init__` to be called multiple times.
@@ -120,7 +124,7 @@ class _SubclassedWrapperBase(ClassWrapper):
       # calling the symbolic initialization.
       setattr(cls, '__orig_init__', cls.__init__)
       description, init_arg_list, arg_fields = _extract_init_signature(
-          cls, auto_doc=cls.auto_doc)
+          cls, auto_doc=cls.auto_doc, auto_typing=cls.auto_typing)
       @functools.wraps(cls.__init__)
       def _sym_init(self, *args, **kwargs):
         _SubclassedWrapperBase.__init__(self, *args, **kwargs)
@@ -212,6 +216,7 @@ def _subclassed_wrapper(
     use_symbolic_repr: bool,
     use_symbolic_comp: bool,
     use_auto_doc: bool,
+    use_auto_typing: bool,
     reset_state_fn: Optional[Callable[[Any], None]],
     class_name: Optional[Text] = None,
     module_name: Optional[Text] = None):
@@ -240,6 +245,10 @@ def _subclassed_wrapper(
     # class and __init__ docstrings.
     auto_doc = use_auto_doc
 
+    # If True, PyGlove typing will be enabled based on type annotations from
+    # the `__init__` method.
+    auto_typing = use_auto_typing
+
     # NOTE(daiyip): For class wrappers, all symbolic properties are exposed from
     # `self.sym_init_args`. Therefore we do not allow symbolic members to be
     # accessed or changed via attributes using `self.<member_name>`.
@@ -266,7 +275,7 @@ def _subclassed_wrapper(
   cls.__doc__ = user_cls.__doc__
 
   # Enable automatic registration for subclass.
-  cls._auto_register = True  # pylint: disable=protected-access
+  cls.auto_register = True
 
   if reset_state_fn:
     setattr(cls, '_on_reset', reset_state_fn)
@@ -293,6 +302,7 @@ def wrap(
     class_name: Optional[str] = None,
     module_name: Optional[str] = None,
     auto_doc: bool = False,
+    auto_typing: bool = False,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
     override: Optional[Dict[str, Any]] = None
@@ -363,6 +373,8 @@ def wrap(
       If None, the wrapper class will use the module name of the wrapped class.
     auto_doc: If True, the descriptions for init argument fields will be
       extracted from docstring if present.
+    auto_typing: If True, PyGlove typing (runtime-typing) will be enabled based
+      on type annotations inspected from the `__init__` method.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
       This is introduced for scenarios when we want to relocate a class, before
@@ -391,13 +403,14 @@ def wrap(
         reset_state_fn=reset_state_fn,
         class_name=class_name,
         module_name=module_name,
-        use_auto_doc=auto_doc)
+        use_auto_doc=auto_doc,
+        use_auto_typing=auto_typing)
 
   if issubclass(cls, ClassWrapper):
     # Update init argument specifications according to user specified specs.
     # Replace schema instead of extending it.
     description, init_arg_list, arg_fields = _extract_init_signature(
-        cls, init_args, auto_doc=auto_doc)
+        cls, init_args, auto_doc=auto_doc, auto_typing=auto_typing)
     schema_utils.update_schema(
         cls,
         arg_fields,
@@ -513,7 +526,8 @@ def apply_wrappers(
 def _extract_init_signature(
     cls,
     arg_specs=None,
-    auto_doc: bool = False):
+    auto_doc: bool = False,
+    auto_typing: bool = False):
   """Extract argument fields from class __init__ method."""
   init_method = getattr(cls, '__orig_init__', cls.__init__)
 
@@ -538,7 +552,7 @@ def _extract_init_signature(
     init_arg_list = []
     arg_fields = []
   else:
-    signature = pg_typing.get_signature(init_method)
+    signature = pg_typing.get_signature(init_method, auto_typing=auto_typing)
     if not signature.args or signature.args[0].name != 'self':
       raise ValueError(
           f'{cls.__name__}.__init__ must have `self` as the first argument.')

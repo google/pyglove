@@ -513,8 +513,10 @@ class ValueSpec(object_utils.Formattable):
 
   @classmethod
   def from_annotation(
-      cls, annotation: Any, runtime_type_check=False
-  ) -> 'ValueSpec':
+      cls,
+      annotation: Any,
+      auto_typing=False,
+      accept_value_as_annotation=False) -> 'ValueSpec':
     """Gets a concrete ValueSpec from annotation."""
     assert False, 'Overridden in `value_specs.py`.'
 
@@ -1276,7 +1278,8 @@ def create_schema(
       raise TypeError(
           f'The 1st element of field definition should be of '
           f'<class \'str\'> or KeySpec. Encountered: {maybe_key_spec}.')
-    value = ValueSpec.from_annotation(maybe_value_spec, True)
+    value = ValueSpec.from_annotation(
+        maybe_value_spec, True, accept_value_as_annotation=True)
     if (description is not None and
         not isinstance(description, str)):
       raise TypeError(f'Description (the 3rd element) of field definition '

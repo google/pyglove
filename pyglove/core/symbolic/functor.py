@@ -435,7 +435,10 @@ def functor(
         typing.cast(Callable[..., Any], args),
         add_to_registry=True, **kwargs)
   return lambda fn: functor_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
-      fn, args, returns, base_class, add_to_registry=True, **kwargs)
+      fn, args, returns,
+      base_class=base_class,
+      add_to_registry=True,
+      **kwargs)
 
 
 def functor_class(
@@ -448,6 +451,7 @@ def functor_class(
     base_class: Optional[Type['Functor']] = None,
     *,
     auto_doc: bool = False,
+    auto_typing: bool = False,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
     add_to_registry: bool = False,
@@ -498,6 +502,9 @@ def functor_class(
     auto_doc: If True, the descriptions of argument fields will be inherited
       from funciton docstr if they are not explicitly specified through
       ``args``.
+    auto_typing: If True, the value spec for constraining each argument
+      will be inferred from its annotation. Otherwise the value specs for all
+      arguments will be ``pg.typing.Any()``.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
       This is introduced for scenarios when we want to relocate a class, before
@@ -528,7 +535,7 @@ def functor_class(
       args_docstr = docstr.args
       description = schema_utils.schema_description_from_docstr(docstr)
 
-  signature = pg_typing.get_signature(func)
+  signature = pg_typing.get_signature(func, auto_typing=auto_typing)
   arg_fields = pg_typing.get_arg_fields(signature, args, args_docstr)
   if returns is not None and pg_typing.MISSING_VALUE != returns.default:
     raise ValueError('return value spec should not have default value.')

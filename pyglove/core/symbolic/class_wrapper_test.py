@@ -76,7 +76,7 @@ class WrapTest(unittest.TestCase):
         a.rebind({'p': 5, 'q': 6, 'r': 7}).kw,
         {'p': 5, 'q': 6, 'r': 7})
 
-  def test_wrap_with_automatic_typing(self):
+  def test_wrap_with_no_typing(self):
 
     class A:
 
@@ -110,6 +110,24 @@ class WrapTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, '.*__init__ must have `self` as the first argument'):
       _ = pg_wrap(B)
+
+  def test_wrap_with_auto_typing(self):
+
+    class A:
+
+      def __init__(self, x: int, y: int = 1, **kwargs):
+        """Class A.
+
+        Args:
+          x: The first integer.
+          y: The second integer.
+          **kwargs: Other arguments.
+        """
+        self.z = x + y + sum(kwargs.values())
+
+    A1 = pg_wrap(A, auto_typing=True)  # pylint: disable=invalid-name
+    self.assertEqual(A1.schema.get_field('x').value, pg_typing.Int())
+    self.assertEqual(A1.schema.get_field('y').value, pg_typing.Int(default=1))
 
   def test_wrap_with_user_typing(self):
 
@@ -163,7 +181,7 @@ class WrapTest(unittest.TestCase):
 
       def __init__(self, x, y):
         """Init method.
-        
+
         Args:
           x: Argument x.
           y: Argument y.
@@ -183,7 +201,7 @@ class WrapTest(unittest.TestCase):
     @dataclasses.dataclass
     class A:
       """A test class.
-      
+
       Attributes:
         x: Argument x.
         y: Argument y.

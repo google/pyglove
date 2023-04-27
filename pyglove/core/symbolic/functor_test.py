@@ -87,7 +87,7 @@ class FunctorTest(unittest.TestCase):
     # Serialization.
     self.assertEqual(pg_from_json_str(x.to_json_str()), x)
 
-  def test_automatic_typing(self):
+  def test_no_typing(self):
     @pg_functor()
     def f(a, b, *args, c=0, **kwargs):
       return a + b + c + sum(args) + sum(kwargs.values())
@@ -158,6 +158,39 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(f.partial(a=2, override_args=True)(a=3), 5)
     self.assertEqual(f.partial(a=1, b=1, override_args=True)(a=2, b=2), 4)
     self.assertEqual(f.partial(2, 4, override_args=True)(1), 5)
+
+  def test_auto_typing(self):
+    @pg_functor(auto_typing=True)
+    def f(a: int, *args, b: int = 2, **kwargs) -> int:
+      del args, kwargs
+      return a + b
+
+    self.assertEqual(
+        list(f.schema.values()), [
+            pg_typing.Field('a', pg_typing.Int()),
+            pg_typing.Field(
+                'args', 
+                pg_typing.List(pg_typing.Any(), default=[])),
+            pg_typing.Field('b', pg_typing.Int(default=2)),
+            pg_typing.Field(pg_typing.StrKey(), pg_typing.Any()),
+        ])
+    self.assertEqual(
+        f.signature.args,
+        [pg_typing.Argument('a', pg_typing.Int())])
+    self.assertEqual(
+        f.signature.varargs,
+        pg_typing.Argument('args', pg_typing.List(pg_typing.Any(), default=[])))
+    self.assertEqual(
+        f.signature.kwonlyargs,
+        [pg_typing.Argument('b', pg_typing.Int(default=2))])
+    self.assertEqual(
+        f.signature.varkw,
+        pg_typing.Argument('kwargs', pg_typing.Any()))
+    self.assertEqual(f.signature.return_value, pg_typing.Int())
+
+    # Test runtime value check.
+    with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*'):
+      f(a='abc')
 
   def test_auto_doc(self):
     @pg_functor([

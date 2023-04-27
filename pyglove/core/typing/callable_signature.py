@@ -33,9 +33,12 @@ class Argument:
   def from_annotation(
       cls,
       name: str,
-      annotation: Any = inspect.Parameter.empty):
+      annotation: Any = inspect.Parameter.empty,
+      auto_typing: bool = False):
     """Creates an argument from annotation."""
-    return Argument(name, class_schema.ValueSpec.from_annotation(annotation))
+    return Argument(
+        name, class_schema.ValueSpec.from_annotation(
+            annotation, auto_typing=auto_typing))
 
 
 class CallableType(enum.Enum):
@@ -165,7 +168,10 @@ class Signature(object_utils.Formattable):
     return f'{self.__class__.__name__}({details})'
 
   @classmethod
-  def from_callable(cls, callable_object: Callable) -> 'Signature':  # pylint: disable=g-bare-generic
+  def from_callable(
+      cls,
+      callable_object: Callable[..., Any],
+      auto_typing: bool = False) -> 'Signature':
     """Creates Signature from a callable object."""
     callable_object = typing.cast(object, callable_object)
     if not callable(callable_object):
@@ -182,7 +188,8 @@ class Signature(object_utils.Formattable):
       func = callable_object.__call__
 
     def make_arg_spec(param: inspect.Parameter) -> Argument:
-      value_spec = class_schema.ValueSpec.from_annotation(param.annotation)
+      value_spec = class_schema.ValueSpec.from_annotation(
+          param.annotation, auto_typing=auto_typing)
       if param.default != inspect.Parameter.empty:
         value_spec.set_default(param.default)
       return Argument(param.name, value_spec)
@@ -209,7 +216,7 @@ class Signature(object_utils.Formattable):
     return_value = None
     if sig.return_annotation is not inspect.Parameter.empty:
       return_value = class_schema.ValueSpec.from_annotation(
-          sig.return_annotation)
+          sig.return_annotation, auto_typing=auto_typing)
 
     if inspect.ismethod(func):
       callable_type = CallableType.METHOD
@@ -286,6 +293,6 @@ class Signature(object_utils.Formattable):
     return fn
 
 
-def get_signature(func: Callable) -> Signature:  # pylint:disable=g-bare-generic
+def get_signature(func: Callable, auto_typing: bool = False) -> Signature:  # pylint:disable=g-bare-generic
   """Gets signature from a python callable."""
-  return Signature.from_callable(func)
+  return Signature.from_callable(func, auto_typing)
