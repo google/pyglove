@@ -183,7 +183,7 @@ def search(nats_api,
 def get_algorithm(algorithm_str):
   """Creates algorithm."""
   if algorithm_str == 'random':
-    return pg.generators.Random()
+    return pg.geno.Random()
   elif algorithm_str == 'evolution':
     return pg.evolution.regularized_evolution(
         mutator=pg.evolution.mutators.Uniform(),

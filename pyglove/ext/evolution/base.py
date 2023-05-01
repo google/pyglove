@@ -650,7 +650,7 @@ class Evolution(pg.DNAGenerator):
           op=(pg.evolution.selectors.Random(10)
               >> pg.evolution.selectors.Top(1)
               >> pg.evolution.mutators.Uniform()),
-          population_init=(pg.generators.Random(), 50),
+          population_init=(pg.geno.Random(), 50),
           population_update=pg.evolution.selectors.Last(50))
   """
 

@@ -182,7 +182,7 @@ def node_selector(x, hints):
 def create_search_algorithm(flag_value):
   """Create search algorithm from flag."""
   if flag_value == 'random':
-    return pg.generators.Random()
+    return pg.geno.Random()
   elif flag_value == 'evolution':
     return pg.evolution.regularized_evolution(
         mutator=(

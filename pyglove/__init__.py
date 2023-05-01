@@ -29,7 +29,6 @@ as enum, six, yaml.
 
 from pyglove.core import *
 from pyglove.ext import *
-from pyglove import generators
 
 # Placeholder for Google-internal imports.
 

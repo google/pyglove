@@ -116,7 +116,7 @@ def tune(max_trials, num_epochs):
   # controller. `feedback_fn` also has a property `dna` to access the DNA value
   # of current example.
   for model, feedback in pg.sample(
-      nas_model(), pg.generators.Random(), max_trials):
+      nas_model(), pg.geno.Random(), max_trials):
     print('{}: DNA: {}'.format(feedback.id, feedback.dna))
     test_acc = train_and_eval(model, input_data, num_epochs)
     results.append((feedback.id, feedback.dna, test_acc))

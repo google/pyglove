@@ -46,7 +46,7 @@ def sample(space: Union[HyperValue,
 
     for example, feedback in pg.sample(
         pg.Dict(x=pg.floatv(-1, 1))),
-        pg.generators.Random(),
+        pg.geno.Random(),
         num_examples=10,
         name='my_search'):
 
@@ -97,7 +97,7 @@ def sample(space: Union[HyperValue,
 
     for example, feedback in pg.sample(
         pg.hyper.trace(fun),
-        pg.generators.Random(),
+        pg.geno.Random(),
         num_examples=10,
         name='my_search'):
       # When space is a `pg.hyper.DynamicEvaluationContext` object,
@@ -113,7 +113,7 @@ def sample(space: Union[HyperValue,
 
     for dna, feedback in pg.sample(
         pg.List([pg.oneof(range(3))] * 5).dna_spec(),
-        pg.generators.Random(),
+        pg.geno.Random(),
         num_examples=10,
         name='my_search'):
       reward = evaluate_dna(dna)
@@ -184,7 +184,7 @@ def sample(space: Union[HyperValue,
       that is traced via dynamic evaluation.
       A `pg.DNASpec` represents an abstract search space that emits DNAs.
     algorithm: The search algorithm that samples the search space. For example:
-      `pg.generators.Random()`, `pg.evolution.regularized_evolution(...)`, and
+      `pg.geno.Random()`, `pg.evolution.regularized_evolution(...)`, and
       etc.
     num_examples: An optional integer as the max number of examples to
       sample. If None, sample will return an iterator of infinite examples.

@@ -119,7 +119,7 @@ def tune(max_trials, num_epochs):
   # for current trial. As a result, each call to the user function yields
   # different hyper-parameters implicitly bound with current trial.
   for example, feedback in pg.sample(
-      pg.hyper.trace(create_model), pg.generators.Random(), max_trials):
+      pg.hyper.trace(create_model), pg.geno.Random(), max_trials):
     print('{}: DNA: {}'.format(feedback.id, feedback.dna))
     with example():
       test_acc = train_and_eval(input_data, num_epochs)
