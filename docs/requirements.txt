@@ -7,3 +7,7 @@ jinja2
 sphinx_autodoc_typehints
 sphinx-copybutton
 myst_nb
+
+# Required packages for PyGlove.
+
+docstring-parser>=0.12
