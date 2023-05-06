@@ -6,6 +6,7 @@ Welcome to PyGlove
 .. toctree::
   :maxdepth: 2
 
+  guide/index
   learn/index
 
 .. toctree::
