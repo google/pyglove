@@ -26,7 +26,7 @@ Pax
 
 Pax is a powerful machine learning framework developed by Google, based on Jax, that is designed for training large-scale models.
 It utilizes PyGlove to enable its hyperparameter tuning and AutoML capabilities. Pax serves as a good example of how PyGlove can
-seamlessly integrate into a large scale ML pipelines based on dynamic evaluation:
+be seamlessly integrated into a large scale ML codebase based on dynamic evaluation:
 
 * `Inspecting the search space <https://github.com/google/paxml/blob/ad16d2b52e6460ed66d2f00d64ace6338b0f2b57/paxml/tuning_lib.py#L56>`_
 * `Implementing the tuning loop <https://github.com/google/paxml/blob/ad16d2b52e6460ed66d2f00d64ace6338b0f2b57/paxml/tuning_lib.py#L222>`_
@@ -36,7 +36,7 @@ Vizier
 
 `Vizier <https://storage.googleapis.com/pub-tools-public-publication-data/pdf/bcb15507f4b52991a0783013df4222240e942381.pdf>`_
 is the distributed tuning solution at Alphabet. PyGlove uses it as a backend for serving distributed AutoML scenarios at Google.
-The `open-source Vizier <https://github.com/google/vizier>` has shown how PyGlove can be
+The `open-source Vizier <https://github.com/google/vizier>`_ has shown how PyGlove can be
 `used together with Vizier <https://oss-vizier.readthedocs.io/en/latest/advanced_topics/pyglove/vizier_as_backend.html>`_,
 it also serve as an example on how PyGlove backend could be developed. 
 

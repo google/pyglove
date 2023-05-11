@@ -14,18 +14,17 @@ Learning PyGlove
 ..   feedback loops to be distributed so that intelligent programs can run at scale. This layer
 ..   also provide the interfaces for the user to plug in their own infrastructures into PyGlove.
 
-PyGlove is a library for manipulating Python programs and is divided into three sub-systems: 
-the bottom layer for symbolic object-oriented programming, the middle layer for
-building symbolic intelligence, and the top layer for distributed symbolic computing.
+PyGlove is a Python library for manipulating Python programs. It is built on the
+concept of symbolic object-oriented programming (SOOP), which forms its core foundation. 
+On top of that, PyGlove includes multiple layers of components that enhance its capabilities and
+enable the development of intelligent systems.
+
 
 .. toctree::
    :maxdepth: 1
 
    SOOP <soop/index>
-..  intelligence/index
-..  distributed/index
+   evolution/index
 
-|
-
-.. image:: how_pyglove_works.svg
+.. .. image:: how_pyglove_works.svg
 

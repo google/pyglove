@@ -321,14 +321,14 @@ can only be used for symbolic manipulation and not for evaluation::
 
 .. important::
 
-Abstract symbolic objects are an essential aspect of symbolic object-oriented
-programming. They enable the programmer to incorporate high-level descriptions
-into a program and substitute them with concrete values later on. This allows
-for the creation of domain-specific languages (such as :func:`pg.oneof <pyglove.hyper.oneof>`) with ease.
-This makes the programming language more extensible and higher-level by separating
-the expression of ideas (the whats) from the implementation of ideas (the hows).
+   Abstract symbolic objects are an essential aspect of symbolic object-oriented
+   programming. They enable the programmer to incorporate high-level descriptions
+   into a program and substitute them with concrete values later on. This allows
+   for the creation of domain-specific languages (such as :func:`pg.oneof <pyglove.hyper.oneof>`) with ease.
+   This makes the programming language more extensible and higher-level by separating
+   the expression of ideas (the whats) from the implementation of ideas (the hows).
 
-See :doc:`placeholding` for more details about pure symbolic, partial and abstract objects.
+   See :doc:`placeholding` for more details about pure symbolic, partial and abstract objects.
 
 
 
