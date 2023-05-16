@@ -198,7 +198,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       # when they appear with annotations.
       if attr_name.isupper() or attr_name.startswith('_'):
         continue
-      field = pg_typing.create_field((attr_name, attr_annotation))
+      field = pg_typing.create_field(
+          (attr_name, attr_annotation), accept_value_as_annotation=False)
       attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
       if attr_value != pg_typing.MISSING_VALUE:
         field.value.set_default(attr_value)

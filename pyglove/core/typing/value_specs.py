@@ -19,6 +19,7 @@ import inspect
 import numbers
 import re
 import sys
+import types
 import typing
 import __main__
 
@@ -2232,7 +2233,7 @@ def _any_if_no_annotation(annotation: typing.Any):
 _NoneType = type(None)
 
 # UnionType is supported after 3.10.
-_UnionType = getattr(typing, 'UnionType', None)  # pylint: disable=invalid-name
+_UnionType = getattr(types, 'UnionType', None)  # pylint: disable=invalid-name
 
 
 def _from_default_value(
