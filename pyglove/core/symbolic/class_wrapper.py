@@ -269,6 +269,10 @@ def _subclassed_wrapper(
     # `user_cls` will be used.
     use_symbolic_comparison = use_symbolic_comp
 
+    # Do not infer symbolic fields from annotations. This is because that
+    # symbolic fields are inspected from the `__init__`` signature.
+    infer_symbolic_fields_from_annotations = False
+
   cls = SubclassedWrapper
   cls.__name__ = class_name or user_cls.__name__
   cls.__module__ = module_name or user_cls.__module__

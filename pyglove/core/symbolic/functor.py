@@ -68,6 +68,10 @@ class Functor(pg_object.Object, object_utils.Functor):
   # Allow assignment on symbolic attributes.
   allow_symbolic_assignment = True
 
+  # Do not infer symbolic fields from annotations, since functors are
+  # created from function definition which does not have class-level attributes.
+  infer_symbolic_fields_from_annotations = False
+
   # Signature of this function.
   signature: pg_typing.Signature
 

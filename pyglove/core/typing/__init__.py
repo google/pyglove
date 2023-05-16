@@ -303,6 +303,7 @@ from pyglove.core.typing.class_schema import KeySpec
 from pyglove.core.typing.class_schema import ValueSpec
 from pyglove.core.typing.class_schema import Field
 from pyglove.core.typing.class_schema import Schema
+from pyglove.core.typing.class_schema import create_field
 from pyglove.core.typing.class_schema import create_schema
 from pyglove.core.typing.class_schema import ForwardRef
 

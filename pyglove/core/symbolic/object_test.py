@@ -215,6 +215,93 @@ class ObjectTest(unittest.TestCase):
         ValueError, '.* should call `super.*__init__`'):
       _ = B(1)
 
+  def test_infer_symbolic_fields_from_annotations(self):
+
+    class A(Object):
+      x: int
+      y: float = 0.0
+      z = 2
+      # P is upper-case, thus will not be treated as symbolic field.
+      P: int = 1
+      # _q starts with _, which will not be treated as symbolic field either.
+      _q: int = 2
+
+    self.assertEqual(
+        list(A.schema.fields.keys()),
+        ['x', 'y'])
+
+    a = A(1)
+    self.assertEqual(a.x, 1)
+    self.assertEqual(a.y, 0.0)
+
+    a = A(2, y=1.0)
+    self.assertEqual(a.x, 2)
+    self.assertEqual(a.y, 1.0)
+
+    class B(A):
+      p: str = 'foo'
+      q: typing.Any = None
+
+    self.assertEqual(
+        list(B.schema.fields.keys()),
+        ['x', 'y', 'p', 'q'],
+    )
+    b = B(1, q=2)
+    self.assertEqual(b.x, 1)
+    self.assertEqual(b.y, 0.0)
+    self.assertEqual(b.p, 'foo')
+    self.assertEqual(b.q, 2)
+
+    @pg_members([
+        ('k', pg_typing.Int())
+    ])
+    class C(B):
+      # Override the default value of 'y'.
+      y: float = 1.0
+
+    c = C(1, q=2, k=3)
+    self.assertEqual(c.x, 1)
+    self.assertEqual(c.y, 1.0)
+    self.assertEqual(c.q, 2)
+    self.assertEqual(c.k, 3)
+
+    @pg_members([
+        ('e', pg_typing.Int())
+    ])
+    class D(C):
+      f: int = 5
+
+    d = D(1, q=2, k=3, e=4)
+    self.assertEqual(d.x, 1)
+    self.assertEqual(d.y, 1.0)
+    self.assertEqual(d.q, 2)
+    self.assertEqual(d.k, 3)
+    self.assertEqual(d.e, 4)
+    self.assertEqual(d.f, 5)
+
+  def test_override_symbolic_attribute_with_property(self):
+
+    @pg_members([
+        ('x', pg_typing.Int()),
+        ('y', pg_typing.Int()),
+        ('z', pg_typing.Int()),
+    ])
+    class A(Object):
+
+      @property
+      def x(self):
+        return self.sym_init_args.x + 1
+
+      def z(self):
+        return self.sym_init_args.z + 2
+
+    a = A(1, 2, 3)
+    self.assertEqual(a.x, 2)
+    self.assertEqual(a.sym_init_args.x, 1)
+    self.assertEqual(a.y, 2)
+    self.assertEqual(a.z(), 5)
+    self.assertEqual(a.sym_init_args.z, 3)
+
   def test_runtime_type_check(self):
 
     @pg_members([

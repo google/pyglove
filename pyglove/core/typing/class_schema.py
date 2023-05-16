@@ -1208,6 +1208,74 @@ class Schema(object_utils.Formattable):
     return not self.__eq__(other)
 
 
+def create_field(
+    maybe_field: Union[Field, Tuple],   # pylint: disable=g-bare-generic
+    auto_typing: bool = True,
+    accept_value_as_annotation: bool = True
+) -> Field:
+  """Creates ``Field`` from its equivalence.
+
+  Args:
+    maybe_field: a ``Field`` object or its equivalence, which is a tuple of
+      2 - 4 elements:
+      `(<key>, <value>, [description], [metadata])`.
+      `key` can be a KeySpec subclass object or string. `value` can be a
+      ValueSpec subclass object or equivalent value. (see
+      ``ValueSpec.from_value`` method). `description` is the description of this
+      field. It can be optional when this field overrides the default value of a
+      field defined in parent schema. `metadata` is an optional field which is a
+      dict of user objects.
+    auto_typing: If True, infer value spec from Python annotations. Otherwise,
+      ``pg.typing.Any()`` will be used.
+    accept_value_as_annotation: If True, allow default values to be used as
+      annotations when creating the value spec.
+
+  Returns:
+    A ``Field`` object.
+  """
+  if isinstance(maybe_field, Field):
+    return maybe_field
+
+  if not isinstance(maybe_field, tuple):
+    raise TypeError(
+        f'Field definition should be tuples with 2 to 4 elements. '
+        f'Encountered: {maybe_field}.')
+
+  if len(maybe_field) == 4:
+    maybe_key_spec, maybe_value_spec, description, field_metadata = maybe_field
+  elif len(maybe_field) == 3:
+    maybe_key_spec, maybe_value_spec, description = maybe_field
+    field_metadata = {}
+  elif len(maybe_field) == 2:
+    maybe_key_spec, maybe_value_spec = maybe_field
+    description = None
+    field_metadata = {}
+  else:
+    raise TypeError(
+        f'Field definition should be tuples with 2 to 4 elements. '
+        f'Encountered: {maybe_field}.')
+  key = None
+  if isinstance(maybe_key_spec, (str, KeySpec)):
+    key = maybe_key_spec
+  else:
+    raise TypeError(
+        f'The 1st element of field definition should be of '
+        f'<class \'str\'> or KeySpec. Encountered: {maybe_key_spec}.')
+  value = ValueSpec.from_annotation(
+      maybe_value_spec,
+      auto_typing=auto_typing,
+      accept_value_as_annotation=accept_value_as_annotation)
+  if (description is not None and
+      not isinstance(description, str)):
+    raise TypeError(f'Description (the 3rd element) of field definition '
+                    f'should be text type. Encountered: {description}')
+  if not isinstance(field_metadata, dict):
+    raise TypeError(f'Metadata (the 4th element) of field definition '
+                    f'should be a dict of objects. '
+                    f'Encountered: {field_metadata}')
+  return Field(key, value, description, field_metadata)
+
+
 def create_schema(
     maybe_field_list: List[Union[Field, Tuple]],  # pylint: disable=g-bare-generic
     name: Optional[str] = None,
@@ -1247,50 +1315,8 @@ def create_schema(
     raise TypeError(f'Metadata of schema should be a dict. '
                     f'Encountered: {metadata}.')
 
-  fields = []
-  for maybe_field in maybe_field_list:
-    if isinstance(maybe_field, Field):
-      fields.append(maybe_field)
-      continue
-    if not isinstance(maybe_field, tuple):
-      raise TypeError(
-          f'Field definition should be tuples with 2 to 4 elements. '
-          f'Encountered: {maybe_field}.')
-
-    if len(maybe_field) == 4:
-      (maybe_key_spec, maybe_value_spec, description,
-       field_metadata) = maybe_field
-    elif len(maybe_field) == 3:
-      maybe_key_spec, maybe_value_spec, description = maybe_field
-      field_metadata = {}
-    elif len(maybe_field) == 2:
-      maybe_key_spec, maybe_value_spec = maybe_field
-      description = None
-      field_metadata = {}
-    else:
-      raise TypeError(
-          f'Field definition should be tuples with 2 to 4 elements. '
-          f'Encountered: {maybe_field}.')
-    key = None
-    if isinstance(maybe_key_spec, (str, KeySpec)):
-      key = maybe_key_spec
-    else:
-      raise TypeError(
-          f'The 1st element of field definition should be of '
-          f'<class \'str\'> or KeySpec. Encountered: {maybe_key_spec}.')
-    value = ValueSpec.from_annotation(
-        maybe_value_spec, True, accept_value_as_annotation=True)
-    if (description is not None and
-        not isinstance(description, str)):
-      raise TypeError(f'Description (the 3rd element) of field definition '
-                      f'should be text type. Encountered: {description}')
-    if not isinstance(field_metadata, dict):
-      raise TypeError(f'Metadata (the 4th element) of field definition '
-                      f'should be a dict of objects. '
-                      f'Encountered: {field_metadata}')
-    fields.append(Field(key, value, description, field_metadata))
   return Schema(
-      fields=fields,
+      fields=[create_field(maybe_field) for maybe_field in maybe_field_list],
       name=name,
       base_schema_list=base_schema_list,
       allow_nonconst_keys=allow_nonconst_keys,

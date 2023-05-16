@@ -15,7 +15,7 @@
 
 import abc
 import functools
-
+import inspect
 import typing
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
@@ -137,6 +137,21 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   # `sym_ne` for `__ne__`, and `sym_hash` for `__hash__`.
   use_symbolic_comparison = True
 
+  # If True, symbolic fields will be inferred from class annotations.
+  # It's an alternative way of declaring symbolic fields other than
+  # `pg.members`.
+  #
+  # e.g.::
+  #
+  #     class A(pg.Object):
+  #        x: int
+  #        y: str
+  #
+  # Please note that class attributes in UPPER_CASE or starting with '_' will
+  # not be considered as symbolic fields even if they have annotations.
+
+  infer_symbolic_fields_from_annotations = True
+
   @classmethod
   def __init_subclass__(cls):
     super().__init_subclass__()
@@ -153,7 +168,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
     cls_schema = schema_utils.formalize_schema(
         pg_typing.create_schema(
-            maybe_field_list=[],
+            maybe_field_list=cls._infer_fields_from_annotations(),
             name=cls.type_name,
             base_schema_list=base_schema_list,
             allow_nonconst_keys=True,
@@ -164,6 +179,31 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     cls_schema.metadata['init_arg_list'] = schema_utils.auto_init_arg_list(cls)
     cls._update_init_signature_based_on_schema()
     cls._generate_sym_attributes_if_enabled()
+
+  @classmethod
+  def _infer_fields_from_annotations(cls) -> List[pg_typing.Field]:
+    """Infers symbolic fields from class annotations."""
+    if not cls.infer_symbolic_fields_from_annotations:
+      return []
+
+    # NOTE(daiyip): refer to https://docs.python.org/3/howto/annotations.html.
+    if hasattr(inspect, 'get_annotations'):
+      annotations = inspect.get_annotations(cls)
+    else:
+      annotations = cls.__dict__.get('__annotations__', {})
+
+    fields = []
+    for attr_name, attr_annotation in annotations.items():
+      # We consider class-level attributes in upper cases non-fields even
+      # when they appear with annotations.
+      if attr_name.isupper() or attr_name.startswith('_'):
+        continue
+      field = pg_typing.create_field((attr_name, attr_annotation))
+      attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+      if attr_value != pg_typing.MISSING_VALUE:
+        field.value.set_default(attr_value)
+      fields.append(field)
+    return fields
 
   @classmethod
   def _update_init_signature_based_on_schema(cls):
@@ -206,7 +246,10 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       for key, field in cls.schema.fields.items():
         if isinstance(key, pg_typing.ConstStrKey):
           attr_name = str(key)
-          if not hasattr(cls, attr_name):
+          attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+          if (attr_value == pg_typing.MISSING_VALUE
+              or (not inspect.isfunction(attr_value)
+                  and not isinstance(attr_value, property))):
             setattr(cls, attr_name, _create_sym_attribute(attr_name, field))
 
   @classmethod
