@@ -195,15 +195,24 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
     fields = []
     for attr_name, attr_annotation in annotations.items():
-      # We consider class-level attributes in upper cases non-fields even
-      # when they appear with annotations.
-      if attr_name.isupper() or attr_name.startswith('_'):
+      if attr_name == '__kwargs__':
+        # __kwargs__ is speical annotation for enabling keyword arguments.
+        key = pg_typing.StrKey()
+      elif not attr_name.isupper() and not attr_name.startswith('_'):
+        key = pg_typing.ConstStrKey(attr_name)
+      else:
+        # We consider class-level attributes in upper cases non-fields even
+        # when they appear with annotations.
+        key = None
+
+      if key is None:
         continue
-      field = pg_typing.create_field(
-          (attr_name, attr_annotation), accept_value_as_annotation=False)
-      attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
-      if attr_value != pg_typing.MISSING_VALUE:
-        field.value.set_default(attr_value)
+
+      field = pg_typing.Field.from_annotation(key, attr_annotation)
+      if isinstance(key, pg_typing.ConstStrKey):
+        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        if attr_value != pg_typing.MISSING_VALUE:
+          field.value.set_default(attr_value)
       fields.append(field)
     return fields
 

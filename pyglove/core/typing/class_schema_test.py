@@ -19,6 +19,7 @@ import sys
 from typing import Optional, Union, List
 import unittest
 
+from pyglove.core.typing import annotation_conversion  # pylint: disable=unused-import
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import custom_typing
 from pyglove.core.typing import key_specs as ks

@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Concrete value specifications for field definition."""
-import collections
 import copy
 import functools
 import inspect
 import numbers
 import re
 import sys
-import types
 import typing
 import __main__
 
@@ -2230,136 +2228,21 @@ def _any_if_no_annotation(annotation: typing.Any):
   return typing.Any if annotation == MISSING_VALUE else annotation
 
 
-_NoneType = type(None)
-
-# UnionType is supported after 3.10.
-_UnionType = getattr(types, 'UnionType', None)  # pylint: disable=invalid-name
-
-
-def _from_default_value(
-    value: typing.Any,
-    set_default: bool = True) -> typing.Optional[ValueSpec]:
-  """Creates a value spec from a default value."""
-  if isinstance(value, (bool, int, float, str, dict)):
-    value_spec = _from_type_annotation(type(value), False)
-  elif isinstance(value, list):
-    value_spec = List(_from_default_value(value[0], False) if value else Any())
-  elif isinstance(value, tuple):
-    value_spec = Tuple([_from_default_value(elem, False) for elem in value])
-  elif inspect.isfunction(value) or isinstance(value, object_utils.Functor):
-    value_spec = Callable()
-  elif not isinstance(value, type):
-    value_spec = Object(type(value))
-  else:
-    value_spec = None
-
-  if value_spec and set_default:
-    value_spec.set_default(value)
-  return value_spec
-
-
-def _from_type_annotation(
-    annotation: typing.Any, accept_value_as_annotation: bool) -> ValueSpec:
-  """Creates a value spec from type annotation."""
-  if annotation is bool:
-    return Bool()
-  elif annotation is int:
-    return Int()
-  elif annotation is float:
-    return Float()
-  elif annotation is str:
-    return Str()
-  elif annotation is typing.Any:
-    return Any().annotate(annotation)
-
-  origin = typing.get_origin(annotation) or annotation
-  args = list(typing.get_args(annotation))
-
-  # Handling list.
-  if origin in (list, typing.List):
-    return List(_from_annotation(args[0], True)) if args else List(Any())
-  # Handling tuple.
-  elif origin in (tuple, typing.Tuple):
-    if args:
-      return Tuple([_from_annotation(arg, True) for arg in args])
-    else:
-      return Tuple(Any())
-  # Handle sequence.
-  elif origin in (collections.abc.Sequence,):
-    elem = _from_annotation(args[0], True) if args else Any()
-    return Union([List(elem), Tuple(elem)])
-  # Handling dict.
-  elif origin in (dict, typing.Dict, collections.abc.Mapping):
-    # TODO(daiyip): Handle dict schema according to the dict args.
-    return Dict()
-  # Handling union.
-  elif origin is typing.Union or (_UnionType and origin is _UnionType):
-    optional = _NoneType in args
-    if optional:
-      args.remove(_NoneType)
-    if len(args) == 1:
-      spec = _from_annotation(args[0], True)
-    else:
-      spec = Union([_from_annotation(x, True) for x in set(args)])
-    if optional:
-      spec = spec.noneable()
-    return spec
-  # Handling class.
-  elif (inspect.isclass(annotation)
-        or (isinstance(annotation, str) and not accept_value_as_annotation)):
-    return Object(annotation)
-
-  if accept_value_as_annotation:
-    spec = _from_default_value(annotation)
-    if spec is not None:
-      return spec
-  raise TypeError(
-      f'Cannot convert {annotation!r} to `pg.typing.ValueSpec` '
-      f'with auto typing.')
-
-
-def _any_spec_with_annotation(annotation: typing.Any) -> Any:
-  """Creates an ``Any`` value spec with annotation."""
-  value_spec = Any()
-  if annotation != inspect.Parameter.empty:
-    value_spec.annotate(annotation)
-  return value_spec
-
-
-def _from_annotation(annotation: typing.Any,
-                     auto_typing=False,
-                     accept_value_as_annotation=False) -> ValueSpec:
-  """Creates a value spec from annotation."""
-  if isinstance(annotation, ValueSpec):
-    return annotation
-  elif annotation == inspect.Parameter.empty:
-    return Any()
-  elif annotation is None:
-    if accept_value_as_annotation:
-      return Any().noneable()
-    else:
-      return Any().freeze(None)
-
-  if auto_typing:
-    return _from_type_annotation(annotation, accept_value_as_annotation)
-  else:
-    value_spec = None
-    if accept_value_as_annotation:
-      # Accept default values is applicable only when auto typing is off.
-      value_spec = _from_default_value(annotation)
-    return value_spec or _any_spec_with_annotation(annotation)
+# We need to figure out the source file when a ForwardRef is created.
+# This is where a `ValueSpec` is created. It could be from direct construction
+# of the value spec object or calling from_annotation.
+_VALUE_SPEC_CREATION_ROOT_SITES = [
+    'pyglove/core/typing/value_specs.py',
+    'pyglove/core/typing/annotation_conversion.py',
+]
 
 
 def _get_spec_callsite_module():
   """Returns the module of the callsite where ValueSpec objects are created."""
   calling_module = None
   callstack = inspect.stack()
-  current_source_file = sys.modules[__name__].__file__
   for frame, file, *_ in callstack[1:]:
-    if file != current_source_file:
+    if all(not file.endswith(site) for site in _VALUE_SPEC_CREATION_ROOT_SITES):
       calling_module = inspect.getmodule(frame)
       break
   return calling_module or __main__
-
-
-ValueSpec.from_annotation = _from_annotation

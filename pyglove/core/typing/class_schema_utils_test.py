@@ -16,6 +16,7 @@
 import unittest
 
 from pyglove.core import object_utils
+from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import class_schema_utils

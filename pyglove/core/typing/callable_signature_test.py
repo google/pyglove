@@ -17,6 +17,7 @@ import copy
 import inspect
 import unittest
 
+from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import value_specs as vs
 

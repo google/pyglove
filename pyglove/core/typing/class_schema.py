@@ -518,7 +518,7 @@ class ValueSpec(object_utils.Formattable):
       auto_typing=False,
       accept_value_as_annotation=False) -> 'ValueSpec':
     """Gets a concrete ValueSpec from annotation."""
-    assert False, 'Overridden in `value_specs.py`.'
+    assert False, 'Overridden in `annotation_conversion.py`.'
 
 
 class Field(object_utils.Formattable):
@@ -582,6 +582,17 @@ class Field(object_utils.Formattable):
     if metadata and not isinstance(metadata, dict):
       raise ValueError('metadata must be a dict.')
     self._metadata = metadata or {}
+
+  @classmethod
+  def from_annotation(
+      cls,
+      key: Union[str, KeySpec],
+      annotation: Any,
+      description: Optional[str] = None,
+      metadata: Optional[Dict[str, Any]] = None,
+      auto_typing=True) -> 'Field':
+    """Gets a Field from annotation."""
+    assert False, 'Overridden in `annotation_conversion.py`.'
 
   @property
   def description(self) -> Optional[str]:

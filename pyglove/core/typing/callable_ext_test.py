@@ -14,9 +14,8 @@
 """Tests for pyglove.core.typing.callable_ext."""
 
 import unittest
+from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_ext
-# Importing `value_specs` to make `ValueSpec.from_annotation` to work.
-from pyglove.core.typing import value_specs   # pylint: disable=unused-import
 
 
 class CallWithOptionalKeywordArgsTest(unittest.TestCase):

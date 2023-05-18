@@ -343,6 +343,9 @@ from pyglove.core.typing.type_conversion import get_converter
 from pyglove.core.typing.type_conversion import get_first_applicable_converter
 from pyglove.core.typing.type_conversion import get_json_value_converter
 
+# Annotation conversion.
+import pyglove.core.typing.annotation_conversion
+
 # Interface for custom typing.
 from pyglove.core.typing.custom_typing import CustomTyping
 

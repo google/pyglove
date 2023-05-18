@@ -215,11 +215,11 @@ class ObjectTest(unittest.TestCase):
         ValueError, '.* should call `super.*__init__`'):
       _ = B(1)
 
-  def test_infer_symbolic_fields_from_annotations(self):
+  def test_symbolic_fields_from_annotations(self):
 
     class A(Object):
       x: int
-      y: float = 0.0
+      y: typing.Annotated[float, 'field y'] = 0.0
       z = 2
       # P is upper-case, thus will not be treated as symbolic field.
       P: int = 1
@@ -233,6 +233,7 @@ class ObjectTest(unittest.TestCase):
     a = A(1)
     self.assertEqual(a.x, 1)
     self.assertEqual(a.y, 0.0)
+    self.assertEqual(A.schema.get_field('y').description, 'field y')
 
     a = A(2, y=1.0)
     self.assertEqual(a.x, 2)
@@ -278,6 +279,15 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(d.k, 3)
     self.assertEqual(d.e, 4)
     self.assertEqual(d.f, 5)
+
+    class E(Object):
+      __kwargs__: typing.Any
+      x: int
+
+    self.assertIsNotNone(E.schema.dynamic_field)
+    e = E(1, y=3)
+    self.assertEqual(e.x, 1)
+    self.assertEqual(e.y, 3)
 
   def test_update_of_default_values(self):
 
