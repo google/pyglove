@@ -177,8 +177,9 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     setattr(cls, '__sym_fields', pg_typing.Dict(cls_schema))
     setattr(cls, '__serialization_key__', cls.type_name)
     cls_schema.metadata['init_arg_list'] = schema_utils.auto_init_arg_list(cls)
-    cls._update_init_signature_based_on_schema()
-    cls._generate_sym_attributes_if_enabled()
+
+    # Trigger schema update event.
+    cls._on_schema_update()
 
   @classmethod
   def _infer_fields_from_annotations(cls) -> List[pg_typing.Field]:
@@ -205,6 +206,20 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         field.value.set_default(attr_value)
       fields.append(field)
     return fields
+
+  @classmethod
+  def _on_schema_update(cls):
+    """Triggers when the schema for the class has been updated."""
+    # Update the default value for each field after schema is updated. This is
+    # because that users may change a field's default value via class attribute.
+    cls._update_default_values_from_class_attributes()
+
+    # Update the signature of __init__.
+    cls._update_init_signature_based_on_schema()
+
+    # Expose symbolic attributes as object attributes when being asked.
+    if cls.allow_symbolic_attribute:
+      cls._generate_sym_attributes()
 
   @classmethod
   def _update_init_signature_based_on_schema(cls):
@@ -234,7 +249,18 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     setattr(cls, '__init__', _init)
 
   @classmethod
-  def _generate_sym_attributes_if_enabled(cls):
+  def _update_default_values_from_class_attributes(cls):
+    for field in cls.schema.fields.values():
+      if isinstance(field.key, pg_typing.ConstStrKey):
+        attr_name = field.key.text
+        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        if (attr_value != pg_typing.MISSING_VALUE
+            and not isinstance(attr_value, property)
+            and not inspect.isfunction(attr_value)):
+          field.value.set_default(attr_value)
+
+  @classmethod
+  def _generate_sym_attributes(cls):
     """Generates symbolic attributes based on schema if they are enabled."""
     def _create_sym_attribute(attr_name, field):
       return property(object_utils.make_function(
@@ -243,15 +269,14 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
           [f'return self._sym_attributes[\'{attr_name}\']'],
           return_type=field.value.annotation))
 
-    if cls.allow_symbolic_attribute:
-      for key, field in cls.schema.fields.items():
-        if isinstance(key, pg_typing.ConstStrKey):
-          attr_name = str(key)
-          attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
-          if (attr_value == pg_typing.MISSING_VALUE
-              or (not inspect.isfunction(attr_value)
-                  and not isinstance(attr_value, property))):
-            setattr(cls, attr_name, _create_sym_attribute(attr_name, field))
+    for key, field in cls.schema.fields.items():
+      if isinstance(key, pg_typing.ConstStrKey):
+        attr_name = str(key)
+        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        if (attr_value == pg_typing.MISSING_VALUE
+            or (not inspect.isfunction(attr_value)
+                and not isinstance(attr_value, property))):
+          setattr(cls, attr_name, _create_sym_attribute(attr_name, field))
 
   @classmethod
   def partial(cls, *args, **kwargs) -> 'Object':

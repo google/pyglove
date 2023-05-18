@@ -115,12 +115,11 @@ def update_schema(
   if description is not None:
     cls_schema.set_description(description)
 
+  cls._on_schema_update()  # pylint: disable=protected-access
+
   if add_to_registry:
     register_serialization_keys(
         cls, serialization_key, additional_keys)
-
-  cls._update_init_signature_based_on_schema()  # pylint: disable=protected-access
-  cls._generate_sym_attributes_if_enabled()  # pylint: disable=protected-access
 
 
 def validate_init_arg_list(

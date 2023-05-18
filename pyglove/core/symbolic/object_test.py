@@ -279,6 +279,31 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(d.e, 4)
     self.assertEqual(d.f, 5)
 
+  def test_update_of_default_values(self):
+
+    class A(Object):
+      x: int
+
+    class B(A):
+      x = 1
+    self.assertEqual(B().x, 1)
+
+    class C(B):
+      x = 2
+    self.assertEqual(C().x, 2)
+
+    @pg_members([
+        ('x', pg_typing.Int(default=3))
+    ])
+    class D(C):
+      pass
+    self.assertEqual(D().x, 3)
+
+    class F(D):
+      def x(self):
+        pass
+    self.assertEqual(F().sym_init_args.x, 3)
+
   def test_override_symbolic_attribute_with_property(self):
 
     @pg_members([
