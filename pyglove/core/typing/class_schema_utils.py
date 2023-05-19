@@ -99,6 +99,7 @@ def get_arg_fields(
             f'found for argument {arg[0]!r}.')
       if signature.varargs and signature.varargs.name == arg[0]:
         varargs_spec = arg
+
       elif arg[0] not in func_arg_names:
         if signature.has_varkw:
           extra_arg_names.append(arg[0])
@@ -169,71 +170,6 @@ def get_arg_fields(
         f'**{signature.varkw.name}', class_schema.Field(*kwarg_spec))
     arg_fields.append(varkw_field)
   return arg_fields
-
-
-def get_init_signature(
-    schema: class_schema.Schema,
-    module_name: str,
-    name: str,
-    qualname: Optional[str] = None,
-    is_method: bool = True) -> callable_signature.Signature:
-  """Get __init__ signature from schema."""
-  arg_names = list(schema.metadata.get('init_arg_list', []))
-  if arg_names and arg_names[-1].startswith('*'):
-    vararg_name = arg_names[-1][1:]
-    arg_names.pop(-1)
-  else:
-    vararg_name = None
-
-  def get_arg_spec(arg_name):
-    field = schema.get_field(arg_name)
-    if not field:
-      raise ValueError(f'Argument {arg_name!r} is not a symbolic field.')
-    return field.value
-
-  args = []
-  if is_method:
-    args.append(callable_signature.Argument.from_annotation('self'))
-
-  # Prepare positional arguments.
-  args.extend([callable_signature.Argument(n, get_arg_spec(n))
-               for n in arg_names])
-
-  # Prepare varargs.
-  varargs = None
-  if vararg_name:
-    vararg_spec = get_arg_spec(vararg_name)
-    if not isinstance(vararg_spec, vs.List):
-      raise ValueError(
-          f'Variable positional argument {vararg_name!r} should have a value '
-          f'of `pg.typing.List` type. Encountered: {vararg_spec!r}.')
-    varargs = callable_signature.Argument(
-        vararg_name, vararg_spec.element.value)
-
-  # Prepare keyword-only arguments.
-  existing_names = set(arg_names)
-  if vararg_name:
-    existing_names.add(vararg_name)
-
-  kwonlyargs = []
-  varkw = None
-  for key, field in schema.fields.items():
-    if key not in existing_names:
-      if key.is_const:
-        kwonlyargs.append(callable_signature.Argument(str(key), field.value))
-      else:
-        varkw = callable_signature.Argument('kwargs', field.value)
-
-  return callable_signature.Signature(
-      callable_type=callable_signature.CallableType.FUNCTION,
-      name=name,
-      module_name=module_name,
-      qualname=qualname,
-      args=args,
-      kwonlyargs=kwonlyargs,
-      varargs=varargs,
-      varkw=varkw,
-      return_value=None)
 
 
 def ensure_value_spec(

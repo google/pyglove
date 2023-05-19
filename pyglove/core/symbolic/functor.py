@@ -17,6 +17,7 @@ import abc
 import functools
 import inspect
 
+import types
 import typing
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
@@ -28,7 +29,36 @@ from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic import schema_utils
 
 
-class Functor(pg_object.Object, object_utils.Functor):
+class FunctorMeta(pg_object.ObjectMeta):
+  """Functor meta class."""
+
+  def _on_schema_update(cls) -> None:   # pylint: disable=no-self-argument
+    super()._on_schema_update()
+    cls._update_init_signature()
+    cls._update_call_signature()
+
+  def _update_call_signature(cls) -> None:  # pylint: disable=no-self-argument
+    """Updates call signature."""
+    call_signature = pg_typing.Signature.from_schema(
+        cls.schema, name='__call__',
+        module_name=cls.__module__, qualname=cls.__qualname__,
+        is_method=False)
+    setattr(cls, 'signature', call_signature)
+
+  def _update_init_signature(cls) -> None:  # pylint: disable=no-self-argument
+    """Updates __init__ signature."""
+    init_signature = pg_typing.Signature.from_schema(
+        cls.schema, name='__init__',
+        module_name=cls.__module__, qualname=cls.__qualname__)
+
+    pseudo_init = init_signature.make_function(['pass'])
+    @functools.wraps(pseudo_init)
+    def _init(self, *args, **kwargs):
+      Functor.__init__(self, *args, **kwargs)
+    setattr(cls, '__init__', _init)
+
+
+class Functor(pg_object.Object, object_utils.Functor, metaclass=FunctorMeta):
   """Symbolic functions (Functors).
 
   A symbolic function is a symbolic class with a ``__call__`` method, whose
@@ -71,6 +101,11 @@ class Functor(pg_object.Object, object_utils.Functor):
   # Do not infer symbolic fields from annotations, since functors are
   # created from function definition which does not have class-level attributes.
   infer_symbolic_fields_from_annotations = False
+
+  # Functor's schema will be inferred from the function signature based on
+  # `pg.functor` or `pg.symbolize`. Therefore we do not infer the schema
+  # automatically during class creation.
+  auto_schema = False
 
   # Signature of this function.
   signature: pg_typing.Signature
@@ -301,8 +336,11 @@ class Functor(pg_object.Object, object_utils.Functor):
     if self.signature.has_varargs:
       varargs = list(args[len(self.signature.args):])
       if flags.is_type_check_enabled():
-        varargs = self.signature.varargs.value_spec.apply(
-            varargs, root_path=self.sym_path + self.signature.varargs.name)
+        varargs = [
+            self.signature.varargs.value_spec.apply(
+                v, root_path=self.sym_path + self.signature.varargs.name)
+            for v in varargs
+        ]
       args = args[:len(self.signature.args)]
 
     # Convert positional arguments to keyword arguments so we can map them back
@@ -446,13 +484,13 @@ def functor(
 
 
 def functor_class(
-    func: Callable,  # pylint: disable=g-bare-generic
+    func: types.FunctionType,
     args: Optional[List[Union[
         Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
         Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]]
     ] = None,   # pylint: disable=bad-continuation
     returns: Optional[pg_typing.ValueSpec] = None,
-    base_class: Optional[Type['Functor']] = None,
+    base_class: Optional[Type[Functor]] = None,
     *,
     auto_doc: bool = False,
     auto_typing: bool = False,
@@ -490,15 +528,16 @@ def functor_class(
           @pg.functor([('c', pg.typing.Int(min_value=0), 'Arg c')])
           def foo(a, b, c=1, **kwargs):
             return a + b + c + sum(kwargs.values())
-            assert foo.schema.fields() == [
-                pg.typing.Field('a', pg.Any(), 'Argument a'.),
-                pg.typing.Field('b', pg.Any(), 'Argument b'.),
-                pg.typing.Field('c', pg.typing.Int(), 'Arg c.),
-                pg.typing.Filed(
-                    pg.typing.StrKey(), pg.Any(), 'Other arguments.')
-            ]
-            # Prebind a=1, b=2, with default value c=1.
-            assert foo(1, 2)() == 4
+          
+          assert foo.schema.fields() == [
+              pg.typing.Field('a', pg.Any(), 'Argument a'.),
+              pg.typing.Field('b', pg.Any(), 'Argument b'.),
+              pg.typing.Field('c', pg.typing.Int(), 'Arg c.),
+              pg.typing.Filed(
+                  pg.typing.StrKey(), pg.Any(), 'Other arguments.')
+          ]
+          # Prebind a=1, b=2, with default value c=1.
+          assert foo(1, 2)() == 4
 
     returns: Optional schema specification for the return value.
     base_class: Optional base class (derived from `symbolic.Functor`).
@@ -531,110 +570,31 @@ def functor_class(
     ValueError: default values of symbolic arguments are not compatible
       with  function signature.
   """
-  args_docstr = None
-  description = None
-  if auto_doc:
-    docstr = object_utils.docstr(func)
-    if docstr:
-      args_docstr = docstr.args
-      description = schema_utils.schema_description_from_docstr(docstr)
 
-  signature = pg_typing.get_signature(func, auto_typing=auto_typing)
-  arg_fields = pg_typing.get_arg_fields(signature, args, args_docstr)
-  if returns is not None and pg_typing.MISSING_VALUE != returns.default:
-    raise ValueError('return value spec should not have default value.')
-
-  base_class = base_class or Functor
-
-  class _Functor(base_class):
+  class _Functor(base_class or Functor):
     """Functor wrapper for input function."""
-
-    # Disable auto register so we can use function module and name
-    # for registration later.
-    auto_register = False
 
     def _call(self, *args, **kwargs):
       return func(*args, **kwargs)
 
-  cls = _Functor
-  cls.__name__ = signature.name
-  cls.__qualname__ = signature.qualname
-  cls.__module__ = signature.module_name
+  cls = typing.cast(Type[Functor], _Functor)
+  cls.__name__ = func.__name__
+  cls.__qualname__ = func.__qualname__
+  cls.__module__ = getattr(func, '__module__', 'wrapper')
   cls.__doc__ = func.__doc__
 
   # Enable automatic registration for subclass.
-  cls.auto_register = True  # pylint: disable=protected-access
+  cls.auto_register = True
 
-  # Generate init_arg_list from signature.
-  init_arg_list = [arg.name for arg in signature.args]
-  if signature.varargs:
-    init_arg_list.append(f'*{signature.varargs.name}')
-  schema_utils.update_schema(
-      cls,
-      arg_fields,
-      init_arg_list=init_arg_list,
-      description=description,
-      serialization_key=serialization_key,
-      additional_keys=additional_keys,
-      add_to_registry=add_to_registry)
+  # Apply function schema.
+  schema = schema_utils.function_schema(
+      func, args, returns, auto_doc=auto_doc, auto_typing=auto_typing)
+  cls.apply_schema(schema)
 
-  # Update signature with symbolic value specs.
-  def _value_spec_by_name(name: str):
-    field = cls.schema.get_field(name)  # pytype: disable=attribute-error  # re-none
-    assert field is not None
-    return field.value
-  varkw_field = cls.schema.dynamic_field  # pytype: disable=attribute-error  # re-none
-  assert signature.has_varkw == (varkw_field is not None), varkw_field
-  signature = pg_typing.Signature(
-      callable_type=signature.callable_type,
-      name=signature.name,
-      module_name=signature.module_name,
-      qualname=signature.qualname,
-      args=[
-          pg_typing.Argument(arg.name, _value_spec_by_name(arg.name))
-          for arg in signature.args
-      ],
-      kwonlyargs=[
-          pg_typing.Argument(arg.name, _value_spec_by_name(arg.name))
-          for arg in signature.kwonlyargs
-      ],
-      varargs=(
-          pg_typing.Argument(signature.varargs.name,
-                             _value_spec_by_name(signature.varargs.name))
-          if signature.varargs else None),
-      varkw=(pg_typing.Argument(signature.varkw.name, varkw_field.value)
-             if signature.varkw else None),
-      return_value=returns or signature.return_value)
-  setattr(cls, 'signature', signature)
-
-  # Update signature for the __init__ method.
-  varargs = None
-  if signature.varargs:
-    # For variable positional arguments, PyType uses the element type as
-    # anntoation. Therefore we need to use the element type to generate
-    # the right annotation.
-    varargs_spec = signature.varargs.value_spec
-    assert isinstance(varargs_spec, pg_typing.List), varargs_spec
-    varargs = pg_typing.Argument(signature.varargs.name, varargs_spec.element)
-
-  init_signature = pg_typing.Signature(
-      callable_type=pg_typing.CallableType.FUNCTION,
-      name='__init__',
-      module_name=signature.module_name,
-      qualname=f'{signature.name}.__init__',
-      args=[
-          pg_typing.Argument('self', pg_typing.Any())
-      ] + signature.args,
-      kwonlyargs=signature.kwonlyargs,
-      varargs=varargs,
-      varkw=signature.varkw)
-  pseudo_init = init_signature.make_function(['pass'])
-
-  @functools.wraps(pseudo_init)
-  def _init(self, *args, **kwargs):
-    Functor.__init__(self, *args, **kwargs)
-  setattr(cls, '__init__', _init)
-  return cls  # pytype: disable=bad-return-type  # re-none
+  # Register functor class for deserialization if needed.
+  if add_to_registry:
+    cls.register_for_deserialization(serialization_key, additional_keys)
+  return cls
 
 
 def as_functor(

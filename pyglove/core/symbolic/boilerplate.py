@@ -163,7 +163,5 @@ def boilerplate_class(
   if init_arg_list is not None:
     schema_utils.validate_init_arg_list(init_arg_list, cls.schema)
     cls.schema.metadata['init_arg_list'] = init_arg_list
-  setattr(cls, '__serialization_key__', serialization_key or cls.type_name)
-  schema_utils.register_serialization_keys(
-      cls, serialization_key, additional_keys)
+  cls.register_for_deserialization(serialization_key, additional_keys)
   return cls

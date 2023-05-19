@@ -168,6 +168,84 @@ class Signature(object_utils.Formattable):
     return f'{self.__class__.__name__}({details})'
 
   @classmethod
+  def from_schema(
+      cls,
+      schema: class_schema.Schema,
+      module_name: str,
+      name: str,
+      qualname: Optional[str] = None,
+      is_method: bool = True) -> 'Signature':
+    """Creates a signature from a schema object.
+
+    Args:
+      schema: A `pg.typing.Schema` object associated with a `pg.Object`.
+      module_name: Module name for the signature.
+      name: Function or method name of the signature.
+      qualname: Qualname of the signature.
+      is_method: If True, `self` will be added in the signature as the first
+        argument.
+
+    Returns:
+      A signature object from the schema.
+    """
+    arg_names = list(schema.metadata.get('init_arg_list', []))
+    if arg_names and arg_names[-1].startswith('*'):
+      vararg_name = arg_names[-1][1:]
+      arg_names.pop(-1)
+    else:
+      vararg_name = None
+
+    def get_arg_spec(arg_name):
+      field = schema.get_field(arg_name)
+      if not field:
+        raise ValueError(f'Argument {arg_name!r} is not a symbolic field.')
+      return field.value
+
+    args = []
+    if is_method:
+      args.append(Argument.from_annotation('self'))
+
+    # Prepare positional arguments.
+    args.extend([Argument(n, get_arg_spec(n)) for n in arg_names])
+
+    # Prepare varargs.
+    varargs = None
+    if vararg_name:
+      vararg_spec = get_arg_spec(vararg_name)
+      if not isinstance(vararg_spec, class_schema.ValueSpec.ListType):
+        raise ValueError(
+            f'Variable positional argument {vararg_name!r} should have a value '
+            f'of `pg.typing.List` type. Encountered: {vararg_spec!r}.')
+      varargs = Argument(vararg_name, vararg_spec.element.value)  # pytype: disable=attribute-error
+
+    # Prepare keyword-only arguments.
+    existing_names = set(arg_names)
+    if vararg_name:
+      existing_names.add(vararg_name)
+
+    kwonlyargs = []
+    varkw = None
+    for key, field in schema.fields.items():
+      if key not in existing_names:
+        if key.is_const:
+          kwonlyargs.append(Argument(str(key), field.value))
+        else:
+          varkw = Argument(
+              schema.metadata.get('varkw_name', None) or 'kwargs',
+              field.value)
+
+    return Signature(
+        callable_type=CallableType.FUNCTION,
+        name=name,
+        module_name=module_name,
+        qualname=qualname,
+        args=args,
+        kwonlyargs=kwonlyargs,
+        varargs=varargs,
+        varkw=varkw,
+        return_value=schema.metadata.get('returns', None))
+
+  @classmethod
   def from_callable(
       cls,
       callable_object: Callable[..., Any],

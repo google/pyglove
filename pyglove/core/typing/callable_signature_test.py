@@ -19,6 +19,8 @@ import unittest
 
 from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
+from pyglove.core.typing import class_schema
+from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 
 
@@ -219,6 +221,83 @@ class SignatureTest(unittest.TestCase):
       old_signature = inspect.signature(func)
       new_signature = inspect.signature(new_func)
       self.assertEqual(old_signature, new_signature)
+
+
+class FromSchemaTest(unittest.TestCase):
+  """Tests for `Signature.from_schema`."""
+
+  def _get_signature(self, init_arg_list, is_method: bool = True):
+    s = class_schema.Schema([
+        class_schema.Field('x', vs.Int(), 'x'),
+        class_schema.Field('y', vs.Int(), 'y'),
+        class_schema.Field('z', vs.List(vs.Int()), 'z'),
+        class_schema.Field(ks.StrKey(), vs.Str(), 'kwargs'),
+    ], metadata=dict(init_arg_list=init_arg_list), allow_nonconst_keys=True)
+    return callable_signature.Signature.from_schema(
+        s, 'bar', 'foo', is_method=is_method)
+
+  def test_classmethod_with_regular_args(self):
+    self.assertEqual(
+        self._get_signature(['x', 'y', 'z']),
+        callable_signature.Signature(
+            callable_type=callable_signature.CallableType.FUNCTION,
+            module_name='bar',
+            name='foo',
+            args=[
+                callable_signature.Argument('self', vs.Any()),
+                callable_signature.Argument('x', vs.Int()),
+                callable_signature.Argument('y', vs.Int()),
+                callable_signature.Argument('z', vs.List(vs.Int())),
+            ],
+            varkw=callable_signature.Argument('kwargs', vs.Str())))
+
+  def test_function_with_varargs(self):
+    self.assertEqual(
+        self._get_signature(['x', '*z'], is_method=False),
+        callable_signature.Signature(
+            callable_type=callable_signature.CallableType.FUNCTION,
+            module_name='bar',
+            name='foo',
+            args=[
+                callable_signature.Argument('x', vs.Int()),
+            ],
+            kwonlyargs=[
+                callable_signature.Argument('y', vs.Int()),
+            ],
+            varargs=callable_signature.Argument('z', vs.Int()),
+            varkw=callable_signature.Argument('kwargs', vs.Str())))
+
+  def test_classmethod_with_kwonly_args(self):
+    self.assertEqual(
+        self._get_signature([]),
+        callable_signature.Signature(
+            callable_type=callable_signature.CallableType.FUNCTION,
+            module_name='bar',
+            name='foo',
+            args=[
+                callable_signature.Argument('self', vs.Any()),
+            ],
+            kwonlyargs=[
+                callable_signature.Argument('x', vs.Int()),
+                callable_signature.Argument('y', vs.Int()),
+                callable_signature.Argument(
+                    'z', vs.List(vs.Int())),
+            ],
+            varkw=callable_signature.Argument('kwargs', vs.Str())))
+
+  def test_bad_cases(self):
+    with self.assertRaisesRegex(
+        ValueError,
+        'Variable positional argument \'x\' should have a value of '
+        '`pg.typing.List` type'):
+      _ = self._get_signature(['*x'])
+
+    with self.assertRaisesRegex(
+        ValueError,
+        'Argument \'a\' is not a symbolic field.'):
+      _ = callable_signature.Signature.from_schema(
+          class_schema.Schema([], metadata=dict(init_arg_list=['a'])),
+          '__main__', 'foo')
 
 
 if __name__ == '__main__':

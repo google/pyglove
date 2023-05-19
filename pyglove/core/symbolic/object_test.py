@@ -1670,6 +1670,62 @@ class InitSignatureTest(unittest.TestCase):
     self.assertEqual(signature.parameters['x'].annotation, int)
     self.assertEqual(signature.parameters['x'].default, 1)
 
+  def test_user_specified_init_arg_list_with_metadata(self):
+
+    @pg_members([
+        ('x', pg_typing.Int(default=1)),
+        ('y', pg_typing.Any()),
+        ('z', pg_typing.List(pg_typing.Int())),
+    ], metadata=dict(init_arg_list=['y', '*z']))
+    class B(Object):
+      pass
+
+    signature = inspect.signature(B.__init__)
+    self.assertEqual(
+        list(signature.parameters.keys()), ['self', 'y', 'z', 'x'])
+
+    self.assertEqual(
+        signature.parameters['self'].kind,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    self.assertEqual(
+        signature.parameters['self'].annotation,
+        inspect.Signature.empty)
+    self.assertEqual(
+        signature.parameters['self'].default,
+        inspect.Signature.empty)
+
+    self.assertEqual(
+        signature.parameters['y'].kind,
+        inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    self.assertEqual(
+        signature.parameters['y'].annotation, inspect.Signature.empty)
+    self.assertEqual(
+        signature.parameters['y'].default, inspect.Signature.empty)
+
+    self.assertEqual(
+        signature.parameters['z'].kind,
+        inspect.Parameter.VAR_POSITIONAL)
+    self.assertEqual(
+        signature.parameters['z'].annotation, int)
+    self.assertEqual(
+        signature.parameters['z'].default, inspect.Signature.empty)
+
+    self.assertEqual(
+        signature.parameters['x'].kind,
+        inspect.Parameter.KEYWORD_ONLY)
+    self.assertEqual(signature.parameters['x'].annotation, int)
+    self.assertEqual(signature.parameters['x'].default, 1)
+
+  def test_custom_init(self):
+
+    @pg_members([
+        ('x', pg_typing.Int(default=1)),
+        ('y', pg_typing.Any()),
+        ('z', pg_typing.List(pg_typing.Int())),
+    ], init_arg_list=['y', '*z'])
+    class B(Object):
+      pass
+
     class C(B):
       """Custom __init__."""
 
@@ -1680,7 +1736,16 @@ class InitSignatureTest(unittest.TestCase):
     self.assertEqual(
         list(signature.parameters.keys()), ['self', 'a', 'b'])
 
-    # Bad cases:
+  def test_bad_init_arg_list(self):
+
+    @pg_members([
+        ('x', pg_typing.Int(default=1)),
+        ('y', pg_typing.Any()),
+        ('z', pg_typing.List(pg_typing.Int())),
+    ], init_arg_list=['y', '*z'])
+    class B(Object):
+      pass
+
     with self.assertRaisesRegex(
         TypeError, 'Argument .* from `init_arg_list` is not defined.'):
 

@@ -273,6 +273,10 @@ def _subclassed_wrapper(
     # symbolic fields are inspected from the `__init__`` signature.
     infer_symbolic_fields_from_annotations = False
 
+    # ClassWrapper's schema will be based inspected based on __init__ instead
+    # of annotations.
+    auto_schema = False
+
   cls = SubclassedWrapper
   cls.__name__ = class_name or user_cls.__name__
   cls.__module__ = module_name or user_cls.__module__

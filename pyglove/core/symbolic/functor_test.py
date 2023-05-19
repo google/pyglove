@@ -107,7 +107,7 @@ class FunctorTest(unittest.TestCase):
     ])
     self.assertEqual(
         f.signature.varargs,
-        pg_typing.Argument('args', pg_typing.List(pg_typing.Any(), default=[])))
+        pg_typing.Argument('args', pg_typing.Any()))
     self.assertEqual(
         f.signature.varkw, pg_typing.Argument('kwargs', pg_typing.Any()))
     self.assertEqual(
@@ -179,7 +179,7 @@ class FunctorTest(unittest.TestCase):
         [pg_typing.Argument('a', pg_typing.Int())])
     self.assertEqual(
         f.signature.varargs,
-        pg_typing.Argument('args', pg_typing.List(pg_typing.Any(), default=[])))
+        pg_typing.Argument('args', pg_typing.Any()))
     self.assertEqual(
         f.signature.kwonlyargs,
         [pg_typing.Argument('b', pg_typing.Int(default=2))])
@@ -263,6 +263,7 @@ class FunctorTest(unittest.TestCase):
     def f(a, *args, b, **kwargs):
       return a + b + sum(args) + sum(kwargs.values())
 
+    print('SIGNATURE', f.signature)
     self.assertEqual(f(1, 2, b=3)(c=4), 10)
 
     # Validate during pre-binding.

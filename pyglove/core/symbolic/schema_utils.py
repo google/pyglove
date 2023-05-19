@@ -13,6 +13,7 @@
 # limitations under the License.
 """Utilities for handling schema for symbolic classes."""
 
+import types
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 
 from pyglove.core import object_utils
@@ -21,20 +22,83 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 
 
+def augment_schema(
+    schema: pg_typing.Schema,
+    fields: List[
+        Union[
+            pg_typing.Field,
+            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
+            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any],
+        ]
+    ],
+    extend: bool = True,
+    *,
+    init_arg_list: Optional[Sequence[str]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+    description: Optional[str] = None,
+) -> pg_typing.Schema:
+  """Gets the augmented schema from class with extra fields and metadata.
+
+  Args:
+    schema: The original schema.
+    fields: A list of `pg.typing.Field` or equivalent tuple representation as
+      (<key>, <value-spec>, [description], [metadata-objects]). `key` should be
+      a string. `value-spec` should be pg_typing.ValueSpec classes or
+      equivalent, e.g. primitive values which will be converted to ValueSpec
+      implementation according to its type and used as its default value.
+      `description` is optional only when field overrides a field from its
+      parent class. `metadata-objects` is an optional list of any type, which
+      can be used to generate code according to the schema.
+    extend: If True, extend existing schema using `fields`. Otherwise replace
+      existing schema with a new schema created from `fields`.
+    init_arg_list: An optional sequence of strings as the positional argument
+      list for `__init__`. This is helpful when symbolic attributes are
+      inherited from base classes or the user want to change its order. If not
+      provided, the `init_arg_list` will be automatically generated from
+      symbolic attributes defined from ``pg.members`` in their declaration
+      order, from the base classes to the subclass.
+    metadata: Optional dict of user objects as class-level metadata which will
+      be attached to class schema.
+    description: An optional description to set.
+
+  Returns:
+    The augmented schema (new copy).
+  """
+  metadata = metadata or {}
+  if init_arg_list is None:
+    init_arg_list = metadata.get('init_arg_list', None)
+  metadata = object_utils.merge([schema.metadata, metadata])
+  metadata['init_arg_list'] = init_arg_list
+  return formalize_schema(
+      pg_typing.create_schema(
+          maybe_field_list=fields,
+          name=schema.name,
+          base_schema_list=[schema] if extend else [],
+          description=description or schema.description,
+          allow_nonconst_keys=True,
+          metadata=metadata,
+      )
+  )
+
+
 def update_schema(
     cls,
-    fields: List[Union[
-        pg_typing.Field,
-        Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-        Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]],
-    metadata: Optional[Dict[str, Any]] = None,
-    init_arg_list: Optional[Sequence[str]] = None,
-    *,
+    fields: List[
+        Union[
+            pg_typing.Field,
+            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
+            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any],
+        ]
+    ],
     extend: bool = True,
+    *,
+    init_arg_list: Optional[Sequence[str]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
     description: Optional[str] = None,
     serialization_key: Optional[str] = None,
     additional_keys: Optional[List[str]] = None,
-    add_to_registry: bool = True) -> None:
+    add_to_registry: bool = True,
+) -> None:
   """Updates the schema for a ``pg.Object`` subclass.
 
   This function allows the user to update the symbolic fields associated
@@ -71,16 +135,16 @@ def update_schema(
       `description` is optional only when field overrides a field from its
       parent class. `metadata-objects` is an optional list of any type, which
       can be used to generate code according to the schema.
-    metadata: Optional dict of user objects as class-level metadata which will
-      be attached to class schema.
-    init_arg_list: An optional sequence of strings as the positional argument
-      list for `__init__`. This is helpful when symbolic attributes are
-      inherited from base classes or the user want to change its order.
-      If not provided, the `init_arg_list` will be automatically generated
-      from symbolic attributes defined from ``pg.members`` in their declaration
-      order, from the base classes to the subclass.
     extend: If True, extend existing schema using `fields`. Otherwise replace
       existing schema with a new schema created from `fields`.
+    init_arg_list: An optional sequence of strings as the positional argument
+      list for `__init__`. This is helpful when symbolic attributes are
+      inherited from base classes or the user want to change its order. If not
+      provided, the `init_arg_list` will be automatically generated from
+      symbolic attributes defined from ``pg.members`` in their declaration
+      order, from the base classes to the subclass.
+    metadata: Optional dict of user objects as class-level metadata which will
+      be attached to class schema.
     description: An optional description to set.
     serialization_key: An optional string to be used as the serialization key
       for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
@@ -88,38 +152,79 @@ def update_schema(
       the downstream can recognize the new location, we need the class to
       serialize it using previous key.
     additional_keys: An optional list of strings as additional keys to
-      deserialize an object of the registered class. This can be useful
-      when we need to relocate or rename the registered class while being able
-      to load existing serialized JSON values.
+      deserialize an object of the registered class. This can be useful when we
+      need to relocate or rename the registered class while being able to load
+      existing serialized JSON values.
     add_to_registry: If True, the newly created functor class will be added to
       the registry for deserialization.
   """
-  metadata = metadata or {}
-  cls_schema = formalize_schema(
-      pg_typing.create_schema(
-          maybe_field_list=fields,
-          name=cls.type_name,
-          base_schema_list=[cls.schema] if extend else [],
-          allow_nonconst_keys=True,
-          metadata=metadata))
-
-  setattr(cls, '__schema__', cls_schema)
-  setattr(cls, '__sym_fields', pg_typing.Dict(cls_schema))
-  setattr(cls, '__serialization_key__', serialization_key or cls.type_name)
-
-  if init_arg_list is None:
-    init_arg_list = metadata.pop('init_arg_list', auto_init_arg_list(cls))
-  validate_init_arg_list(init_arg_list, cls_schema)
-  cls_schema.metadata['init_arg_list'] = init_arg_list
-
-  if description is not None:
-    cls_schema.set_description(description)
-
-  cls._on_schema_update()  # pylint: disable=protected-access
+  cls.apply_schema(
+      augment_schema(
+          cls.schema,
+          fields=fields,
+          extend=extend,
+          init_arg_list=init_arg_list,
+          metadata=metadata,
+          description=description,
+      )
+  )
 
   if add_to_registry:
-    register_serialization_keys(
-        cls, serialization_key, additional_keys)
+    cls.register_for_deserialization(serialization_key, additional_keys)
+
+
+def function_schema(
+    func: types.FunctionType,
+    args: Optional[
+        List[
+            Union[
+                Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
+                Tuple[
+                    Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any
+                ],
+            ]
+        ]
+    ] = None,  # pylint: disable=bad-continuation
+    returns: Optional[pg_typing.ValueSpec] = None,
+    *,
+    auto_typing: bool = True,
+    auto_doc: bool = True,
+) -> pg_typing.Schema:
+  """Returns the schema from the signature of a function."""
+  args_docstr = None
+  description = None
+  if auto_doc:
+    docstr = object_utils.docstr(func)
+    if docstr:
+      args_docstr = docstr.args
+      description = schema_description_from_docstr(docstr)
+
+  signature = pg_typing.get_signature(func, auto_typing=auto_typing)
+  arg_fields = pg_typing.get_arg_fields(signature, args, args_docstr)
+
+  if returns is not None and pg_typing.MISSING_VALUE != returns.default:
+    raise ValueError('return value spec should not have default value.')
+  returns = returns or signature.return_value
+
+  # Generate init_arg_list from signature.
+  init_arg_list = [arg.name for arg in signature.args]
+  if signature.varargs:
+    init_arg_list.append(f'*{signature.varargs.name}')
+
+  return formalize_schema(
+      pg_typing.create_schema(
+          maybe_field_list=arg_fields,
+          name=f'{func.__module__}.{func.__name__}',
+          metadata={
+              'init_arg_list': init_arg_list,
+              'varargs_name': getattr(signature.varargs, 'name', None),
+              'varkw_name': getattr(signature.varkw, 'name', None),
+              'returns': returns,
+          },
+          description=description,
+          allow_nonconst_keys=True,
+      )
+  )
 
 
 def validate_init_arg_list(
@@ -159,24 +264,6 @@ def auto_init_arg_list(cls):
     init_arg_list = [str(key) for key in cls.schema.fields.keys()
                      if isinstance(key, pg_typing.ConstStrKey)]
   return init_arg_list
-
-
-def register_serialization_keys(
-    cls,
-    serialization_key: Optional[str] = None,
-    additional_keys: Optional[List[str]] = None):
-  """Register a symbolic class for deserialization."""
-  serialization_keys = []
-  if serialization_key:
-    serialization_keys.append(serialization_key)
-  serialization_keys.append(cls.type_name)
-  if additional_keys:
-    serialization_keys.extend(additional_keys)
-
-  # Register class with 'type' property.
-  for key in serialization_keys:
-    object_utils.JSONConvertible.register(
-        key, cls, flags.is_repeated_class_registration_allowed())
 
 
 def formalize_schema(schema: pg_typing.Schema) -> pg_typing.Schema:  # pylint: disable=redefined-outer-name

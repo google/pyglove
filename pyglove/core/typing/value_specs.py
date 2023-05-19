@@ -2246,3 +2246,8 @@ def _get_spec_callsite_module():
       calling_module = inspect.getmodule(frame)
       break
   return calling_module or __main__
+
+# Set the forward declared values to avoid circular dependency.
+ValueSpec.ListType = List
+ValueSpec.DictType = Dict
+ValueSpec.ObjectType = Object
