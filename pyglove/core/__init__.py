@@ -105,6 +105,12 @@ wrap = symbolic.wrap
 # Function for wrapping multiple classes under a module.
 wrap_module = symbolic.wrap_module
 
+# Decorator for creating compound class.
+compound = symbolic.compound
+
+# Function for making compound class.
+compound_class = symbolic.compound_class
+
 # Method for declaring a boilerplated class from a symbolic instance.
 boilerplate_class = symbolic.boilerplate_class
 
@@ -276,7 +282,6 @@ docstr = object_utils.docstr
 #
 
 from pyglove.core import logging
-
 
 
 # pylint: enable=g-import-not-at-top

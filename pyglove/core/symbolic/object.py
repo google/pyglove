@@ -77,7 +77,7 @@ class ObjectMeta(abc.ABCMeta):
       init_arg_list = schema_utils.auto_init_arg_list(cls)
       cls.schema.metadata['init_arg_list'] = init_arg_list
     schema_utils.validate_init_arg_list(init_arg_list, cls.schema)
-    cls._on_schema_update()  # pylint: disable=no-value-for-parameter
+    cls._on_schema_update()  # pytype: disable=attribute-error
 
   def register_for_deserialization(
       cls,
@@ -99,19 +99,6 @@ class ObjectMeta(abc.ABCMeta):
       object_utils.JSONConvertible.register(
           key, cls, flags.is_repeated_class_registration_allowed()
       )
-
-  def _on_schema_update(cls):
-    """Triggers when the schema for the class has been updated."""
-    # Update the default value for each field after schema is updated. This is
-    # because that users may change a field's default value via class attribute.
-    cls._update_default_values_from_class_attributes()  # pylint: disable=no-value-for-parameter
-
-    # Update the signature of __init__.
-    cls._update_init_signature_based_on_schema()  # pylint: disable=no-value-for-parameter
-
-    # Expose symbolic attributes as object attributes when being asked.
-    if cls.allow_symbolic_attribute:  # pytype: disable=attribute-error
-      cls._generate_sym_attributes()  # pylint: disable=no-value-for-parameter
 
   def _infer_fields_from_annotations(cls) -> List[pg_typing.Field]:
     """Infers symbolic fields from class annotations."""
@@ -147,35 +134,6 @@ class ObjectMeta(abc.ABCMeta):
       fields.append(field)
     return fields
 
-  def _update_init_signature_based_on_schema(cls):
-    """Updates the signature of `__init__` if needed."""
-    if cls.__init__ is not Object.__init__ and not hasattr(
-        cls.__init__, '__sym_generated_init__'
-    ):
-      # We only generate `__init__` from pg.Object subclass which does not
-      # override the `__init__` method.
-      # Functor and ClassWrapper override their `__init__` methods, therefore
-      # they need to synchronize the __init__ signature by themselves.
-      return
-    signature = pg_typing.Signature.from_schema(
-        cls.schema, cls.__module__, '__init__', f'{cls.__name__}.__init__'
-    )
-    pseudo_init = signature.make_function(['pass'])
-
-    # Create a new `__init__` that passes through all the arguments to
-    # in `pg.Object.__init__`. This is needed for each class to use different
-    # signature.
-    @functools.wraps(pseudo_init)
-    def _init(self, *args, **kwargs):
-      # We pass through the arguments to `Object.__init__` instead of
-      # `super()` since the parent class uses a generated `__init__` will
-      # be delegated to `Object.__init__` eventually. Therefore, directly
-      # calling `Object.__init__` is equivalent to calling `super().__init__`.
-      Object.__init__(self, *args, **kwargs)
-
-    setattr(_init, '__sym_generated_init__', True)
-    setattr(cls, '__init__', _init)
-
   def _update_default_values_from_class_attributes(cls):
     for field in cls.schema.fields.values():
       if isinstance(field.key, pg_typing.ConstStrKey):
@@ -187,29 +145,6 @@ class ObjectMeta(abc.ABCMeta):
             and not inspect.isfunction(attr_value)
         ):
           field.value.set_default(attr_value)
-
-  def _generate_sym_attributes(cls):
-    """Generates symbolic attributes based on schema if they are enabled."""
-
-    def _create_sym_attribute(attr_name, field):
-      return property(
-          object_utils.make_function(
-              attr_name,
-              ['self'],
-              [f"return self._sym_attributes['{attr_name}']"],
-              return_type=field.value.annotation,
-          )
-      )
-
-    for key, field in cls.schema.fields.items():
-      if isinstance(key, pg_typing.ConstStrKey):
-        attr_name = str(key)
-        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
-        if attr_value == pg_typing.MISSING_VALUE or (
-            not inspect.isfunction(attr_value)
-            and not isinstance(attr_value, property)
-        ):
-          setattr(cls, attr_name, _create_sym_attribute(attr_name, field))
 
 
 # Use ObjectMeta as meta class to inherit schema and type_name property.
@@ -305,32 +240,52 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   # Automatically infer schema during subclass creation time.
   auto_schema = True
 
+  #
+  # Customizable class behaviors.
+  #
+
   @classmethod
-  def __init_subclass__(cls):
+  def __init_subclass__(cls, user_cls=None):
+    """Initializes subclass.
+
+    `pg.Object` allows child classes to explicit call
+    `pg.Object.__init_subclass__` in their `__init_subclass__`, to bypass other
+    classes' `__init__subclass__` in multi-inheritance use cases.
+
+    Example:
+
+      class Subclass(pg.Object, UserClass):
+        def __init_subclass__(cls):
+          # This bypasses UserClass.__init_subclass__
+          pg.Object.__init_subclass__(cls)
+
+    Args:
+      user_cls: The source class that calls this class method.
+    """
     super().__init_subclass__()
 
-    if cls.auto_schema:
+    user_cls = user_cls or cls
+    if user_cls.auto_schema:
       # Inherit schema from base classes that have schema
       # in the ordered of inheritance.
       # TODO(daiyip): size of base_schema_list can be reduced
       # by looking at their inheritance chains.
       base_schema_list = []
-      for base_cls in cls.__bases__:
+      for base_cls in user_cls.__bases__:
         base_schema = getattr(base_cls, 'schema', None)
         if isinstance(base_schema, pg_typing.Schema):
           base_schema_list.append(base_schema)
 
-      new_fields = cls._infer_fields_from_annotations()
+      new_fields = user_cls._infer_fields_from_annotations()
       cls_schema = schema_utils.formalize_schema(
           pg_typing.create_schema(
               maybe_field_list=new_fields,
-              name=cls.type_name,
+              name=user_cls.type_name,
               base_schema_list=base_schema_list,
               allow_nonconst_keys=True,
               metadata={},
           )
       )
-
       # NOTE(daiyip): When new fields are added through class attributes.
       # We invalidate `init_arg_list` so PyGlove could recompute it based
       # on its schema during `apply_schema`. Otherwise, we inherit the
@@ -339,9 +294,82 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       # schema.
       if new_fields:
         cls_schema.metadata['init_arg_list'] = None
-      cls.apply_schema(cls_schema)
+      user_cls.apply_schema(cls_schema)
 
     setattr(cls, '__serialization_key__', cls.type_name)
+
+  @classmethod
+  def _on_schema_update(cls):
+    """Customizable trait: handling schema change."""
+    # Update the default value for each field after schema is updated. This is
+    # because that users may change a field's default value via class attribute.
+    cls._update_default_values_from_class_attributes()  # pylint: disable=no-value-for-parameter
+
+    # Update all schema-based signatures.
+    cls._update_signatures_based_on_schema()
+
+    # Expose symbolic attributes as object attributes when being asked.
+    if cls.allow_symbolic_attribute:
+      cls._generate_sym_attributes()
+
+  @classmethod
+  def _update_signatures_based_on_schema(cls):
+    """Customizable trait: updates method signatures upon schema change."""
+    if cls.__init__ is not Object.__init__ and not hasattr(
+        cls.__init__, '__sym_generated_init__'
+    ):
+      # We only generate `__init__` from pg.Object subclass which does not
+      # override the `__init__` method.
+      # Functor and ClassWrapper override their `__init__` methods, therefore
+      # they need to synchronize the __init__ signature by themselves.
+      return
+    signature = pg_typing.Signature.from_schema(
+        cls.schema, cls.__module__, '__init__', f'{cls.__name__}.__init__'
+    )
+    pseudo_init = signature.make_function(['pass'])
+
+    # Create a new `__init__` that passes through all the arguments to
+    # in `pg.Object.__init__`. This is needed for each class to use different
+    # signature.
+    @functools.wraps(pseudo_init)
+    def _init(self, *args, **kwargs):
+      # We pass through the arguments to `Object.__init__` instead of
+      # `super()` since the parent class uses a generated `__init__` will
+      # be delegated to `Object.__init__` eventually. Therefore, directly
+      # calling `Object.__init__` is equivalent to calling `super().__init__`.
+      Object.__init__(self, *args, **kwargs)
+
+    setattr(_init, '__sym_generated_init__', True)
+    setattr(cls, '__init__', _init)
+
+  @classmethod
+  def _generate_sym_attributes(cls):
+    """Customizable trait: logics for generating symbolic attributes.."""
+    for key, field in cls.schema.fields.items():
+      if isinstance(key, pg_typing.ConstStrKey):
+        attr_name = str(key)
+        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        if attr_value == pg_typing.MISSING_VALUE or (
+            not inspect.isfunction(attr_value)
+            and not isinstance(attr_value, property)
+        ):
+          setattr(cls, attr_name, cls._create_sym_attribute(attr_name, field))
+
+  @classmethod
+  def _create_sym_attribute(cls, attr_name, field):
+    """Customizable trait: template of single symbolic attribute."""
+    return property(
+        object_utils.make_function(
+            attr_name,
+            ['self'],
+            [f"return self._sym_attributes['{attr_name}']"],
+            return_type=field.value.annotation,
+        )
+    )
+
+  #
+  # Class methods.
+  #
 
   @classmethod
   def partial(cls, *args, **kwargs) -> 'Object':

@@ -29,36 +29,7 @@ from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic import schema_utils
 
 
-class FunctorMeta(pg_object.ObjectMeta):
-  """Functor meta class."""
-
-  def _on_schema_update(cls) -> None:   # pylint: disable=no-self-argument
-    super()._on_schema_update()
-    cls._update_init_signature()
-    cls._update_call_signature()
-
-  def _update_call_signature(cls) -> None:  # pylint: disable=no-self-argument
-    """Updates call signature."""
-    call_signature = pg_typing.Signature.from_schema(
-        cls.schema, name='__call__',
-        module_name=cls.__module__, qualname=cls.__qualname__,
-        is_method=False)
-    setattr(cls, 'signature', call_signature)
-
-  def _update_init_signature(cls) -> None:  # pylint: disable=no-self-argument
-    """Updates __init__ signature."""
-    init_signature = pg_typing.Signature.from_schema(
-        cls.schema, name='__init__',
-        module_name=cls.__module__, qualname=cls.__qualname__)
-
-    pseudo_init = init_signature.make_function(['pass'])
-    @functools.wraps(pseudo_init)
-    def _init(self, *args, **kwargs):
-      Functor.__init__(self, *args, **kwargs)
-    setattr(cls, '__init__', _init)
-
-
-class Functor(pg_object.Object, object_utils.Functor, metaclass=FunctorMeta):
+class Functor(pg_object.Object, object_utils.Functor):
   """Symbolic functions (Functors).
 
   A symbolic function is a symbolic class with a ``__call__`` method, whose
@@ -109,6 +80,38 @@ class Functor(pg_object.Object, object_utils.Functor, metaclass=FunctorMeta):
 
   # Signature of this function.
   signature: pg_typing.Signature
+
+  #
+  # Customizable class traits.
+  #
+
+  @classmethod
+  def _update_signatures_based_on_schema(cls):
+    # Update __init_ signature.
+    init_signature = pg_typing.Signature.from_schema(
+        cls.schema,
+        name='__init__',
+        module_name=cls.__module__,
+        qualname=cls.__qualname__,
+    )
+
+    pseudo_init = init_signature.make_function(['pass'])
+
+    @functools.wraps(pseudo_init)
+    def _init(self, *args, **kwargs):
+      Functor.__init__(self, *args, **kwargs)
+
+    setattr(cls, '__init__', _init)
+
+    # Update __call__ signature.
+    call_signature = pg_typing.Signature.from_schema(
+        cls.schema,
+        name='__call__',
+        module_name=cls.__module__,
+        qualname=cls.__qualname__,
+        is_method=False,
+    )
+    setattr(cls, 'signature', call_signature)
 
   def __new__(cls, *args, **kwargs):
     instance = object.__new__(cls)
