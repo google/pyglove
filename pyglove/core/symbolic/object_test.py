@@ -217,7 +217,12 @@ class ObjectTest(unittest.TestCase):
 
   def test_symbolic_fields_from_annotations(self):
 
-    class A(Object):
+    class X(Object):
+      pass
+
+    self.assertEqual(X.init_arg_list, [])
+
+    class A(X):
       x: int
       y: typing.Annotated[float, 'field y'] = 0.0
       z = 2
@@ -226,6 +231,7 @@ class ObjectTest(unittest.TestCase):
       # _q starts with _, which will not be treated as symbolic field either.
       _q: int = 2
 
+    self.assertEqual(A.init_arg_list, ['x', 'y'])
     self.assertEqual(
         list(A.schema.fields.keys()),
         ['x', 'y'])
@@ -243,6 +249,7 @@ class ObjectTest(unittest.TestCase):
       p: str = 'foo'
       q: typing.Any = None
 
+    self.assertEqual(B.init_arg_list, ['x', 'y', 'p', 'q'])
     self.assertEqual(
         list(B.schema.fields.keys()),
         ['x', 'y', 'p', 'q'],
@@ -260,6 +267,12 @@ class ObjectTest(unittest.TestCase):
       # Override the default value of 'y'.
       y: float = 1.0
 
+    self.assertEqual(
+        list(C.schema.fields.keys()),
+        ['x', 'y', 'p', 'q', 'k'],
+    )
+    self.assertEqual(C.init_arg_list, ['x', 'y', 'p', 'q', 'k'])
+
     c = C(1, q=2, k=3)
     self.assertEqual(c.x, 1)
     self.assertEqual(c.y, 1.0)
@@ -272,6 +285,11 @@ class ObjectTest(unittest.TestCase):
     class D(C):
       f: int = 5
 
+    self.assertEqual(D.init_arg_list, ['x', 'y', 'p', 'q', 'k', 'f', 'e'])
+    self.assertEqual(
+        list(D.schema.fields.keys()),
+        ['x', 'y', 'p', 'q', 'k', 'f', 'e'],
+    )
     d = D(1, q=2, k=3, e=4)
     self.assertEqual(d.x, 1)
     self.assertEqual(d.y, 1.0)
@@ -284,7 +302,11 @@ class ObjectTest(unittest.TestCase):
       __kwargs__: typing.Any
       x: int
 
-    self.assertIsNotNone(E.schema.dynamic_field)
+    self.assertEqual(E.init_arg_list, ['x'])
+    self.assertEqual(
+        list(E.schema.fields.keys()),
+        [pg_typing.StrKey(), 'x'],
+    )
     e = E(1, y=3)
     self.assertEqual(e.x, 1)
     self.assertEqual(e.y, 3)

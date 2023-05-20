@@ -59,7 +59,7 @@ class ObjectMeta(abc.ABCMeta):
   @property
   def init_arg_list(cls) -> List[str]:
     """Gets __init__ positional argument list."""
-    return cls.schema.metadata['init_arg_list']
+    return typing.cast(List[str], cls.schema.metadata['init_arg_list'])
 
   def apply_schema(cls, schema: pg_typing.Schema) -> None:
     """Applies a schema to a symbolic class.
@@ -320,14 +320,27 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         if isinstance(base_schema, pg_typing.Schema):
           base_schema_list.append(base_schema)
 
+      new_fields = cls._infer_fields_from_annotations()
       cls_schema = schema_utils.formalize_schema(
           pg_typing.create_schema(
-              maybe_field_list=cls._infer_fields_from_annotations(),
+              maybe_field_list=new_fields,
               name=cls.type_name,
               base_schema_list=base_schema_list,
               allow_nonconst_keys=True,
-              metadata={}))
+              metadata={},
+          )
+      )
+
+      # NOTE(daiyip): When new fields are added through class attributes.
+      # We invalidate `init_arg_list` so PyGlove could recompute it based
+      # on its schema during `apply_schema`. Otherwise, we inherit the
+      # `init_arg_list` from the base class.
+      # TODO(daiyip): detect new fields based on the differences from the base
+      # schema.
+      if new_fields:
+        cls_schema.metadata['init_arg_list'] = None
       cls.apply_schema(cls_schema)
+
     setattr(cls, '__serialization_key__', cls.type_name)
 
   @classmethod

@@ -68,7 +68,11 @@ def augment_schema(
   if init_arg_list is None:
     init_arg_list = metadata.get('init_arg_list', None)
   metadata = object_utils.merge([schema.metadata, metadata])
+
+  # NOTE(daiyip): Consider to inherit `init_arg_list` from the parent when
+  # there is no new field.
   metadata['init_arg_list'] = init_arg_list
+
   return formalize_schema(
       pg_typing.create_schema(
           maybe_field_list=fields,
