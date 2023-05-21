@@ -105,6 +105,9 @@ class ObjectMeta(abc.ABCMeta):
     if not cls.infer_symbolic_fields_from_annotations:  # pytype: disable=attribute-error
       return []
 
+    # Trigger event so users could modify annotations.
+    cls._begin_annotation_inference()  # pytype: disable=attribute-error
+
     # NOTE(daiyip): refer to https://docs.python.org/3/howto/annotations.html.
     if hasattr(inspect, 'get_annotations'):
       annotations = inspect.get_annotations(cls)
@@ -132,6 +135,9 @@ class ObjectMeta(abc.ABCMeta):
         if attr_value != pg_typing.MISSING_VALUE:
           field.value.set_default(attr_value)
       fields.append(field)
+
+    # Trigger event so subclass could modify the fields.
+    fields = cls._end_annotation_inference(fields)  # pytype: disable=attribute-error
     return fields
 
   def _update_default_values_from_class_attributes(cls):
@@ -366,6 +372,17 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             return_type=field.value.annotation,
         )
     )
+
+  @classmethod
+  def _begin_annotation_inference(cls) -> None:
+    """Event that is triggered before annotation infererence begins."""
+
+  @classmethod
+  def _end_annotation_inference(
+      cls, fields: List[pg_typing.Field]
+  ) -> List[pg_typing.Field]:
+    """Event that is triggered before annotation infererence begins."""
+    return fields
 
   #
   # Class methods.
