@@ -20,11 +20,13 @@ import inspect
 import json
 import re
 import sys
-from typing import Any, Callable, Dict, Iterator, List, Optional, Type, Union, Tuple
+import typing
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import flags
+from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
@@ -349,15 +351,15 @@ class Symbolic(object_utils.JSONConvertible,
 
     Args:
       path: A KeyPath object or equivalence.
-      default: Default value if path does not exists. If absent, `KeyError`
-        will be thrown.
+      default: Default value if path does not exists. If absent, `KeyError` will
+        be thrown.
 
     Returns:
       Value of symbolic attribute specified by path if found, otherwise the
       default value if it's specified.
 
     Raises:
-      KeyError if `path` does not exist and default value is `pg.MISSING_VALUE`.
+      KeyError if `path` does not exist and `default` is `pg.MISSING_VALUE`.
     """
     path = object_utils.KeyPath.from_value(path)
     if default == object_utils.MISSING_VALUE:
@@ -378,14 +380,14 @@ class Symbolic(object_utils.JSONConvertible,
     Args:
       key: Key of symbolic attribute.
       default: Default value if attribute does not exist. If absent,
-        `AttributeError` will be thrown.
 
     Returns:
       Value of symbolic attribute if found, otherwise the default value
       if it's specified.
 
     Raises:
-      AttributeError if `key` does not exist.
+      AttributeError if `key` does not exist and `default` is
+        ``pg.MISSING_VALUE``.
     """
     if not self.sym_hasattr(key):
       if default != object_utils.MISSING_VALUE:
@@ -394,6 +396,85 @@ class Symbolic(object_utils.JSONConvertible,
           self._error_message(
               f'{self.__class__!r} object has no symbolic attribute {key!r}.'))
     return self._sym_getattr(key)
+
+  def sym_contextual_hasattr(
+      self,
+      key: Union[str, int],
+      getter: Optional[Contextual] = None,
+      start: Union[
+          'Symbolic', object_utils.MissingValue
+      ] = pg_typing.MISSING_VALUE,
+  ) -> bool:
+    """Returns True if an attribute exists from current object's context.
+
+    Args:
+      key: Key of symbolic attribute.
+      getter: An optional ``Contextual`` object as the value retriever.
+      start: An object from current object to the root of the composition as the
+        starting point of context lookup (upward). If ``pg.MISSING_VALUE``, it
+        will start with current node.
+
+    Returns:
+      True if the attribute exists. Otherwise False.
+    """
+    v = self.sym_contextual_getattr(
+        key, default=(pg_typing.MISSING_VALUE,), getter=getter, start=start
+    )
+    return v != (pg_typing.MISSING_VALUE,)
+
+  def sym_contextual_getattr(
+      self,
+      key: Union[str, int],
+      default: Any = object_utils.MISSING_VALUE,
+      getter: Optional[Contextual] = None,
+      start: Union[
+          'Symbolic', object_utils.MissingValue
+      ] = pg_typing.MISSING_VALUE,
+  ) -> Any:
+    """Gets a key from current object's context (symbolic parent chain).
+
+    Args:
+      key: Key of symbolic attribute.
+      default: Default value if attribute does not exist. If absent,
+        `AttributeError` will be thrown.
+      getter: An optional ``Contextual`` object as the value retriever.
+      start: An object from current object to the root of the composition as the
+        starting point of context lookup (upward). If ``pg.MISSING_VALUE``, it
+        will start with current node.
+
+    Returns:
+      Value of symbolic attribute if found, otherwise the default value
+      if it's specified.
+
+    Raises:
+      AttributeError if `key` does not exist along the parent chain and
+        default value is not ``pg.MISSING_VALUE``.
+    """
+    getter = getter or Contextual()
+    if start == pg_typing.MISSING_VALUE:
+      current = self
+    else:
+      current = typing.cast(Symbolic, start)
+
+    while current is not None:
+      v = getter.value_from(key, current)
+      # NOTE(daiyip): when the contextual value from the parent returns
+      # another contextual object, we should follow the new return value's
+      # instruction instead of the original one.
+      if isinstance(v, Contextual):
+        getter = v
+      elif v != object_utils.MISSING_VALUE:
+        return v
+      current = current.sym_parent
+
+    if default != object_utils.MISSING_VALUE:
+      return default
+    raise AttributeError(
+        self._error_message(
+            f'`{key}` is not found under its context '
+            '(along its symbolic parent chain).'
+        )
+    )
 
   @abc.abstractmethod
   def sym_keys(self) -> Iterator[Union[str, int]]:

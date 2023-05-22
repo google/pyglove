@@ -83,6 +83,9 @@ Object = symbolic.Object
 ClassWrapper = symbolic.ClassWrapper
 Functor = symbolic.Functor
 
+# Contextual value marker.
+Contextual = symbolic.Contextual
+
 # Decorator for declaring symbolic. members for `pg.Object`.
 members = symbolic.members
 

@@ -23,6 +23,7 @@ from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
+from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.list import List
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
@@ -1350,6 +1351,17 @@ class DictTest(unittest.TestCase):
     sd.seal()
     self.assertTrue(sd.is_sealed)
     self.assertTrue(sd.a.is_sealed)
+
+  def test_contextual(self):
+    sd = Dict(x=Contextual())
+    with self.assertRaisesRegex(
+        AttributeError, '`x` is not found under its context'
+    ):
+      _ = sd.x
+
+    p = Dict(x=Dict(p='foo'), y=Dict(z=sd))
+    self.assertEqual(sd.x, Dict(p='foo'))
+    self.assertIs(p.x, sd.x)
 
 
 class RebindTest(unittest.TestCase):

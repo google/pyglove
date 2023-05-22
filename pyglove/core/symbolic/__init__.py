@@ -109,6 +109,9 @@ from pyglove.core.symbolic.base import to_json_str
 from pyglove.core.symbolic.base import load
 from pyglove.core.symbolic.base import save
 
+# Marker for contextual values.
+from pyglove.core.symbolic.contextual import Contextual
+
 # Interfaces for pure symbolic objects.
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic

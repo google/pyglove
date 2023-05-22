@@ -27,6 +27,7 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.base import query as pg_query
 from pyglove.core.symbolic.base import traverse as pg_traverse
+from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.functor import functor as pg_functor
 from pyglove.core.symbolic.list import List
@@ -714,6 +715,72 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(
         AttributeError, 'has no symbolic attribute \'y\''):
       _ = b.sym_getattr('y')
+
+  def test_sym_contextual_hasattr(self):
+    class A(Object):
+      x: int
+      y: int = 1
+      z: int = Contextual()
+
+    a = A(0)
+    _ = Dict(p=Dict(a=a, b=3), z=2)
+    self.assertTrue(a.sym_contextual_hasattr('x'))
+    self.assertTrue(a.sym_contextual_hasattr('y'))
+    self.assertTrue(a.sym_contextual_hasattr('z'))
+
+    # Custom start.
+    self.assertFalse(a.sym_contextual_hasattr('x', start=a.sym_parent))
+    self.assertFalse(a.sym_contextual_hasattr('y', start=a.sym_parent))
+    self.assertTrue(a.sym_contextual_hasattr('z', start=a.sym_parent))
+
+    # Custom getter.
+    getter = Contextual(lambda k, p: getattr(p, 'b'))
+    self.assertTrue(a.sym_contextual_hasattr('x', getter, start=a.sym_parent))
+    self.assertTrue(a.sym_contextual_hasattr('y', getter, start=a.sym_parent))
+    self.assertTrue(a.sym_contextual_hasattr('z', getter, start=a.sym_parent))
+
+  def test_sym_contextual_getattr(self):
+    class A(Object):
+      x: int
+      y: int = 1
+      z: int = Contextual()
+
+    a = A(0)
+
+    with self.assertRaises(AttributeError):
+      _ = a.z
+
+    _ = Dict(p=Dict(a=a, b=3), z=2)
+    self.assertEqual(a.z, 2)
+
+    self.assertEqual(a.sym_contextual_getattr('x'), 0)
+    self.assertEqual(a.sym_contextual_getattr('y'), 1)
+    self.assertEqual(a.sym_contextual_getattr('z'), 2)
+
+    # Custom start.
+    with self.assertRaisesRegex(
+        AttributeError, '`x` is not found under its context'
+    ):
+      a.sym_contextual_getattr('x', start=a.sym_parent)
+
+    with self.assertRaisesRegex(
+        AttributeError, '`y` is not found under its context'
+    ):
+      a.sym_contextual_getattr('y', start=a.sym_parent)
+
+    self.assertEqual(a.sym_contextual_getattr('z', start=a.sym_parent), 2)
+
+    # Custom getter.
+    getter = Contextual(lambda k, p: getattr(p, 'b'))
+    self.assertEqual(
+        a.sym_contextual_getattr('x', getter=getter, start=a.sym_parent), 3
+    )
+    self.assertEqual(
+        a.sym_contextual_getattr('y', getter=getter, start=a.sym_parent), 3
+    )
+    self.assertEqual(
+        a.sym_contextual_getattr('z', getter=getter, start=a.sym_parent), 3
+    )
 
   def test_sym_field(self):
 
@@ -1783,6 +1850,53 @@ class InitSignatureTest(unittest.TestCase):
       @pg_members([], init_arg_list=['*y'])
       class E(B):  # pylint: disable=unused-variable
         pass
+
+  def test_contextual(self):
+    class A(Object):
+      x: int
+      y: str = Contextual()
+
+    # Okay: `A.y` is contextual.
+    a = A(1)
+
+    # Not okay: `A.y` is not yet available in its context.
+    with self.assertRaisesRegex(
+        AttributeError, '`y` is not found under its context'
+    ):
+      _ = a.y
+
+    sd = Dict(x=a, y=Dict(z=1))
+    self.assertIs(a.y, sd.y)
+
+    # Clear context by reset a's parent.
+    a.sym_setparent(None)
+    with self.assertRaisesRegex(
+        AttributeError, '`y` is not found under its context'
+    ):
+      _ = a.y
+
+    # Test parent contextual value with custom getter.
+    sd = Dict(
+        a='bar',
+        b=Dict(
+            x=a,
+            y=Contextual(lambda k, p: getattr(p, 'a'))))
+
+    # a.y is redirected to sd.a.
+    self.assertEqual(a.y, 'bar')
+
+    class B(Object):
+      x: int = Contextual(lambda k, p: p.sym_getattr(k))
+
+    b = B()
+    sd = Dict(
+        a='bar',
+        b=Dict(
+            b=b,
+            x=Contextual(lambda k, p: getattr(p, 'a'))))
+
+    # a.y is redirected to sd.a.
+    self.assertEqual(b.x, 'bar')
 
 
 class RebindTest(unittest.TestCase):

@@ -1103,10 +1103,15 @@ class Schema(object_utils.Formattable):
         child_path = object_utils.KeyPath(key, root_path)
         new_value = field.apply(
             value, allow_partial, child_transform, child_path)
-        # NOTE(daiyip): minimize call to __setitem__ when possible.
-        # Custom like symbolic dict may trigger additional logic
-        # when __setitem__ is called.
-        if key not in dict_obj or dict_obj[key] is not new_value:
+
+        # NOTE(daiyip): `pg.Dict.__getitem__`` has special logics in handling
+        # `pg.Contextual`` values. Therefore, we user `dict.__getitem__()`` to
+        # avoid triggering side effect.
+        if (key not in dict_obj
+            or dict.__getitem__(dict_obj, key) is not new_value):
+          # NOTE(daiyip): minimize call to __setitem__ when possible.
+          # Custom like symbolic dict may trigger additional logic
+          # when __setitem__ is called.
           dict_obj[key] = new_value
     return dict_obj
 

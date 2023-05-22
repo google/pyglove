@@ -19,6 +19,7 @@ from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence, 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
+from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 
 
@@ -197,8 +198,10 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     # If True, the parent of dict items should be set to `self.sym_parent`,
     # This is useful when Dict is used as the field container of
     # pg.Object.
-    self._set_raw_attr('_pass_through_parent',
-                       kwargs.pop('pass_through_parent', False))
+    self._set_raw_attr(
+        '_as_object_attributes_container',
+        kwargs.pop('as_object_attributes_container', False),
+    )
 
     if dict_obj is not None:
       dict_obj = dict(dict_obj)
@@ -436,20 +439,20 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def sym_values(self) -> Iterator[Any]:
     """Iterates the values of symbolic attributes."""
     for k in self.sym_keys():
-      yield self[k]
+      yield self._sym_getattr(k)
 
   def sym_items(self) -> Iterator[
       Tuple[str, Any]]:
     """Iterates the (key, value) pairs of symbolic attributes."""
     for k in self.sym_keys():
-      yield k, self[k]
+      yield k, self._sym_getattr(k)
 
   def sym_setparent(self, parent: base.Symbolic):
     """Override set parent of Dict to handle the passing through scenario."""
     super().sym_setparent(parent)
-    # NOTE(daiyip): when flag `pass_through_parent` is on, it sets the parent
-    # of child symbolic values using its parent.
-    if self._pass_through_parent:
+    # NOTE(daiyip): when flag `as_object_attributes_container` is on, it sets
+    # the parent of child symbolic values using its parent.
+    if self._as_object_attributes_container:
       for v in self.values():
         if isinstance(v, base.Symbolic):
           v.sym_setparent(parent)
@@ -464,7 +467,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, key: str) -> Any:
     """Gets symbolic attribute by key."""
-    return self[key]
+    return super().__getitem__(key)
 
   def _sym_clone(self, deep: bool, memo=None) -> 'Dict':
     """Override Symbolic._sym_clone."""
@@ -572,6 +575,20 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """On change event of Dict."""
     if self._onchange_callback:
       self._onchange_callback(field_updates)
+
+  def __getitem__(self, key: str) -> Any:
+    """Get item in this Dict."""
+    v = super().__getitem__(key)
+    if isinstance(v, contextual.Contextual):
+      start = self.sym_parent
+      # NOTE(daiyip): The parent of `pg.Object`'s attribute dict points to
+      # the `pg.Object` instance once it's set up. Here we let the ancester
+      # traversal to bypass `pg.Object` to avoid double entry, which causes
+      # dead loop.
+      if self._as_object_attributes_container and self.sym_parent:
+        start = start.sym_parent
+      v = self.sym_contextual_getattr(key, getter=v, start=start)
+    return v
 
   def __setitem__(self, key: str, value: Any) -> None:
     """Set item in this Dict.

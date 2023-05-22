@@ -546,14 +546,18 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             f'{self.__class__.__name__}.__init__() missing {len(missing_args)} '
             f'required {arg_phrase}: {keys_str}.')
 
-    self._set_raw_attr('_sym_attributes', pg_dict.Dict(
-        field_args,
-        value_spec=self.__class__.sym_fields,
-        allow_partial=allow_partial,
-        sealed=sealed,
-        accessor_writable=self.__class__.allow_symbolic_assignment,
-        root_path=root_path,
-        pass_through_parent=True))
+    self._set_raw_attr(
+        '_sym_attributes',
+        pg_dict.Dict(
+            field_args,
+            value_spec=self.__class__.sym_fields,
+            allow_partial=allow_partial,
+            sealed=sealed,
+            accessor_writable=self.__class__.allow_symbolic_assignment,
+            root_path=root_path,
+            as_object_attributes_container=True,
+        ),
+    )
     self._sym_attributes.sym_setparent(self)
     self._on_init()
     self.seal(sealed)

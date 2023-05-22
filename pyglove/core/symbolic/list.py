@@ -16,11 +16,11 @@
 import dataclasses
 import math
 import typing
-
 from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple, Union
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
+from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 
 
@@ -461,7 +461,14 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     if self._onchange_callback is not None:
       self._onchange_callback(field_updates)
 
-  def __setitem__(self, index: int, value: Any) -> None:
+  def __getitem__(self, index) -> Any:
+    """Gets the item at a given position."""
+    v = super().__getitem__(index)
+    if isinstance(v, contextual.Contextual):
+      v = self.sym_contextual_getattr(index, getter=v, start=self.sym_parent)
+    return v
+
+  def __setitem__(self, index, value: Any) -> None:
     """Set item in this List."""
     if base.treats_as_sealed(self):
       raise base.WritePermissionError(

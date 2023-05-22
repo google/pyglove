@@ -23,6 +23,7 @@ from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
+from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.list import Insertion
 from pyglove.core.symbolic.list import List
@@ -1151,6 +1152,20 @@ class ListTest(unittest.TestCase):
     sl.seal()
     self.assertTrue(sl.is_sealed)
     self.assertTrue(sl[0].is_sealed)
+
+  def test_contextual(self):
+    # Test contextual access for schemaless list.
+    # Okay: sl[1] is contextual.
+    sl = List([0, Contextual(lambda i, x: x.a)])
+
+    self.assertEqual(sl[0], 0)
+    with self.assertRaisesRegex(
+        AttributeError, '`1` is not found under its context'
+    ):
+      _ = sl[1]
+
+    sd = Dict(x=sl, a=Dict(y=2))
+    self.assertIs(sl[1], sd.a)
 
 
 class RebindTest(unittest.TestCase):
