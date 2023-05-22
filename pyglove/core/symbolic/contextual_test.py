@@ -11,47 +11,28 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.symbolic.Contextual."""
+"""Tests for pyglove.symbolic.ContextualGetter."""
 
-import dataclasses
 import unittest
 
-from pyglove.core import typing as pg_typing
-from pyglove.core.symbolic.contextual import Contextual
+from pyglove.core.symbolic import base
+from pyglove.core.symbolic import contextual
+from pyglove.core.symbolic.dict import Dict
 
 
-class ContextualTest(unittest.TestCase):
-  """Tests for `pg.symbolic.Contextual`."""
+class ContextualGetterTest(unittest.TestCase):
+  """Tests for `pg.symbolic.ContextualGetter`."""
 
-  def test_str(self):
-    self.assertEqual(str(Contextual()), 'CONTEXTUAL')
-    self.assertEqual(str(Contextual(lambda k, p: 1)), 'CONTEXTUAL')
+  def test_basics(self):
+    @contextual.contextual_getter
+    def static_value(k, p, v):
+      del k, p
+      return v
 
-  def test_repr(self):
-    self.assertEqual(repr(Contextual()), 'CONTEXTUAL')
-    self.assertEqual(repr(Contextual(lambda k, p: 1)), 'CONTEXTUAL')
-
-  def test_eq(self):
-    self.assertEqual(Contextual(), Contextual())
-    getter = lambda k, p: 1
-    self.assertEqual(Contextual(getter), Contextual(getter))
-
-    self.assertNotEqual(Contextual(), 1)
-    self.assertNotEqual(Contextual(getter), Contextual())
-
-  def test_value_from(self):
-    @dataclasses.dataclass
-    class A:
-      x: int = 1
-      y: int = 2
-
-    self.assertEqual(Contextual().value_from('x', A()), 1)
-    self.assertEqual(Contextual(lambda k, p: p.y).value_from('x', A()), 2)
-
-  def test_custom_typing(self):
-    v = Contextual()
-    self.assertIs(pg_typing.Int().apply(v), v)
-    self.assertIs(pg_typing.Str().apply(v), v)
+    getter = static_value(v=1)  # pylint: disable=no-value-for-parameter
+    self.assertIsInstance(getter, base.ContextualValue)
+    self.assertEqual(getter.get('x', Dict()), 1)
+    self.assertEqual(base.from_json(base.to_json(getter)), getter)
 
 
 if __name__ == '__main__':

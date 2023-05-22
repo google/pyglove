@@ -26,7 +26,6 @@ from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, U
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import flags
-from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
@@ -112,6 +111,92 @@ class DescendantQueryOption(enum.Enum):
 
   # Returning only the leaf matched descendants.
   LEAF = 2
+
+
+class ContextualValue(
+    pg_typing.CustomTyping,
+    object_utils.JSONConvertible,
+    object_utils.Formattable,
+):
+  """Base class for contextual value markers.
+
+  Contextual value markers allows a symbolic attribute to be late bound
+  based on the entire symbolic tree where current symbolic value is part of.
+  As a result, users could access the late bound values directly through
+  symbolic attributes.
+
+  For example::
+
+    class A(pg.Object):
+      x: int
+      y: int = pg.ContextualValue()
+
+    # Not okay: `x` is not contextual and is not specified.
+    A()
+
+    # Okay: both `x` and `y` are specified.
+    A(x=1, y=2)
+
+    # Okay: `y` is contextual, hence optional.
+    a = A(x=1)
+
+    # Raises: `y` is neither specified during __init__
+    # nor provided from the context.
+    a.y
+
+    d = pg.Dict(y=2, z=pg.Dict(a=a))
+
+    # `a.y` now refers to `d.a` since `d` is in its symbolic parent chain,
+    # aka. context.
+    assert a.y == 2
+  """
+
+  def get(self, name: str, context: 'Symbolic') -> Any:
+    """Try get the contextual value for a symbolic attribute from a parent.
+
+    Args:
+      name: The name of the request symbolic attribute.
+      context: A symbolic parent which represents the current context.
+
+    Returns:
+      The value for the requested symbolic attribute from the current context.
+        If ``pg.MISSING_VALUE``, it means that current symbolic parent cannot
+          provide a contextual value for the attribute, so the current context
+          is moved upward, until it reaches to the root of the symbolic tree.
+        If a ``pg.ContextualValue`` object, it will use the new contextual
+          marker returned to resolve its value from its symbolic parent chains.
+    """
+    return self.value_from(name, context)
+
+  def value_from(self, name: str, context: 'Symbolic') -> Any:
+    """Try get the contextual value for a symbolic attribute from a parent."""
+    return getattr(context, name, pg_typing.MISSING_VALUE)
+
+  def custom_apply(self, *args, **kwargs: Any) -> Tuple[bool, Any]:
+    # This is to make a ``ContextualValue`` object assignable
+    # to any symbolic attribute.
+    return (False, self)
+
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      **kwargs: Any,
+  ) -> str:
+    del compact, verbose, root_indent, kwargs
+    return 'ContextualValue()'
+
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+    return self.to_json_dict({})
+
+  def __eq__(self, other: Any) -> bool:
+    # NOTE(daiyip): We do strict type match here since subclasses might
+    # have their own __eq__ logic.
+    return type(other) is ContextualValue  # pylint: disable=unidiomatic-typecheck
+
+  def __ne__(self, other: Any) -> bool:
+    return not self.__eq__(other)
 
 
 class Symbolic(object_utils.JSONConvertible,
@@ -400,7 +485,7 @@ class Symbolic(object_utils.JSONConvertible,
   def sym_contextual_hasattr(
       self,
       key: Union[str, int],
-      getter: Optional[Contextual] = None,
+      getter: Optional[ContextualValue] = None,
       start: Union[
           'Symbolic', object_utils.MissingValue
       ] = pg_typing.MISSING_VALUE,
@@ -409,7 +494,7 @@ class Symbolic(object_utils.JSONConvertible,
 
     Args:
       key: Key of symbolic attribute.
-      getter: An optional ``Contextual`` object as the value retriever.
+      getter: An optional ``ContextualValue`` object as the value retriever.
       start: An object from current object to the root of the composition as the
         starting point of context lookup (upward). If ``pg.MISSING_VALUE``, it
         will start with current node.
@@ -417,6 +502,7 @@ class Symbolic(object_utils.JSONConvertible,
     Returns:
       True if the attribute exists. Otherwise False.
     """
+    getter = getter or ContextualValue()
     v = self.sym_contextual_getattr(
         key, default=(pg_typing.MISSING_VALUE,), getter=getter, start=start
     )
@@ -426,7 +512,7 @@ class Symbolic(object_utils.JSONConvertible,
       self,
       key: Union[str, int],
       default: Any = object_utils.MISSING_VALUE,
-      getter: Optional[Contextual] = None,
+      getter: Optional[ContextualValue] = None,
       start: Union[
           'Symbolic', object_utils.MissingValue
       ] = pg_typing.MISSING_VALUE,
@@ -437,7 +523,7 @@ class Symbolic(object_utils.JSONConvertible,
       key: Key of symbolic attribute.
       default: Default value if attribute does not exist. If absent,
         `AttributeError` will be thrown.
-      getter: An optional ``Contextual`` object as the value retriever.
+      getter: An optional ``ContextualValue`` object as the value retriever.
       start: An object from current object to the root of the composition as the
         starting point of context lookup (upward). If ``pg.MISSING_VALUE``, it
         will start with current node.
@@ -450,18 +536,18 @@ class Symbolic(object_utils.JSONConvertible,
       AttributeError if `key` does not exist along the parent chain and
         default value is not ``pg.MISSING_VALUE``.
     """
-    getter = getter or Contextual()
+    getter = getter or ContextualValue()
     if start == pg_typing.MISSING_VALUE:
       current = self
     else:
       current = typing.cast(Symbolic, start)
 
     while current is not None:
-      v = getter.value_from(key, current)
-      # NOTE(daiyip): when the contextual value from the parent returns
-      # another contextual object, we should follow the new return value's
+      v = getter.get(key, current)
+      # NOTE(daiyip): when the ContextualValue value from the parent returns
+      # another ContextualValue object, we should follow the new return value's
       # instruction instead of the original one.
-      if isinstance(v, Contextual):
+      if isinstance(v, ContextualValue):
         getter = v
       elif v != object_utils.MISSING_VALUE:
         return v

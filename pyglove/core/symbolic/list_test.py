@@ -21,9 +21,9 @@ import unittest
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
+from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
-from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.list import Insertion
 from pyglove.core.symbolic.list import List
@@ -1156,7 +1156,12 @@ class ListTest(unittest.TestCase):
   def test_contextual(self):
     # Test contextual access for schemaless list.
     # Okay: sl[1] is contextual.
-    sl = List([0, Contextual(lambda i, x: x.a)])
+    @contextual.contextual_getter
+    def redirectd_value(k, p, key):
+      del k
+      return getattr(p, key)
+
+    sl = List([0, redirectd_value(key='a')])  # pylint: disable=no-value-for-parameter
 
     self.assertEqual(sl[0], 0)
     with self.assertRaisesRegex(

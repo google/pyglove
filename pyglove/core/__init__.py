@@ -83,9 +83,6 @@ Object = symbolic.Object
 ClassWrapper = symbolic.ClassWrapper
 Functor = symbolic.Functor
 
-# Contextual value marker.
-Contextual = symbolic.Contextual
-
 # Decorator for declaring symbolic. members for `pg.Object`.
 members = symbolic.members
 
@@ -116,6 +113,7 @@ compound_class = symbolic.compound_class
 
 # Method for declaring a boilerplated class from a symbolic instance.
 boilerplate_class = symbolic.boilerplate_class
+
 
 #
 # Context manager for swapping wrapped class with their wrappers.
@@ -163,6 +161,13 @@ Origin = symbolic.Origin
 FieldUpdate = symbolic.FieldUpdate
 Insertion = symbolic.Insertion
 WritePermissionError = symbolic.WritePermissionError
+
+# Contextual value marker.
+ContextualValue = symbolic.ContextualValue
+ContextualGetter = symbolic.ContextualGetter
+
+# Decorator for making contextual getters.
+contextual_getter = symbolic.contextual_getter
 
 
 #

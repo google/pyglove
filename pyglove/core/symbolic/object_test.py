@@ -24,10 +24,10 @@ import unittest
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
+from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.base import query as pg_query
 from pyglove.core.symbolic.base import traverse as pg_traverse
-from pyglove.core.symbolic.contextual import Contextual
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.functor import functor as pg_functor
 from pyglove.core.symbolic.list import List
@@ -720,7 +720,7 @@ class ObjectTest(unittest.TestCase):
     class A(Object):
       x: int
       y: int = 1
-      z: int = Contextual()
+      z: int = base.ContextualValue()
 
     a = A(0)
     _ = Dict(p=Dict(a=a, b=3), z=2)
@@ -734,7 +734,12 @@ class ObjectTest(unittest.TestCase):
     self.assertTrue(a.sym_contextual_hasattr('z', start=a.sym_parent))
 
     # Custom getter.
-    getter = Contextual(lambda k, p: getattr(p, 'b'))
+    @contextual.contextual_getter
+    def redirected_value(k, p, key):
+      del k
+      return getattr(p, key)
+
+    getter = redirected_value(key='b')  # pylint: disable=no-value-for-parameter
     self.assertTrue(a.sym_contextual_hasattr('x', getter, start=a.sym_parent))
     self.assertTrue(a.sym_contextual_hasattr('y', getter, start=a.sym_parent))
     self.assertTrue(a.sym_contextual_hasattr('z', getter, start=a.sym_parent))
@@ -743,7 +748,7 @@ class ObjectTest(unittest.TestCase):
     class A(Object):
       x: int
       y: int = 1
-      z: int = Contextual()
+      z: int = base.ContextualValue()
 
     a = A(0)
 
@@ -771,7 +776,12 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(a.sym_contextual_getattr('z', start=a.sym_parent), 2)
 
     # Custom getter.
-    getter = Contextual(lambda k, p: getattr(p, 'b'))
+    @contextual.contextual_getter
+    def redirected_value(k, p, key):
+      del k
+      return getattr(p, key)
+
+    getter = redirected_value(key='b')  # pylint: disable=no-value-for-parameter
     self.assertEqual(
         a.sym_contextual_getattr('x', getter=getter, start=a.sym_parent), 3
     )
@@ -1854,7 +1864,7 @@ class InitSignatureTest(unittest.TestCase):
   def test_contextual(self):
     class A(Object):
       x: int
-      y: str = Contextual()
+      y: str = base.ContextualValue()
 
     # Okay: `A.y` is contextual.
     a = A(1)
@@ -1876,24 +1886,25 @@ class InitSignatureTest(unittest.TestCase):
       _ = a.y
 
     # Test parent contextual value with custom getter.
-    sd = Dict(
-        a='bar',
-        b=Dict(
-            x=a,
-            y=Contextual(lambda k, p: getattr(p, 'a'))))
+    @contextual.contextual_getter
+    def redirected_value(k, p, key):
+      del k
+      return getattr(p, key)
+
+    sd = Dict(a='bar', b=Dict(x=a, y=redirected_value(key='a')))  # pylint: disable=no-value-for-parameter
 
     # a.y is redirected to sd.a.
     self.assertEqual(a.y, 'bar')
 
+    @contextual.contextual_getter
+    def immediate_attr(k, p):
+      return p.sym_getattr(k)
+
     class B(Object):
-      x: int = Contextual(lambda k, p: p.sym_getattr(k))
+      x: int = immediate_attr()  # pylint: disable=no-value-for-parameter
 
     b = B()
-    sd = Dict(
-        a='bar',
-        b=Dict(
-            b=b,
-            x=Contextual(lambda k, p: getattr(p, 'a'))))
+    sd = Dict(a='bar', b=Dict(b=b, x=redirected_value(key='a')))  # pylint: disable=no-value-for-parameter
 
     # a.y is redirected to sd.a.
     self.assertEqual(b.x, 'bar')

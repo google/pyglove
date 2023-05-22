@@ -20,7 +20,6 @@ from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple, Uni
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
-from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 
 
@@ -464,7 +463,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
   def __getitem__(self, index) -> Any:
     """Gets the item at a given position."""
     v = super().__getitem__(index)
-    if isinstance(v, contextual.Contextual):
+    if isinstance(v, base.ContextualValue):
       v = self.sym_contextual_getattr(index, getter=v, start=self.sym_parent)
     return v
 

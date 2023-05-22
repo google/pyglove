@@ -14,11 +14,12 @@
 """Tests for pyglove.symbolic.base."""
 
 import copy
+import dataclasses
 import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
-from pyglove.core.symbolic.base import FieldUpdate
+from pyglove.core.symbolic import base
 from pyglove.core.symbolic.dict import Dict
 
 
@@ -28,7 +29,7 @@ class FieldUpdateTest(unittest.TestCase):
   def test_basics(self):
     x = Dict(x=1)
     f = pg_typing.Field('x', pg_typing.Int())
-    update = FieldUpdate(object_utils.KeyPath('x'), x, f, 1, 2)
+    update = base.FieldUpdate(object_utils.KeyPath('x'), x, f, 1, 2)
     self.assertEqual(update.path, 'x')
     self.assertIs(update.target, x)
     self.assertIs(update.field, f)
@@ -37,44 +38,90 @@ class FieldUpdateTest(unittest.TestCase):
 
   def test_format(self):
     self.assertEqual(
-        FieldUpdate(
-            object_utils.KeyPath('x'),
-            Dict(x=1), None, 1, 2).format(compact=True),
-        'FieldUpdate(parent_path=, path=x, old_value=1, new_value=2)')
+        base.FieldUpdate(
+            object_utils.KeyPath('x'), Dict(x=1), None, 1, 2
+        ).format(compact=True),
+        'FieldUpdate(parent_path=, path=x, old_value=1, new_value=2)',
+    )
 
     self.assertEqual(
-        FieldUpdate(
-            object_utils.KeyPath('a'),
-            Dict(x=Dict(a=1)).x, None, 1, 2).format(compact=True),
-        'FieldUpdate(parent_path=x, path=a, old_value=1, new_value=2)')
+        base.FieldUpdate(
+            object_utils.KeyPath('a'), Dict(x=Dict(a=1)).x, None, 1, 2
+        ).format(compact=True),
+        'FieldUpdate(parent_path=x, path=a, old_value=1, new_value=2)',
+    )
 
   def test_eq_ne(self):
     x = Dict()
     f = pg_typing.Field('x', pg_typing.Int())
     self.assertEqual(
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2))
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+    )
 
     # Targets are not the same instance.
     self.assertNotEqual(
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        FieldUpdate(object_utils.KeyPath('a'), Dict(), f, 1, 2))
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(object_utils.KeyPath('a'), Dict(), f, 1, 2),
+    )
 
     # Fields are not the same instance.
     self.assertNotEqual(
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        FieldUpdate(object_utils.KeyPath('b'), x, copy.copy(f), 1, 2))
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(object_utils.KeyPath('b'), x, copy.copy(f), 1, 2),
+    )
 
     self.assertNotEqual(
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 0, 2))
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 0, 2),
+    )
 
     self.assertNotEqual(
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 1))
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 1),
+    )
 
     self.assertNotEqual(
-        FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2), Dict())
+        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2), Dict()
+    )
+
+
+class ContextualValueTest(unittest.TestCase):
+  """Tests for `pg.symbolic.ContextualValue`."""
+
+  def test_str(self):
+    self.assertEqual(str(base.ContextualValue()), 'ContextualValue()')
+
+  def test_repr(self):
+    self.assertEqual(repr(base.ContextualValue()), 'ContextualValue()')
+
+  def test_eq(self):
+    self.assertEqual(base.ContextualValue(), base.ContextualValue())
+    self.assertNotEqual(base.ContextualValue(), 1)
+
+  def test_call(self):
+    @dataclasses.dataclass
+    class A:
+      x: int = 1
+      y: int = 2
+
+    self.assertEqual(base.ContextualValue().get('x', A()), 1)
+
+  def test_custom_typing(self):
+    v = base.ContextualValue()
+    self.assertIs(pg_typing.Int().apply(v), v)
+    self.assertIs(pg_typing.Str().apply(v), v)
+
+  def test_to_json(self):
+    self.assertEqual(
+        base.to_json(base.ContextualValue()),
+        {'_type': f'{base.ContextualValue.__module__}.ContextualValue'},
+    )
+
+  def test_from_json(self):
+    self.assertEqual(
+        base.from_json(base.ContextualValue().to_json()), base.ContextualValue()
+    )
 
 
 if __name__ == '__main__':

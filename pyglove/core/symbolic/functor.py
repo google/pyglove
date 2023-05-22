@@ -475,10 +475,12 @@ def functor(
   """
   if inspect.isfunction(args):
     assert returns is None
-    assert base_class is None
     return functor_class(
         typing.cast(Callable[..., Any], args),
-        add_to_registry=True, **kwargs)
+        base_class=base_class,
+        add_to_registry=True,
+        **kwargs,
+    )
   return lambda fn: functor_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
       fn, args, returns,
       base_class=base_class,

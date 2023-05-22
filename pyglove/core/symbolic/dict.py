@@ -19,7 +19,6 @@ from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence, 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
-from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 
 
@@ -579,7 +578,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def __getitem__(self, key: str) -> Any:
     """Get item in this Dict."""
     v = super().__getitem__(key)
-    if isinstance(v, contextual.Contextual):
+    if isinstance(v, base.ContextualValue):
       start = self.sym_parent
       # NOTE(daiyip): The parent of `pg.Object`'s attribute dict points to
       # the `pg.Object` instance once it's set up. Here we let the ancester

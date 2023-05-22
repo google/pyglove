@@ -60,6 +60,11 @@ from pyglove.core.symbolic.flags import is_change_notification_enabled
 from pyglove.core.symbolic.flags import auto_call_functors
 from pyglove.core.symbolic.flags import should_call_functors_during_init
 
+# Marker for contextual values.
+from pyglove.core.symbolic.base import ContextualValue
+from pyglove.core.symbolic.contextual import ContextualGetter
+from pyglove.core.symbolic.contextual import contextual_getter
+
 # Symbolic types and their definition helpers.
 from pyglove.core.symbolic.base import Symbolic
 from pyglove.core.symbolic.list import List
@@ -108,9 +113,6 @@ from pyglove.core.symbolic.base import to_json
 from pyglove.core.symbolic.base import to_json_str
 from pyglove.core.symbolic.base import load
 from pyglove.core.symbolic.base import save
-
-# Marker for contextual values.
-from pyglove.core.symbolic.contextual import Contextual
 
 # Interfaces for pure symbolic objects.
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
