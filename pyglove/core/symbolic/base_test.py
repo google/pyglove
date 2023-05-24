@@ -105,7 +105,18 @@ class ContextualValueTest(unittest.TestCase):
       x: int = 1
       y: int = 2
 
-    self.assertEqual(base.ContextualValue().get('x', A()), 1)
+    self.assertEqual(
+        base.ContextualValue().get(base.GetAttributeContext('x', A(), Dict())),
+        1,
+    )
+    self.assertEqual(
+        base.ContextualValue().get(base.GetAttributeContext(0, [0, 1], Dict())),
+        0,
+    )
+    self.assertEqual(
+        base.ContextualValue().get(base.GetAttributeContext(0, Dict(), Dict())),
+        pg_typing.MISSING_VALUE,
+    )
 
   def test_custom_typing(self):
     v = base.ContextualValue()

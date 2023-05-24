@@ -572,6 +572,16 @@ class ObjectTest(unittest.TestCase):
     self.assertTrue(a.y)      # Use default value from the field definition.
     self.assertEqual(a.z, 2)  # Non-symbolic field.
 
+    class B(Object):
+      x: int
+
+    b = B(base.ContextualValue())
+    with self.assertRaises(AttributeError):
+      _ = b.x
+
+    sd = Dict(x=1, b=b)
+    self.assertEqual(sd.b.x, 1)
+
   def test_non_default(self):
 
     @pg_members([
@@ -614,6 +624,13 @@ class ObjectTest(unittest.TestCase):
     a.rebind({'x': 1, 'y': MISSING_VALUE, 'z.p': 1.0})
     self.assertEqual(a.missing_values(), {})
 
+    # Test contextual value as the default value.
+    class B(Object):
+      x: int
+
+    b = B(base.ContextualValue())
+    self.assertEqual(b.sym_missing(), {})
+
   def test_sym_has(self):
 
     @pg_members([
@@ -634,21 +651,24 @@ class ObjectTest(unittest.TestCase):
 
   def test_sym_get(self):
 
-    @pg_members([
-        ('x', pg_typing.Any())
-    ])
+    @pg_members([('x', pg_typing.Any()), ('p', pg_typing.Any().noneable())])
     class A(Object):
 
       def _on_bound(self):
         super()._on_bound()
         self.y = 1
 
-    a = A(A(dict(y=A(1))))
+    a = A(A(dict(y=A(1, p=base.ContextualValue()))), p=base.ContextualValue())
 
     self.assertIs(a.sym_get('x'), a.x)
+    self.assertIs(a.sym_get('p'), a.sym_getattr('p'))
     self.assertIs(a.sym_get('x.x'), a.x.x)
     self.assertIs(a.sym_get(object_utils.KeyPath.parse('x.x.y')), a.x.x.y)
     self.assertIs(a.sym_get(object_utils.KeyPath.parse('x.x.y.x')), a.x.x.y.x)
+    self.assertIs(
+        a.sym_get(object_utils.KeyPath.parse('x.x.y.p')),
+        a.x.x.y.sym_getattr('p'),
+    )
 
     with self.assertRaisesRegex(
         KeyError, 'Path y does not exist.'):  # `y` is not a symbolic field.
@@ -696,6 +716,10 @@ class ObjectTest(unittest.TestCase):
 
     a = A(1)
     self.assertEqual(a.sym_getattr('x'), 1)
+
+    a = A(x=base.ContextualValue())
+    self.assertEqual(a.sym_getattr('x'), base.ContextualValue())
+
     with self.assertRaisesRegex(
         AttributeError, 'has no symbolic attribute \'y\''):
       _ = a.sym_getattr('y')
@@ -716,6 +740,22 @@ class ObjectTest(unittest.TestCase):
         AttributeError, 'has no symbolic attribute \'y\''):
       _ = b.sym_getattr('y')
 
+  def test_sym_value(self):
+    @contextual.contextual_getter
+    def static_value(context, v):
+      del context
+      return v
+
+    class A(Object):
+      x: int = 1
+      y: int = static_value(v=0)  # pylint: disable=no-value-for-parameter
+
+    a = A()
+    self.assertEqual(a.sym_value('x'), 1)
+    self.assertEqual(a.sym_value('y'), 0)
+    with self.assertRaisesRegex(AttributeError, 'z'):
+      _ = a.sym_value('z')
+
   def test_sym_contextual_hasattr(self):
     class A(Object):
       x: int
@@ -735,9 +775,10 @@ class ObjectTest(unittest.TestCase):
 
     # Custom getter.
     @contextual.contextual_getter
-    def redirected_value(k, p, key):
-      del k
-      return getattr(p, key)
+    def redirected_value(context, key):
+      if context.container:
+        return getattr(context.container, key)
+      return pg_typing.MISSING_VALUE
 
     getter = redirected_value(key='b')  # pylint: disable=no-value-for-parameter
     self.assertTrue(a.sym_contextual_hasattr('x', getter, start=a.sym_parent))
@@ -777,9 +818,10 @@ class ObjectTest(unittest.TestCase):
 
     # Custom getter.
     @contextual.contextual_getter
-    def redirected_value(k, p, key):
-      del k
-      return getattr(p, key)
+    def redirected_value(context, key):
+      if context.container:
+        return getattr(context.container, key)
+      return pg_typing.MISSING_VALUE
 
     getter = redirected_value(key='b')  # pylint: disable=no-value-for-parameter
     self.assertEqual(
@@ -1887,9 +1929,10 @@ class InitSignatureTest(unittest.TestCase):
 
     # Test parent contextual value with custom getter.
     @contextual.contextual_getter
-    def redirected_value(k, p, key):
-      del k
-      return getattr(p, key)
+    def redirected_value(context, key):
+      if context.container:
+        return getattr(context.container, key)
+      return pg_typing.MISSING_VALUE
 
     sd = Dict(a='bar', b=Dict(x=a, y=redirected_value(key='a')))  # pylint: disable=no-value-for-parameter
 
@@ -1897,8 +1940,10 @@ class InitSignatureTest(unittest.TestCase):
     self.assertEqual(a.y, 'bar')
 
     @contextual.contextual_getter
-    def immediate_attr(k, p):
-      return p.sym_getattr(k)
+    def immediate_attr(context):
+      if context.container:
+        return context.container.sym_getattr(context.key)
+      return pg_typing.MISSING_VALUE
 
     class B(Object):
       x: int = immediate_attr()  # pylint: disable=no-value-for-parameter
@@ -1935,7 +1980,7 @@ class RebindTest(unittest.TestCase):
 
     # Rebind using both update dict and kwargs.
     a = A(1, 2)
-    a.rebind({'x': 2}, x=3, y=3)
+    a.rebind(Dict(x=2), x=3, y=3)
     self.assertEqual(a, A(3, 3))
     self.assertEqual(a.z, 6)
 

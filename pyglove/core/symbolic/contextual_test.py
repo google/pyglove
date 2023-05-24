@@ -25,13 +25,15 @@ class ContextualGetterTest(unittest.TestCase):
 
   def test_basics(self):
     @contextual.contextual_getter
-    def static_value(k, p, v):
-      del k, p
+    def static_value(context, v):
+      del context
       return v
 
     getter = static_value(v=1)  # pylint: disable=no-value-for-parameter
     self.assertIsInstance(getter, base.ContextualValue)
-    self.assertEqual(getter.get('x', Dict()), 1)
+    self.assertEqual(
+        getter.get(base.GetAttributeContext('x', Dict(), Dict())), 1
+    )
     self.assertEqual(base.from_json(base.to_json(getter)), getter)
 
 

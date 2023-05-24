@@ -21,6 +21,7 @@ import unittest
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
+from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic.dict import Dict
@@ -66,6 +67,10 @@ class DictTest(unittest.TestCase):
     sd = Dict(a=1, value_spec=vs)
     self.assertIs(sd.value_spec, vs)
     self.assertEqual(sd, dict(a=1))
+
+    # Dict with contextual value
+    sd = Dict(Dict(x=base.ContextualValue()))
+    self.assertEqual(sd, dict(x=base.ContextualValue()))
 
     with self.assertRaisesRegex(
         ValueError, 'Required value is not specified.'):
@@ -324,11 +329,23 @@ class DictTest(unittest.TestCase):
     with self.assertRaisesRegex(KeyError, 'Key \'y1\' is not allowed'):
       sd['y1'] = 4
 
+    # Set item with a contextual value.
+    sd = Dict(x=1)
+    sd.x = base.ContextualValue()
+    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+
   def test_getitem(self):
     sd = Dict(a=1)
     self.assertEqual(sd['a'], 1)
     with self.assertRaisesRegex(KeyError, 'x'):
       _ = sd['x']
+
+    sd = Dict(x=base.ContextualValue())
+    with self.assertRaisesRegex(AttributeError, 'x'):
+      _ = sd['x']
+
+    sdd = Dict(x=Dict(foo=0), y=sd)
+    self.assertIs(sd['x'], sdd['x'])
 
   def test_delitem(self):
     # Delete an item from a schemaless dict.
@@ -404,6 +421,17 @@ class DictTest(unittest.TestCase):
     self.assertEqual(sd.a, 1)
     with self.assertRaisesRegex(AttributeError, 'Attribute .* does not exist'):
       _ = sd.x
+
+    # Test contextual.
+    sd = Dict(x=base.ContextualValue())
+    with self.assertRaisesRegex(
+        AttributeError, '`x` is not found under its context'
+    ):
+      _ = sd.x
+
+    p = Dict(x=Dict(p='foo'), y=Dict(z=sd))
+    self.assertEqual(sd.x, Dict(p='foo'))
+    self.assertIs(p.x, sd.x)
 
   def test_delattr(self):
     # Delete an item from a schemaless dict.
@@ -590,6 +618,12 @@ class DictTest(unittest.TestCase):
 
     sd = Dict.partial(value_spec=pg_typing.Dict([('a', pg_typing.Int())]))
     self.assertEqual(sd.setdefault('a', 1), 1)
+
+    sd = Dict()
+    sd.setdefault('x', base.ContextualValue())
+    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+    sd.setdefault('x', 1)
+    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
 
   def test_update(self):
     sd = Dict(b=0, a=1, c=2)
@@ -786,6 +820,21 @@ class DictTest(unittest.TestCase):
         '.* object has no symbolic attribute \'a\'.'):
       sd.sym_getattr('a')
 
+    sd = Dict(x=base.ContextualValue())
+    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+
+  def test_sym_value(self):
+    @contextual.contextual_getter
+    def static_value(context, v):
+      del context
+      return v
+
+    sd = Dict(x=1, y=static_value(v=0))  # pylint: disable=no-value-for-parameter
+    self.assertEqual(sd.sym_value('x'), 1)
+    self.assertEqual(sd.sym_value('y'), 0)
+    with self.assertRaisesRegex(AttributeError, 'z'):
+      _ = sd.sym_value('z')
+
   def test_sym_field(self):
     sd = Dict(x=1, y=Dict(z=2))
     self.assertIsNone(sd.sym_field)
@@ -820,6 +869,10 @@ class DictTest(unittest.TestCase):
     self.assertEqual(next(sd.sym_keys()), 'x')
     self.assertEqual(list(sd.sym_keys()), ['x', 'z', 'y'])
 
+    sd = Dict(x=1, y=base.ContextualValue())
+    self.assertEqual(next(sd.sym_keys()), 'x')
+    self.assertEqual(list(sd.sym_keys()), ['x', 'y'])
+
   def test_sym_values(self):
     sd = Dict(x=1, y=2)
     self.assertEqual(next(sd.sym_values()), 1)
@@ -830,6 +883,10 @@ class DictTest(unittest.TestCase):
     ]))
     self.assertEqual(next(sd.sym_values()), 1)
     self.assertEqual(list(sd.sym_values()), [1, 3, 2])
+
+    sd = Dict(x=1, y=base.ContextualValue())
+    self.assertEqual(next(sd.sym_values()), 1)
+    self.assertEqual(list(sd.sym_values()), [1, base.ContextualValue()])
 
   def test_sym_items(self):
     sd = Dict(x=1, y=2)
@@ -842,11 +899,18 @@ class DictTest(unittest.TestCase):
     self.assertEqual(next(sd.sym_items()), ('x', 1))
     self.assertEqual(list(sd.sym_items()), [('x', 1), ('z', 3), ('y', 2)])
 
+    sd = Dict(x=1, y=base.ContextualValue())
+    self.assertEqual(next(sd.sym_items()), ('x', 1))
+    self.assertEqual(
+        list(sd.sym_items()), [('x', 1), ('y', base.ContextualValue())]
+    )
+
   def test_sym_jsonify(self):
     # Refer to SerializationTest for more detailed tests.
-    sd = Dict(x=1, y=2)
+    sd = Dict(x=1, y=base.ContextualValue())
     self.assertEqual(
-        sd.sym_jsonify(), {'x': 1, 'y': 2})
+        sd.sym_jsonify(), {'x': 1, 'y': base.ContextualValue().to_json()}
+    )
 
   def test_sym_rebind(self):
     # Refer to RebindTest for more detailed tests.
@@ -911,6 +975,15 @@ class DictTest(unittest.TestCase):
     ]))
     self.assertEqual(sd.sym_missing(), {'y': MISSING_VALUE})
 
+    # Test contextual value as the default value.
+    sd = Dict(
+        x=base.ContextualValue(),
+        value_spec=pg_typing.Dict([
+            ('x', pg_typing.Int()),
+        ]),
+    )
+    self.assertEqual(sd.sym_missing(), {})
+
   def test_sym_nondefault(self):
     # Refer to `test_non_default_values` for more details.
     sd = Dict(x=1, value_spec=pg_typing.Dict([
@@ -922,6 +995,28 @@ class DictTest(unittest.TestCase):
     self.assertEqual(sd.sym_nondefault(), {'x': 1})
     sd.rebind({'y.z': 2}, x=0)
     self.assertEqual(sd.sym_nondefault(), {'y.z': 2})
+
+    # Test contextual value as the default value.
+    sd = Dict(
+        x=1,
+        value_spec=pg_typing.Dict([
+            ('x', pg_typing.Int(default=base.ContextualValue())),
+        ]),
+    )
+    self.assertEqual(sd.sym_nondefault(), {'x': 1})
+    sd.rebind(x=base.ContextualValue())
+    self.assertEqual(sd.sym_nondefault(), {})
+
+    # Test contextual value as the specified value.
+    sd = Dict(
+        x=base.ContextualValue(),
+        value_spec=pg_typing.Dict([
+            ('x', pg_typing.Int(default=1)),
+        ]),
+    )
+    self.assertEqual(sd.sym_nondefault(), {'x': base.ContextualValue()})
+    sd.rebind(x=1)
+    self.assertEqual(sd.sym_nondefault(), {})
 
   def test_sym_puresymbolic(self):
     self.assertFalse(Dict(x=1).sym_puresymbolic)
@@ -1204,6 +1299,22 @@ class DictTest(unittest.TestCase):
           'is set to False.'):
         del sd['a']
 
+    # Test with contextual value.
+    @contextual.contextual_getter
+    def unresolvable(k, p):
+      del k, p
+      return pg_typing.MISSING_VALUE
+
+    sd = Dict(x=unresolvable())  # pylint: disable=no-value-for-parameter
+    sd.set_accessor_writable(False)
+    self.assertFalse(sd.sym_getattr('x').accessor_writable)
+    with self.assertRaisesRegex(
+        base.WritePermissionError,
+        'Cannot modify Dict field by attribute or key while '
+        'accessor_writable is set to False.',
+    ):
+      sd.x = 1
+
   def test_mark_missing_values(self):
     # For schemaless Dict.
     sd = Dict(x=1, y=2)
@@ -1351,16 +1462,17 @@ class DictTest(unittest.TestCase):
     self.assertTrue(sd.is_sealed)
     self.assertTrue(sd.a.is_sealed)
 
-  def test_contextual(self):
-    sd = Dict(x=base.ContextualValue())
-    with self.assertRaisesRegex(
-        AttributeError, '`x` is not found under its context'
-    ):
-      _ = sd.x
+    # Test with contextual value.
+    @contextual.contextual_getter
+    def unresolvable(k, p):
+      del k, p
+      return pg_typing.MISSING_VALUE
 
-    p = Dict(x=Dict(p='foo'), y=Dict(z=sd))
-    self.assertEqual(sd.x, Dict(p='foo'))
-    self.assertIs(p.x, sd.x)
+    sd = Dict(x=unresolvable())  # pylint: disable=no-value-for-parameter
+    sd.seal()
+    self.assertTrue(sd.sym_getattr('x').is_sealed)
+    sd.seal(False)
+    self.assertFalse(sd.sym_getattr('x').is_sealed)
 
 
 class RebindTest(unittest.TestCase):
@@ -1399,6 +1511,21 @@ class RebindTest(unittest.TestCase):
     sd = Dict(a=1, b=2, c=3)
     sd.rebind({'a': 2, 'b': 3}, a=3, c=3)
     self.assertEqual(sd, dict(a=3, b=3, c=3))
+
+  def test_rebind_with_context_value(self):
+    sd = Dict(a=1, b=2)
+    sd.rebind(a=base.ContextualValue())
+    self.assertEqual(sd, dict(a=base.ContextualValue(), b=2))
+
+    sd = Dict(
+        a=1,
+        b=2,
+        value_spec=pg_typing.Dict(
+            [('a', pg_typing.Int()), ('b', pg_typing.Int())]
+        ),
+    )
+    sd.rebind(a=base.ContextualValue())
+    self.assertEqual(sd, dict(a=base.ContextualValue(), b=2))
 
   def test_rebind_with_typing(self):
     spec = pg_typing.Dict([
@@ -1724,6 +1851,7 @@ class SerializationTest(unittest.TestCase):
         ('y', pg_typing.Str().noneable()),
         # Frozen field shall not be written.
         ('z', pg_typing.Bool(True).freeze()),
+        ('p', pg_typing.Int(default=base.ContextualValue())),
     ])
     self.assertEqual(
         base.from_json_str('{"x": 1}').use_value_spec(spec, allow_partial=True),
@@ -1924,6 +2052,16 @@ class FormatTest(unittest.TestCase):
             }
           }
         }"""))
+
+  def test_noncompact_with_contextual_value(self):
+    self.assertEqual(
+        Dict(x=1, y=base.ContextualValue()).format(compact=False),
+        inspect.cleandoc("""{
+            x = 1,
+            y = ContextualValue()
+          }
+        """),
+    )
 
 
 if __name__ == '__main__':

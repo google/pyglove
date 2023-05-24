@@ -341,6 +341,8 @@ class KeyPath(common_traits.Formattable):
     if key_pos == len(self._keys):
       return src
     key = self.keys[key_pos]
+    # NOTE(daiyip): For contextual value (e.g. ``pg.ContextualValue``),
+    # `query` returns its symbolic form instead of its evaluated value.
     if hasattr(src, 'sym_getattr'):
       assert hasattr(src, 'sym_hasattr')
       if src.sym_hasattr(key):

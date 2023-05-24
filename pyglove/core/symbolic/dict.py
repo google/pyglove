@@ -22,6 +22,13 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 
 
+# Special default value to detect missing keys in a Dict. Though its values is
+# the same as `base._RAISE_IF_NOT_FOUND`, they are different instances so
+# `pg.Dict` and `pg.Symbolic` could use their own instances to control error
+# raising separately.
+_RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
+
+
 class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   """Symbolic dict.
 
@@ -202,7 +209,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         kwargs.pop('as_object_attributes_container', False),
     )
 
-    if dict_obj is not None:
+    # We copy the symbolic form of dict values instead of their evaluated
+    # values.
+    if isinstance(dict_obj, Dict):
+      dict_obj = {k: v for k, v in dict_obj.sym_items()}
+    elif dict_obj is not None:
       dict_obj = dict(dict_obj)
 
     # NOTE(daiyip): we call __init__ of superclasses explicitly instead of
@@ -341,7 +352,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         assert keys or isinstance(key_spec, pg_typing.NonConstKey), key_spec
         if keys:
           for key in keys:
-            v = self[key]
+            v = self.sym_getattr(key)
             if object_utils.MISSING_VALUE == v:
               missing[key] = field.value.default
             else:
@@ -350,7 +361,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
                 if missing_child:
                   missing[key] = missing_child
     else:
-      for k, v in self.items():
+      for k, v in self.sym_items():
         if isinstance(v, base.Symbolic):
           missing_child = v.sym_missing(flatten=False)
           if missing_child:
@@ -367,7 +378,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       for key_spec, keys in matched_keys.items():
         value_spec = dict_schema[key_spec].value
         for key in keys:
-          v = self[key]
+          v = self.sym_getattr(key)
           child_has_non_defaults = False
           if isinstance(v, base.Symbolic):
             non_defaults_child = v.non_default_values(flatten=False)
@@ -377,7 +388,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           if not child_has_non_defaults and value_spec.default != v:
             non_defaults[key] = v
     else:
-      for k, v in self.items():
+      for k, v in self.sym_items():
         if isinstance(v, base.Symbolic):
           non_defaults_child = v.non_default_values(flatten=False)
           if non_defaults_child:
@@ -390,7 +401,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Sets accessor writable."""
     if self.accessor_writable == writable:
       return self
-    for v in self.values():
+    for v in self.sym_values():
       if isinstance(v, base.Symbolic):
         v.set_accessor_writable(writable)
     super().set_accessor_writable(writable)
@@ -400,7 +411,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Seals or unseals current object from further modification."""
     if self.is_sealed == sealed:
       return self
-    for v in self.values():
+    for v in self.sym_values():
       if isinstance(v, base.Symbolic):
         v.seal(sealed)
     super().seal(sealed)
@@ -452,7 +463,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     # NOTE(daiyip): when flag `as_object_attributes_container` is on, it sets
     # the parent of child symbolic values using its parent.
     if self._as_object_attributes_container:
-      for v in self.values():
+      for v in self.sym_values():
         if isinstance(v, base.Symbolic):
           v.sym_setparent(parent)
 
@@ -471,7 +482,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def _sym_clone(self, deep: bool, memo=None) -> 'Dict':
     """Override Symbolic._sym_clone."""
     source = dict()
-    for k, v in self.items():
+    for k, v in self.sym_items():
       if deep or isinstance(v, base.Symbolic):
         v = base.clone(v, deep, memo)
       source[k] = v
@@ -493,7 +504,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       new_path: object_utils.KeyPath) -> None:
     """Update children paths according to root_path of current node."""
     del old_path
-    for k, v in self.items():
+    for k, v in self.sym_items():
       if isinstance(v, base.Symbolic):
         v.sym_setpath(object_utils.KeyPath(k, new_path))
 
@@ -575,8 +586,10 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     if self._onchange_callback:
       self._onchange_callback(field_updates)
 
-  def __getitem__(self, key: str) -> Any:
-    """Get item in this Dict."""
+  def _sym_value(self, key: str, default: Any) -> Any:  # pytype: disable=signature-mismatch
+    """Evalutes a symbolic attribute with resolving contextual values."""
+    if key not in self:
+      return default
     v = super().__getitem__(key)
     if isinstance(v, base.ContextualValue):
       start = self.sym_parent
@@ -586,7 +599,16 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       # dead loop.
       if self._as_object_attributes_container and self.sym_parent:
         start = start.sym_parent
-      v = self.sym_contextual_getattr(key, getter=v, start=start)
+      v = self.sym_contextual_getattr(
+          key, default=default, getter=v, start=start
+      )
+    return v
+
+  def __getitem__(self, key: str) -> Any:
+    """Get item in this Dict."""
+    v = self.sym_value(key, default=_RAISE_IF_NOT_FOUND)
+    if v is _RAISE_IF_NOT_FOUND:
+      raise KeyError(key)
     return v
 
   def __setitem__(self, key: str, value: Any) -> None:
@@ -730,7 +752,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Sets default as the value to key if not present."""
     value = pg_typing.MISSING_VALUE
     if key in self:
-      value = self[key]
+      value = self.sym_getattr(key)
     if value == pg_typing.MISSING_VALUE:
       self[key] = default
       value = default
@@ -765,7 +787,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         if not field.frozen:
           for key in keys:
             if key not in exclude_keys:
-              value = self[key]
+              value = self.sym_getattr(key)
               if pg_typing.MISSING_VALUE == value:
                 continue
               if hide_default_values and value == field.default_value:
@@ -774,8 +796,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
                   value, hide_default_values=hide_default_values, **kwargs)
       return json_repr
     else:
-      return {k: base.to_json(v, **kwargs)
-              for k, v in self.items() if k not in exclude_keys}
+      return {
+          k: base.to_json(v, **kwargs)
+          for k, v in self.sym_items()
+          if k not in exclude_keys
+      }
 
   def custom_apply(
       self,
@@ -841,14 +866,15 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         for key in keys:
           if key not in exclude_keys:
             field = self._value_spec.schema[key_spec]
-            if pg_typing.MISSING_VALUE == self[key]:
+            v = self.sym_getattr(key)
+            if pg_typing.MISSING_VALUE == v:
               if hide_missing_values:
                 continue
-            elif hide_default_values and self[key] == field.default_value:
+            elif hide_default_values and v == field.default_value:
               continue
-            field_list.append((field, key, self[key]))
+            field_list.append((field, key, v))
     else:
-      for k, v in self.items():
+      for k, v in self.sym_items():
         if k not in exclude_keys:
           field_list.append((None, k, v))
 

@@ -23,6 +23,13 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 
 
+# Special default value to detect missing keys in a List. Though its values is
+# the same as `base._RAISE_IF_NOT_FOUND`, they are different instances so
+# `pg.List` and `pg.Symbolic` could use their own instances to control error
+# raising separately.
+_RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
+
+
 class List(list, base.Symbolic, pg_typing.CustomTyping):
   """Symbolic list.
 
@@ -178,6 +185,10 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
     list.__init__(self)
     if items:
+      # Copy the symbolic form instead of evaluated form.
+      if isinstance(items, List):
+        items = items.sym_values()
+
       for item in items:
         self._set_item_without_permission_check(len(self), item)
 
@@ -277,25 +288,28 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
   def sym_values(self) -> Iterator[Any]:
     """Iterates the values of symbolic attributes."""
-    return iter(self)
+    for i in range(len(self)):
+      yield super().__getitem__(i)
 
   def sym_items(self) -> Iterator[Tuple[int, Any]]:
     """Iterates the (key, value) pairs of symbolic attributes."""
-    return enumerate(self)
+    for i in range(len(self)):
+      yield (i, super().__getitem__(i))
 
   def sym_hash(self) -> int:
     """Symbolically hashing."""
-    return base.sym_hash((self.__class__, tuple([
-        base.sym_hash(e) for e in self])))
+    return base.sym_hash(
+        (self.__class__, tuple([base.sym_hash(e) for e in self.sym_values()]))
+    )
 
   def _sym_getattr(self, key: int) -> Any:   # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
     """Gets symbolic attribute by index."""
-    return self[key]
+    return super().__getitem__(key)
 
   def _sym_clone(self, deep: bool, memo=None) -> 'List':
     """Override Symbolic._clone."""
     source = []
-    for v in self:
+    for v in self.sym_values():
       if deep or isinstance(v, base.Symbolic):
         v = base.clone(v, deep, memo)
       source.append(v)
@@ -311,7 +325,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
   def _sym_missing(self) -> Dict[Any, Any]:
     """Returns missing fields."""
     missing = dict()
-    for idx, elem in enumerate(self):
+    for idx, elem in self.sym_items():
       if isinstance(elem, base.Symbolic):
         missing_child = elem.sym_missing(flatten=False)
         if missing_child:
@@ -340,7 +354,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
   def _sym_nondefault(self) -> Dict[int, Any]:
     """Returns non-default values."""
     non_defaults = dict()
-    for idx, elem in enumerate(self):
+    for idx, elem in self.sym_items():
       if isinstance(elem, base.Symbolic):
         non_defaults_child = elem.non_default_values(flatten=False)
         if non_defaults_child:
@@ -353,7 +367,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     """Sets accessor writable."""
     if self.accessor_writable == writable:
       return self
-    for elem in self:
+    for elem in self.sym_values():
       if isinstance(elem, base.Symbolic):
         elem.set_accessor_writable(writable)
     super().set_accessor_writable(writable)
@@ -363,7 +377,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     """Seal or unseal current object from further modification."""
     if self.is_sealed == sealed:
       return self
-    for elem in self:
+    for elem in self.sym_values():
       if isinstance(elem, base.Symbolic):
         elem.seal(sealed)
     super().seal(sealed)
@@ -375,7 +389,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       new_path: object_utils.KeyPath) -> None:
     """Update children paths according to root_path of current node."""
     del old_path
-    for idx, item in enumerate(self):
+    for idx, item in self.sym_items():
       if isinstance(item, base.Symbolic):
         item.sym_setpath(object_utils.KeyPath(idx, new_path))
 
@@ -445,7 +459,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
     # NOTE(daiyip): Remove items that are MISSING_VALUES.
     keys_to_remove = []
-    for i, item in enumerate(self):
+    for i, item in self.sym_items():
       if pg_typing.MISSING_VALUE == item:
         keys_to_remove.append(i)
     if keys_to_remove:
@@ -453,18 +467,53 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
         list.__delitem__(self, i)
 
     # Update paths for children.
-    for idx, item in enumerate(self):
+    for idx, item in self.sym_items():
       if isinstance(item, base.Symbolic) and item.sym_path.key != idx:
         item.sym_setpath(object_utils.KeyPath(idx, self.sym_path))
 
     if self._onchange_callback is not None:
       self._onchange_callback(field_updates)
 
+  def _parse_slice(self, index: slice) -> Tuple[int, int, int]:
+    start = index.start if index.start is not None else 0
+    start = max(-len(self), start)
+    start = min(len(self), start)
+    if start < 0:
+      start += len(self)
+
+    stop = index.stop if index.stop is not None else len(self)
+    stop = max(-len(self), stop)
+    stop = min(len(self), stop)
+    if stop < 0:
+      stop += len(self)
+
+    step = index.step if index.step is not None else 1
+    return start, stop, step
+
+  def _sym_value(self, key: int, default: Any) -> Any:  # pytype: disable=signature-mismatch
+    try:
+      v = super().__getitem__(key)
+    except IndexError:
+      return default
+
+    def _eval(i, v):
+      if isinstance(v, base.ContextualValue):
+        return self.sym_contextual_getattr(
+            i, default=default, getter=v, start=self.sym_parent
+        )
+      return v
+
+    if isinstance(key, slice):
+      return [
+          _eval(k, v[i]) for i, k in enumerate(range(*self._parse_slice(key)))
+      ]
+    return _eval(key, v)
+
   def __getitem__(self, index) -> Any:
     """Gets the item at a given position."""
-    v = super().__getitem__(index)
-    if isinstance(v, base.ContextualValue):
-      v = self.sym_contextual_getattr(index, getter=v, start=self.sym_parent)
+    v = self.sym_value(index, _RAISE_IF_NOT_FOUND)
+    if v is _RAISE_IF_NOT_FOUND:
+      raise IndexError('list index out of range')
     return v
 
   def __setitem__(self, index, value: Any) -> None:
@@ -479,19 +528,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
                               'accessor_writable is set to False. '
                               'Use \'rebind\' method instead.'))
     if isinstance(index, slice):
-      start = index.start if index.start is not None else 0
-      start = max(-len(self), start)
-      start = min(len(self), start)
-      if start < 0:
-        start += len(self)
-
-      stop = index.stop if index.stop is not None else len(self)
-      stop = max(-len(self), stop)
-      stop = min(len(self), stop)
-      if stop < 0:
-        stop += len(self)
-
-      step = index.step if index.step is not None else 1
+      start, stop, step = self._parse_slice(index)
       replacements = [self._formalized_value(i, v) for i, v in enumerate(value)]
       if step < 0:
         replacements.reverse()
@@ -547,7 +584,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
           f'list index out of range. '
           f'Length={len(self)}, index={index}')
 
-    old_value = self[index]
+    old_value = self.sym_getattr(index)
     super().__delitem__(index)
 
     if flags.is_change_notification_enabled():
@@ -609,7 +646,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     """Pop an item and return its value."""
     if index < -len(self) or index >= len(self):
       raise IndexError('pop index out of range')
-
+    index = (index + len(self)) % len(self)
     value = self[index]
     with flags.allow_writable_accessors(True):
       del self[index]
@@ -617,7 +654,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
   def remove(self, value: Any) -> None:
     """Removes the first occurrence of the value."""
-    for i, item in enumerate(self):
+    for i, item in self.sym_items():
       if item == value:
         if (self._value_spec and self._value_spec.min_size == len(self)):
           raise ValueError(
@@ -636,7 +673,9 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
           f'Cannot extend List: the number of elements '
           f'({len(self) + len(other)}) exceeds max size ({self.max_size}).')
     updates = []
-    for v in other:
+    # Extend on the symbolic form instead of the evaluated form.
+    iter_other = other.sym_values() if isinstance(other, List) else other
+    for v in iter_other:
       update = self._set_item_without_permission_check(len(self), v)
       if update is not None:
         updates.append(update)
@@ -703,7 +742,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
   def sym_jsonify(self, **kwargs) -> object_utils.JSONValueType:
     """Converts current list to a list of plain Python objects."""
-    return [base.to_json(v, **kwargs) for v in self]
+    return [base.to_json(v, **kwargs) for v in self.sym_values()]
 
   def format(
       self,
@@ -725,7 +764,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     s = [f'{cls_name}{open_bracket}']
     if compact:
       kv_strs = []
-      for idx, elem in enumerate(self):
+      for idx, elem in self.sym_items():
         v_str = object_utils.format(
             elem, compact, verbose, root_indent + 1,
             python_format=python_format, **kwargs)
@@ -737,7 +776,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       s.append(close_bracket)
     else:
       if self:
-        for idx, elem in enumerate(self):
+        for idx, elem in self.sym_items():
           if idx == 0:
             s.append('\n')
           else:

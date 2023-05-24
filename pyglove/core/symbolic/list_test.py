@@ -59,6 +59,10 @@ class ListTest(unittest.TestCase):
     self.assertIs(sl.value_spec, vs)
     self.assertEqual(sl, [1])
 
+    # List with contextual value.
+    sl = List(List([base.ContextualValue()]))
+    self.assertEqual(sl, [base.ContextualValue()])
+
     with self.assertRaisesRegex(
         TypeError, '.* must be a `pg.typing.List` object.'):
       List(value_spec=pg_typing.Int())
@@ -263,6 +267,22 @@ class ListTest(unittest.TestCase):
     self.assertEqual(sl[1:], [1, 2])
     self.assertEqual(sl[:], [0, 1, 2])
 
+    # Context value
+    sl = List([base.ContextualValue(), 2, base.ContextualValue()])
+    with self.assertRaises(AttributeError):
+      _ = sl[0]
+
+    sl2 = List([123, sl, 456])
+    self.assertEqual(sl[0], 123)
+
+    # Slicing contextual values.
+    self.assertEqual(sl[1:], [2, 456])
+    self.assertEqual(sl[:-1], [123, 2])
+    self.assertEqual(sl[::2], [123, 456])
+    self.assertEqual(sl[::], [123, 2, 456])
+    self.assertEqual(sl[-1:0:-1], [456, 2])
+    del sl2
+
   def test_delitem(self):
     # Delete an item from a schemaless dict.
     sl = List([0])
@@ -321,8 +341,8 @@ class ListTest(unittest.TestCase):
 
   def test_extend(self):
     sl = List([0, 1])
-    sl.extend([2, 3])
-    self.assertEqual(sl, [0, 1, 2, 3])
+    sl.extend([2, base.ContextualValue()])
+    self.assertEqual(sl, [0, 1, 2, base.ContextualValue()])
 
     sl = List([0, 1], value_spec=pg_typing.List(pg_typing.Int(), max_size=4))
     with self.assertRaisesRegex(
@@ -336,9 +356,9 @@ class ListTest(unittest.TestCase):
       sl.extend([0, 1])
 
   def test_concatenate(self):
-    sl = List([0]) + List([1])
+    sl = List([0]) + List([base.ContextualValue()])
     self.assertIsInstance(sl, List)
-    self.assertEqual(sl, [0, 1])
+    self.assertEqual(sl, [0, base.ContextualValue()])
 
     spec = pg_typing.List(pg_typing.Int(min_value=0))
     sl = List([0], value_spec=spec) + [1, 2]
@@ -402,6 +422,11 @@ class ListTest(unittest.TestCase):
         ValueError, 'Cannot remove item: min size .* is reached'):
       sl.remove(1)
 
+    # Remove contextual value.
+    sl = List([base.ContextualValue()])
+    sl.remove(base.ContextualValue())
+    self.assertEqual(sl, [])
+
   def test_pop(self):
     sl = List([0, 1, 2])
     self.assertEqual(sl.pop(), 2)
@@ -417,6 +442,19 @@ class ListTest(unittest.TestCase):
 
     with self.assertRaisesRegex(IndexError, 'pop index out of range'):
       _ = sl.pop(-3)
+
+    # pop with contextual value.
+    sl = List([base.ContextualValue()])
+    with self.assertRaises(AttributeError):
+      sl.pop()
+    self.assertEqual(sl, [base.ContextualValue()])
+
+    sl2 = List([23, sl, 45])
+    self.assertEqual(len(sl), 1)
+    self.assertEqual(sl[0], 23)
+    self.assertEqual(sl.pop(), 23)
+    self.assertEqual(sl, [])
+    del sl2
 
   def test_clear(self):
     sl = List([0, 1])
@@ -467,17 +505,26 @@ class ListTest(unittest.TestCase):
         ValueError, '3 is not in list'):
       _ = sl.index(3)
 
+    # Index of contextual value is based on its symbolic form.
+    # TODO(daiyip): revise the behavior.
+    sl = List([0, base.ContextualValue(), 1])
+    self.assertEqual(sl.index(base.ContextualValue()), 1)
+    self.assertEqual(sl.index(1), 2)
+
   def test_count(self):
-    sl = List([0, 1, 2, 1])
+    # Count of contextual value is also based on its symbolic form.
+    # TODO(daiyip): revise the behavior.
+    sl = List([0, 1, base.ContextualValue(), 2, 1, base.ContextualValue()])
     self.assertEqual(sl.count(1), 2)
     self.assertEqual(sl.count(3), 0)
+    self.assertEqual(sl.count(base.ContextualValue()), 2)
 
   def test_copy(self):
 
     class A:
       pass
 
-    sl = List([0, A(), dict(x=A()), list([A()])])
+    sl = List([base.ContextualValue(), A(), dict(x=A()), list([A()])])
     sl2 = sl.copy()
     self.assertIsInstance(sl2, List)
     self.assertEqual(sl, sl2)
@@ -488,7 +535,9 @@ class ListTest(unittest.TestCase):
     self.assertIs(sl[2].x, sl2[2].x)
     self.assertIs(sl[3][0], sl2[3][0])
 
-    sl = List([0], value_spec=pg_typing.List(pg_typing.Int()))
+    sl = List(
+        [base.ContextualValue()], value_spec=pg_typing.List(pg_typing.Int())
+    )
     sl2 = sl.copy()
     self.assertIs(sl.value_spec, sl2.value_spec)
 
@@ -514,7 +563,7 @@ class ListTest(unittest.TestCase):
       def __eq__(self, other):
         return isinstance(other, B) and self.v == other.v
 
-    sl = List([0, B(1), dict(x=B(2)), list([B(3)])])
+    sl = List([base.ContextualValue(), B(1), dict(x=B(2)), list([B(3)])])
     sl4 = copy.deepcopy(sl)
     self.assertIsInstance(sl4, List)
     self.assertEqual(sl, sl4)
@@ -536,6 +585,11 @@ class ListTest(unittest.TestCase):
         base.WritePermissionError, 'Cannot sort a sealed List'):
       sl.sort()
 
+    # List with contextual value cannot be sorted.
+    sl = List([0, 2, base.ContextualValue(), 3])
+    with self.assertRaises(TypeError):
+      sl.sort()
+
   def test_reverse(self):
     sl = List([0, 2, 1, 3])
     sl.reverse()
@@ -546,10 +600,17 @@ class ListTest(unittest.TestCase):
         base.WritePermissionError, 'Cannot reverse a sealed List'):
       sl.reverse()
 
+    # List with contextual value is reversed in its symbolic form.
+    sl = List([0, 2, base.ContextualValue(), 3])
+    sl.reverse()
+    self.assertEqual(sl, [3, base.ContextualValue(), 2, 0])
+
   def test_in(self):
-    sl = List([0, 1, 2])
+    sl = List([0, 1, base.ContextualValue()])
     self.assertIn(1, sl)
     self.assertNotIn(3, sl)
+    # In-test is based on the symbolic form.
+    self.assertIn(base.ContextualValue(), sl)
 
   def test_iter(self):
     sl = List([0, 1, 2, 3])
@@ -633,6 +694,18 @@ class ListTest(unittest.TestCase):
         '.* object has no symbolic attribute 1.'):
       sl.sym_getattr(1)
 
+  def test_sym_value(self):
+    @contextual.contextual_getter
+    def static_value(context, v):
+      del context
+      return v
+
+    sd = List([1, static_value(v=0)])  # pylint: disable=no-value-for-parameter
+    self.assertEqual(sd.sym_value(0), 1)
+    self.assertEqual(sd.sym_value(1), 0)
+    with self.assertRaisesRegex(AttributeError, '2'):
+      _ = sd.sym_value(2)
+
   def test_sym_field(self):
     sl = List([dict(x=[], y={})])
     self.assertIsNone(sl.sym_field)
@@ -676,6 +749,10 @@ class ListTest(unittest.TestCase):
     self.assertEqual(next(sl.sym_values()), dict(x=1, y=0))
     self.assertEqual(list(sl.sym_values()), [dict(x=1, y=0), dict(x=2, y=0)])
 
+    sl = List([1, base.ContextualValue()])
+    self.assertEqual(next(sl.sym_values()), 1)
+    self.assertEqual(list(sl.sym_values()), [1, base.ContextualValue()])
+
   def test_sym_items(self):
     sl = List(['a', 'b'])
     self.assertEqual(next(sl.sym_items()), (0, 'a'))
@@ -689,27 +766,30 @@ class ListTest(unittest.TestCase):
     self.assertEqual(
         list(sl.sym_items()), [(0, dict(x=1, y=0)), (1, dict(x=2, y=0))])
 
+    sl = List([1, base.ContextualValue()])
+    self.assertEqual(next(sl.sym_items()), (0, 1))
+    self.assertEqual(
+        list(sl.sym_items()), [(0, 1), (1, base.ContextualValue())]
+    )
+
   def test_sym_jsonify(self):
     # Refer to SerializationTest for more detailed tests.
-    sl = List([0])
-    self.assertEqual(sl.sym_jsonify(), [0])
+    sl = List([0, base.ContextualValue()])
+    self.assertEqual(sl.sym_jsonify(), [0, base.ContextualValue().to_json()])
 
   def test_sym_rebind(self):
     # Refer to RebindTest for more detailed tests.
     sl = List([0, 1, 2])
-    sl.sym_rebind({
-        0: MISSING_VALUE,
-        1: 3,
-        2: Insertion(4),
-        4: 5
-    })
-    self.assertEqual(sl, [3, 4, 2, 5])
+    sl.sym_rebind(
+        {0: MISSING_VALUE, 1: 3, 2: Insertion(4), 4: base.ContextualValue()}
+    )
+    self.assertEqual(list(sl.sym_values()), [3, 4, 2, base.ContextualValue()])
 
   def test_sym_clone(self):
     class A():
       pass
 
-    sl = List([[], dict(), A()])
+    sl = List([[], dict(), A(), base.ContextualValue()])
     sl2 = sl.clone()
     self.assertEqual(sl, sl2)
     self.assertIsNot(sl, sl2)
@@ -719,6 +799,9 @@ class ListTest(unittest.TestCase):
 
     # Non-symbolic members are copied by reference.
     self.assertIs(sl[2], sl2[2])
+
+    # Contextual values are copied by symbols.
+    self.assertEqual(sl.sym_getattr(3), sl.sym_getattr(3))
 
     spec = pg_typing.List(pg_typing.Dict([
         (pg_typing.StrKey(), pg_typing.Any())
@@ -756,21 +839,29 @@ class ListTest(unittest.TestCase):
 
   def test_sym_missing(self):
     # Refer to `test_missing_values` for more details.
-    sl = List.partial([dict(x=1)], value_spec=pg_typing.List(pg_typing.Dict([
-        ('x', pg_typing.Int()),
-        ('y', pg_typing.Int()),
-    ])))
+    sl = List.partial(
+        [dict(x=base.ContextualValue())],
+        value_spec=pg_typing.List(
+            pg_typing.Dict([
+                ('x', pg_typing.Int()),
+                ('y', pg_typing.Int()),
+            ])
+        ),
+    )
     self.assertEqual(sl.sym_missing(), {'[0].y': MISSING_VALUE})
 
   def test_sym_nondefault(self):
     # Refer to `test_non_default_values` for more details.
-    sl = List([dict(x=1)], value_spec=pg_typing.List(pg_typing.Dict([
-        ('x', pg_typing.Int(default=0)),
-        ('y', pg_typing.Dict([
-            ('z', pg_typing.Int(default=1))
-        ])),
-    ])))
-    self.assertEqual(sl.sym_nondefault(), {'[0].x': 1})
+    sl = List(
+        [dict(x=base.ContextualValue())],
+        value_spec=pg_typing.List(
+            pg_typing.Dict([
+                ('x', pg_typing.Int(default=0)),
+                ('y', pg_typing.Dict([('z', pg_typing.Int(default=1))])),
+            ])
+        ),
+    )
+    self.assertEqual(sl.sym_nondefault(), {'[0].x': base.ContextualValue()})
     sl.rebind({'[0].y.z': 2, '[0].x': 0})
     self.assertEqual(sl.sym_nondefault(), {'[0].y.z': 2})
 
@@ -1157,11 +1248,12 @@ class ListTest(unittest.TestCase):
     # Test contextual access for schemaless list.
     # Okay: sl[1] is contextual.
     @contextual.contextual_getter
-    def redirectd_value(k, p, key):
-      del k
-      return getattr(p, key)
+    def redirected_value(context, key):
+      if context.container:
+        return getattr(context.container, key)
+      return object_utils.MISSING_VALUE
 
-    sl = List([0, redirectd_value(key='a')])  # pylint: disable=no-value-for-parameter
+    sl = List([0, redirected_value(key='a')])  # pylint: disable=no-value-for-parameter
 
     self.assertEqual(sl[0], 0)
     with self.assertRaisesRegex(

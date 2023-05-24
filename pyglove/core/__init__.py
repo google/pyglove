@@ -169,6 +169,8 @@ ContextualGetter = symbolic.ContextualGetter
 # Decorator for making contextual getters.
 contextual_getter = symbolic.contextual_getter
 
+# Context object for computing contextual attribute.
+GetAttributeContext = symbolic.GetAttributeContext
 
 #
 # Symbols from 'typing.py'

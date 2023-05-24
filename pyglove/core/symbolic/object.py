@@ -368,20 +368,20 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         object_utils.make_function(
             attr_name,
             ['self'],
-            [f"return self._sym_attributes['{attr_name}']"],
+            [f"return self.sym_value('{attr_name}')"],
             return_type=field.value.annotation,
         )
     )
 
   @classmethod
   def _begin_annotation_inference(cls) -> None:
-    """Event that is triggered before annotation infererence begins."""
+    """Event that is triggered before annotation inference begins."""
 
   @classmethod
   def _end_annotation_inference(
       cls, fields: List[pg_typing.Field]
   ) -> List[pg_typing.Field]:
-    """Event that is triggered before annotation infererence begins."""
+    """Event that is triggered after annotation inference ends."""
     return fields
 
   #
@@ -621,7 +621,12 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
   @property
   def sym_init_args(self) -> pg_dict.Dict:
-    """Returns symbolic attributes which are the arguments for `__init__`."""
+    """Returns the symbolic attributes which are also the `__init__` args.
+
+    Returns:
+      A symbolic Dict as evaluated symbolic attributes, meaning that all
+        ``pg.ContextValue`` will be resolved.
+    """
     return self._sym_attributes
 
   def sym_hasattr(self, key: Union[str, int]) -> bool:
@@ -629,8 +634,11 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     if key == '_sym_attributes':
       raise ValueError(
           f'{self.__class__.__name__}.__init__ should call `super().__init__`.')
-    return (isinstance(key, str)
-            and not key.startswith('_') and key in self._sym_attributes)
+    return (
+        isinstance(key, str)
+        and not key.startswith('_')
+        and key in self._sym_attributes
+    )
 
   def sym_attr_field(
       self, key: Union[str, int]
@@ -676,7 +684,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, key: str) -> Any:
     """Get symbolic field by key."""
-    return self._sym_attributes[key]
+    return self._sym_attributes.sym_getattr(key)
 
   def _sym_rebind(
       self, path_value_pairs: Dict[object_utils.KeyPath, Any]
@@ -690,7 +698,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   def _sym_clone(self, deep: bool, memo: Any = None) -> 'Object':
     """Copy flags."""
     kwargs = dict()
-    for k, v in self._sym_attributes.items():
+    for k, v in self._sym_attributes.sym_items():
       if deep or isinstance(v, base.Symbolic):
         v = base.clone(v, deep, memo)
       kwargs[k] = v
@@ -775,7 +783,10 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     except AttributeError as error:
       if not self.allow_symbolic_attribute or not self.sym_hasattr(name):
         raise error
-      return self._sym_getattr(name)
+      return self.sym_value(name)
+
+  def _sym_value(self, key: int, default: Any) -> Any:  # pytype: disable=signature-mismatch
+    return self._sym_attributes._sym_value(key, default)  # pylint: disable=protected-access
 
   def __eq__(self, other: Any) -> bool:
     """Operator==."""

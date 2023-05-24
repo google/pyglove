@@ -409,7 +409,11 @@ class Functor(pg_object.Object, object_utils.Functor):
         list_args.extend(varargs)
 
     return_value = self._call(*list_args, **keyword_args)
-    if self.signature.return_value and flags.is_type_check_enabled():
+    if (
+        self.signature.return_value
+        and flags.is_type_check_enabled()
+        and return_value != pg_typing.MISSING_VALUE
+    ):
       return_value = self.signature.return_value.apply(
           return_value, root_path=self.sym_path + 'returns')
     if flags.is_tracking_origin() and isinstance(return_value, base.Symbolic):

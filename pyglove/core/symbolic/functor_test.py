@@ -263,7 +263,6 @@ class FunctorTest(unittest.TestCase):
     def f(a, *args, b, **kwargs):
       return a + b + sum(args) + sum(kwargs.values())
 
-    print('SIGNATURE', f.signature)
     self.assertEqual(f(1, 2, b=3)(c=4), 10)
 
     # Validate during pre-binding.
@@ -307,6 +306,13 @@ class FunctorTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Value -1 is out of range .*min=0'):
       f(0, b=-1)()
+
+    # Returning pg.MISSING_VALUE will not trigger return value spec check.
+    @pg_functor(auto_typing=True)
+    def g() -> int:
+      return pg_typing.MISSING_VALUE
+
+    self.assertEqual(g()(), pg_typing.MISSING_VALUE)
 
   def test_symbolization_on_nested_containers(self):
     @pg_functor

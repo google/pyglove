@@ -12,33 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Customizable contextual value markers."""
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import functor
-import pyglove.core.typing as pg_typing
 
 
 class ContextualGetter(functor.Functor, base.ContextualValue):
   """Base for functor-based contextual getter."""
 
-  def value_from(self, name: str, context: base.Symbolic) -> Any:
-    return self.__call__(name, context)
+  def value_from(self, context: base.GetAttributeContext) -> Any:
+    return self.__call__(context)
 
 
-def contextual_getter(
-    args: Optional[
-        List[
-            Union[
-                Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-                Tuple[
-                    Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any
-                ],
-            ]
-        ]
-    ] = None,  # pylint: disable=bad-continuation
-    returns: Optional[pg_typing.ValueSpec] = None,
-    **kwargs,
-):
+def contextual_getter(args=None, returns=None, **kwargs):
   """Decorator that makes ContextualGetter class from function.
 
   Examples::

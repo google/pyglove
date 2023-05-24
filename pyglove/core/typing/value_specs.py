@@ -844,10 +844,13 @@ class List(ValueSpecBase):
         value[i] = v
       set_item = _fn
 
+    # NOTE(daiyip): list elements can be contextual values, thus we try
+    # to get their symbolic form instead of the evaluated form.
+    getitem = getattr(value, 'sym_getattr', value.__getitem__)
     for i, v in enumerate(value):
       v = self._element.apply(v, allow_partial, child_transform,
                               object_utils.KeyPath(i, root_path))
-      if value[i] is not v:
+      if getitem(i) is not v:
         set_item(i, v)
     return value
 

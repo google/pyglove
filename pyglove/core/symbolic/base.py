@@ -15,6 +15,7 @@
 
 import abc
 import copy
+import dataclasses
 import enum
 import inspect
 import json
@@ -113,6 +114,24 @@ class DescendantQueryOption(enum.Enum):
   LEAF = 2
 
 
+@dataclasses.dataclass
+class GetAttributeContext:
+  """The context for computing a contextual value.
+
+  Attributes:
+    key: The key of symbolic attribute to request value.
+    container: An optional symbolic object as the current container to retrieve
+      the contextual value. If None, it means that there is no further container
+      to search for. Otherwise, it is a parent in the symbolic containing chain
+      for current attempt.
+    owner: The owner of the contextual attribute.
+  """
+
+  key: Union[str, int]
+  container: Optional['Symbolic']
+  owner: 'Symbolic'
+
+
 class ContextualValue(
     pg_typing.CustomTyping,
     object_utils.JSONConvertible,
@@ -151,12 +170,11 @@ class ContextualValue(
     assert a.y == 2
   """
 
-  def get(self, name: str, context: 'Symbolic') -> Any:
+  def get(self, context: GetAttributeContext) -> Any:
     """Try get the contextual value for a symbolic attribute from a parent.
 
     Args:
-      name: The name of the request symbolic attribute.
-      context: A symbolic parent which represents the current context.
+      context: a `GetAttributeContext` object representing curent context.
 
     Returns:
       The value for the requested symbolic attribute from the current context.
@@ -166,11 +184,19 @@ class ContextualValue(
         If a ``pg.ContextualValue`` object, it will use the new contextual
           marker returned to resolve its value from its symbolic parent chains.
     """
-    return self.value_from(name, context)
+    return self.value_from(context)
 
-  def value_from(self, name: str, context: 'Symbolic') -> Any:
+  def value_from(self, context: GetAttributeContext) -> Any:
     """Try get the contextual value for a symbolic attribute from a parent."""
-    return getattr(context, name, pg_typing.MISSING_VALUE)
+    if context.container is None:
+      return pg_typing.MISSING_VALUE
+
+    if isinstance(context.key, int):
+      if isinstance(context.container, list):
+        return context.container[context.key]
+      else:
+        return pg_typing.MISSING_VALUE
+    return getattr(context.container, context.key, pg_typing.MISSING_VALUE)
 
   def custom_apply(self, *args, **kwargs: Any) -> Tuple[bool, Any]:
     # This is to make a ``ContextualValue`` object assignable
@@ -199,6 +225,11 @@ class ContextualValue(
     return not self.__eq__(other)
 
 
+# Value marker for raising errors if a attribute does not exist or cannot
+# be computed.
+_RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
+
+
 class Symbolic(object_utils.JSONConvertible,
                object_utils.MaybePartial,
                object_utils.Formattable):
@@ -217,12 +248,13 @@ class Symbolic(object_utils.JSONConvertible,
   """
 
   # Symbolic sub-types that will be set when they are defined.
-  # DictType: Type['Symbolic'] = None      # pylint: disable=invalid-name
-  # ListType: Type['Symbolic'] = None      # pylint: disable=invalid-name
+  # pylint: disable=invalid-name
 
   DictType = None
   ListType = None
   ObjectType = None
+
+  # pylint: enable=invalid-name
 
   def __init__(self,
                *,
@@ -504,14 +536,14 @@ class Symbolic(object_utils.JSONConvertible,
     """
     getter = getter or ContextualValue()
     v = self.sym_contextual_getattr(
-        key, default=(pg_typing.MISSING_VALUE,), getter=getter, start=start
+        key, default=pg_typing.MISSING_VALUE, getter=getter, start=start
     )
-    return v != (pg_typing.MISSING_VALUE,)
+    return v != pg_typing.MISSING_VALUE
 
   def sym_contextual_getattr(
       self,
       key: Union[str, int],
-      default: Any = object_utils.MISSING_VALUE,
+      default: Any = (object_utils.MISSING_VALUE,),
       getter: Optional[ContextualValue] = None,
       start: Union[
           'Symbolic', object_utils.MissingValue
@@ -542,8 +574,9 @@ class Symbolic(object_utils.JSONConvertible,
     else:
       current = typing.cast(Symbolic, start)
 
-    while current is not None:
-      v = getter.get(key, current)
+    while True:
+      context = GetAttributeContext(key=key, container=current, owner=self)
+      v = getter.get(context)
       # NOTE(daiyip): when the ContextualValue value from the parent returns
       # another ContextualValue object, we should follow the new return value's
       # instruction instead of the original one.
@@ -551,9 +584,13 @@ class Symbolic(object_utils.JSONConvertible,
         getter = v
       elif v != object_utils.MISSING_VALUE:
         return v
-      current = current.sym_parent
 
-    if default != object_utils.MISSING_VALUE:
+      if current is not None:
+        current = current.sym_parent
+      else:
+        break
+
+    if default != (object_utils.MISSING_VALUE,):
       return default
     raise AttributeError(
         self._error_message(
@@ -561,6 +598,25 @@ class Symbolic(object_utils.JSONConvertible,
             '(along its symbolic parent chain).'
         )
     )
+
+  def sym_value(
+      self, key: Union[str, int], default: Any = _RAISE_IF_NOT_FOUND
+  ) -> Any:
+    """Gets the value of a symbolic attribute (with resolving ContextualValue).
+
+    Args:
+      key: The key of the symbolic attribute.
+      default: The default value if the key does not exist or contextual value
+        cannot be resolved. If not specified, attribute error will be risen.
+
+    Returns:
+      The value of the symbolic attribute after resolving the
+        ``pg.ContextualValue``.
+    """
+    v = self._sym_value(key, default)
+    if v is _RAISE_IF_NOT_FOUND:
+      raise AttributeError(key)
+    return v
 
   @abc.abstractmethod
   def sym_keys(self) -> Iterator[Union[str, int]]:
@@ -619,6 +675,11 @@ class Symbolic(object_utils.JSONConvertible,
       path_value_pairs = get_rebind_dict(path_value_pairs, self)
     elif path_value_pairs is None:
       path_value_pairs = {}
+    elif isinstance(path_value_pairs, Symbolic.DictType):
+      # Rebind work on symbolic form, thus we get their symbol instead of
+      # their evaluated value when building the rebind dict.
+      sd = typing.cast(Symbolic.DictType, path_value_pairs)
+      path_value_pairs = {k: v for k, v in sd.sym_items()}
     if not isinstance(path_value_pairs, dict):
       raise ValueError(
           self._error_message(
@@ -1117,6 +1178,20 @@ class Symbolic(object_utils.JSONConvertible,
   #
   # Proteted methods to implement from subclasses
   #
+
+  @abc.abstractmethod
+  def _sym_value(self, key: Union[str, int], default: Any) -> Any:
+    """Gets the value of a symbolic attribute (with resolving ContextualValue).
+
+    Args:
+      key: The key of the symbolic attribute.
+      default: The default value if the key does not exist or contextual value
+        cannot be resolved.
+
+    Returns:
+      The value of the symbolic attribute after resolving the
+        ``pg.ContextualValue``.
+    """
 
   @abc.abstractmethod
   def _sym_rebind(

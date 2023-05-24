@@ -65,6 +65,9 @@ from pyglove.core.symbolic.base import ContextualValue
 from pyglove.core.symbolic.contextual import ContextualGetter
 from pyglove.core.symbolic.contextual import contextual_getter
 
+# GetAttribute context for computing contextual values.
+from pyglove.core.symbolic.base import GetAttributeContext
+
 # Symbolic types and their definition helpers.
 from pyglove.core.symbolic.base import Symbolic
 from pyglove.core.symbolic.list import List
