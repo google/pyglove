@@ -785,7 +785,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         raise error
       return self.sym_value(name)
 
-  def _sym_value(self, key: int, default: Any) -> Any:  # pytype: disable=signature-mismatch
+  def _sym_value(self, key: str, default: Any) -> Any:  # pytype: disable=signature-mismatch
     return self._sym_attributes._sym_value(key, default)  # pylint: disable=protected-access
 
   def __eq__(self, other: Any) -> bool:
