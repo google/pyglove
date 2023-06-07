@@ -549,7 +549,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     # NOTE(daiyip): If current dict is the field dict of a symbolic object,
     # Use parent object as update target.
     target = self
-    if self.sym_parent and self.sym_parent.sym_path == self.sym_path:
+    if (self.sym_parent is not None
+        and self.sym_parent.sym_path == self.sym_path):
       target = self.sym_parent
     return base.FieldUpdate(
         self.sym_path + key, target, field, old_value, new_value)
@@ -597,7 +598,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       # the `pg.Object` instance once it's set up. Here we let the ancester
       # traversal to bypass `pg.Object` to avoid double entry, which causes
       # dead loop.
-      if self._as_object_attributes_container and self.sym_parent:
+      if self._as_object_attributes_container and self.sym_parent is not None:
         start = start.sym_parent
       v = self.sym_contextual_getattr(
           key, default=default, getter=v, start=start
