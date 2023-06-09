@@ -520,10 +520,10 @@ class _DynamicEvaluationStack:
   @property
   def _local_stack(self):
     """Returns thread-local stack."""
-    stack = object_utils.thread_local_get_value(self._TLS_KEY, None)
+    stack = object_utils.thread_local_get(self._TLS_KEY, None)
     if stack is None:
       stack = []
-      object_utils.thread_local_set_value(self._TLS_KEY, stack)
+      object_utils.thread_local_set(self._TLS_KEY, stack)
     return stack
 
   def push(self, context: DynamicEvaluationContext):

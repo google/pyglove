@@ -186,12 +186,12 @@ def set_dynamic_evaluate_fn(
   global _global_dynamic_evaluate_fn
   if per_thread:
     assert _global_dynamic_evaluate_fn is None, _global_dynamic_evaluate_fn
-    object_utils.thread_local_set_value(_TLS_KEY_DYNAMIC_EVALUATE_FN, fn)
+    object_utils.thread_local_set(_TLS_KEY_DYNAMIC_EVALUATE_FN, fn)
   else:
     _global_dynamic_evaluate_fn = fn
 
 
 def get_dynamic_evaluate_fn() -> Optional[Callable[[HyperValue], Any]]:
   """Gets current dynamic evaluate function."""
-  return object_utils.thread_local_get_value(
+  return object_utils.thread_local_get(
       _TLS_KEY_DYNAMIC_EVALUATE_FN, _global_dynamic_evaluate_fn)

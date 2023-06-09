@@ -43,34 +43,97 @@ class ThreadLocalTest(unittest.TestCase):
       t.join()
     self.assertFalse(any(has_error for has_error in has_errors))
 
-  def test_set_get(self):
+  def test_set_get_has_delete(self):
     k, v = 'x', 1
-    thread_local.thread_local_set_value(k, v)
-    self.assertEqual(thread_local.thread_local_get_value(k), v)
-    self.assertIsNone(thread_local.thread_local_get_value('y', None))
+    self.assertFalse(thread_local.thread_local_has(k))
+    thread_local.thread_local_set(k, v)
+    self.assertTrue(thread_local.thread_local_has(k))
+    self.assertEqual(thread_local.thread_local_get(k), v)
+    thread_local.thread_local_del(k)
+    self.assertFalse(thread_local.thread_local_has(k))
+
+    self.assertIsNone(thread_local.thread_local_get('y', None))
     with self.assertRaisesRegex(
         ValueError, 'Key .* does not exist in thread-local storage'):
-      thread_local.thread_local_get_value('abc')
+      thread_local.thread_local_get('abc')
 
     # Test thread locality.
     def thread_fun(i):
       def _fn():
-        thread_local.thread_local_set_value('x', i)
-        self.assertEqual(thread_local.thread_local_get_value('x'), i)
+        self.assertFalse(thread_local.thread_local_has('x'))
+        thread_local.thread_local_set('x', i)
+        self.assertTrue(thread_local.thread_local_has('x'))
+        self.assertEqual(thread_local.thread_local_get('x'), i)
+        thread_local.thread_local_del('x')
+        self.assertFalse(thread_local.thread_local_has('x'))
       return _fn
     self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 
   def test_thread_local_value_scope(self):
     with thread_local.thread_local_value_scope('y', 1, None):
-      self.assertEqual(thread_local.thread_local_get_value('y'), 1)
-    self.assertIsNone(thread_local.thread_local_get_value('y'))
+      self.assertEqual(thread_local.thread_local_get('y'), 1)
+    self.assertIsNone(thread_local.thread_local_get('y'))
 
     # Test thread locality.
     def thread_fun(i):
       def _fn():
         with thread_local.thread_local_value_scope('y', i, None):
-          self.assertEqual(thread_local.thread_local_get_value('y'), i)
-        self.assertIsNone(thread_local.thread_local_get_value('y'))
+          self.assertEqual(thread_local.thread_local_get('y'), i)
+        self.assertIsNone(thread_local.thread_local_get('y'))
+      return _fn
+    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+  def test_thread_local_increment_decrement(self):
+    k = 'z'
+    self.assertEqual(thread_local.thread_local_increment(k, 5), 6)
+    self.assertEqual(thread_local.thread_local_increment(k), 7)
+    self.assertEqual(thread_local.thread_local_decrement(k), 6)
+    thread_local.thread_local_del(k)
+    self.assertEqual(thread_local.thread_local_increment(k), 1)
+    thread_local.thread_local_del(k)
+
+    # Test thread locality.
+    def thread_fun(_):
+      def _fn():
+        self.assertEqual(thread_local.thread_local_increment(k), 1)
+        self.assertEqual(thread_local.thread_local_increment(k), 2)
+        self.assertEqual(thread_local.thread_local_increment(k), 3)
+        thread_local.thread_local_del(k)
+      return _fn
+    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+  def test_thread_local_push_pop(self):
+    k = 'p'
+    self.assertFalse(thread_local.thread_local_has(k))
+    thread_local.thread_local_push(k, 1)
+    self.assertEqual(thread_local.thread_local_get(k), [1])
+    thread_local.thread_local_push(k, 2)
+    self.assertEqual(thread_local.thread_local_get(k), [1, 2])
+    self.assertEqual(thread_local.thread_local_pop(k), 2)
+    self.assertEqual(thread_local.thread_local_get(k), [1])
+    self.assertEqual(thread_local.thread_local_pop(k), 1)
+    with self.assertRaisesRegex(IndexError, 'pop from empty list'):
+      thread_local.thread_local_pop(k)
+    self.assertEqual(thread_local.thread_local_pop(k, -1), -1)
+    with self.assertRaisesRegex(
+        ValueError, 'Key .* does not exist in thread-local storage'):
+      thread_local.thread_local_pop('unknown_key')
+    self.assertEqual(
+        thread_local.thread_local_pop('unknown_key', 0), 0)
+
+    thread_local.thread_local_set('q', 1)
+    with self.assertRaisesRegex(
+        TypeError, 'Key .* from thread-local storage is not a list'):
+      thread_local.thread_local_pop('q')
+
+    # Test thread locality.
+    def thread_fun(i):
+      def _fn():
+        thread_local.thread_local_push(k, i)
+        thread_local.thread_local_push(k, i + 1)
+        self.assertEqual(thread_local.thread_local_pop(k), i + 1)
+        self.assertEqual(thread_local.thread_local_pop(k), i)
+        self.assertEqual(thread_local.thread_local_get(k), [])
       return _fn
     self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 

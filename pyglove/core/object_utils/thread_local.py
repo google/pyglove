@@ -15,11 +15,11 @@
 
 import contextlib
 import threading
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from pyglove.core.object_utils.missing import MISSING_VALUE
 
-
+_RAISE_IF_NOT_FOUND = (MISSING_VALUE,)
 _thread_local_state = threading.local()
 
 
@@ -36,14 +36,90 @@ def thread_local_value_scope(
     setattr(_thread_local_state, key, previous_value)
 
 
-def thread_local_set_value(key: str, value: Any) -> None:
+def thread_local_has(key: str) -> bool:
+  """Deletes thread-local value by key."""
+  return hasattr(_thread_local_state, key)
+
+
+def thread_local_set(key: str, value: Any) -> None:
   """Sets thread-local value by key."""
   setattr(_thread_local_state, key, value)
 
 
-def thread_local_get_value(key: str, default_value: Any = MISSING_VALUE) -> Any:
+def thread_local_get(
+    key: str, default_value: Any = _RAISE_IF_NOT_FOUND) -> Any:
   """Gets thread-local value."""
   value = getattr(_thread_local_state, key, default_value)
-  if value == MISSING_VALUE:
+  if value is _RAISE_IF_NOT_FOUND:
     raise ValueError(f'Key {key!r} does not exist in thread-local storage.')
   return value
+
+
+def thread_local_del(key: str) -> None:
+  """Deletes thread-local value by key."""
+  delattr(_thread_local_state, key)
+
+
+def thread_local_map(
+    key: str,
+    value_fn: Callable[[Any], Any],
+    default_initial_value: Any = _RAISE_IF_NOT_FOUND) -> Any:
+  """Map a thread-local value."""
+  value = thread_local_get(key, MISSING_VALUE)
+  if value == MISSING_VALUE:
+    value = default_initial_value
+    if value is _RAISE_IF_NOT_FOUND:
+      raise ValueError(f'Key {key!r} does not exist in thread-local storage.')
+    thread_local_set(key, value)
+
+  new_value = value_fn(value)
+  if value is not new_value:
+    thread_local_set(key, new_value)
+  return new_value
+
+
+def thread_local_increment(key: str, default_initial_value: int = 0) -> int:
+  """Increment an integer identified by key."""
+  return thread_local_map(
+      key,
+      lambda x: x + 1,
+      default_initial_value=default_initial_value
+  )
+
+
+def thread_local_decrement(
+    key: str,
+    default_initial_value: int = _RAISE_IF_NOT_FOUND  # pytype: disable=annotation-type-mismatch
+    ) -> int:
+  """Increment an integer identified by key."""
+  return thread_local_map(
+      key,
+      lambda x: x - 1,
+      default_initial_value=default_initial_value
+  )
+
+
+def thread_local_push(key: str, value: Any) -> None:
+  """Pushes a value to a stack identified by key."""
+  thread_local_map(
+      key,
+      lambda x: x.append(value) or x,
+      default_initial_value=[]
+  )
+
+
+def thread_local_pop(key: str, default_value: Any = _RAISE_IF_NOT_FOUND) -> Any:
+  """Pops a value from a stack identified by key."""
+  stack = thread_local_get(key, MISSING_VALUE)
+  if stack == MISSING_VALUE:
+    if default_value is _RAISE_IF_NOT_FOUND:
+      raise ValueError(f'Key {key!r} does not exist in thread-local storage.')
+    return default_value
+
+  if not isinstance(stack, list):
+    raise TypeError(
+        f'Key {key!r} from thread-local storage is not a list: {stack}')
+
+  if not stack and default_value is not _RAISE_IF_NOT_FOUND:
+    return default_value
+  return stack.pop()

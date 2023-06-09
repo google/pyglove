@@ -117,8 +117,14 @@ from pyglove.core.object_utils.codegen import make_function
 
 # Handling thread local values.
 from pyglove.core.object_utils.thread_local import thread_local_value_scope
-from pyglove.core.object_utils.thread_local import thread_local_set_value
-from pyglove.core.object_utils.thread_local import thread_local_get_value
+from pyglove.core.object_utils.thread_local import thread_local_has
+from pyglove.core.object_utils.thread_local import thread_local_set
+from pyglove.core.object_utils.thread_local import thread_local_get
+from pyglove.core.object_utils.thread_local import thread_local_del
+from pyglove.core.object_utils.thread_local import thread_local_increment
+from pyglove.core.object_utils.thread_local import thread_local_decrement
+from pyglove.core.object_utils.thread_local import thread_local_push
+from pyglove.core.object_utils.thread_local import thread_local_pop
 
 # Handling docstrings.
 from pyglove.core.object_utils.docstr_utils import DocStr

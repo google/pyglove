@@ -153,7 +153,7 @@ def notify_on_change(enabled: bool = True) -> ContextManager[None]:
 
 def is_change_notification_enabled() -> bool:
   """Returns True if change notification is enabled."""
-  return thread_local.thread_local_get_value(
+  return thread_local.thread_local_get(
       _TLS_ENABLE_CHANGE_NOTIFICATION, True
   )
 
@@ -185,7 +185,7 @@ def track_origin(enabled: bool = True) -> ContextManager[None]:
 
 def is_tracking_origin() -> bool:
   """Returns if origin of symbolic object are being tracked."""
-  return thread_local.thread_local_get_value(_TLS_ENABLE_ORIGIN_TRACKING, False)
+  return thread_local.thread_local_get(_TLS_ENABLE_ORIGIN_TRACKING, False)
 
 
 def enable_type_check(enabled: bool = True) -> ContextManager[None]:
@@ -214,7 +214,7 @@ def enable_type_check(enabled: bool = True) -> ContextManager[None]:
 
 def is_type_check_enabled() -> bool:
   """Returns True if runtme type check is enabled."""
-  return thread_local.thread_local_get_value(_TLS_ENABLE_TYPE_CHECK, True)
+  return thread_local.thread_local_get(_TLS_ENABLE_TYPE_CHECK, True)
 
 
 def allow_writable_accessors(
@@ -257,7 +257,7 @@ def allow_writable_accessors(
 
 def is_under_accessor_writable_scope() -> Optional[bool]:
   """Return True if symbolic values are treated as sealed in current context."""
-  return thread_local.thread_local_get_value(_TLS_ACCESSOR_WRITABLE, None)
+  return thread_local.thread_local_get(_TLS_ACCESSOR_WRITABLE, None)
 
 
 def as_sealed(sealed: Optional[bool] = True) -> ContextManager[None]:
@@ -300,7 +300,7 @@ def as_sealed(sealed: Optional[bool] = True) -> ContextManager[None]:
 
 def is_under_sealed_scope() -> Optional[bool]:
   """Return True if symbolic values are treated as sealed in current context."""
-  return thread_local.thread_local_get_value(_TLS_SEALED, None)
+  return thread_local.thread_local_get(_TLS_SEALED, None)
 
 
 def allow_partial(allow: Optional[bool] = True) -> ContextManager[None]:
@@ -340,7 +340,7 @@ def allow_partial(allow: Optional[bool] = True) -> ContextManager[None]:
 
 def is_under_partial_scope() -> Optional[bool]:
   """Return True if partial value is allowed in current context."""
-  return thread_local.thread_local_get_value(_TLS_ALLOW_PARTIAL, None)
+  return thread_local.thread_local_get(_TLS_ALLOW_PARTIAL, None)
 
 
 def auto_call_functors(enabled: bool = True) -> ContextManager[None]:
@@ -373,4 +373,4 @@ def auto_call_functors(enabled: bool = True) -> ContextManager[None]:
 
 def should_call_functors_during_init() -> Optional[bool]:
   """Return True functors should be automatically called during __init__."""
-  return thread_local.thread_local_get_value(_TLS_AUTO_CALL_FUNCTORS, None)
+  return thread_local.thread_local_get(_TLS_AUTO_CALL_FUNCTORS, None)
