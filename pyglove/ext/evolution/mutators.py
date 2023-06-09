@@ -111,9 +111,14 @@ class Uniform(base.Mutator):
         parent_node.children.rebind(
             {child_index: new_child_node}, skip_notification=True)
         if _node_needs_sorting(child_node.spec):
-          parent_node.rebind(
-              children=sorted(parent_node.children, key=lambda c: c.value),
-              skip_notification=True)
+          parent_spec = child_node.spec.parent_spec
+          children = sorted(parent_node.children, key=lambda c: c.value)
+          # When child choices are reordered, their DNASpec need to be
+          # realigned.
+          assert len(children) == parent_spec.num_choices
+          for i, child in enumerate(children):
+            child.use_spec(parent_spec.subchoice(i))
+          parent_node.rebind(children=children, skip_notification=True)
       return dna
 
   def _get_relationships(self, dna: pg.DNA) -> Tuple[

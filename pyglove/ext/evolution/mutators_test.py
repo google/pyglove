@@ -238,6 +238,22 @@ class UniformTest(CoverageTestCase):
     expected = [0, 1, 2]
     self.assert_eventual(func=mutate, required=expected, allowed=expected)
 
+  def test_sorted_choices_spec_alignment(self):
+    dna_spec = pg.geno.manyof(
+        3,
+        [pg.geno.constant(), pg.geno.constant(), pg.geno.constant()],
+        distinct=False,
+        sorted=True,
+    )
+    mutator = mutators.Uniform(seed=3)
+    dna = pg.DNA([1, 1, 2])
+    dna.use_spec(dna_spec)
+    mutated_dna = mutator.mutate(dna)
+    self.assertEqual(mutated_dna, pg.DNA([1, 2, 2]))
+    self.assertIs(mutated_dna.spec, dna_spec)
+    for i, child in enumerate(mutated_dna.children):
+      self.assertIs(child.spec, dna_spec.subchoice(i))
+
   def test_sorted_choices_value_coverage(self):
     random.seed()
     dna_spec = pg.geno.manyof(2, [
