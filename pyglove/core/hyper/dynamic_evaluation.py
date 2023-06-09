@@ -18,6 +18,7 @@ import types
 from typing import Any, Callable, Dict, Iterator, List, Optional, Union
 
 from pyglove.core import geno
+from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
 from pyglove.core.hyper import base
@@ -25,7 +26,6 @@ from pyglove.core.hyper import categorical
 from pyglove.core.hyper import custom
 from pyglove.core.hyper import numerical
 from pyglove.core.hyper import object_template
-from pyglove.core.object_utils import thread_local
 
 
 @contextlib.contextmanager
@@ -520,10 +520,10 @@ class _DynamicEvaluationStack:
   @property
   def _local_stack(self):
     """Returns thread-local stack."""
-    stack = thread_local.get_value(self._TLS_KEY, None)
+    stack = object_utils.thread_local_get_value(self._TLS_KEY, None)
     if stack is None:
       stack = []
-      thread_local.set_value(self._TLS_KEY, stack)
+      object_utils.thread_local_set_value(self._TLS_KEY, stack)
     return stack
 
   def push(self, context: DynamicEvaluationContext):

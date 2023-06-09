@@ -146,13 +146,16 @@ def notify_on_change(enabled: bool = True) -> ContextManager[None]:
   Returns:
     A context manager for allowing/disallowing change notification in scope.
   """
-  return thread_local.value_scope(
-      _TLS_ENABLE_CHANGE_NOTIFICATION, enabled, True)
+  return thread_local.thread_local_value_scope(
+      _TLS_ENABLE_CHANGE_NOTIFICATION, enabled, True
+  )
 
 
 def is_change_notification_enabled() -> bool:
   """Returns True if change notification is enabled."""
-  return thread_local.get_value(_TLS_ENABLE_CHANGE_NOTIFICATION, True)
+  return thread_local.thread_local_get_value(
+      _TLS_ENABLE_CHANGE_NOTIFICATION, True
+  )
 
 
 def track_origin(enabled: bool = True) -> ContextManager[None]:
@@ -175,13 +178,14 @@ def track_origin(enabled: bool = True) -> ContextManager[None]:
   Returns:
     A context manager for enable or disable origin tracking.
   """
-  return thread_local.value_scope(
-      _TLS_ENABLE_ORIGIN_TRACKING, enabled, False)
+  return thread_local.thread_local_value_scope(
+      _TLS_ENABLE_ORIGIN_TRACKING, enabled, False
+  )
 
 
 def is_tracking_origin() -> bool:
   """Returns if origin of symbolic object are being tracked."""
-  return thread_local.get_value(_TLS_ENABLE_ORIGIN_TRACKING, False)
+  return thread_local.thread_local_get_value(_TLS_ENABLE_ORIGIN_TRACKING, False)
 
 
 def enable_type_check(enabled: bool = True) -> ContextManager[None]:
@@ -203,12 +207,14 @@ def enable_type_check(enabled: bool = True) -> ContextManager[None]:
   Returns:
     A context manager for allowing/disallowing runtime type check.
   """
-  return thread_local.value_scope(_TLS_ENABLE_TYPE_CHECK, enabled, True)
+  return thread_local.thread_local_value_scope(
+      _TLS_ENABLE_TYPE_CHECK, enabled, True
+  )
 
 
 def is_type_check_enabled() -> bool:
   """Returns True if runtme type check is enabled."""
-  return thread_local.get_value(_TLS_ENABLE_TYPE_CHECK, True)
+  return thread_local.thread_local_get_value(_TLS_ENABLE_TYPE_CHECK, True)
 
 
 def allow_writable_accessors(
@@ -244,12 +250,14 @@ def allow_writable_accessors(
       symbolic values in scope. After leaving the scope, the
       `accessor_writable` flag of individual objects will remain intact.
   """
-  return thread_local.value_scope(_TLS_ACCESSOR_WRITABLE, writable, None)
+  return thread_local.thread_local_value_scope(
+      _TLS_ACCESSOR_WRITABLE, writable, None
+  )
 
 
 def is_under_accessor_writable_scope() -> Optional[bool]:
   """Return True if symbolic values are treated as sealed in current context."""
-  return thread_local.get_value(_TLS_ACCESSOR_WRITABLE, None)
+  return thread_local.thread_local_get_value(_TLS_ACCESSOR_WRITABLE, None)
 
 
 def as_sealed(sealed: Optional[bool] = True) -> ContextManager[None]:
@@ -287,12 +295,12 @@ def as_sealed(sealed: Optional[bool] = True) -> ContextManager[None]:
       in scope. After leaving the scope, the sealed state of individual objects
       will remain intact.
   """
-  return thread_local.value_scope(_TLS_SEALED, sealed, None)
+  return thread_local.thread_local_value_scope(_TLS_SEALED, sealed, None)
 
 
 def is_under_sealed_scope() -> Optional[bool]:
   """Return True if symbolic values are treated as sealed in current context."""
-  return thread_local.get_value(_TLS_SEALED, None)
+  return thread_local.thread_local_get_value(_TLS_SEALED, None)
 
 
 def allow_partial(allow: Optional[bool] = True) -> ContextManager[None]:
@@ -327,12 +335,12 @@ def allow_partial(allow: Optional[bool] = True) -> ContextManager[None]:
       After leaving the scope, the `allow_partial` state of individual objects
       will remain intact.
   """
-  return thread_local.value_scope(_TLS_ALLOW_PARTIAL, allow, None)
+  return thread_local.thread_local_value_scope(_TLS_ALLOW_PARTIAL, allow, None)
 
 
 def is_under_partial_scope() -> Optional[bool]:
   """Return True if partial value is allowed in current context."""
-  return thread_local.get_value(_TLS_ALLOW_PARTIAL, None)
+  return thread_local.thread_local_get_value(_TLS_ALLOW_PARTIAL, None)
 
 
 def auto_call_functors(enabled: bool = True) -> ContextManager[None]:
@@ -358,9 +366,11 @@ def auto_call_functors(enabled: bool = True) -> ContextManager[None]:
   Returns:
     A context manager for enabling/disabling auto call for functors.
   """
-  return thread_local.value_scope(_TLS_AUTO_CALL_FUNCTORS, enabled, False)
+  return thread_local.thread_local_value_scope(
+      _TLS_AUTO_CALL_FUNCTORS, enabled, False
+  )
 
 
 def should_call_functors_during_init() -> Optional[bool]:
   """Return True functors should be automatically called during __init__."""
-  return thread_local.get_value(_TLS_AUTO_CALL_FUNCTORS, None)
+  return thread_local.thread_local_get_value(_TLS_AUTO_CALL_FUNCTORS, None)

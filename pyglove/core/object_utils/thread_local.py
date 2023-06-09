@@ -17,17 +17,16 @@ import contextlib
 import threading
 from typing import Any, Iterator
 
-from pyglove.core import object_utils
+from pyglove.core.object_utils.missing import MISSING_VALUE
 
 
 _thread_local_state = threading.local()
 
 
 @contextlib.contextmanager
-def value_scope(
-    key: str,
-    value_in_scope: Any,
-    initial_value: Any) -> Iterator[None]:
+def thread_local_value_scope(
+    key: str, value_in_scope: Any, initial_value: Any
+) -> Iterator[None]:
   """Context manager to set a thread local state within the scope."""
   previous_value = getattr(_thread_local_state, key, initial_value)
   try:
@@ -37,16 +36,14 @@ def value_scope(
     setattr(_thread_local_state, key, previous_value)
 
 
-def set_value(key: str, value: Any) -> None:
+def thread_local_set_value(key: str, value: Any) -> None:
   """Sets thread-local value by key."""
   setattr(_thread_local_state, key, value)
 
 
-def get_value(
-    key: str,
-    default_value: Any = object_utils.MISSING_VALUE) -> Any:
+def thread_local_get_value(key: str, default_value: Any = MISSING_VALUE) -> Any:
   """Gets thread-local value."""
   value = getattr(_thread_local_state, key, default_value)
-  if value == object_utils.MISSING_VALUE:
+  if value == MISSING_VALUE:
     raise ValueError(f'Key {key!r} does not exist in thread-local storage.')
   return value

@@ -115,6 +115,11 @@ from pyglove.core.object_utils.formatting import bracket_chars
 # Handling code generation.
 from pyglove.core.object_utils.codegen import make_function
 
+# Handling thread local values.
+from pyglove.core.object_utils.thread_local import thread_local_value_scope
+from pyglove.core.object_utils.thread_local import thread_local_set_value
+from pyglove.core.object_utils.thread_local import thread_local_get_value
+
 # Handling docstrings.
 from pyglove.core.object_utils.docstr_utils import DocStr
 from pyglove.core.object_utils.docstr_utils import DocStrStyle
