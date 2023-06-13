@@ -141,6 +141,7 @@ class ObjectMeta(abc.ABCMeta):
     return fields
 
   def _update_default_values_from_class_attributes(cls):
+    """Updates the symbolic attribute defaults from class attributes."""
     for field in cls.schema.fields.values():
       if isinstance(field.key, pg_typing.ConstStrKey):
         attr_name = field.key.text
@@ -148,7 +149,12 @@ class ObjectMeta(abc.ABCMeta):
         if (
             attr_value != pg_typing.MISSING_VALUE
             and not isinstance(attr_value, property)
-            and not inspect.isfunction(attr_value)
+            and (
+                # This allows class methods to be used as callable
+                # symbolic attributes.
+                not inspect.isfunction(attr_value)
+                or isinstance(field.value, pg_typing.Callable)
+                )
         ):
           field.value.set_default(attr_value)
 

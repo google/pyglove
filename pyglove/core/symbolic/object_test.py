@@ -337,6 +337,28 @@ class ObjectTest(unittest.TestCase):
         pass
     self.assertEqual(F().sym_init_args.x, 3)
 
+    @pg_members([
+        ('x', pg_typing.Callable([pg_typing.Int()])),
+        ('y', pg_typing.Int())
+    ])
+    class G(Object):
+      pass
+
+    class H(G):
+
+      # Member method as the default value for callable symbolic attribute.
+      def x(self, v):
+        return self.sym_init_args.y + v * 2
+
+      # Member method will not override non-callable symbolic attribute.
+      def y(self):
+        return self.sym_init_args.y * 2
+
+    h = H(y=1)
+    self.assertEqual(h.x(1), 3)
+    self.assertEqual(h.y(), 2)
+    self.assertEqual(h.sym_init_args.x(h, 1), 3)
+
   def test_override_symbolic_attribute_with_property(self):
 
     @pg_members([
