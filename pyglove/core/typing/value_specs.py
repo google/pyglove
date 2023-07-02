@@ -486,7 +486,7 @@ class Number(PrimitiveType):
     return self._min_value
 
   @property
-  def max_value(self) -> numbers.Number:
+  def max_value(self) -> typing.Optional[numbers.Number]:
     """Returns maximum value of acceptable values."""
     return self._max_value
 

@@ -975,7 +975,7 @@ class Schema(object_utils.Formattable):
     return None
 
   @property
-  def description(self) -> str:
+  def description(self) -> Optional[str]:
     """Returns the description for the schema."""
     return self._description
 
@@ -1126,7 +1126,7 @@ class Schema(object_utils.Formattable):
         root_path=root_path)
 
   @property
-  def name(self) -> str:
+  def name(self) -> Optional[str]:
     """Name of this schema."""
     return self._name
 

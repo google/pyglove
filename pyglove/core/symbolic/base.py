@@ -669,8 +669,10 @@ class Symbolic(object_utils.JSONConvertible,
           Callable]] = None,  # pylint: disable=g-bare-generic
       raise_on_no_change: bool = True,
       skip_notification: Optional[bool] = None,
-      **kwargs) -> 'Symbolic':
+      **kwargs,
+  ) -> 'Symbolic':
     """Mutates the sub-nodes of current object. Please see `rebind`."""
+    assert Symbolic.DictType is not None
     if callable(path_value_pairs):
       path_value_pairs = get_rebind_dict(path_value_pairs, self)
     elif path_value_pairs is None:
@@ -2130,6 +2132,7 @@ def from_json(json_value: Any,
     * symbolic.Object for dict with '_type' property.
     * value itself.
   """
+  assert Symbolic.DictType is not None
   if isinstance(json_value, Symbolic):
     return json_value
 
@@ -2151,7 +2154,7 @@ def from_json(json_value: Any,
                     root_path=object_utils.KeyPath(i, root_path))
           for i, v in enumerate(json_value[1:])
       ])
-    return Symbolic.ListType(json_value, **kwargs)  # pylint: disable=not-callable
+    return Symbolic.ListType(json_value, **kwargs)  # pytype: disable=not-callable   # pylint: disable=not-callable
   elif isinstance(json_value, dict):
     if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
       return Symbolic.DictType.from_json(json_value, **kwargs)
@@ -2394,7 +2397,7 @@ def symbolic_transform_fn(allow_partial: bool):
     if isinstance(value, dict):
       value_spec = pg_typing.ensure_value_spec(
           field.value, pg_typing.Dict(), path)
-      value = Symbolic.DictType(   # pylint: disable=not-callable
+      value = Symbolic.DictType(   # pytype: disable=not-callable  # pylint: disable=not-callable
           value,
           value_spec=value_spec,
           allow_partial=allow_partial,
@@ -2407,7 +2410,7 @@ def symbolic_transform_fn(allow_partial: bool):
     elif isinstance(value, list):
       value_spec = pg_typing.ensure_value_spec(
           field.value, pg_typing.List(pg_typing.Any()), path)
-      value = Symbolic.ListType(   # pylint: disable=not-callable
+      value = Symbolic.ListType(   # pytype: disable=not-callable  # pylint: disable=not-callable
           value,
           value_spec=value_spec,
           allow_partial=allow_partial,

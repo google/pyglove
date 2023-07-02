@@ -436,7 +436,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         yield key
     else:
       traversed = set()
-      for key_spec in self._value_spec.schema.keys():
+      for key_spec in self._value_spec.schema.keys():  # pytype: disable=attribute-error
         if isinstance(key_spec, pg_typing.ConstStrKey) and key_spec in self:
           yield key_spec.text
           traversed.add(key_spec.text)
@@ -780,7 +780,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     exclude_keys = set(exclude_keys or [])
     if self._value_spec and self._value_spec.schema:
       json_repr = dict()
-      matched_keys, _ = self._value_spec.schema.resolve(self.keys())
+      matched_keys, _ = self._value_spec.schema.resolve(self.keys())  # pytype: disable=attribute-error
       for key_spec, keys in matched_keys.items():
         # NOTE(daiyip): The key values of frozen field can safely be excluded
         # since they will be the same for a class.
@@ -861,7 +861,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     field_list = []
     if self._value_spec and self._value_spec.schema:
-      matched_keys, unmatched = self._value_spec.schema.resolve(self.keys())
+      matched_keys, unmatched = self._value_spec.schema.resolve(self.keys())  # pytype: disable=attribute-error
       assert not unmatched
       for key_spec, keys in matched_keys.items():
         for key in keys:
