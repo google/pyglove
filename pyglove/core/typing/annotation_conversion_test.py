@@ -18,6 +18,7 @@ import typing
 import unittest
 
 from pyglove.core.typing import annotation_conversion
+from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 from pyglove.core.typing.class_schema import Field
 from pyglove.core.typing.class_schema import ValueSpec
@@ -176,9 +177,30 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
     self.assertEqual(ValueSpec.from_annotation(dict, True), vs.Dict())
     self.assertEqual(ValueSpec.from_annotation(typing.Dict, True), vs.Dict())
     self.assertEqual(
-        ValueSpec.from_annotation(typing.Dict[str, int], True), vs.Dict())
+        ValueSpec.from_annotation(typing.Dict[str, int], True),
+        vs.Dict([(ks.StrKey(), vs.Int())]))
     self.assertEqual(
-        ValueSpec.from_annotation(typing.Mapping[str, int], True), vs.Dict())
+        ValueSpec.from_annotation(typing.Mapping[str, int], True),
+        vs.Dict([(ks.StrKey(), vs.Int())]))
+    with self.assertRaisesRegex(
+        TypeError, 'Dict type field with non-string key is not supported'):
+      ValueSpec.from_annotation(dict[int, int], True)
+
+  def test_callable(self):
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Callable, True), vs.Callable())
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Callable[..., typing.Any], True),
+        vs.Callable(returns=vs.Any(annotation=typing.Any)))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Callable[int, int], True),
+        vs.Callable(args=[vs.Int()], returns=vs.Int()))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Callable[(int, int), int], True),
+        vs.Callable(args=[vs.Int(), vs.Int()], returns=vs.Int()))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Callable[[int, int], int], True),
+        vs.Callable(args=[vs.Int(), vs.Int()], returns=vs.Int()))
 
   def test_class(self):
     class Foo:

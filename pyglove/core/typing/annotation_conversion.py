@@ -20,6 +20,7 @@ import typing
 
 from pyglove.core import object_utils
 from pyglove.core.typing import class_schema
+from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 
 
@@ -111,8 +112,36 @@ def _value_spec_from_type_annotation(
     return vs.Union([vs.List(elem), vs.Tuple(elem)])
   # Handling dict.
   elif origin in (dict, typing.Dict, collections.abc.Mapping):
-    # TODO(daiyip): Handle dict schema according to the dict args.
-    return vs.Dict()
+    if not args:
+      return vs.Dict()
+    assert len(args) == 2, (annotation, args)
+    if args[0] not in (str, typing.Text):
+      raise TypeError(
+          'Dict type field with non-string key is not supported.')
+    elem_value_spec = _value_spec_from_type_annotation(
+        args[1], accept_value_as_annotation=False)
+    return vs.Dict([(ks.StrKey(), elem_value_spec)])
+  elif origin is collections.abc.Callable:
+    arg_specs = []
+    return_spec = None
+    if args:
+      assert len(args) == 2, (annotation, args)
+
+      # NOTE: Various ways of expressing the input args of `Callable` will
+      # be normalized into a list (see examples below). Therefore, we only
+      # check against list here.
+      #
+      #   Callable[int, Any] => Callable[[int], Any]
+      #   Callable[(int, int), Any] => Callable[[int, int], Any]
+      if isinstance(args[0], list):
+        arg_specs = [
+            _value_spec_from_type_annotation(
+                arg, accept_value_as_annotation=False)
+            for arg in args[0]
+        ]
+      return_spec = _value_spec_from_type_annotation(
+          args[1], accept_value_as_annotation=False)
+    return vs.Callable(arg_specs, returns=return_spec)
   # Handling union.
   elif origin is typing.Union or (_UnionType and origin is _UnionType):
     optional = _NoneType in args
