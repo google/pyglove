@@ -1694,8 +1694,13 @@ def eq(left: Any, right: Any) -> bool:
         or len(left) != len(right)
         or set(left.keys()) != set(right.keys())):
       return False
-    for k, v in left.items():
-      if ne(v, right[k]):
+    # NOTE(daiyip): pg.Dict.__getitem__ will trigger contextual value
+    # evaluation, therefore we always get its symbolic form during traversal.
+    left_items = left.sym_items if isinstance(left, Symbolic) else left.items
+    right_item = (
+        right.sym_getattr if isinstance(right, Symbolic) else right.__getitem__)
+    for k, v in left_items():
+      if ne(v, right_item(k)):
         return False
     return True
   # We compare sym_eq with Symbolic.sym_eq to avoid endless recursion.

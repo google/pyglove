@@ -1233,6 +1233,8 @@ class ObjectTest(unittest.TestCase):
     # Use cases that `__eq__` and `sym_eq` have the same results.
     self.assertEqual(A(1), A(1))
     self.assertTrue(base.eq(A(1), A(1)))
+    self.assertTrue(
+        base.eq(A(base.ContextualValue()), A(base.ContextualValue())))
 
     self.assertEqual(A.partial(), A.partial())
     self.assertTrue(base.eq(A.partial(), A.partial()))

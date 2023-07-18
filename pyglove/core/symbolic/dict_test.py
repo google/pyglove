@@ -1062,7 +1062,8 @@ class DictTest(unittest.TestCase):
     self.assertEqual(Dict(a=1), Dict(a=1))
     self.assertTrue(Dict(a=1).sym_eq(Dict(a=1)))
     self.assertTrue(base.eq(Dict(a=1), Dict(a=1)))
-
+    self.assertTrue(base.eq(Dict(x=base.ContextualValue()),
+                            Dict(x=base.ContextualValue())))
     self.assertEqual(
         Dict(a=1),
         Dict(a=1, value_spec=pg_typing.Dict([('a', pg_typing.Int())])))
