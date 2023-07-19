@@ -102,10 +102,17 @@ def _value_spec_from_type_annotation(
             args[0], True)) if args else vs.List(vs.Any())
   # Handling tuple.
   elif origin in (tuple, typing.Tuple):
-    if args:
-      return vs.Tuple([_value_spec_from_annotation(arg, True) for arg in args])
-    else:
+    if not args:
       return vs.Tuple(vs.Any())
+    else:
+      if args[-1] is ...:
+        if len(args) != 2:
+          raise TypeError(
+              f'Tuple with ellipsis should have exact 2 type arguments. '
+              f'Encountered: {annotation}.')
+        return vs.Tuple(_value_spec_from_type_annotation(args[0], False))
+      return vs.Tuple([_value_spec_from_type_annotation(arg, False)
+                       for arg in args])
   # Handle sequence.
   elif origin in (collections.abc.Sequence,):
     elem = _value_spec_from_annotation(args[0], True) if args else vs.Any()

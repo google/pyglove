@@ -167,6 +167,11 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
         ValueSpec.from_annotation(typing.Tuple, True), vs.Tuple(vs.Any()))
     self.assertEqual(
         ValueSpec.from_annotation(tuple[int], True), vs.Tuple([vs.Int()]))
+    self.assertEqual(
+        ValueSpec.from_annotation(tuple[int, ...], True), vs.Tuple(vs.Int()))
+    with self.assertRaisesRegex(
+        TypeError, 'Tuple with ellipsis should have exact 2 type arguments'):
+      ValueSpec.from_annotation(tuple[...], True)
 
   def test_sequence(self):
     self.assertEqual(
