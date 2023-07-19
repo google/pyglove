@@ -55,9 +55,6 @@ class Diff(PureSymbolic, pg_object.Object):
 
   def _on_bound(self):
     super()._on_bound()
-    if self.left == Diff.MISSING and self.right == Diff.MISSING:
-      raise ValueError(
-          'At least one of \'left\' and \'right\' should be specified.')
     if self.children:
       if not isinstance(self.left, type):
         raise ValueError(
@@ -110,7 +107,10 @@ class Diff(PureSymbolic, pg_object.Object):
       **kwargs):
     """Override format to conditionally print the shared value or the diff."""
     if not bool(self):
-      # When there is no diff, we simply return the value.
+      if self.value == Diff.MISSING:
+        return 'No diff'
+      # When there is no diff, but the same value needs to be displayed
+      # we simply return the value.
       return object_utils.format(
           self.value, compact, verbose, root_indent, **kwargs)
     if self.is_leaf:
@@ -182,15 +182,12 @@ def diff(
     # Diff the same object.
     pg.diff(A(1, 2), A(1, 2))
 
-    >> None
+    >> No diff
 
     # Diff the same object with mode 'same'.
     pg.diff(A(1, 2), A(1, 2), mode='same')
 
-    >> A(
-    >>   x = 1,
-    >>   y = 2
-    >> )
+    >> A(1, 2)
 
     # Diff different objects of the same type.
     pg.diff(A(1, 2), A(1, 3))
@@ -339,7 +336,9 @@ def diff(
         diff_value = Diff(xt, yt, children=diff_value)
     return diff_value, has_diff
 
-  diff_value, _ = _diff(left, right)
+  diff_value, has_diff = _diff(left, right)
+  if not has_diff and mode == 'diff':
+    diff_value = Diff()
   if flatten:
     diff_value = object_utils.flatten(diff_value)
   return diff_value

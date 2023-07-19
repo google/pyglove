@@ -41,6 +41,7 @@ class DiffTest(unittest.TestCase):
     self.assertTrue(bool(Diff(A, B)))
     self.assertTrue(bool(Diff(A(1), A(2))))
     self.assertTrue(bool(Diff(A, A, children={'x': Diff(1, 2)})))
+    self.assertFalse(bool(Diff()))
     self.assertFalse(bool(Diff(1, 1)))
     self.assertFalse(bool(Diff(A, A)))
     self.assertFalse(bool(Diff(A(1), A(1))))
@@ -55,7 +56,11 @@ class DiffTest(unittest.TestCase):
     self.assertNotEqual(Diff(1, 1), Diff(1, 2))
 
     self.assertEqual(
+        repr(Diff()), 'No diff')
+    self.assertEqual(
         repr(Diff(A(1), A(1))), 'A(x=1)')
+    self.assertEqual(
+        repr(Dict(a=Diff(A(1), A(1)))), '{a=A(x=1)}')
     self.assertEqual(
         repr(Diff(A(1), A(2))), 'Diff(left=A(x=1), right=A(x=2))')
     self.assertEqual(
@@ -76,11 +81,6 @@ class DiffTest(unittest.TestCase):
 
     with self.assertRaisesRegex(
         ValueError,
-        'At least one of \'left\' and \'right\' should be specified.'):
-      Diff()
-
-    with self.assertRaisesRegex(
-        ValueError,
         '\'left\' must be a type when \'children\' is specified.'):
       Diff(1, int, children={'x': Diff(3, 4)})
 
@@ -96,7 +96,7 @@ class DiffTest(unittest.TestCase):
       _ = Diff(1, 2).value
 
   def test_diff_on_simple_types(self):
-    self.assertEqual(pg_diff(1, 1), Diff(1, 1))
+    self.assertEqual(pg_diff(1, 1), Diff())
     self.assertEqual(pg_diff(1, 1, mode='same'), Diff(1, 1))
     self.assertEqual(pg_diff(1, 1, flatten=True, mode='same'), Diff(1, 1))
     self.assertEqual(pg_diff(1, 2), Diff(1, 2))
@@ -110,7 +110,8 @@ class DiffTest(unittest.TestCase):
       pass
 
     # List vs. list.
-    self.assertEqual(pg_diff([A(1)], [A(1)]), Diff([A(1)], [A(1)]))
+    self.assertEqual(pg_diff([A(1)], [A(1)]), Diff())
+    self.assertEqual(pg_diff([A(1)], [A(1)], mode='same'), Diff([A(1)], [A(1)]))
     self.assertEqual(
         pg_diff([A(1)], [A(0)]),
         Diff(left=List, right=List, children={
@@ -129,7 +130,11 @@ class DiffTest(unittest.TestCase):
 
     # Dict vs. dict.
     self.assertEqual(
-        pg_diff({'a': A(1)}, {'a': A(1)}), Diff({'a': A(1)}, {'a': A(1)}))
+        pg_diff({'a': A(1)}, {'a': A(1)}),
+        Diff())
+    self.assertEqual(
+        pg_diff({'a': A(1)}, {'a': A(1)}, mode='same'),
+        Diff({'a': A(1)}, {'a': A(1)}))
     self.assertEqual(
         pg_diff({'a': A(1), 'b': A(2), 'c': A(3)},
                 {'a': A(1), 'b': A(3), 'd': A(4)}),
@@ -173,7 +178,8 @@ class DiffTest(unittest.TestCase):
       pass
 
     # Same types.
-    self.assertEqual(pg_diff(A(1), A(1)), Diff(A(1), A(1)))
+    self.assertEqual(pg_diff(A(1), A(1)), Diff())
+    self.assertEqual(pg_diff(A(1), A(1), mode='same'), Diff(A(1), A(1)))
     self.assertEqual(
         pg_diff(B(1, 2), B(1, 3)),
         Diff(B, B, children={'y': Diff(2, 3)}))
@@ -255,7 +261,7 @@ class DiffTest(unittest.TestCase):
     class C(B):
       pass
 
-    self.assertEqual(pg_diff(A(1), A(1), mode='diff'), Diff(A(1), A(1)))
+    self.assertEqual(pg_diff(A(1), A(1), mode='diff'), Diff())
     self.assertEqual(pg_diff(A(1), A(1), mode='same'), Diff(A(1), A(1)))
     self.assertEqual(pg_diff(A(1), A(1), mode='both'), Diff(A(1), A(1)))
 
