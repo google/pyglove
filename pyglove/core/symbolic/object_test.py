@@ -33,6 +33,7 @@ from pyglove.core.symbolic.functor import functor as pg_functor
 from pyglove.core.symbolic.list import List
 from pyglove.core.symbolic.object import members as pg_members
 from pyglove.core.symbolic.object import Object
+from pyglove.core.symbolic.object import use_init_args as pg_use_init_args
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
@@ -1692,6 +1693,23 @@ class MembersTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, 'got unexpected keyword argument: \'z\''):
       _ = B(1, z=2)
+
+  def test_use_init_args(self):
+
+    @pg_use_init_args(['x', 'y', '*z'])
+    class A(Object):
+      y: int
+      x: str
+      z: list[str]
+      p: str
+      q: int
+
+    a = A('foo', 1, 'a', 'b', p='bar', q=2)
+    self.assertEqual(a.x, 'foo')
+    self.assertEqual(a.y, 1)
+    self.assertEqual(a.z, ['a', 'b'])
+    self.assertEqual(a.p, 'bar')
+    self.assertEqual(a.q, 2)
 
   def test_serialization_key(self):
 

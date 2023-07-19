@@ -76,6 +76,7 @@ from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.object import ObjectMeta
 from pyglove.core.symbolic.object import Object
 from pyglove.core.symbolic.object import members
+from pyglove.core.symbolic.object import use_init_args
 
 from pyglove.core.symbolic.functor import Functor
 from pyglove.core.symbolic.functor import functor

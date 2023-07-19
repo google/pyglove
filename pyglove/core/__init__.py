@@ -86,6 +86,9 @@ Functor = symbolic.Functor
 # Decorator for declaring symbolic. members for `pg.Object`.
 members = symbolic.members
 
+# Decorator for updating the __init__ signature of `pg.Object`.
+use_init_args = symbolic.use_init_args
+
 #
 # Methods for making symbolic types.
 #

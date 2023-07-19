@@ -947,3 +947,37 @@ def members(
     )
     return cls
   return typing.cast(pg_typing.Decorator, _decorator)
+
+
+def use_init_args(init_arg_list: Sequence[str]) -> pg_typing.Decorator:
+  """Decorator for updating the `__init__` signature of a `pg.Object` subclass.
+
+  Examples::
+
+    @pg.use_init_args(['x', 'y', '*z'])
+    class Foo(pg.Object):
+      y: int
+      x: str
+      z: list[int]
+
+    f = Foo('abc', 1, 2, 3)
+    assert f.x == 'abc'
+    assert f.y == 1
+    assert f.z == [2, 3]
+
+  Args:
+    init_arg_list: A sequence of attribute names that will be used as the
+      positional arguments of `__init__`. The last element could be the name of
+      a list-type attribute, indicating it's used as `*args`. Keyword-only
+      arguments are not needed to be present in this list, which will be figured
+      out automatically based on class' schema.
+
+  Returns:
+    a decorator function that updates the `__init__` signature.
+  """
+  def _decorator(cls):
+    schema_utils.update_schema(
+        cls, [], extend=True, init_arg_list=init_arg_list
+    )
+    return cls
+  return typing.cast(pg_typing.Decorator, _decorator)
