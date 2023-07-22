@@ -20,6 +20,7 @@ import typing
 
 from pyglove.core import object_utils
 from pyglove.core.typing import class_schema
+from pyglove.core.typing import generic
 from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 
@@ -149,6 +150,12 @@ def _value_spec_from_type_annotation(
       return_spec = _value_spec_from_type_annotation(
           args[1], accept_value_as_annotation=False)
     return vs.Callable(arg_specs, returns=return_spec)
+  # Handling type
+  elif origin is type or (annotation in (typing.Type, type)):
+    if not args:
+      return vs.Type(typing.Any)
+    assert len(args) == 1, (annotation, args)
+    return vs.Type(args[0])
   # Handling union.
   elif origin is typing.Union or (_UnionType and origin is _UnionType):
     optional = _NoneType in args
@@ -162,8 +169,11 @@ def _value_spec_from_type_annotation(
       spec = spec.noneable()
     return spec
   # Handling class.
-  elif (inspect.isclass(annotation)
-        or (isinstance(annotation, str) and not accept_value_as_annotation)):
+  elif (
+      inspect.isclass(annotation)
+      or generic.is_generic(annotation)
+      or (isinstance(annotation, str) and not accept_value_as_annotation)
+  ):
     return vs.Object(annotation)
 
   if accept_value_as_annotation:

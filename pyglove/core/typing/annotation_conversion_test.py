@@ -218,6 +218,30 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
     self.assertEqual(
         ValueSpec.from_annotation(Foo, False), vs.Any(annotation=Foo))
 
+  def test_generic_class(self):
+    X = typing.TypeVar('X')
+    Y = typing.TypeVar('Y')
+
+    class Foo(typing.Generic[X, Y]):
+      pass
+
+    self.assertEqual(
+        ValueSpec.from_annotation(Foo[int, str], True), vs.Object(Foo[int, str])
+    )
+
+  def test_type(self):
+    class Foo:
+      pass
+
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Type[Foo], True), vs.Type(Foo)
+    )
+    self.assertEqual(ValueSpec.from_annotation(type[Foo], True), vs.Type(Foo))
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Type, True), vs.Type(typing.Any)
+    )
+    self.assertEqual(ValueSpec.from_annotation(type, True), vs.Type(typing.Any))
+
   def test_optional(self):
     self.assertEqual(
         ValueSpec.from_annotation(typing.Optional[int], True),

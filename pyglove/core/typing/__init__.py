@@ -342,6 +342,14 @@ from pyglove.core.typing.type_conversion import get_converter
 from pyglove.core.typing.type_conversion import get_first_applicable_converter
 from pyglove.core.typing.type_conversion import get_json_value_converter
 
+# Generic helpers.
+from pyglove.core.typing.generic import is_subclass
+from pyglove.core.typing.generic import is_instance
+from pyglove.core.typing.generic import get_type
+from pyglove.core.typing.generic import get_type_args
+from pyglove.core.typing.generic import is_generic
+from pyglove.core.typing.generic import has_generic_bases
+
 # Annotation conversion.
 import pyglove.core.typing.annotation_conversion
 

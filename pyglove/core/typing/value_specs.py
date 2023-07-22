@@ -19,11 +19,12 @@ import numbers
 import re
 import sys
 import typing
-import __main__
 
+import __main__
 from pyglove.core import object_utils
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
+from pyglove.core.typing import generic
 from pyglove.core.typing import key_specs
 from pyglove.core.typing import type_conversion
 from pyglove.core.typing import typed_missing
@@ -223,9 +224,11 @@ class ValueSpecBase(ValueSpec):
       if not should_continue:
         return value
 
-    if (self.type_resolved
+    if (
+        self.type_resolved
         and self.value_type is not None
-        and not isinstance(value, self.value_type)):
+        and not generic.is_instance(value, self.value_type)
+    ):
       converter = type_conversion.get_first_applicable_converter(
           type(value), self.value_type)
       if converter is None:
@@ -1404,15 +1407,17 @@ class Object(ValueSpecBase):
       raise TypeError('"cls" for Object spec cannot be None.')
 
     forward_ref = None
+    type_args = []
     if isinstance(cls, str):
       forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), cls)
     elif isinstance(cls, type):
       if cls is object:
         raise TypeError('<class \'object\'> is too general for Object spec.')
-    else:
+    elif not generic.is_generic(cls):
       raise TypeError('"cls" for Object spec should be a type or str.')
 
     self._forward_ref = forward_ref
+    self._type_args = type_args
     super().__init__(cls, default, user_validator)
 
   @property
@@ -1842,7 +1847,7 @@ class Type(ValueSpecBase):
     forward_ref = None
     if isinstance(t, str):
       forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), t)
-    elif not isinstance(t, type):
+    elif not (isinstance(t, type) or generic.is_generic(t) or t is typing.Any):
       raise TypeError(f'{t!r} is not a type.')
     self._expected_type = t
     self._forward_ref = forward_ref
@@ -1864,7 +1869,7 @@ class Type(ValueSpecBase):
 
   def _validate(self, path: object_utils.KeyPath, value: typing.Type) -> None:  # pylint: disable=g-bare-generic
     """Validate applied value."""
-    if self.type_resolved and not issubclass(value, self.type):
+    if self.type_resolved and not generic.is_subclass(value, self.type):
       raise ValueError(
           object_utils.message_on_path(
               f'{value!r} is not a subclass of {self.type!r}', path))

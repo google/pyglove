@@ -18,6 +18,7 @@ import datetime
 from typing import Any, Callable, Optional, Tuple, Type, Union
 
 from pyglove.core import object_utils
+from pyglove.core.typing import generic
 
 
 class _TypeConverterRegistry:
@@ -35,8 +36,12 @@ class _TypeConverterRegistry:
       dest: Union[Type[Any], Tuple[Type[Any], ...]],
       convert_fn: Callable[[Any], Any]) -> None:  # pyformat: disable pylint: disable=line-too-long
     """Register a converter from src type to dest type."""
-    if (not isinstance(src, (tuple, type)) or
-        not isinstance(dest, (tuple, type))):
+    if (
+        not isinstance(src, (tuple, type))
+        and not generic.is_generic(src)
+        or not isinstance(dest, (tuple, type))
+        and not generic.is_generic(dest)
+    ):
       raise TypeError('Argument \'src\' and \'dest\' must be a type or '
                       'tuple of types.')
     if isinstance(dest, tuple):
@@ -54,9 +59,11 @@ class _TypeConverterRegistry:
     # NOTE(daiyip): We do reverse lookup since usually subclass converter
     # is register after base class.
     for src_type, dest_type, converter, _ in reversed(self._converter_list):
-      dest_type = dest_type if isinstance(dest_type, tuple) else (dest_type,)
-      if issubclass(src, src_type) and dest in dest_type:
-        return converter
+      if generic.is_subclass(src, src_type):
+        dest_types = dest_type if isinstance(dest_type, tuple) else (dest_type,)
+        for dest_type in dest_types:
+          if generic.is_subclass(dest_type, dest):
+            return converter
     return None
 
   def get_json_value_converter(
@@ -64,7 +71,7 @@ class _TypeConverterRegistry:
     """Get converter from source type to a JSON simple type."""
     for src_type, _, converter, json_value_convertible in reversed(
         self._converter_list):
-      if issubclass(src, src_type) and json_value_convertible:
+      if generic.is_subclass(src, src_type) and json_value_convertible:
         return converter
     return None
 
@@ -139,4 +146,3 @@ def _register_builtin_converters():
 
 _register_builtin_converters()
 object_utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter
-

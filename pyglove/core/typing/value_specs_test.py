@@ -1742,6 +1742,23 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError, "'A' does not exist in module .*"):
       _ = vs.Object('A').value_type
 
+  def test_geneeric_type(self):
+    class G(typing.Generic[typing.TypeVar('X'), typing.TypeVar('Y')]):
+      pass
+
+    class G1(G[int, str]):
+      pass
+
+    o = G1()
+
+    v = vs.Object(G[int, str])
+    self.assertIs(v.value_type, G[int, str])
+    self.assertIs(v.apply(o), o)
+
+    self.assertIs(vs.Object(G).apply(o), o)
+    with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*'):
+      vs.Object(G[str, int]).apply(o)
+
   def test_forward_refs(self):
     self.assertEqual(vs.Object(self.A).forward_refs, set())
     self.assertEqual(vs.Object('Foo').forward_refs, set([forward_ref('Foo')]))
@@ -2342,6 +2359,16 @@ class TypeTest(unittest.TestCase):
     self.assertIs(vs.Type(int).type, int)
     self.assertIs(vs.Type(Exception).type, Exception)
     self.assertIs(vs.Type('BoolTest').type, BoolTest)
+
+    class G(typing.Generic[typing.TypeVar('T1'), typing.TypeVar('T2')]):
+      pass
+
+    class G1(G[int, str]):
+      pass
+
+    self.assertIs(vs.Type(G).type, G)
+    self.assertIs(vs.Type(G[int, str]).type, G[int, str])
+    self.assertIs(vs.Type(G[int, str]).apply(G1), G1)
 
     with self.assertRaisesRegex(TypeError, '.* does not exist'):
       _ = vs.Type('A').type

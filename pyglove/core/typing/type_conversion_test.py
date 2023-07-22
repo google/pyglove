@@ -15,6 +15,7 @@
 
 import calendar
 import datetime
+import typing
 import unittest
 
 from pyglove.core import object_utils
@@ -40,6 +41,7 @@ class TypeConversionTest(unittest.TestCase):
 
     a_converter = lambda a: a.x
     type_conversion.register_converter(A, (str, int), a_converter)
+
     self.assertIs(type_conversion.get_converter(A, str), a_converter)
     self.assertIs(type_conversion.get_converter(A, int), a_converter)
     self.assertIs(type_conversion.get_json_value_converter(A), a_converter)
@@ -69,6 +71,28 @@ class TypeConversionTest(unittest.TestCase):
     self.assertIs(
         type_conversion.get_first_applicable_converter(B, (float, int)),
         b_converter)
+
+    # Test generics.
+    T = typing.TypeVar('T')
+
+    class G(typing.Generic[T]):
+
+      def __init__(self, x: T):
+        super().__init__()
+        self.x = x
+
+    class G1(G[int]):
+      pass
+
+    class G2(G[str]):
+      pass
+
+    type_conversion.register_converter(int, G1, G1)
+    type_conversion.register_converter(str, G[str], G2)
+    self.assertIs(type_conversion.get_converter(int, G[int]), G1)
+    self.assertIs(type_conversion.get_converter(int, G1), G1)
+    self.assertIs(type_conversion.get_converter(str, G[str]), G2)
+    self.assertIsNone(type_conversion.get_converter(str, G2))
 
   def test_user_conversion(self):
 
