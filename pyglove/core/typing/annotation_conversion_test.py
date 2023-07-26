@@ -187,9 +187,9 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
     self.assertEqual(
         ValueSpec.from_annotation(typing.Mapping[str, int], True),
         vs.Dict([(ks.StrKey(), vs.Int())]))
-    with self.assertRaisesRegex(
-        TypeError, 'Dict type field with non-string key is not supported'):
-      ValueSpec.from_annotation(dict[int, int], True)
+    self.assertEqual(
+        ValueSpec.from_annotation(dict[int, int], True),
+        vs.Dict(non_symbolic=True))
 
   def test_callable(self):
     self.assertEqual(

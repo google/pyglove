@@ -1261,6 +1261,8 @@ class Dict(ValueSpecBase):
       schema_or_field_list: typing.Optional[typing.Union[
           Schema, typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
       ]] = None,  # pylint: disable=bad-whitespace
+      *,
+      non_symbolic: bool = False,
       user_validator: typing.Optional[
           typing.Callable[[typing.Dict[typing.Any, typing.Any]], None]] = None):
     """Constructor.
@@ -1271,6 +1273,10 @@ class Dict(ValueSpecBase):
           <value_spec>, [description], [metadata]) When this field is empty, it
           specifies a schema-less Dict that may accept arbitrary key/value
           pairs.
+      non_symbolic: If True, the dict used in a symbolic tree will not be
+        converted to `pg.Dict`. This is helpful when the dict may contains
+        non-string keys. See `pg.symbolic.schema_utils.formalize_schema` for
+        details.
       user_validator: (Optional) user function or callable object for additional
         validation on the applied dict, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
@@ -1286,6 +1292,7 @@ class Dict(ValueSpecBase):
             schema_or_field_list, allow_nonconst_keys=True)
       default_value = schema.apply({}, allow_partial=True)
     self._schema = schema
+    self._non_symbolic = non_symbolic
     super().__init__(dict, MISSING_VALUE, user_validator)
     self.set_default(default_value, use_default_apply=False)
 
@@ -1293,6 +1300,11 @@ class Dict(ValueSpecBase):
   def schema(self) -> typing.Optional[Schema]:
     """Returns the schema of this dict spec."""
     return self._schema
+
+  @property
+  def non_symbolic(self) -> bool:
+    """Returns True if the dict shall not be converted into a `pg.Dict`."""
+    return self._non_symbolic
 
   def noneable(self) -> 'Dict':
     """Override noneable in Dict to always set default value None."""
@@ -1364,6 +1376,7 @@ class Dict(ValueSpecBase):
 
     details = object_utils.kvlist_str([
         ('', schema_details, ''),
+        ('non_symbolic', self._non_symbolic, False),
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
     ])

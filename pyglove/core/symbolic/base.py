@@ -2173,16 +2173,20 @@ def from_json(json_value: Any,
     return Symbolic.ListType(json_value, **kwargs)  # pytype: disable=not-callable   # pylint: disable=not-callable
   elif isinstance(json_value, dict):
     if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
-      return Symbolic.DictType.from_json(json_value, **kwargs)
-    type_name = json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
-    cls = object_utils.JSONConvertible.class_from_typename(type_name)
-    if cls is None:
-      raise TypeError(
-          object_utils.message_on_path(
-              f'Type name \'{type_name}\' is not registered '
-              f'with a `pg.JSONConvertible` subclass.', root_path))
-    del json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
-    return cls.from_json(json_value, **kwargs)
+      # Symbolic conversion happens only on dict with string keys.
+      if not json_value or isinstance(next(iter(json_value)), str):
+        return Symbolic.DictType.from_json(json_value, **kwargs)
+    else:
+      # Loads as symbolic object.
+      type_name = json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
+      cls = object_utils.JSONConvertible.class_from_typename(type_name)
+      if cls is None:
+        raise TypeError(
+            object_utils.message_on_path(
+                f'Type name \'{type_name}\' is not registered '
+                f'with a `pg.JSONConvertible` subclass.', root_path))
+      del json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
+      return cls.from_json(json_value, **kwargs)
   return json_value
 
 
@@ -2408,22 +2412,27 @@ def symbolic_transform_fn(allow_partial: bool):
   def _fn(
       path: object_utils.KeyPath, field: pg_typing.Field, value: Any) -> Any:
     """Transform schema-less List and Dict to symbolic."""
-    if isinstance(value, Symbolic):
-      return value
     if isinstance(value, dict):
       value_spec = pg_typing.ensure_value_spec(
           field.value, pg_typing.Dict(), path)
-      value = Symbolic.DictType(   # pytype: disable=not-callable  # pylint: disable=not-callable
-          value,
-          value_spec=value_spec,
-          allow_partial=allow_partial,
-          root_path=path,
-          # NOTE(daiyip): members are already checked and transformed
-          # into final object, thus we simply pass through.
-          # This prevents the Dict members from repeated validation
-          # and transformation.
-          pass_through=True)
-    elif isinstance(value, list):
+
+      if (isinstance(value_spec, pg_typing.Dict)
+          and value_spec.non_symbolic
+          and isinstance(value, Symbolic)):
+        # Force non-symbolic if the value spec says so.
+        value = dict(value)
+      elif not isinstance(value, Symbolic):
+        value = Symbolic.DictType(   # pytype: disable=not-callable  # pylint: disable=not-callable
+            value,
+            value_spec=value_spec,
+            allow_partial=allow_partial,
+            root_path=path,
+            # NOTE(daiyip): members are already checked and transformed
+            # into final object, thus we simply pass through.
+            # This prevents the Dict members from repeated validation
+            # and transformation.
+            pass_through=True)
+    elif isinstance(value, list) and not isinstance(value, Symbolic):
       value_spec = pg_typing.ensure_value_spec(
           field.value, pg_typing.List(pg_typing.Any()), path)
       value = Symbolic.ListType(   # pytype: disable=not-callable  # pylint: disable=not-callable

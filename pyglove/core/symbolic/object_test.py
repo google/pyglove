@@ -384,6 +384,54 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(a.z(), 5)
     self.assertEqual(a.sym_init_args.z, 3)
 
+  def test_non_symbolic_dict_field(self):
+
+    class A(Object):
+      x: typing.Dict[str, int]
+
+      # `y` and `z` are non-symbolic.
+      y: typing.Dict[int, str]
+      z: typing.Dict   # pylint: disable=g-bare-generic
+
+      def _on_init(self):
+        super()._on_init()
+        self.last_updates = {}
+
+      def _on_change(self, updates):
+        super()._on_change(updates)
+        self.last_updates = updates
+
+    self.assertTrue(A.schema.get_field('z').value.non_symbolic)
+    a = A(x=dict(p=1), y={1: 2}, z=dict(q=3))
+    self.assertIsInstance(a.x, Dict)
+    self.assertNotIsInstance(a.y, Dict)
+    self.assertNotIsInstance(a.z, Dict)
+
+    # Updates to non-symbolic fields do not trigger updates.
+    a.y[1] = 3
+    a.y[2] = 4
+    a.z['p'] = 'foo'
+    a.z['q'] = 5
+    self.assertEqual(a.y, {1: 3, 2: 4})
+    self.assertEqual(a.z, {'p': 'foo', 'q': 5})
+    self.assertEqual(a.last_updates, {})
+
+    # Updates to symbolic field will trigger updates.
+    with flags.allow_writable_accessors():
+      a.x['p'] = 2
+    self.assertEqual(a.x, dict(p=2))
+    self.assertEqual(len(a.last_updates), 1)
+    a.last_updates = []
+
+    # Test rebind on non-symbolic dict members.
+    with self.assertRaisesRegex(
+        KeyError, 'Cannot rebind key .* is not a symbolic type'):
+      a.rebind({'y[1]': 4})
+
+    with self.assertRaisesRegex(
+        KeyError, 'Cannot rebind key .* is not a symbolic type'):
+      a.rebind({'z.p': 4})
+
   def test_runtime_type_check(self):
 
     @pg_members([
@@ -2249,6 +2297,7 @@ class EventsTest(unittest.TestCase):
     self.assertEqual(object_updates, [])
 
     # innermost Dict get updated after bind with List.
+    print('CHILD_UPDATES', child_dict_updates)
     self.assertEqual(
         child_dict_updates,
         [
