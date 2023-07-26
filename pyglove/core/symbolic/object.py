@@ -760,6 +760,19 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     """
     return self._on_change.__code__ is not Object._on_change.__code__  # pytype: disable=attribute-error
 
+  def _init_kwargs(self) -> typing.Dict[str, Any]:
+    kwargs = super()._init_kwargs()
+    kwargs.update(self._sym_attributes)
+    return kwargs
+
+  def __getstate__(self) -> Dict[str, Any]:
+    """Customizes pickle.dump."""
+    return dict(kwargs=self._init_kwargs())
+
+  def __setstate__(self, state) -> None:
+    """Customizes pickle.load."""
+    self.__init__(**state['kwargs'])
+
   def __setattr__(self, name: str, value: Any) -> None:
     """Set field value by attribute."""
     # NOTE(daiyip): two types of members are treated as regular members:

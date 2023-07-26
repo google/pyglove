@@ -539,9 +539,14 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     if (pg_typing.MISSING_VALUE == value and
         (not field or isinstance(field.key, pg_typing.NonConstKey))):
-      assert key in self, (key, self)
-      super().__delitem__(key)
-      new_value = pg_typing.MISSING_VALUE
+      if key in self:
+        # Using pg.MISSING_VALUE for deleting keys.
+        super().__delitem__(key)
+        new_value = pg_typing.MISSING_VALUE
+      else:
+        # This condition could trigger when copying a partial Dict to a Dict
+        # without schema.
+        return None
     else:
       new_value = self._formalized_value(key, field, value)
       super().__setitem__(key, new_value)
@@ -605,6 +610,24 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       )
     return v
 
+  def _init_kwargs(self) -> typing.Dict[str, Any]:
+    kwargs = super()._init_kwargs()
+    if not self._accessor_writable:
+      kwargs['accessor_writable'] = False
+    if self._onchange_callback is not None:
+      kwargs['onchange_callback'] = self._onchange_callback
+    # NOTE(daiyip): We do not serialize ValueSpec for now as in most use
+    # cases they come from the subclasses of `pg.Object`.
+    return kwargs
+
+  def __getstate__(self) -> Any:
+    """Customizes pickle.dump."""
+    return dict(value=dict(self), kwargs=self._init_kwargs())
+
+  def __setstate__(self, state) -> None:
+    """Customizes pickle.load."""
+    self.__init__(state['value'], **state['kwargs'])
+
   def __getitem__(self, key: str) -> Any:
     """Get item in this Dict."""
     v = self.sym_value(key, default=_RAISE_IF_NOT_FOUND)
@@ -625,6 +648,18 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       KeyError: Key is not allowed according to the value spec.
       ValueError: Value is not acceptable according to the value spec.
     """
+    # NOTE(daiyip): THIS IS A WORKAROUND FOR WORKING WITH PICKLE.
+    # `pg.Dict` is a subclass of `dict`, therefore, when pickle loads a dict,
+    # it will try to set its items directly by calling `__setitem__` without
+    # calling `pg.Dict.__init__` at the first place. As a result, an error will
+    # raise, which complains about that an attribute set up during `__init__` is
+    # not available. A mitigation to this issue is to detect such calls in
+    # `__setitem__` as the follows, and simply do nothing, which will give a
+    # chance to `pg.Dict.__getstate__` to deal with the restoration logic as
+    # an object (instead of a dict).
+    if not hasattr(self, '_sym_parent'):
+      return
+
     if base.treats_as_sealed(self):
       raise base.WritePermissionError(
           self._error_message('Cannot modify field of a sealed Dict.'))

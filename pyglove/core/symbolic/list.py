@@ -509,6 +509,24 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       ]
     return _eval(key, v)
 
+  def _init_kwargs(self) -> typing.Dict[str, Any]:
+    kwargs = super()._init_kwargs()
+    if not self._accessor_writable:
+      kwargs['accessor_writable'] = False
+    if self._onchange_callback is not None:
+      kwargs['onchange_callback'] = self._onchange_callback
+    # NOTE(daiyip): We do not serialize ValueSpec for now as in most use
+    # cases they come from the subclasses of `pg.Object`.
+    return kwargs
+
+  def __getstate__(self) -> Any:
+    """Customizes pickle.dump."""
+    return dict(value=list(self), kwargs=self._init_kwargs())
+
+  def __setstate__(self, state) -> None:
+    """Customizes pickle.load."""
+    self.__init__(state['value'], **state['kwargs'])
+
   def __getitem__(self, index) -> Any:
     """Gets the item at a given position."""
     v = self.sym_value(index, _RAISE_IF_NOT_FOUND)
@@ -665,6 +683,18 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     raise ValueError(f'{value!r} not in list.')
 
   def extend(self, other: Iterable[Any]) -> None:
+    # NOTE(daiyip): THIS IS A WORKAROUND FOR WORKING WITH PICKLE.
+    # `pg.List` is a subclass of `list`, therefore, when pickle loads a list,
+    # it tries to set the list values directly by calling `extend` without
+    # calling `pg.List.__init__` at the first place. As a result, an error will
+    # raise, which complains about that an attribute set up during `__init__` is
+    # not available. A mitigation to this issue is to detect such calls in
+    # `extend`, and simply do nothing as follows, which will give a chance to
+    # `pg.List.__getstate__` to deal with the restoration logic as an object
+    # (instead of a list).
+    if not hasattr(self, '_sym_parent'):
+      return
+
     if base.treats_as_sealed(self):
       raise base.WritePermissionError('Cannot extend a sealed List.')
     other = list(other)

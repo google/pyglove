@@ -16,6 +16,7 @@
 import copy
 import inspect
 import io
+import pickle
 import unittest
 
 from pyglove.core import object_utils
@@ -1783,6 +1784,56 @@ class FormatTest(unittest.TestCase):
             }
           }
         ]"""))
+
+
+def _on_change_callback(updates):
+  del updates
+
+
+class PickleTest(unittest.TestCase):
+
+  def assert_pickle_correctness(self, v: List) -> List:
+    payload = pickle.dumps(v)
+    v2 = pickle.loads(payload)
+    self.assertEqual(v, v2)
+    self.assertEqual(v.sym_sealed, v2.sym_sealed)
+    self.assertEqual(v.sym_partial, v2.sym_partial)
+    # For now, deserialized `pg.List` does not carry value spec, which requires
+    # the user to call `use_spec` on it.
+    self.assertIsNone(v2.value_spec)
+    self.assertEqual(v.accessor_writable, v2.accessor_writable)
+    self.assertEqual(v._onchange_callback, v2._onchange_callback)
+    return v2
+
+  def test_basic(self):
+    self.assert_pickle_correctness(List([0, Dict(x=1)]))
+
+  def test_sealed(self):
+    self.assert_pickle_correctness(List([0]).seal())
+
+  def test_partial(self):
+    self.assert_pickle_correctness(
+        List.partial(
+            value_spec=pg_typing.List(pg_typing.Dict([('x', int)]))))
+
+  def test_accessor_writable(self):
+    v = self.assert_pickle_correctness(List([0]).set_accessor_writable(False))
+    with self.assertRaises(base.WritePermissionError):
+      v[0] = 1
+
+  def test_with_value_spec(self):
+    self.assert_pickle_correctness(
+        List(
+            [Dict(x=1, y=2, z=Dict(p='str'))],
+            value_spec=pg_typing.List(pg_typing.Dict([
+                ('x', int),
+                ('y', int),
+                ('z', pg_typing.Dict([('p', str)])),
+            ]))))
+
+  def test_with_onchange_callback(self):
+    self.assert_pickle_correctness(
+        List([], onchange_callback=_on_change_callback))
 
 
 if __name__ == '__main__':

@@ -308,6 +308,17 @@ class Symbolic(object_utils.JSONConvertible,
     else:
       object.__init__(self)
 
+  def _init_kwargs(self) -> Dict[str, Any]:
+    kwargs = {}
+    def add_if_nondefault(key, attrname, default):
+      v = getattr(self, attrname)
+      if v != default:
+        kwargs[key] = v
+
+    add_if_nondefault('allow_partial', '_allow_partial', False)
+    add_if_nondefault('sealed', '_sealed', False)
+    return kwargs
+
   #
   # Formal contract for symbolic operations.
   #

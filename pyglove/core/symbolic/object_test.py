@@ -17,6 +17,7 @@ import copy
 import inspect
 import io
 import os
+import pickle
 import tempfile
 import typing
 import unittest
@@ -3128,6 +3129,33 @@ class FormatTest(unittest.TestCase):
             )
           ]
         )"""))
+
+
+class Foo(Object):
+  x: typing.List[typing.Dict[str, int]] = [dict(x=1)]
+  y: typing.Dict[str, int]
+  z: bool = True
+
+
+class PickleTest(unittest.TestCase):
+
+  def assert_pickle_correctness(self, v: Object) -> Object:
+    payload = pickle.dumps(v)
+    v2 = pickle.loads(payload)
+    self.assertEqual(v, v2)
+    self.assertEqual(v.sym_sealed, v2.sym_sealed)
+    self.assertEqual(v.sym_partial, v2.sym_partial)
+    self.assertEqual(v.accessor_writable, v2.accessor_writable)
+    return v2
+
+  def test_basic(self):
+    self.assert_pickle_correctness(Foo([dict(x=2)], dict(x=1)))
+
+  def test_sealed(self):
+    self.assert_pickle_correctness(Foo([dict(x=2)], dict(x=1)).seal())
+
+  def test_partial(self):
+    self.assert_pickle_correctness(Foo.partial())
 
 
 if __name__ == '__main__':
