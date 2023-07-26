@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Concrete value specifications for field definition."""
+
 import copy
 import functools
 import inspect
@@ -19,8 +20,8 @@ import numbers
 import re
 import sys
 import typing
-
 import __main__
+
 from pyglove.core import object_utils
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
@@ -1470,7 +1471,7 @@ class Object(ValueSpecBase):
     # unresolved forward declarations, we consider them compatible.
     if not self.type_resolved or not other.type_resolved:
       return True
-    return issubclass(other.cls, self.cls)
+    return generic.is_subclass(other.cls, self.cls)
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
@@ -1880,7 +1881,7 @@ class Type(ValueSpecBase):
     # unresolved forward declarations, we consider them compatible.
     if not self.type_resolved or not other.type_resolved:
       return True
-    return issubclass(other.type, self.type)
+    return generic.is_subclass(other.type, self.type)
 
   def _extend(self, base: 'Type') -> None:
     """Type specific extension."""
@@ -2102,7 +2103,7 @@ class Union(ValueSpecBase):
       else:
         if (c.__class__ is v.__class__
             and (c.__class__ is not Object
-                 or issubclass(c.value_type, v.value_type))):
+                 or generic.is_subclass(c.value_type, v.value_type))):
           return v
       return None
 

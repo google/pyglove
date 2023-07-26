@@ -1742,7 +1742,7 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError, "'A' does not exist in module .*"):
       _ = vs.Object('A').value_type
 
-  def test_geneeric_type(self):
+  def test_generic_type(self):
     class G(typing.Generic[typing.TypeVar('X'), typing.TypeVar('Y')]):
       pass
 
@@ -1758,6 +1758,14 @@ class ObjectTest(unittest.TestCase):
     self.assertIs(vs.Object(G).apply(o), o)
     with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*'):
       vs.Object(G[str, int]).apply(o)
+
+    self.assertTrue(
+        vs.Object(G[int, typing.Any]).is_compatible(vs.Object(G[int, str])))
+    self.assertTrue(
+        vs.Object(G[typing.Any, typing.Any]).is_compatible(
+            vs.Object(G[int, str])))
+    self.assertFalse(
+        vs.Object(G[int, str]).is_compatible(vs.Object(G[str, str])))
 
   def test_forward_refs(self):
     self.assertEqual(vs.Object(self.A).forward_refs, set())
@@ -2483,6 +2491,21 @@ class TypeTest(unittest.TestCase):
     self.assertFalse(
         vs.Type(Exception).is_compatible(vs.Type(ValueError).noneable()))
     self.assertFalse(vs.Type(Exception).is_compatible(vs.Type(int)))
+
+    class G(typing.Generic[typing.TypeVar('T1'), typing.TypeVar('T2')]):
+      pass
+
+    class G1(G[int, str]):
+      pass
+
+    self.assertTrue(vs.Type(G[int, str]).is_compatible(vs.Type(G1)))
+    self.assertTrue(
+        vs.Type(G[typing.Any, typing.Any]).is_compatible(vs.Type(G1)))
+    self.assertTrue(
+        vs.Type(G[typing.Any, typing.Any]).is_compatible(
+            vs.Type(G[int, str])))
+    self.assertFalse(vs.Type(G[str, int]).is_compatible(vs.Type(G[int, int])))
+    self.assertFalse(vs.Type(G[str, int]).is_compatible(vs.Type(G1)))
 
   def test_extend(self):
     # Child may make a parent default value not specified.
