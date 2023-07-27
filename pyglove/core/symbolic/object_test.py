@@ -202,6 +202,7 @@ class ObjectTest(unittest.TestCase):
     ])
     class A(Object):
 
+      @object_utils.explicit_method_override
       def __init__(self, x):
         super().__init__(int(x))
 
@@ -210,6 +211,7 @@ class ObjectTest(unittest.TestCase):
 
     class B(A):
 
+      @object_utils.explicit_method_override
       def __init__(self, x):  # pylint: disable=super-init-not-called
         # Forgot to call super().__init__ will trigger error.
         self.x = x
@@ -217,6 +219,13 @@ class ObjectTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, '.* should call `super.*__init__`'):
       _ = B(1)
+
+    with self.assertRaisesRegex(
+        TypeError, '.* is a PyGlove managed method.'
+    ):
+      class C(A):  # pylint: disable=unused-variable
+        def __init__(self, x):
+          super().__init__(x + 1)
 
   def test_symbolic_fields_from_annotations(self):
 
@@ -1913,6 +1922,7 @@ class InitSignatureTest(unittest.TestCase):
     class C(B):
       """Custom __init__."""
 
+      @object_utils.explicit_method_override
       def __init__(self, a, b):
         super().__init__(b, x=a)
 

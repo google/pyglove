@@ -274,6 +274,15 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     Args:
       user_cls: The source class that calls this class method.
     """
+    object_utils.ensure_explicit_method_override(
+        cls.__init__,
+        (
+            '`pg.Object.__init__` is a PyGlove managed method. For setting up '
+            'the class initialization logic, please override `_on_bound()` or '
+            '`_on_init()`. If you do have a need to override `__init__` and '
+            'know the implications, please decorate your overridden method '
+            'with `@pg.explicit_method_override`.'
+        ))
     super().__init_subclass__()
 
     user_cls = user_cls or cls
@@ -343,6 +352,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # Create a new `__init__` that passes through all the arguments to
     # in `pg.Object.__init__`. This is needed for each class to use different
     # signature.
+    @object_utils.explicit_method_override
     @functools.wraps(pseudo_init)
     def _init(self, *args, **kwargs):
       # We pass through the arguments to `Object.__init__` instead of
@@ -448,6 +458,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     """
     return cls(allow_partial=allow_partial, root_path=root_path, **json_value)
 
+  @object_utils.explicit_method_override
   def __init__(
       self,
       *args,

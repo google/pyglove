@@ -83,6 +83,9 @@ from pyglove.core.object_utils.common_traits import Functor
 
 from pyglove.core.object_utils.common_traits import registered_types
 
+from pyglove.core.object_utils.common_traits import explicit_method_override
+from pyglove.core.object_utils.common_traits import ensure_explicit_method_override
+
 # Value location.
 from pyglove.core.object_utils.value_location import KeyPath
 from pyglove.core.object_utils.value_location import StrKey

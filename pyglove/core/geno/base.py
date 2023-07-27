@@ -495,6 +495,7 @@ class DNA(symbolic.Object):
   # Allow assignment on symbolic attributes.
   allow_symbolic_assignment = True
 
+  @object_utils.explicit_method_override
   def __init__(
       self,
       value: Union[None, int, float, str, List[Any], Tuple[Any]] = None,

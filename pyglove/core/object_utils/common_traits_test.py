@@ -105,5 +105,22 @@ class JSONConvertibleTest(unittest.TestCase):
       common_traits.from_json({'_type': '__main__.ABC'})
 
 
+class ExplicitlyOverrideTest(unittest.TestCase):
+
+  def test_explicitly_override(self):
+    class A:
+
+      @common_traits.explicit_method_override
+      def __init__(self, x, y):
+        pass
+
+      def bar(self):
+        pass
+
+    common_traits.ensure_explicit_method_override(A.__init__)
+    with self.assertRaisesRegex(TypeError, '.* is a PyGlove managed method'):
+      common_traits.ensure_explicit_method_override(A.bar)
+
+
 if __name__ == '__main__':
   unittest.main()

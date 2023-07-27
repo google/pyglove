@@ -285,6 +285,8 @@ JSONConvertible = object_utils.JSONConvertible
 DocStr = object_utils.DocStr
 
 registered_types = object_utils.registered_types
+explicit_method_override = object_utils.explicit_method_override
+
 is_partial = object_utils.is_partial
 format = object_utils.format   # pylint: disable=redefined-builtin
 print = object_utils.print    # pylint: disable=redefined-builtin

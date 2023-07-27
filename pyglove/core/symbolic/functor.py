@@ -97,6 +97,7 @@ class Functor(pg_object.Object, object_utils.Functor):
 
     pseudo_init = init_signature.make_function(['pass'])
 
+    @object_utils.explicit_method_override
     @functools.wraps(pseudo_init)
     def _init(self, *args, **kwargs):
       Functor.__init__(self, *args, **kwargs)
@@ -120,6 +121,7 @@ class Functor(pg_object.Object, object_utils.Functor):
       return instance()
     return instance
 
+  @object_utils.explicit_method_override
   def __init__(
       self,
       *args,

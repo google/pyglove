@@ -18,6 +18,7 @@ import dataclasses
 import sys
 import unittest
 
+from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic.base import ContextualValue
 from pyglove.core.symbolic.compounding import compound as pg_compound
@@ -144,6 +145,7 @@ class UserClassTest(unittest.TestCase):
     class A(Object):
       x: int
 
+      @object_utils.explicit_method_override
       def __init__(self, x):
         super().__init__(x=x)
         assert type(self) is A  # pylint: disable=unidiomatic-typecheck

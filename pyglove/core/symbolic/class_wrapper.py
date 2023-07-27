@@ -73,6 +73,7 @@ class _SubclassedWrapperBase(ClassWrapper):
   # the `__init__` method.
   auto_typing = False
 
+  @object_utils.explicit_method_override
   def __init__(self, *args, **kwargs):
     """Overridden __init__ to construct symbolic wrapper only."""
     # NOTE(daiyip): We avoid `__init__` to be called multiple times.
@@ -99,6 +100,10 @@ class _SubclassedWrapperBase(ClassWrapper):
 
   @classmethod
   def __init_subclass__(cls):
+    # Class wrappers inherit `__init__` from the user class. Therefore, we mark
+    # all of them as explicitly overridden.
+    object_utils.explicit_method_override(cls.__init__)
+
     super().__init_subclass__()
     if cls.__init__ is _SubclassedWrapperBase.__init__:
       # Symbolized class inherits __init__ from ClassWrapper, meaning that
@@ -125,6 +130,8 @@ class _SubclassedWrapperBase(ClassWrapper):
       setattr(cls, '__orig_init__', cls.__init__)
       description, init_arg_list, arg_fields = _extract_init_signature(
           cls, auto_doc=cls.auto_doc, auto_typing=cls.auto_typing)
+
+      @object_utils.explicit_method_override
       @functools.wraps(cls.__init__)
       def _sym_init(self, *args, **kwargs):
         _SubclassedWrapperBase.__init__(self, *args, **kwargs)

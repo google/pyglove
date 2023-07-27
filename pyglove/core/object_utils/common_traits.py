@@ -408,3 +408,42 @@ class Functor(metaclass=abc.ABCMeta):
     Returns:
       Any value.
     """
+
+
+def explicit_method_override(method):
+  """Decorator that marks a member method as explicitly overridden.
+
+  In PyGlove, many methods are managed by the framework - for example -
+  ``pg.Object.__init__``. It's easy for users to override these methods
+  unconsciously. Therefore, we introduce this decorator to catch error at
+  the first place when such overrides incidentally take place, while allowing
+  advanced users to override them.
+
+  Usage::
+
+    class Foo(pg.Object):
+
+      @pg.explicit_method_override
+      def __init__(self, *args, **kwargs):
+       ...
+
+  Args:
+    method: method to explicitly overriden.
+
+  Returns:
+    The original method with an explicit overriden stamp.
+  """
+  setattr(method, '__explicit_override__', True)
+  return method
+
+
+def ensure_explicit_method_override(
+    method, error_message: Optional[str] = None) -> None:
+  """Returns True if a method is explicitly overridden."""
+  if not getattr(method, '__explicit_override__', False):
+    if error_message is None:
+      error_message = (
+          f'{method} is a PyGlove managed method. If you do need to override '
+          'it, please decorate the method with `@pg.explicit_method_override`.')
+    raise TypeError(error_message)
+
