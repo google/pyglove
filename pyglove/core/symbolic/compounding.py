@@ -15,10 +15,12 @@
 
 import abc
 import inspect
+import sys
 import types
 from typing import Any, List, Optional, Tuple, Type, Union
 
 from pyglove.core.symbolic import schema_utils
+from pyglove.core.symbolic.base import Symbolic
 from pyglove.core.symbolic.object import Object
 import pyglove.core.typing as pg_typing
 
@@ -169,7 +171,22 @@ def compound_class(
       if self._sym_decomposed is None:
         # Build the compound object.
         self._sym_decomposed = factory_fn(**self.sym_init_args)
+
+        # This allows the decomposed symbolic object to access the parent chain
+        # for value retrieval of contextual attributes.
+        if isinstance(self._sym_decomposed, Symbolic):
+          self._sym_decomposed.sym_setparent(self.sym_parent)
       return self._sym_decomposed
+
+    def _on_parent_change(self, old_parent, new_parent):
+      """Override to allow decomposed object to follow parent chain change."""
+      super()._on_parent_change(old_parent, new_parent)
+      if isinstance(self._sym_decomposed, Symbolic):
+        self._sym_decomposed.sym_setparent(new_parent)
+
+    def sym_value(self, name: str) -> Any:
+      # Bypass the user base' `sym_value` if it's overriden.
+      return Compound.sym_value(self, name)
 
     def __getattribute__(self, name: str):
       if (
@@ -177,7 +194,7 @@ def compound_class(
           or name in _COMPOUND_OWNED_ATTR_NAMES
           or name in self.sym_init_args
       ):
-        return super().__getattribute__(name)
+        return Compound.__getattribute__(self, name)
       # Redirect attribute to the compound object.
       return getattr(self.decomposed, name)
 
@@ -191,20 +208,24 @@ def compound_class(
   cls.auto_register = True
   cls.apply_schema(schema)
 
-  # NOTE(daiyip): Override abstract methods as non-ops, so `cls` could have an
-  # abstract class as its base. We don't need to worry about the implementation
-  # of the abstract method, since it will be detoured to the decomposed object
-  # at runtime via `__getattribute__`.
-  for key in dir(cls):
-    attr = getattr(cls, key)
-    if getattr(attr, '__isabstractmethod__', False):
-      noop = lambda self, *args, **kwargs: None
-      if isinstance(attr, property):
-        noop = property(noop)
-      else:
-        assert inspect.isfunction(attr), (key, attr)
-      setattr(cls, key, noop)
-  abc.update_abstractmethods(cls)
+  # Supporting abstract class as compound base class.
+  # This is a feature supported for Python 3.10 and above.
+  if sys.version_info >= (3, 10):
+
+    # NOTE(daiyip): Override abstract methods as non-ops, so `cls` could
+    # have an abstract class as its base. We don't need to worry about the
+    # implementation of the abstract method, since it will be detoured to the
+    # decomposed object at runtime via `__getattribute__`.
+    for key in dir(cls):
+      attr = getattr(cls, key)
+      if getattr(attr, '__isabstractmethod__', False):
+        noop = lambda self, *args, **kwargs: None
+        if isinstance(attr, property):
+          noop = property(noop)
+        else:
+          assert inspect.isfunction(attr), (key, attr)
+        setattr(cls, key, noop)
+    abc.update_abstractmethods(cls)
 
   if add_to_registry:
     cls.register_for_deserialization(serialization_key, additional_keys)
@@ -255,7 +276,7 @@ def compound(
     # We can also access the public APIs of the decomposed object.
     assert f.x == 1
     assert f.y == 1
-    assert f.sum() == 2     
+    assert f.sum() == 2
 
     # Or explicit access the decomposed object.
     assert f.decomposed == Foo(1, 1)

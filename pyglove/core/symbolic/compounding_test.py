@@ -15,11 +15,14 @@
 
 import abc
 import dataclasses
+import sys
 import unittest
 
 from pyglove.core import typing as pg_typing
+from pyglove.core.symbolic.base import ContextualValue
 from pyglove.core.symbolic.compounding import compound as pg_compound
 from pyglove.core.symbolic.compounding import compound_class as pg_compound_class
+from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.object import Object
 
 
@@ -62,54 +65,6 @@ class BasicTest(unittest.TestCase):
       @pg_compound
       def bar(unused_x):
         pass
-
-  def test_on_bound_side_effect_free(self):
-
-    class Foo(Object):
-      x: int
-
-      def _on_bound(self):
-        # Side effect.
-        super()._on_bound()
-        assert type(self) is Foo   # pylint: disable=unidiomatic-typecheck
-
-      def hello(self):
-        return self.x
-
-    @pg_compound(Foo)
-    def foo(x):
-      return Foo(x)
-
-    # This does not trigger assertion.
-    self.assertEqual(foo(1).hello(), 1)
-
-  def test_use_abstract_base(self):
-
-    class Foo(metaclass=abc.ABCMeta):
-      @abc.abstractmethod
-      def foo(self, x):
-        pass
-
-      @property
-      @abc.abstractmethod
-      def bar(self):
-        pass
-
-    class Bar(Foo):
-      def foo(self, x):
-        return x
-
-      @property
-      def bar(self):
-        return 1
-
-    @pg_compound(Foo)
-    def bar():
-      return Bar()
-
-    b = bar()
-    self.assertEqual(b.bar, 1)
-    self.assertEqual(b.foo(1), 1)
 
   def test_lazy_build(self):
     count = dict(x=0)
@@ -221,6 +176,80 @@ class UserClassTest(unittest.TestCase):
     CompoundA = pg_compound_class(lambda: A(), A)  # pylint: disable=invalid-name, unnecessary-lambda
     self.assertTrue(issubclass(CompoundA, A))
     self.assertEqual(CompoundA().foo(), 'bar')
+
+  def test_on_bound_side_effect_free(self):
+    class Foo(Object):
+      x: int
+
+      def _on_bound(self):
+        # Side effect.
+        super()._on_bound()
+        assert type(self) is Foo  # pylint: disable=unidiomatic-typecheck
+
+      def hello(self):
+        return self.x
+
+    @pg_compound(Foo)
+    def foo(x):
+      return Foo(x)
+
+    # This does not trigger assertion.
+    self.assertEqual(foo(1).hello(), 1)
+
+  @unittest.skipIf(
+      sys.version_info < (3, 10),
+      'This feature is only supported on Python 3.10 and above.',
+  )
+  def test_use_abstract_base(self):
+    class Foo(metaclass=abc.ABCMeta):
+
+      @abc.abstractmethod
+      def foo(self, x):
+        pass
+
+      @property
+      @abc.abstractmethod
+      def bar(self):
+        pass
+
+    class Bar(Foo):
+
+      def foo(self, x):
+        return x
+
+      @property
+      def bar(self):
+        return 1
+
+    @pg_compound(Foo)
+    def bar():
+      return Bar()
+
+    b = bar()
+    self.assertEqual(b.bar, 1)
+    self.assertEqual(b.foo(1), 1)
+
+  def test_contextual_attr_access(self):
+    class Foo(Object):
+      x: int = ContextualValue()
+
+    @pg_compound(Foo)
+    def foo():
+      return Foo()
+
+    f = foo()
+    d = Dict(x=1, y=f)
+    self.assertEqual(f.x, 1)
+    d.y = None
+    self.assertIsNone(f.sym_parent)
+
+    with self.assertRaisesRegex(
+        AttributeError, '.* is not found under its context'
+    ):
+      _ = f.x
+
+    _ = Dict(x=2, y=f)
+    self.assertEqual(f.x, 2)
 
 
 class TypingTest(unittest.TestCase):
