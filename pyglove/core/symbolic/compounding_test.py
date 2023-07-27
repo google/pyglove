@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.compounding."""
 
+import abc
 import dataclasses
 import unittest
 
@@ -61,6 +62,54 @@ class BasicTest(unittest.TestCase):
       @pg_compound
       def bar(unused_x):
         pass
+
+  def test_on_bound_side_effect_free(self):
+
+    class Foo(Object):
+      x: int
+
+      def _on_bound(self):
+        # Side effect.
+        super()._on_bound()
+        assert type(self) is Foo   # pylint: disable=unidiomatic-typecheck
+
+      def hello(self):
+        return self.x
+
+    @pg_compound(Foo)
+    def foo(x):
+      return Foo(x)
+
+    # This does not trigger assertion.
+    self.assertEqual(foo(1).hello(), 1)
+
+  def test_use_abstract_base(self):
+
+    class Foo(metaclass=abc.ABCMeta):
+      @abc.abstractmethod
+      def foo(self, x):
+        pass
+
+      @property
+      @abc.abstractmethod
+      def bar(self):
+        pass
+
+    class Bar(Foo):
+      def foo(self, x):
+        return x
+
+      @property
+      def bar(self):
+        return 1
+
+    @pg_compound(Foo)
+    def bar():
+      return Bar()
+
+    b = bar()
+    self.assertEqual(b.bar, 1)
+    self.assertEqual(b.foo(1), 1)
 
   def test_lazy_build(self):
     count = dict(x=0)

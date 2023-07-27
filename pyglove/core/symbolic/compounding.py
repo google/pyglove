@@ -154,7 +154,10 @@ def compound_class(
     auto_schema = False
 
     def _on_bound(self):
-      super()._on_bound()
+      # NOTE(daiyip): Do not call `super()._on_bound()` to avoid side effect.
+      # This is okay since all states are delegated to `self.decomposed`.
+      Compound._on_bound(self)      # pylint: disable=protected-access
+
       self._sym_decomposed = None
 
       if not lazy_build:
@@ -187,6 +190,21 @@ def compound_class(
   # Enable automatic registration of subclass.
   cls.auto_register = True
   cls.apply_schema(schema)
+
+  # NOTE(daiyip): Override abstract methods as non-ops, so `cls` could have an
+  # abstract class as its base. We don't need to worry about the implementation
+  # of the abstract method, since it will be detoured to the decomposed object
+  # at runtime via `__getattribute__`.
+  for key in dir(cls):
+    attr = getattr(cls, key)
+    if getattr(attr, '__isabstractmethod__', False):
+      noop = lambda self, *args, **kwargs: None
+      if isinstance(attr, property):
+        noop = property(noop)
+      else:
+        assert inspect.isfunction(attr), (key, attr)
+      setattr(cls, key, noop)
+  abc.update_abstractmethods(cls)
 
   if add_to_registry:
     cls.register_for_deserialization(serialization_key, additional_keys)
