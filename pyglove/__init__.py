@@ -37,4 +37,4 @@ from pyglove.ext import *
 # pylint: enable=unused-import
 # pylint: enable=g-bad-import-order
 
-__version__ = "0.4.2"
+__version__ = "0.4.3"
