@@ -60,13 +60,11 @@ from pyglove.core.symbolic.flags import is_change_notification_enabled
 from pyglove.core.symbolic.flags import auto_call_functors
 from pyglove.core.symbolic.flags import should_call_functors_during_init
 
-# Marker for contextual values.
-from pyglove.core.symbolic.base import ContextualValue
-from pyglove.core.symbolic.contextual import ContextualGetter
-from pyglove.core.symbolic.contextual import contextual_getter
+# Inferential values
+from pyglove.core.symbolic.base import Inferential
 
-# GetAttribute context for computing contextual values.
-from pyglove.core.symbolic.base import GetAttributeContext
+from pyglove.core.symbolic.inferred import InferredValue
+from pyglove.core.symbolic.inferred import ValueFromParentChain
 
 # Symbolic types and their definition helpers.
 from pyglove.core.symbolic.base import Symbolic

@@ -15,7 +15,6 @@
 
 import abc
 import copy
-import dataclasses
 import enum
 import inspect
 import json
@@ -114,115 +113,59 @@ class DescendantQueryOption(enum.Enum):
   LEAF = 2
 
 
-@dataclasses.dataclass
-class GetAttributeContext:
-  """The context for computing a contextual value.
+class TopologyAware(metaclass=abc.ABCMeta):
+  """Interface for objects that are aware of the topology it is part of."""
 
-  Attributes:
-    key: The key of symbolic attribute to request value.
-    container: An optional symbolic object as the current container to retrieve
-      the contextual value. If None, it means that there is no further container
-      to search for. Otherwise, it is a parent in the symbolic containing chain
-      for current attempt.
-    owner: The owner of the contextual attribute.
+  @property
+  @abc.abstractmethod
+  def sym_parent(self) -> Optional['TopologyAware']:
+    """Returns the parent of this object."""
+
+  @abc.abstractmethod
+  def sym_setparent(self, parent: Optional['TopologyAware']) -> None:
+    """Sets the parent of this object."""
+
+  @property
+  @abc.abstractmethod
+  def sym_path(self) -> object_utils.KeyPath:
+    """Returns the path of this object under its topology."""
+
+  @abc.abstractmethod
+  def sym_setpath(self, path: object_utils.KeyPath) -> None:
+    """Sets the path of this object under its topology."""
+
+
+class Inferential(TopologyAware, pg_typing.CustomTyping):
+  """Interface for values that could be dynamically inferred upon read.
+
+  Inferential values are objects whose values are not determined directly but
+  are instead derived from other sources, such as references (:class:`pg.Ref`)
+  to other objects or computed based on their context
+  (:class:`pg.symbolic.ValueFromParentChain`) such as the symbolic tree they
+  reside in.
+
+  When inferential values are utilized as symbolic attributes, we can obtain
+  their original definition by invoking :meth:`pg.Symbolic.sym_getattr`, and
+  their inferred values can be retrieved by calling
+  :meth:`pg.Symbolic.sym_inferred`. The values retrieved from :class:`pg.Dict`,
+  :class:`pg.List` and :class:`pg.Object` through `__getitem__` or
+  `__getattribute__` are all inferred values.
   """
 
-  key: Union[str, int]
-  container: Optional['Symbolic']
-  owner: 'Symbolic'
-
-
-class ContextualValue(
-    pg_typing.CustomTyping,
-    object_utils.JSONConvertible,
-    object_utils.Formattable,
-):
-  """Base class for contextual value markers.
-
-  Contextual value markers allows a symbolic attribute to be late bound
-  based on the entire symbolic tree where current symbolic value is part of.
-  As a result, users could access the late bound values directly through
-  symbolic attributes.
-
-  For example::
-
-    class A(pg.Object):
-      x: int
-      y: int = pg.ContextualValue()
-
-    # Not okay: `x` is not contextual and is not specified.
-    A()
-
-    # Okay: both `x` and `y` are specified.
-    A(x=1, y=2)
-
-    # Okay: `y` is contextual, hence optional.
-    a = A(x=1)
-
-    # Raises: `y` is neither specified during __init__
-    # nor provided from the context.
-    a.y
-
-    d = pg.Dict(y=2, z=pg.Dict(a=a))
-
-    # `a.y` now refers to `d.a` since `d` is in its symbolic parent chain,
-    # aka. context.
-    assert a.y == 2
-  """
-
-  def get(self, context: GetAttributeContext) -> Any:
-    """Try get the contextual value for a symbolic attribute from a parent.
+  @abc.abstractmethod
+  def infer(self, **kwargs) -> Any:
+    """Returns the inferred value.
 
     Args:
-      context: a `GetAttributeContext` object representing curent context.
+      **kwargs: Optional keyword arguments for inference, which are usually
+        inferential subclass specific.
 
     Returns:
-      The value for the requested symbolic attribute from the current context.
-        If ``pg.MISSING_VALUE``, it means that current symbolic parent cannot
-          provide a contextual value for the attribute, so the current context
-          is moved upward, until it reaches to the root of the symbolic tree.
-        If a ``pg.ContextualValue`` object, it will use the new contextual
-          marker returned to resolve its value from its symbolic parent chains.
+      Inferred value.
+
+    Raises:
+      AttributeError: If the value cannot be inferred.
     """
-    return self.value_from(context)
-
-  def value_from(self, context: GetAttributeContext) -> Any:
-    """Try get the contextual value for a symbolic attribute from a parent."""
-    if context.container is None:
-      return pg_typing.MISSING_VALUE
-
-    if isinstance(context.key, int):
-      if isinstance(context.container, list):
-        return context.container[context.key]
-      else:
-        return pg_typing.MISSING_VALUE
-    return getattr(context.container, context.key, pg_typing.MISSING_VALUE)
-
-  def custom_apply(self, *args, **kwargs: Any) -> Tuple[bool, Any]:
-    # This is to make a ``ContextualValue`` object assignable
-    # to any symbolic attribute.
-    return (False, self)
-
-  def format(
-      self,
-      compact: bool = False,
-      verbose: bool = True,
-      root_indent: int = 0,
-      **kwargs: Any,
-  ) -> str:
-    del compact, verbose, root_indent, kwargs
-    return 'ContextualValue()'
-
-  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
-    return self.to_json_dict({})
-
-  def __eq__(self, other: Any) -> bool:
-    # NOTE(daiyip): We do strict type match here since subclasses might
-    # have their own __eq__ logic.
-    return type(other) is ContextualValue  # pylint: disable=unidiomatic-typecheck
-
-  def __ne__(self, other: Any) -> bool:
-    return not self.__eq__(other)
 
 
 # Value marker for raising errors if a attribute does not exist or cannot
@@ -230,9 +173,12 @@ class ContextualValue(
 _RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
 
 
-class Symbolic(object_utils.JSONConvertible,
-               object_utils.MaybePartial,
-               object_utils.Formattable):
+class Symbolic(
+    TopologyAware,
+    object_utils.JSONConvertible,
+    object_utils.MaybePartial,
+    object_utils.Formattable,
+):
   """Base for all symbolic types.
 
   Symbolic types are types that provide interfaces for symbolic programming,
@@ -500,9 +446,8 @@ class Symbolic(object_utils.JSONConvertible,
     """Returns if a symbolic attribute exists."""
 
   def sym_getattr(
-      self,
-      key: Union[str, int],
-      default: Any = object_utils.MISSING_VALUE) -> Any:
+      self, key: Union[str, int], default: Any = _RAISE_IF_NOT_FOUND
+  ) -> Any:
     """Gets a symbolic attribute.
 
     Args:
@@ -514,119 +459,44 @@ class Symbolic(object_utils.JSONConvertible,
       if it's specified.
 
     Raises:
-      AttributeError if `key` does not exist and `default` is
-        ``pg.MISSING_VALUE``.
+      AttributeError if `key` does not exist and `default` is not provided.
     """
     if not self.sym_hasattr(key):
-      if default != object_utils.MISSING_VALUE:
-        return default
-      raise AttributeError(
-          self._error_message(
-              f'{self.__class__!r} object has no symbolic attribute {key!r}.'))
+      if default is _RAISE_IF_NOT_FOUND:
+        raise AttributeError(
+            self._error_message(
+                f'{self.__class__!r} object has no symbolic attribute {key!r}.'
+            )
+        )
+      return default
     return self._sym_getattr(key)
 
-  def sym_contextual_hasattr(
-      self,
-      key: Union[str, int],
-      getter: Optional[ContextualValue] = None,
-      start: Union[
-          'Symbolic', object_utils.MissingValue
-      ] = pg_typing.MISSING_VALUE,
-  ) -> bool:
-    """Returns True if an attribute exists from current object's context.
-
-    Args:
-      key: Key of symbolic attribute.
-      getter: An optional ``ContextualValue`` object as the value retriever.
-      start: An object from current object to the root of the composition as the
-        starting point of context lookup (upward). If ``pg.MISSING_VALUE``, it
-        will start with current node.
-
-    Returns:
-      True if the attribute exists. Otherwise False.
-    """
-    getter = getter or ContextualValue()
-    v = self.sym_contextual_getattr(
-        key, default=pg_typing.MISSING_VALUE, getter=getter, start=start
+  def sym_inferrable(self, key: Union[str, int], **kwargs) -> bool:
+    """Returns True if the attribute under key can be inferred."""
+    return (
+        self.sym_inferred(key, pg_typing.MISSING_VALUE, **kwargs)
+        != pg_typing.MISSING_VALUE
     )
-    return v != pg_typing.MISSING_VALUE
 
-  def sym_contextual_getattr(
+  def sym_inferred(
       self,
       key: Union[str, int],
-      default: Any = (object_utils.MISSING_VALUE,),
-      getter: Optional[ContextualValue] = None,
-      start: Union[
-          'Symbolic', object_utils.MissingValue
-      ] = pg_typing.MISSING_VALUE,
+      default: Any = _RAISE_IF_NOT_FOUND,
+      **kwargs,
   ) -> Any:
-    """Gets a key from current object's context (symbolic parent chain).
-
-    Args:
-      key: Key of symbolic attribute.
-      default: Default value if attribute does not exist. If absent,
-        `AttributeError` will be thrown.
-      getter: An optional ``ContextualValue`` object as the value retriever.
-      start: An object from current object to the root of the composition as the
-        starting point of context lookup (upward). If ``pg.MISSING_VALUE``, it
-        will start with current node.
-
-    Returns:
-      Value of symbolic attribute if found, otherwise the default value
-      if it's specified.
-
-    Raises:
-      AttributeError if `key` does not exist along the parent chain and
-        default value is not ``pg.MISSING_VALUE``.
-    """
-    getter = getter or ContextualValue()
-    if start == pg_typing.MISSING_VALUE:
-      current = self
+    """Returns the inferred value of the attribute under key."""
+    if default is _RAISE_IF_NOT_FOUND:
+      return self._sym_inferred(key, **kwargs)
     else:
-      current = typing.cast(Symbolic, start)
+      try:
+        return self._sym_inferred(key, **kwargs)
+      except Exception:  # pylint: disable=broad-exception-caught
+        return default
 
-    while True:
-      context = GetAttributeContext(key=key, container=current, owner=self)
-      v = getter.get(context)
-      # NOTE(daiyip): when the ContextualValue value from the parent returns
-      # another ContextualValue object, we should follow the new return value's
-      # instruction instead of the original one.
-      if isinstance(v, ContextualValue):
-        getter = v
-      elif v != object_utils.MISSING_VALUE:
-        return v
-
-      if current is not None:
-        current = current.sym_parent
-      else:
-        break
-
-    if default != (object_utils.MISSING_VALUE,):
-      return default
-    raise AttributeError(
-        self._error_message(
-            f'`{key}` is not found under its context '
-            '(along its symbolic parent chain).'
-        )
-    )
-
-  def sym_value(
-      self, key: Union[str, int], default: Any = _RAISE_IF_NOT_FOUND
-  ) -> Any:
-    """Gets the value of a symbolic attribute (with resolving ContextualValue).
-
-    Args:
-      key: The key of the symbolic attribute.
-      default: The default value if the key does not exist or contextual value
-        cannot be resolved. If not specified, attribute error will be risen.
-
-    Returns:
-      The value of the symbolic attribute after resolving the
-        ``pg.ContextualValue``.
-    """
-    v = self._sym_value(key, default)
-    if v is _RAISE_IF_NOT_FOUND:
-      raise AttributeError(key)
+  def _sym_inferred(self, key: Union[str, int], **kwargs) -> Any:
+    v = self.sym_getattr(key)
+    if isinstance(v, Inferential):
+      v = v.infer(**kwargs)
     return v
 
   @abc.abstractmethod
@@ -1193,20 +1063,6 @@ class Symbolic(object_utils.JSONConvertible,
   #
 
   @abc.abstractmethod
-  def _sym_value(self, key: Union[str, int], default: Any) -> Any:
-    """Gets the value of a symbolic attribute (with resolving ContextualValue).
-
-    Args:
-      key: The key of the symbolic attribute.
-      default: The default value if the key does not exist or contextual value
-        cannot be resolved.
-
-    Returns:
-      The value of the symbolic attribute after resolving the
-        ``pg.ContextualValue``.
-    """
-
-  @abc.abstractmethod
   def _sym_rebind(
       self, path_value_pairs: Dict[object_utils.KeyPath, Any]
       ) -> List[FieldUpdate]:
@@ -1314,16 +1170,16 @@ class Symbolic(object_utils.JSONConvertible,
           (value.sym_parent is not self
            or root_path != value.sym_path)):
         value = value.clone()
-      value.sym_setpath(root_path)
-      # NOTE(daiyip): Dict may set '_pass_through_parent' member to True when
-      # it's used as the field container of an Object.
-      if getattr(self, '_pass_through_parent', False):
-        parent = self.sym_parent
-      else:
-        parent = self
-      value.sym_setparent(parent)
       value.set_accessor_writable(self.accessor_writable)
+
+    if isinstance(value, TopologyAware):
+      value.sym_setpath(object_utils.KeyPath(key, self.sym_path))
+      value.sym_setparent(self._sym_parent_for_children())
     return value
+
+  def _sym_parent_for_children(self) -> Optional['Symbolic']:
+    """Returns the symbolic parent for children."""
+    return self
 
   def _set_item_of_current_tree(
       self, path: object_utils.KeyPath, value: Any) -> Optional[FieldUpdate]:
@@ -1705,7 +1561,7 @@ def eq(left: Any, right: Any) -> bool:
         or len(left) != len(right)
         or set(left.keys()) != set(right.keys())):
       return False
-    # NOTE(daiyip): pg.Dict.__getitem__ will trigger contextual value
+    # NOTE(daiyip): pg.Dict.__getitem__ will trigger inferred value
     # evaluation, therefore we always get its symbolic form during traversal.
     left_items = left.sym_items if isinstance(left, Symbolic) else left.items
     right_item = (

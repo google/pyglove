@@ -175,7 +175,7 @@ def compound_class(
         self._sym_decomposed = factory_fn(**self.sym_init_args)
 
         # This allows the decomposed symbolic object to access the parent chain
-        # for value retrieval of contextual attributes.
+        # for value retrieval of inferred attributes.
         if isinstance(self._sym_decomposed, Symbolic):
           self._sym_decomposed.sym_setparent(self.sym_parent)
       return self._sym_decomposed
@@ -186,9 +186,9 @@ def compound_class(
       if isinstance(self._sym_decomposed, Symbolic):
         self._sym_decomposed.sym_setparent(new_parent)
 
-    def sym_value(self, name: str) -> Any:
-      # Bypass the user base' `sym_value` if it's overriden.
-      return Compound.sym_value(self, name)
+    def _sym_inferred(self, key: str, **kwargs) -> Any:
+      # Bypass the user base' `_sym_inferred` if it's overriden.
+      return Compound._sym_inferred(self, key, **kwargs)
 
     def __getattribute__(self, name: str):
       if (

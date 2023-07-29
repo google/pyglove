@@ -11,30 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.symbolic.ContextualGetter."""
+"""Tests for pyglove.symbolic.inferred."""
 
 import unittest
 
-from pyglove.core.symbolic import base
-from pyglove.core.symbolic import contextual
+from pyglove.core import typing as pg_typing
+from pyglove.core.symbolic import inferred
 from pyglove.core.symbolic.dict import Dict
 
 
-class ContextualGetterTest(unittest.TestCase):
-  """Tests for `pg.symbolic.ContextualGetter`."""
+class ValueFromParentChain(unittest.TestCase):
+  """Tests for `pg.symbolic.ValueFromParentChain`."""
 
-  def test_basics(self):
-    @contextual.contextual_getter
-    def static_value(context, v):
-      del context
-      return v
+  def test_inference(self):
+    v = Dict(y=1, x=Dict(x=1, y=inferred.ValueFromParentChain()))
+    self.assertEqual(v.x.y, 1)
 
-    getter = static_value(v=1)  # pylint: disable=no-value-for-parameter
-    self.assertIsInstance(getter, base.ContextualValue)
-    self.assertEqual(
-        getter.get(base.GetAttributeContext('x', Dict(), Dict())), 1
-    )
-    self.assertEqual(base.from_json(base.to_json(getter)), getter)
+    v.rebind(y=2)
+    self.assertEqual(v.x.y, 2)
+
+  def test_custom_typing(self):
+    v = inferred.ValueFromParentChain()
+    self.assertIs(pg_typing.Int().apply(v), v)
+    self.assertIs(pg_typing.Str().apply(v), v)
 
 
 if __name__ == '__main__':

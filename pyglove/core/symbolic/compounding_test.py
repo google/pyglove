@@ -20,10 +20,10 @@ import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
-from pyglove.core.symbolic.base import ContextualValue
 from pyglove.core.symbolic.compounding import compound as pg_compound
 from pyglove.core.symbolic.compounding import compound_class as pg_compound_class
 from pyglove.core.symbolic.dict import Dict
+from pyglove.core.symbolic.inferred import ValueFromParentChain
 from pyglove.core.symbolic.object import Object
 
 
@@ -231,9 +231,9 @@ class UserClassTest(unittest.TestCase):
     self.assertEqual(b.bar, 1)
     self.assertEqual(b.foo(1), 1)
 
-  def test_contextual_attr_access(self):
+  def test_inferred_value_access(self):
     class Foo(Object):
-      x: int = ContextualValue()
+      x: int = ValueFromParentChain()
 
     @pg_compound(Foo)
     def foo():

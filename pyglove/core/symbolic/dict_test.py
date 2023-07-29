@@ -22,8 +22,8 @@ import unittest
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
-from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
+from pyglove.core.symbolic import inferred
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.list import List
@@ -69,9 +69,9 @@ class DictTest(unittest.TestCase):
     self.assertIs(sd.value_spec, vs)
     self.assertEqual(sd, dict(a=1))
 
-    # Dict with contextual value
-    sd = Dict(Dict(x=base.ContextualValue()))
-    self.assertEqual(sd, dict(x=base.ContextualValue()))
+    # Dict with inferred value
+    sd = Dict(Dict(x=inferred.ValueFromParentChain()))
+    self.assertEqual(sd, dict(x=inferred.ValueFromParentChain()))
 
     with self.assertRaisesRegex(
         ValueError, 'Required value is not specified.'):
@@ -330,10 +330,10 @@ class DictTest(unittest.TestCase):
     with self.assertRaisesRegex(KeyError, 'Key \'y1\' is not allowed'):
       sd['y1'] = 4
 
-    # Set item with a contextual value.
+    # Set item with an inferred value.
     sd = Dict(x=1)
-    sd.x = base.ContextualValue()
-    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+    sd.x = inferred.ValueFromParentChain()
+    self.assertEqual(sd.sym_getattr('x'), inferred.ValueFromParentChain())
 
   def test_getitem(self):
     sd = Dict(a=1)
@@ -341,8 +341,8 @@ class DictTest(unittest.TestCase):
     with self.assertRaisesRegex(KeyError, 'x'):
       _ = sd['x']
 
-    sd = Dict(x=base.ContextualValue())
-    with self.assertRaisesRegex(AttributeError, 'x'):
+    sd = Dict(x=inferred.ValueFromParentChain())
+    with self.assertRaisesRegex(KeyError, 'x'):
       _ = sd['x']
 
     sdd = Dict(x=Dict(foo=0), y=sd)
@@ -423,8 +423,8 @@ class DictTest(unittest.TestCase):
     with self.assertRaisesRegex(AttributeError, 'Attribute .* does not exist'):
       _ = sd.x
 
-    # Test contextual.
-    sd = Dict(x=base.ContextualValue())
+    # Test inferred value.
+    sd = Dict(x=inferred.ValueFromParentChain())
     with self.assertRaisesRegex(
         AttributeError, '`x` is not found under its context'
     ):
@@ -621,10 +621,10 @@ class DictTest(unittest.TestCase):
     self.assertEqual(sd.setdefault('a', 1), 1)
 
     sd = Dict()
-    sd.setdefault('x', base.ContextualValue())
-    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+    sd.setdefault('x', inferred.ValueFromParentChain())
+    self.assertEqual(sd.sym_getattr('x'), inferred.ValueFromParentChain())
     sd.setdefault('x', 1)
-    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+    self.assertEqual(sd.sym_getattr('x'), inferred.ValueFromParentChain())
 
   def test_update(self):
     sd = Dict(b=0, a=1, c=2)
@@ -821,20 +821,19 @@ class DictTest(unittest.TestCase):
         '.* object has no symbolic attribute \'a\'.'):
       sd.sym_getattr('a')
 
-    sd = Dict(x=base.ContextualValue())
-    self.assertEqual(sd.sym_getattr('x'), base.ContextualValue())
+    sd = Dict(x=inferred.ValueFromParentChain())
+    self.assertEqual(sd.sym_getattr('x'), inferred.ValueFromParentChain())
 
-  def test_sym_value(self):
-    @contextual.contextual_getter
-    def static_value(context, v):
-      del context
-      return v
-
-    sd = Dict(x=1, y=static_value(v=0))  # pylint: disable=no-value-for-parameter
-    self.assertEqual(sd.sym_value('x'), 1)
-    self.assertEqual(sd.sym_value('y'), 0)
+  def test_sym_inferred(self):
+    sd = Dict(x=1, y=inferred.ValueFromParentChain())  # pylint: disable=no-value-for-parameter
+    self.assertEqual(sd.sym_inferred('x'), 1)
+    with self.assertRaisesRegex(AttributeError, 'y'):
+      _ = sd.sym_inferred('y')
     with self.assertRaisesRegex(AttributeError, 'z'):
-      _ = sd.sym_value('z')
+      _ = sd.sym_inferred('z')
+
+    sd = Dict(y=1, x=Dict(x=Dict(y=inferred.ValueFromParentChain())))
+    self.assertEqual(sd.x.x.y, 1)
 
   def test_sym_field(self):
     sd = Dict(x=1, y=Dict(z=2))
@@ -870,7 +869,7 @@ class DictTest(unittest.TestCase):
     self.assertEqual(next(sd.sym_keys()), 'x')
     self.assertEqual(list(sd.sym_keys()), ['x', 'z', 'y'])
 
-    sd = Dict(x=1, y=base.ContextualValue())
+    sd = Dict(x=1, y=inferred.ValueFromParentChain())
     self.assertEqual(next(sd.sym_keys()), 'x')
     self.assertEqual(list(sd.sym_keys()), ['x', 'y'])
 
@@ -885,9 +884,11 @@ class DictTest(unittest.TestCase):
     self.assertEqual(next(sd.sym_values()), 1)
     self.assertEqual(list(sd.sym_values()), [1, 3, 2])
 
-    sd = Dict(x=1, y=base.ContextualValue())
+    sd = Dict(x=1, y=inferred.ValueFromParentChain())
     self.assertEqual(next(sd.sym_values()), 1)
-    self.assertEqual(list(sd.sym_values()), [1, base.ContextualValue()])
+    self.assertEqual(
+        list(sd.sym_values()), [1, inferred.ValueFromParentChain()]
+    )
 
   def test_sym_items(self):
     sd = Dict(x=1, y=2)
@@ -900,17 +901,18 @@ class DictTest(unittest.TestCase):
     self.assertEqual(next(sd.sym_items()), ('x', 1))
     self.assertEqual(list(sd.sym_items()), [('x', 1), ('z', 3), ('y', 2)])
 
-    sd = Dict(x=1, y=base.ContextualValue())
+    sd = Dict(x=1, y=inferred.ValueFromParentChain())
     self.assertEqual(next(sd.sym_items()), ('x', 1))
     self.assertEqual(
-        list(sd.sym_items()), [('x', 1), ('y', base.ContextualValue())]
+        list(sd.sym_items()), [('x', 1), ('y', inferred.ValueFromParentChain())]
     )
 
   def test_sym_jsonify(self):
     # Refer to SerializationTest for more detailed tests.
-    sd = Dict(x=1, y=base.ContextualValue())
+    sd = Dict(x=1, y=inferred.ValueFromParentChain())
     self.assertEqual(
-        sd.sym_jsonify(), {'x': 1, 'y': base.ContextualValue().to_json()}
+        sd.sym_jsonify(),
+        {'x': 1, 'y': inferred.ValueFromParentChain().to_json()},
     )
 
   def test_sym_rebind(self):
@@ -976,9 +978,9 @@ class DictTest(unittest.TestCase):
     ]))
     self.assertEqual(sd.sym_missing(), {'y': MISSING_VALUE})
 
-    # Test contextual value as the default value.
+    # Test inferred value as the default value.
     sd = Dict(
-        x=base.ContextualValue(),
+        x=inferred.ValueFromParentChain(),
         value_spec=pg_typing.Dict([
             ('x', pg_typing.Int()),
         ]),
@@ -997,25 +999,27 @@ class DictTest(unittest.TestCase):
     sd.rebind({'y.z': 2}, x=0)
     self.assertEqual(sd.sym_nondefault(), {'y.z': 2})
 
-    # Test contextual value as the default value.
+    # Test inferred value as the default value.
     sd = Dict(
         x=1,
         value_spec=pg_typing.Dict([
-            ('x', pg_typing.Int(default=base.ContextualValue())),
+            ('x', pg_typing.Int(default=inferred.ValueFromParentChain())),
         ]),
     )
     self.assertEqual(sd.sym_nondefault(), {'x': 1})
-    sd.rebind(x=base.ContextualValue())
+    sd.rebind(x=inferred.ValueFromParentChain())
     self.assertEqual(sd.sym_nondefault(), {})
 
-    # Test contextual value as the specified value.
+    # Test inferred value as the specified value.
     sd = Dict(
-        x=base.ContextualValue(),
+        x=inferred.ValueFromParentChain(),
         value_spec=pg_typing.Dict([
             ('x', pg_typing.Int(default=1)),
         ]),
     )
-    self.assertEqual(sd.sym_nondefault(), {'x': base.ContextualValue()})
+    self.assertEqual(
+        sd.sym_nondefault(), {'x': inferred.ValueFromParentChain()}
+    )
     sd.rebind(x=1)
     self.assertEqual(sd.sym_nondefault(), {})
 
@@ -1063,8 +1067,12 @@ class DictTest(unittest.TestCase):
     self.assertEqual(Dict(a=1), Dict(a=1))
     self.assertTrue(Dict(a=1).sym_eq(Dict(a=1)))
     self.assertTrue(base.eq(Dict(a=1), Dict(a=1)))
-    self.assertTrue(base.eq(Dict(x=base.ContextualValue()),
-                            Dict(x=base.ContextualValue())))
+    self.assertTrue(
+        base.eq(
+            Dict(x=inferred.ValueFromParentChain()),
+            Dict(x=inferred.ValueFromParentChain()),
+        )
+    )
     self.assertEqual(
         Dict(a=1),
         Dict(a=1, value_spec=pg_typing.Dict([('a', pg_typing.Int())])))
@@ -1301,13 +1309,13 @@ class DictTest(unittest.TestCase):
           'is set to False.'):
         del sd['a']
 
-    # Test with contextual value.
-    @contextual.contextual_getter
-    def unresolvable(k, p):
-      del k, p
-      return pg_typing.MISSING_VALUE
+    # Test with inferred value.
+    class Unresolvable(inferred.InferredValue):
 
-    sd = Dict(x=unresolvable())  # pylint: disable=no-value-for-parameter
+      def infer(self):
+        raise ValueError()
+
+    sd = Dict(x=Unresolvable())  # pylint: disable=no-value-for-parameter
     sd.set_accessor_writable(False)
     self.assertFalse(sd.sym_getattr('x').accessor_writable)
     with self.assertRaisesRegex(
@@ -1464,13 +1472,13 @@ class DictTest(unittest.TestCase):
     self.assertTrue(sd.is_sealed)
     self.assertTrue(sd.a.is_sealed)
 
-    # Test with contextual value.
-    @contextual.contextual_getter
-    def unresolvable(k, p):
-      del k, p
-      return pg_typing.MISSING_VALUE
+    # Test with inferred value.
+    class Unresolvable(inferred.InferredValue):
 
-    sd = Dict(x=unresolvable())  # pylint: disable=no-value-for-parameter
+      def infer(self):
+        raise ValueError()
+
+    sd = Dict(x=Unresolvable())
     sd.seal()
     self.assertTrue(sd.sym_getattr('x').is_sealed)
     sd.seal(False)
@@ -1516,8 +1524,8 @@ class RebindTest(unittest.TestCase):
 
   def test_rebind_with_context_value(self):
     sd = Dict(a=1, b=2)
-    sd.rebind(a=base.ContextualValue())
-    self.assertEqual(sd, dict(a=base.ContextualValue(), b=2))
+    sd.rebind(a=inferred.ValueFromParentChain())
+    self.assertEqual(sd, dict(a=inferred.ValueFromParentChain(), b=2))
 
     sd = Dict(
         a=1,
@@ -1526,8 +1534,8 @@ class RebindTest(unittest.TestCase):
             [('a', pg_typing.Int()), ('b', pg_typing.Int())]
         ),
     )
-    sd.rebind(a=base.ContextualValue())
-    self.assertEqual(sd, dict(a=base.ContextualValue(), b=2))
+    sd.rebind(a=inferred.ValueFromParentChain())
+    self.assertEqual(sd, dict(a=inferred.ValueFromParentChain(), b=2))
 
   def test_rebind_with_typing(self):
     spec = pg_typing.Dict([
@@ -1853,7 +1861,7 @@ class SerializationTest(unittest.TestCase):
         ('y', pg_typing.Str().noneable()),
         # Frozen field shall not be written.
         ('z', pg_typing.Bool(True).freeze()),
-        ('p', pg_typing.Int(default=base.ContextualValue())),
+        ('p', pg_typing.Int(default=inferred.ValueFromParentChain())),
     ])
     self.assertEqual(
         base.from_json_str('{"x": 1}').use_value_spec(spec, allow_partial=True),
@@ -2055,12 +2063,12 @@ class FormatTest(unittest.TestCase):
           }
         }"""))
 
-  def test_noncompact_with_contextual_value(self):
+  def test_noncompact_with_inferred_value(self):
     self.assertEqual(
-        Dict(x=1, y=base.ContextualValue()).format(compact=False),
+        Dict(x=1, y=inferred.ValueFromParentChain()).format(compact=False),
         inspect.cleandoc("""{
             x = 1,
-            y = ContextualValue()
+            y = ValueFromParentChain()
           }
         """),
     )

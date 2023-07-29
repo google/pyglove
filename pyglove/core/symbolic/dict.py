@@ -327,6 +327,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       self._value_spec = value_spec
     return self
 
+  def _sym_parent_for_children(self) -> Optional[base.Symbolic]:
+    if self._as_object_attributes_container:
+      return self.sym_parent
+    return self
+
   def _sym_rebind(
       self, path_value_pairs: typing.Dict[object_utils.KeyPath, Any]
       ) -> List[base.FieldUpdate]:
@@ -464,7 +469,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     # the parent of child symbolic values using its parent.
     if self._as_object_attributes_container:
       for v in self.sym_values():
-        if isinstance(v, base.Symbolic):
+        if isinstance(v, base.TopologyAware):
           v.sym_setparent(parent)
 
   def sym_hash(self) -> int:
@@ -505,7 +510,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Update children paths according to root_path of current node."""
     del old_path
     for k, v in self.sym_items():
-      if isinstance(v, base.Symbolic):
+      if isinstance(v, base.TopologyAware):
         v.sym_setpath(object_utils.KeyPath(k, new_path))
 
   def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
@@ -533,7 +538,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
                 f'Key \'{key}\' is not allowed for {container_cls}.'))
 
     # Detach old value from object tree.
-    if isinstance(old_value, base.Symbolic):
+    if isinstance(old_value, base.TopologyAware):
       old_value.sym_setparent(None)
       old_value.sym_setpath(object_utils.KeyPath())
 
@@ -592,24 +597,6 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     if self._onchange_callback:
       self._onchange_callback(field_updates)
 
-  def _sym_value(self, key: str, default: Any) -> Any:  # pytype: disable=signature-mismatch
-    """Evalutes a symbolic attribute with resolving contextual values."""
-    if key not in self:
-      return default
-    v = super().__getitem__(key)
-    if isinstance(v, base.ContextualValue):
-      start = self.sym_parent
-      # NOTE(daiyip): The parent of `pg.Object`'s attribute dict points to
-      # the `pg.Object` instance once it's set up. Here we let the ancester
-      # traversal to bypass `pg.Object` to avoid double entry, which causes
-      # dead loop.
-      if self._as_object_attributes_container and self.sym_parent is not None:
-        start = start.sym_parent
-      v = self.sym_contextual_getattr(
-          key, default=default, getter=v, start=start
-      )
-    return v
-
   def _init_kwargs(self) -> typing.Dict[str, Any]:
     kwargs = super()._init_kwargs()
     if not self._accessor_writable:
@@ -630,10 +617,10 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
   def __getitem__(self, key: str) -> Any:
     """Get item in this Dict."""
-    v = self.sym_value(key, default=_RAISE_IF_NOT_FOUND)
-    if v is _RAISE_IF_NOT_FOUND:
-      raise KeyError(key)
-    return v
+    try:
+      return self.sym_inferred(key)
+    except AttributeError as e:
+      raise KeyError(key) from e
 
   def __setitem__(self, key: str, value: Any) -> None:
     """Set item in this Dict.
@@ -728,7 +715,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def __getattr__(self, name: str) -> Any:
     """Get attribute that is not defined as property."""
     if name in self:
-      return self[name]
+      return self.sym_inferred(name)
     raise AttributeError(
         f'Attribute \'{name}\' does not exist in {self.__class__!r}.')
 

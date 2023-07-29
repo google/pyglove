@@ -14,7 +14,6 @@
 """Tests for pyglove.symbolic.base."""
 
 import copy
-import dataclasses
 import unittest
 
 from pyglove.core import object_utils
@@ -83,55 +82,6 @@ class FieldUpdateTest(unittest.TestCase):
 
     self.assertNotEqual(
         base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2), Dict()
-    )
-
-
-class ContextualValueTest(unittest.TestCase):
-  """Tests for `pg.symbolic.ContextualValue`."""
-
-  def test_str(self):
-    self.assertEqual(str(base.ContextualValue()), 'ContextualValue()')
-
-  def test_repr(self):
-    self.assertEqual(repr(base.ContextualValue()), 'ContextualValue()')
-
-  def test_eq(self):
-    self.assertEqual(base.ContextualValue(), base.ContextualValue())
-    self.assertNotEqual(base.ContextualValue(), 1)
-
-  def test_call(self):
-    @dataclasses.dataclass
-    class A:
-      x: int = 1
-      y: int = 2
-
-    self.assertEqual(
-        base.ContextualValue().get(base.GetAttributeContext('x', A(), Dict())),
-        1,
-    )
-    self.assertEqual(
-        base.ContextualValue().get(base.GetAttributeContext(0, [0, 1], Dict())),
-        0,
-    )
-    self.assertEqual(
-        base.ContextualValue().get(base.GetAttributeContext(0, Dict(), Dict())),
-        pg_typing.MISSING_VALUE,
-    )
-
-  def test_custom_typing(self):
-    v = base.ContextualValue()
-    self.assertIs(pg_typing.Int().apply(v), v)
-    self.assertIs(pg_typing.Str().apply(v), v)
-
-  def test_to_json(self):
-    self.assertEqual(
-        base.to_json(base.ContextualValue()),
-        {'_type': f'{base.ContextualValue.__module__}.ContextualValue'},
-    )
-
-  def test_from_json(self):
-    self.assertEqual(
-        base.from_json(base.ContextualValue().to_json()), base.ContextualValue()
     )
 
 

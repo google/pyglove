@@ -25,8 +25,8 @@ import unittest
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
-from pyglove.core.symbolic import contextual
 from pyglove.core.symbolic import flags
+from pyglove.core.symbolic import inferred
 from pyglove.core.symbolic.base import query as pg_query
 from pyglove.core.symbolic.base import traverse as pg_traverse
 from pyglove.core.symbolic.dict import Dict
@@ -608,7 +608,7 @@ class ObjectTest(unittest.TestCase):
     class B(Object):
       x: int
 
-    b = B(base.ContextualValue())
+    b = B(inferred.ValueFromParentChain())
     with self.assertRaises(AttributeError):
       _ = b.x
 
@@ -657,11 +657,11 @@ class ObjectTest(unittest.TestCase):
     a.rebind({'x': 1, 'y': MISSING_VALUE, 'z.p': 1.0})
     self.assertEqual(a.missing_values(), {})
 
-    # Test contextual value as the default value.
+    # Test inferred value as the default value.
     class B(Object):
       x: int
 
-    b = B(base.ContextualValue())
+    b = B(inferred.ValueFromParentChain())
     self.assertEqual(b.sym_missing(), {})
 
   def test_sym_has(self):
@@ -691,7 +691,10 @@ class ObjectTest(unittest.TestCase):
         super()._on_bound()
         self.y = 1
 
-    a = A(A(dict(y=A(1, p=base.ContextualValue()))), p=base.ContextualValue())
+    a = A(
+        A(dict(y=A(1, p=inferred.ValueFromParentChain()))),
+        p=inferred.ValueFromParentChain(),
+    )
 
     self.assertIs(a.sym_get('x'), a.x)
     self.assertIs(a.sym_get('p'), a.sym_getattr('p'))
@@ -750,8 +753,8 @@ class ObjectTest(unittest.TestCase):
     a = A(1)
     self.assertEqual(a.sym_getattr('x'), 1)
 
-    a = A(x=base.ContextualValue())
-    self.assertEqual(a.sym_getattr('x'), base.ContextualValue())
+    a = A(x=inferred.ValueFromParentChain())
+    self.assertEqual(a.sym_getattr('x'), inferred.ValueFromParentChain())
 
     with self.assertRaisesRegex(
         AttributeError, 'has no symbolic attribute \'y\''):
@@ -773,99 +776,36 @@ class ObjectTest(unittest.TestCase):
         AttributeError, 'has no symbolic attribute \'y\''):
       _ = b.sym_getattr('y')
 
-  def test_sym_value(self):
-    @contextual.contextual_getter
-    def static_value(context, v):
-      del context
-      return v
+  def test_sym_inferred(self):
+    class StaticValue(inferred.InferredValue):
+      v: typing.Any
+
+      def infer(self):
+        return self.v
 
     class A(Object):
       x: int = 1
-      y: int = static_value(v=0)  # pylint: disable=no-value-for-parameter
+      y: int = StaticValue(v=0)
 
     a = A()
-    self.assertEqual(a.sym_value('x'), 1)
-    self.assertEqual(a.sym_value('y'), 0)
+    self.assertEqual(a.sym_inferred('x'), 1)
+    self.assertEqual(a.sym_inferred('y'), 0)
+    self.assertEqual(a.sym_inferred('y', None), 0)
     with self.assertRaisesRegex(AttributeError, 'z'):
-      _ = a.sym_value('z')
+      _ = a.sym_inferred('z')
+    self.assertIsNone(a.sym_inferred('z', None))
 
-  def test_sym_contextual_hasattr(self):
+  def test_sym_inferrable(self):
     class A(Object):
       x: int
       y: int = 1
-      z: int = base.ContextualValue()
+      z: int = inferred.ValueFromParentChain()
 
-    a = A(0)
+    a = A.partial()
     _ = Dict(p=Dict(a=a, b=3), z=2)
-    self.assertTrue(a.sym_contextual_hasattr('x'))
-    self.assertTrue(a.sym_contextual_hasattr('y'))
-    self.assertTrue(a.sym_contextual_hasattr('z'))
-
-    # Custom start.
-    self.assertFalse(a.sym_contextual_hasattr('x', start=a.sym_parent))
-    self.assertFalse(a.sym_contextual_hasattr('y', start=a.sym_parent))
-    self.assertTrue(a.sym_contextual_hasattr('z', start=a.sym_parent))
-
-    # Custom getter.
-    @contextual.contextual_getter
-    def redirected_value(context, key):
-      if context.container:
-        return getattr(context.container, key)
-      return pg_typing.MISSING_VALUE
-
-    getter = redirected_value(key='b')  # pylint: disable=no-value-for-parameter
-    self.assertTrue(a.sym_contextual_hasattr('x', getter, start=a.sym_parent))
-    self.assertTrue(a.sym_contextual_hasattr('y', getter, start=a.sym_parent))
-    self.assertTrue(a.sym_contextual_hasattr('z', getter, start=a.sym_parent))
-
-  def test_sym_contextual_getattr(self):
-    class A(Object):
-      x: int
-      y: int = 1
-      z: int = base.ContextualValue()
-
-    a = A(0)
-
-    with self.assertRaises(AttributeError):
-      _ = a.z
-
-    _ = Dict(p=Dict(a=a, b=3), z=2)
-    self.assertEqual(a.z, 2)
-
-    self.assertEqual(a.sym_contextual_getattr('x'), 0)
-    self.assertEqual(a.sym_contextual_getattr('y'), 1)
-    self.assertEqual(a.sym_contextual_getattr('z'), 2)
-
-    # Custom start.
-    with self.assertRaisesRegex(
-        AttributeError, '`x` is not found under its context'
-    ):
-      a.sym_contextual_getattr('x', start=a.sym_parent)
-
-    with self.assertRaisesRegex(
-        AttributeError, '`y` is not found under its context'
-    ):
-      a.sym_contextual_getattr('y', start=a.sym_parent)
-
-    self.assertEqual(a.sym_contextual_getattr('z', start=a.sym_parent), 2)
-
-    # Custom getter.
-    @contextual.contextual_getter
-    def redirected_value(context, key):
-      if context.container:
-        return getattr(context.container, key)
-      return pg_typing.MISSING_VALUE
-
-    getter = redirected_value(key='b')  # pylint: disable=no-value-for-parameter
-    self.assertEqual(
-        a.sym_contextual_getattr('x', getter=getter, start=a.sym_parent), 3
-    )
-    self.assertEqual(
-        a.sym_contextual_getattr('y', getter=getter, start=a.sym_parent), 3
-    )
-    self.assertEqual(
-        a.sym_contextual_getattr('z', getter=getter, start=a.sym_parent), 3
-    )
+    self.assertFalse(a.sym_inferrable('x'))
+    self.assertTrue(a.sym_inferrable('y'))
+    self.assertTrue(a.sym_inferrable('z'))
 
   def test_sym_field(self):
 
@@ -1245,7 +1185,11 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(A(1), A(1))
     self.assertTrue(base.eq(A(1), A(1)))
     self.assertTrue(
-        base.eq(A(base.ContextualValue()), A(base.ContextualValue())))
+        base.eq(
+            A(inferred.ValueFromParentChain()),
+            A(inferred.ValueFromParentChain()),
+        )
+    )
 
     self.assertEqual(A.partial(), A.partial())
     self.assertTrue(base.eq(A.partial(), A.partial()))
@@ -1956,12 +1900,12 @@ class InitSignatureTest(unittest.TestCase):
       class E(B):  # pylint: disable=unused-variable
         pass
 
-  def test_contextual(self):
+  def test_inferred(self):
     class A(Object):
       x: int
-      y: str = base.ContextualValue()
+      y: str = inferred.ValueFromParentChain()
 
-    # Okay: `A.y` is contextual.
+    # Okay: `A.y` is an inferred value.
     a = A(1)
 
     # Not okay: `A.y` is not yet available in its context.
@@ -1980,31 +1924,26 @@ class InitSignatureTest(unittest.TestCase):
     ):
       _ = a.y
 
-    # Test parent contextual value with custom getter.
-    @contextual.contextual_getter
-    def redirected_value(context, key):
-      if context.container:
-        return getattr(context.container, key)
-      return pg_typing.MISSING_VALUE
+    # Test a custom inferred value.
+    class ValueFromRedirectedKey(inferred.ValueFromParentChain):
+      key: str
 
-    sd = Dict(a='bar', b=Dict(x=a, y=redirected_value(key='a')))  # pylint: disable=no-value-for-parameter
+      @property
+      def inference_key(self):
+        return self.key
+
+    sd = Dict(a='bar', b=Dict(x=a, y=ValueFromRedirectedKey('a')))
 
     # a.y is redirected to sd.a.
     self.assertEqual(a.y, 'bar')
 
-    @contextual.contextual_getter
-    def immediate_attr(context):
-      if context.container:
-        return context.container.sym_getattr(context.key)
-      return pg_typing.MISSING_VALUE
-
     class B(Object):
-      x: int = immediate_attr()  # pylint: disable=no-value-for-parameter
+      x: int = inferred.ValueFromParentChain()  # pylint: disable=no-value-for-parameter
 
     b = B()
-    sd = Dict(a='bar', b=Dict(b=b, x=redirected_value(key='a')))  # pylint: disable=no-value-for-parameter
+    _ = Dict(a='bar', b=Dict(b=b, x=ValueFromRedirectedKey('a')))
 
-    # a.y is redirected to sd.a.
+    # b.x -> parent.x -> parent.parent.a
     self.assertEqual(b.x, 'bar')
 
 

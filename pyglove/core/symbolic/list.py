@@ -390,7 +390,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     """Update children paths according to root_path of current node."""
     del old_path
     for idx, item in self.sym_items():
-      if isinstance(item, base.Symbolic):
+      if isinstance(item, base.TopologyAware):
         item.sym_setpath(object_utils.KeyPath(idx, new_path))
 
   def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
@@ -423,7 +423,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       else:
         list.__setitem__(self, index, new_value)
         # Detach old value from object tree.
-        if isinstance(old_value, base.Symbolic):
+        if isinstance(old_value, base.TopologyAware):
           old_value.sym_setparent(None)
     else:
       super().append(new_value)
@@ -468,7 +468,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
     # Update paths for children.
     for idx, item in self.sym_items():
-      if isinstance(item, base.Symbolic) and item.sym_path.key != idx:
+      if isinstance(item, base.TopologyAware) and item.sym_path.key != idx:
         item.sym_setpath(object_utils.KeyPath(idx, self.sym_path))
 
     if self._onchange_callback is not None:
@@ -490,25 +490,6 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     step = index.step if index.step is not None else 1
     return start, stop, step
 
-  def _sym_value(self, key: int, default: Any) -> Any:  # pytype: disable=signature-mismatch
-    try:
-      v = super().__getitem__(key)
-    except IndexError:
-      return default
-
-    def _eval(i, v):
-      if isinstance(v, base.ContextualValue):
-        return self.sym_contextual_getattr(
-            i, default=default, getter=v, start=self.sym_parent
-        )
-      return v
-
-    if isinstance(key, slice):
-      return [
-          _eval(k, v[i]) for i, k in enumerate(range(*self._parse_slice(key)))
-      ]
-    return _eval(key, v)
-
   def _init_kwargs(self) -> typing.Dict[str, Any]:
     kwargs = super()._init_kwargs()
     if not self._accessor_writable:
@@ -529,10 +510,12 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
   def __getitem__(self, index) -> Any:
     """Gets the item at a given position."""
-    v = self.sym_value(index, _RAISE_IF_NOT_FOUND)
-    if v is _RAISE_IF_NOT_FOUND:
-      raise IndexError('list index out of range')
-    return v
+    if isinstance(index, int):
+      if index < -len(self) or index >= len(self):
+        raise IndexError('list index out of range')
+      return self.sym_inferred(index)
+    assert isinstance(index, slice)
+    return [self[i] for i in range(*self._parse_slice(index))]
 
   def __setitem__(self, index, value: Any) -> None:
     """Set item in this List."""

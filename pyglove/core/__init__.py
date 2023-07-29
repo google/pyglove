@@ -165,15 +165,9 @@ FieldUpdate = symbolic.FieldUpdate
 Insertion = symbolic.Insertion
 WritePermissionError = symbolic.WritePermissionError
 
-# Contextual value marker.
-ContextualValue = symbolic.ContextualValue
-ContextualGetter = symbolic.ContextualGetter
-
-# Decorator for making contextual getters.
-contextual_getter = symbolic.contextual_getter
-
-# Context object for computing contextual attribute.
-GetAttributeContext = symbolic.GetAttributeContext
+# Inferentiable classes.
+Inferentiable = symbolic.Inferential
+InferredValue = symbolic.InferredValue
 
 #
 # Symbols from 'typing.py'

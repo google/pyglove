@@ -384,7 +384,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         object_utils.make_function(
             attr_name,
             ['self'],
-            [f"return self.sym_value('{attr_name}')"],
+            [f"return self.sym_inferred('{attr_name}')"],
             return_type=field.value.annotation,
         )
     )
@@ -813,10 +813,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     except AttributeError as error:
       if not self.allow_symbolic_attribute or not self.sym_hasattr(name):
         raise error
-      return self.sym_value(name)
-
-  def _sym_value(self, key: str, default: Any) -> Any:  # pytype: disable=signature-mismatch
-    return self._sym_attributes._sym_value(key, default)  # pylint: disable=protected-access
+      return self.sym_inferred(name)
 
   def __eq__(self, other: Any) -> bool:
     """Operator==."""
