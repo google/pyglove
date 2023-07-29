@@ -15,6 +15,7 @@
 
 import dataclasses
 import math
+import numbers
 import typing
 from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple, Union
 from pyglove.core import object_utils
@@ -279,7 +280,8 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
   def sym_hasattr(self, key: Union[str, int]) -> bool:
     """Tests if a symbolic attribute exists."""
-    return isinstance(key, int) and key >= -len(self) and key < len(self)
+    return (isinstance(key, numbers.Integral)
+            and key >= -len(self) and key < len(self))
 
   def sym_keys(self) -> Iterator[int]:
     """Symbolically iterates indices."""
@@ -396,7 +398,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
   def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, key: int, value: Any) -> Optional[base.FieldUpdate]:
     """Set or add an item without permission check."""
-    assert isinstance(key, int), key
+    assert isinstance(key, numbers.Integral), key
     index = key
     if index >= len(self):
       # Appending MISSING_VALUE is considered no-op.
@@ -510,12 +512,15 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
   def __getitem__(self, index) -> Any:
     """Gets the item at a given position."""
-    if isinstance(index, int):
+    if isinstance(index, numbers.Integral):
       if index < -len(self) or index >= len(self):
         raise IndexError('list index out of range')
       return self.sym_inferred(index)
-    assert isinstance(index, slice)
-    return [self[i] for i in range(*self._parse_slice(index))]
+    elif isinstance(index, slice):
+      return [self[i] for i in range(*self._parse_slice(index))]
+    else:
+      raise TypeError(
+          f'list index must be an integer. Encountered {index!r}.')
 
   def __setitem__(self, index, value: Any) -> None:
     """Set item in this List."""
@@ -554,7 +559,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
           updates.append(update)
       if flags.is_change_notification_enabled() and updates:
         self._notify_field_updates(updates)
-    elif isinstance(index, int):
+    elif isinstance(index, numbers.Integral):
       if index < -len(self) or index >= len(self):
         raise IndexError(
             f'list assignment index out of range. '
@@ -576,7 +581,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
           self._error_message('Cannot delete List item while accessor_writable '
                               'is set to False. '
                               'Use \'rebind\' method instead.'))
-    if not isinstance(index, int):
+    if not isinstance(index, numbers.Integral):
       raise TypeError(
           f'list index must be an integer. Encountered {index!r}.')
 
