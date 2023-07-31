@@ -83,6 +83,14 @@ Object = symbolic.Object
 ClassWrapper = symbolic.ClassWrapper
 Functor = symbolic.Functor
 
+# Inferentiable base classes.
+Inferentiable = symbolic.Inferential
+InferredValue = symbolic.InferredValue
+
+# Reference types.
+Ref = symbolic.Ref
+maybe_ref = symbolic.maybe_ref
+
 # Decorator for declaring symbolic. members for `pg.Object`.
 members = symbolic.members
 
@@ -164,10 +172,6 @@ Origin = symbolic.Origin
 FieldUpdate = symbolic.FieldUpdate
 Insertion = symbolic.Insertion
 WritePermissionError = symbolic.WritePermissionError
-
-# Inferentiable classes.
-Inferentiable = symbolic.Inferential
-InferredValue = symbolic.InferredValue
 
 #
 # Symbols from 'typing.py'

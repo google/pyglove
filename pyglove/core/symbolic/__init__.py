@@ -60,12 +60,6 @@ from pyglove.core.symbolic.flags import is_change_notification_enabled
 from pyglove.core.symbolic.flags import auto_call_functors
 from pyglove.core.symbolic.flags import should_call_functors_during_init
 
-# Inferential values
-from pyglove.core.symbolic.base import Inferential
-
-from pyglove.core.symbolic.inferred import InferredValue
-from pyglove.core.symbolic.inferred import ValueFromParentChain
-
 # Symbolic types and their definition helpers.
 from pyglove.core.symbolic.base import Symbolic
 from pyglove.core.symbolic.list import List
@@ -91,6 +85,16 @@ from pyglove.core.symbolic.symbolize import symbolize
 from pyglove.core.symbolic.compounding import compound
 from pyglove.core.symbolic.compounding import compound_class
 from pyglove.core.symbolic.boilerplate import boilerplate_class
+
+# Inferential types.
+from pyglove.core.symbolic.base import Inferential
+
+from pyglove.core.symbolic.inferred import InferredValue
+from pyglove.core.symbolic.inferred import ValueFromParentChain
+
+# Reference type.
+from pyglove.core.symbolic.ref import Ref
+from pyglove.core.symbolic.ref import maybe_ref
 
 # Symbolic operations.
 from pyglove.core.symbolic.base import traverse
