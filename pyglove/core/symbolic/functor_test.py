@@ -199,11 +199,11 @@ class FunctorTest(unittest.TestCase):
     ], returns=pg_typing.Int(), auto_doc=True)
     def f(a=1, b=2):
       """Compute the sum.
-      
+
       Args:
         a: an integer.
         b: another integer.
-      
+
       Returns:
         Sum of two integers.
       """
@@ -358,7 +358,7 @@ class FunctorTest(unittest.TestCase):
 
   def test_bad_definition(self):
     # `pg.functor` decorator is not applicable to class.
-    with self.assertRaisesRegex(TypeError, '.* is not a method.'):
+    with self.assertRaisesRegex(TypeError, '.* is not a function.'):
 
       @pg_functor([('a', pg_typing.Int())])
       class A:

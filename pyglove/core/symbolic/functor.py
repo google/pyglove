@@ -581,6 +581,8 @@ def functor_class(
     ValueError: default values of symbolic arguments are not compatible
       with  function signature.
   """
+  if not inspect.isfunction(func):
+    raise TypeError(f'{func!r} is not a function.')
 
   class _Functor(base_class or Functor):
     """Functor wrapper for input function."""

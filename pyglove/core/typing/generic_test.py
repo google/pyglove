@@ -129,7 +129,7 @@ class GenericTest(unittest.TestCase):
     self.assertIs(generic.get_type(A), A)
     self.assertIs(generic.get_type(A[str, int]), A)
     with self.assertRaisesRegex(TypeError, '.* is not a type.'):
-      generic.get_type(Any)
+      generic.get_type(1)
 
   def test_get_type_args(self):
     self.assertEqual(generic.get_type_args(str), ())
