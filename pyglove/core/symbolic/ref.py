@@ -124,7 +124,7 @@ class Ref(Object, base.Inferential):
         allow_partial=allow_partial)
     return (False, self)
 
-  def _sym_clone(self, deep: bool, memo: Any | None = None) -> 'Ref':
+  def _sym_clone(self, deep: bool, memo: Any = None) -> 'Ref':
     # Always create a new object.
     # TODO(daiyip): support deep clone with the update of reference when
     # the original value is updated.
