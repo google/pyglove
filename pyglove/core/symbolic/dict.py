@@ -22,13 +22,6 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 
 
-# Special default value to detect missing keys in a Dict. Though its values is
-# the same as `base._RAISE_IF_NOT_FOUND`, they are different instances so
-# `pg.Dict` and `pg.Symbolic` could use their own instances to control error
-# raising separately.
-_RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
-
-
 class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   """Symbolic dict.
 
@@ -740,7 +733,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     return self.sym_clone(deep=False)
 
   def pop(
-      self, key: Any, default: Any = pg_typing.MISSING_VALUE
+      self, key: Any, default: Any = base.RAISE_IF_NOT_FOUND  # pylint: disable=protected-access
   ) -> Any:
     """Pops a key from current dict."""
     if key in self:
@@ -748,7 +741,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       with flags.allow_writable_accessors(True):
         del self[key]
       return value if value != pg_typing.MISSING_VALUE else default
-    if default == pg_typing.MISSING_VALUE:
+    if default is base.RAISE_IF_NOT_FOUND:
       raise KeyError(key)
     return default
 

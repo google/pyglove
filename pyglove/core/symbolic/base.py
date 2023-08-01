@@ -170,7 +170,7 @@ class Inferential(TopologyAware, pg_typing.CustomTyping):
 
 # Value marker for raising errors if a attribute does not exist or cannot
 # be computed.
-_RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
+RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
 
 
 class Symbolic(
@@ -418,7 +418,7 @@ class Symbolic(
   def sym_get(
       self,
       path: Union[object_utils.KeyPath, str, int],
-      default: Any = object_utils.MISSING_VALUE) -> Any:
+      default: Any = RAISE_IF_NOT_FOUND) -> Any:
     """Returns a sub-node by path.
 
     NOTE: there is no `sym_set`, use `sym_rebind`.
@@ -433,10 +433,10 @@ class Symbolic(
       default value if it's specified.
 
     Raises:
-      KeyError if `path` does not exist and `default` is `pg.MISSING_VALUE`.
+      KeyError if `path` does not exist and `default` is not specified.
     """
     path = object_utils.KeyPath.from_value(path)
-    if default == object_utils.MISSING_VALUE:
+    if default is RAISE_IF_NOT_FOUND:
       return path.query(self)
     else:
       return path.get(self, default)
@@ -446,7 +446,7 @@ class Symbolic(
     """Returns if a symbolic attribute exists."""
 
   def sym_getattr(
-      self, key: Union[str, int], default: Any = _RAISE_IF_NOT_FOUND
+      self, key: Union[str, int], default: Any = RAISE_IF_NOT_FOUND
   ) -> Any:
     """Gets a symbolic attribute.
 
@@ -462,7 +462,7 @@ class Symbolic(
       AttributeError if `key` does not exist and `default` is not provided.
     """
     if not self.sym_hasattr(key):
-      if default is _RAISE_IF_NOT_FOUND:
+      if default is RAISE_IF_NOT_FOUND:
         raise AttributeError(
             self._error_message(
                 f'{self.__class__!r} object has no symbolic attribute {key!r}.'
@@ -481,11 +481,11 @@ class Symbolic(
   def sym_inferred(
       self,
       key: Union[str, int],
-      default: Any = _RAISE_IF_NOT_FOUND,
+      default: Any = RAISE_IF_NOT_FOUND,
       **kwargs,
   ) -> Any:
     """Returns the inferred value of the attribute under key."""
-    if default is _RAISE_IF_NOT_FOUND:
+    if default is RAISE_IF_NOT_FOUND:
       return self._sym_inferred(key, **kwargs)
     else:
       try:

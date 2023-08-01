@@ -24,13 +24,6 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 
 
-# Special default value to detect missing keys in a List. Though its values is
-# the same as `base._RAISE_IF_NOT_FOUND`, they are different instances so
-# `pg.List` and `pg.Symbolic` could use their own instances to control error
-# raising separately.
-_RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
-
-
 class List(list, base.Symbolic, pg_typing.CustomTyping):
   """Symbolic list.
 
