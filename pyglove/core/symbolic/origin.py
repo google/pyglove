@@ -14,7 +14,7 @@
 """Tracking the origin of a symbolic object."""
 
 import traceback
-from typing import Any, List, Optional
+from typing import Any, Callable, List, Optional
 
 from pyglove.core import object_utils
 from pyglove.core.symbolic import flags
@@ -84,6 +84,39 @@ class Origin(object_utils.Formattable):
   def source(self) -> Any:
     """Returns the source object."""
     return self._source
+
+  @property
+  def root(self) -> 'Origin':
+    """Returns the root source of the origin."""
+    current = self
+    while True:
+      parent = getattr(current.source, 'sym_origin', None)
+      if parent is None:
+        break
+      current = parent
+    return current
+
+  def history(
+      self,
+      condition: Optional[Callable[['Origin'], bool]] = None) -> List['Origin']:
+    """Returns a history of origins with an optional filter.
+    
+    Args:
+      condition: An optional callable object with signature
+        (origin) -> should_list. If None, all origins will be listed.
+
+    Returns:
+      A list of filtered origin from the earliest (root) to the most recent.
+    """
+    condition = condition or (lambda o: True)
+    current = self
+    history = []
+    while current is not None:
+      if condition(current):
+        history.append(current)
+      current = getattr(current.source, 'sym_origin', None)
+    history.reverse()
+    return history
 
   @property
   def tag(self) -> str:

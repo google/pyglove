@@ -46,6 +46,41 @@ class OriginTest(unittest.TestCase):
     o = Origin(a, '__init__', stacktrace=True)
     self.assertEqual(len(o.stack), 2)
 
+  def test_root(self):
+    a = Dict(a=1)
+    b = Dict(b=2)
+    c = Dict(c=3)
+
+    c.sym_setorigin(b, 'foo')
+    b.sym_setorigin(a, 'bar')
+    self.assertIs(c.sym_origin.root.source, a)
+
+  def test_history(self):
+    a = Dict(a=1)
+    b = Dict(b=2)
+    c = Dict(c=3)
+
+    c.sym_setorigin(b, 'foo')
+    b.sym_setorigin(a, 'bar')
+    self.assertEqual(
+        c.sym_origin.history(),
+        [
+            Origin(a, 'bar'),
+            Origin(b, 'foo'),
+        ])
+
+    self.assertEqual(
+        c.sym_origin.history(lambda o: o.tag == 'foo'),
+        [
+            Origin(b, 'foo'),
+        ])
+
+    self.assertEqual(
+        c.sym_origin.history(lambda o: o.tag == 'bar'),
+        [
+            Origin(a, 'bar'),
+        ])
+
   def test_eq_ne(self):
     a = Dict(a=1)
     self.assertEqual(Origin(None, '__init__'), Origin(None, '__init__'))
