@@ -53,8 +53,8 @@ class EarlyStoppingPolicy(symbolic.Object):
     of history, e.g: trials from a previous study and existing trials from
     current study.
 
-    The default behavior is to replay `should_stop_early` on all intermediate
-    measurements on all trials.
+    The default behavior is to replay `should_stop_early` on all trials that
+    contain all intermediate measurements.
 
     Args:
       history: An iterable object of trials.
