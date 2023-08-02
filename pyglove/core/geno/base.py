@@ -370,30 +370,6 @@ class DecisionPoint(DNASpec):
 
 # pylint: disable=line-too-long
 @functools.total_ordering
-@symbolic.members([
-    (
-        'value',
-        pg_typing.Union(
-            [pg_typing.Int(), pg_typing.Float(), pg_typing.Str()]
-        ).noneable(),
-        'Value of DNA node.',
-    ),
-    (
-        'children',
-        pg_typing.List(pg_typing.Object('DNA'), default=[]),
-        (
-            'DNA list as child nodes for template members or '
-            'chosen candidates of choices.'
-        ),
-    ),
-    (
-        'metadata',
-        pg_typing.Dict(
-            [(pg_typing.StrKey(), pg_typing.Any(), 'Key-value pairs.')]
-        ),
-        'Metadata assigned to the DNA.',
-    ),
-])
 class DNA(symbolic.Object):
   """The genome of a symbolic object relative to its search space.
 
@@ -1711,6 +1687,32 @@ class DNA(symbolic.Object):
   def __str__(self) -> str:
     """Use compact form as string representation."""
     return self.format(compact=True)
+
+
+symbolic.members([
+    (
+        'value',
+        pg_typing.Union(
+            [pg_typing.Int(), pg_typing.Float(), pg_typing.Str()]
+        ).noneable(),
+        'Value of DNA node.',
+    ),
+    (
+        'children',
+        pg_typing.List(pg_typing.Object(DNA), default=[]),
+        (
+            'DNA list as child nodes for template members or '
+            'chosen candidates of choices.'
+        ),
+    ),
+    (
+        'metadata',
+        pg_typing.Dict(
+            [(pg_typing.StrKey(), pg_typing.Any(), 'Key-value pairs.')]
+        ),
+        'Metadata assigned to the DNA.',
+    ),
+])(DNA)
 
 
 class ConditionalKey:
