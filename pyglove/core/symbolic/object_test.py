@@ -2056,6 +2056,44 @@ class RebindTest(unittest.TestCase):
     a.rebind(x=2, skip_notification=True)
     self.assertEqual(a, A(2, 'foo'))
 
+  def test_rebind_without_notifying_parents(self):
+
+    @pg_members([
+        ('x', pg_typing.Any())
+    ])
+    class A(Object):
+
+      def _on_init(self):
+        super()._on_init()
+        self.num_updates = 0
+
+      def _on_change(self, field_updates):
+        super()._on_change(field_updates)
+        self.num_updates += 1
+
+    c = A(x=1)
+    b = A(x=c)
+    a = A(x=b)
+    y = A(x=a)
+
+    a.rebind({'x.x.x': 2}, notify_parents=False)
+    self.assertEqual(c.num_updates, 1)
+    self.assertEqual(b.num_updates, 1)
+    self.assertEqual(a.num_updates, 1)
+    self.assertEqual(y.num_updates, 0)
+
+    a.rebind({'x.x.x': 3}, notify_parents=True)
+    self.assertEqual(c.num_updates, 2)
+    self.assertEqual(b.num_updates, 2)
+    self.assertEqual(a.num_updates, 2)
+    self.assertEqual(y.num_updates, 1)
+
+    a.rebind(x=1, notify_parents=False)
+    self.assertEqual(c.num_updates, 2)
+    self.assertEqual(b.num_updates, 2)
+    self.assertEqual(a.num_updates, 3)
+    self.assertEqual(y.num_updates, 1)
+
   def test_rebind_with_fn(self):
 
     @pg_members([

@@ -1361,6 +1361,30 @@ class RebindTest(unittest.TestCase):
     sl.rebind({0: 100}, skip_notification=True)
     self.assertEqual(sl, [100, 1, 2])
 
+  def test_rebind_without_notifying_parents(self):
+    updates = []
+    def on_dict_change(x):
+      def _on_change(field_updates):
+        del field_updates
+        updates.append(x)
+      return _on_change
+
+    c = List([0], onchange_callback=on_dict_change('c'))
+    b = List([c], onchange_callback=on_dict_change('b'))
+    a = List([b], onchange_callback=on_dict_change('a'))
+    _ = List([a], onchange_callback=on_dict_change('y'))
+
+    a.rebind({'[0][0][0]': 2}, notify_parents=False)
+    self.assertEqual(updates, ['c', 'b', 'a'])
+
+    updates[:] = []
+    a.rebind({'[0][0][0]': 3}, notify_parents=True)
+    self.assertEqual(updates, ['c', 'b', 'a', 'y'])
+
+    updates[:] = []
+    a.rebind({0: 1}, notify_parents=False)
+    self.assertEqual(updates, ['a'])
+
   def test_rebind_with_field_updates_notification(self):
     updates = []
     def on_dict_change(field_updates):

@@ -548,7 +548,9 @@ class Symbolic(
               Union[object_utils.KeyPath, str, int],
               Any],
           Callable]] = None,  # pylint: disable=g-bare-generic
+      *,
       raise_on_no_change: bool = True,
+      notify_parents: bool = True,
       skip_notification: Optional[bool] = None,
       **kwargs,
   ) -> 'Symbolic':
@@ -578,7 +580,7 @@ class Symbolic(
     if skip_notification is None:
       skip_notification = not flags.is_change_notification_enabled()
     if not skip_notification:
-      self._notify_field_updates(updates)
+      self._notify_field_updates(updates, notify_parents=notify_parents)
     return self
 
   def sym_clone(self,
@@ -748,7 +750,9 @@ class Symbolic(
               Union[object_utils.KeyPath, str, int],
               Any],
           Callable]] = None,  # pylint: disable=g-bare-generic
+      *,
       raise_on_no_change: bool = True,
+      notify_parents: bool = True,
       skip_notification: Optional[bool] = None,
       **kwargs) -> 'Symbolic':
     """Alias for `sym_rebind`.
@@ -880,6 +884,11 @@ class Symbolic(
       raise_on_no_change: If True, raises ``ValueError`` when there are no
         values to change. This is useful when rebinder is used, which may or
         may not generate any updates.
+      notify_parents: If True (default), parents will be notified upon change.
+        Otherwisee only the current object and the impacted children will
+        be notified. A most common use case for setting this flag to False
+        is when users want to rebind a child within the parent `_on_bound`
+        method.
       skip_notification: If True, there will be no ``_on_change`` event
         triggered from current `rebind`. If None, the default value will be
         inferred from the :func:`pyglove.notify_on_change` context manager.
@@ -902,7 +911,11 @@ class Symbolic(
         True.
     """
     return self.sym_rebind(
-        path_value_pairs, raise_on_no_change, skip_notification, **kwargs)
+        path_value_pairs,
+        raise_on_no_change=raise_on_no_change,
+        notify_parents=notify_parents,
+        skip_notification=skip_notification,
+        **kwargs)
 
   def clone(
       self,
@@ -1205,7 +1218,10 @@ class Symbolic(
           f'(path=\'{path.parent}\')')
     return parent_node._set_item_without_permission_check(path.key, value)  # pylint: disable=protected-access
 
-  def _notify_field_updates(self, field_updates: List[FieldUpdate]) -> None:
+  def _notify_field_updates(
+      self,
+      field_updates: List[FieldUpdate],
+      notify_parents: bool = True) -> None:
     """Notify field updates."""
     per_target_updates = dict()
 
@@ -1236,6 +1252,11 @@ class Symbolic(
       target._set_raw_attr('_sym_missing_values', None)     # pylint: disable=protected-access
       target._set_raw_attr('_sym_nondefault_values', None)  # pylint: disable=protected-access
       target._on_change(updates)   # pylint: disable=protected-access
+
+      # If `notify_parents` is set to False, stop notifications once `self`
+      # is processed.
+      if target is self and not notify_parents:
+        break
 
   def _error_message(self, message: str) -> str:
     """Create error message to include path information."""
