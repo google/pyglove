@@ -14,6 +14,7 @@
 """Tests for pyglove.object_utils.missing."""
 
 import unittest
+from pyglove.core.object_utils import json_conversion
 from pyglove.core.object_utils import missing
 
 
@@ -28,6 +29,10 @@ class MissingValueTest(unittest.TestCase):
 
     self.assertEqual(str(missing.MissingValue()), 'MISSING_VALUE')
     self.assertEqual(repr(missing.MissingValue()), 'MISSING_VALUE')
+
+  def test_to_json(self):
+    json = json_conversion.to_json(missing.MissingValue())
+    self.assertEqual(json_conversion.from_json(json), missing.MissingValue())
 
 
 if __name__ == '__main__':

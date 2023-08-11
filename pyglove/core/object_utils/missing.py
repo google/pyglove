@@ -13,11 +13,12 @@
 # limitations under the License.
 """Representing missing value for a field."""
 
-from typing import Any
+from typing import Any, Dict
 from pyglove.core.object_utils import common_traits
+from pyglove.core.object_utils import json_conversion
 
 
-class MissingValue(common_traits.Formattable):
+class MissingValue(common_traits.Formattable, json_conversion.JSONConvertible):
   """Value placeholder for an unassigned attribute."""
 
   def format(self, *args, **kwargs):  # pytype: disable=signature-mismatch
@@ -31,6 +32,9 @@ class MissingValue(common_traits.Formattable):
 
   def __hash__(self) -> int:
     return hash(MissingValue.__module__ + MissingValue.__name__)
+
+  def to_json(self, **kwargs) -> Dict[str, Any]:
+    return self.to_json_dict(fields=dict(), **kwargs)
 
 
 # A shortcut global object (constant) for referencing MissingValue.

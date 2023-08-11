@@ -70,18 +70,17 @@ modules with the following features:
 # pylint: disable=g-bad-import-order
 
 # Common traits.
-from pyglove.core.object_utils.common_traits import Nestable
-from pyglove.core.object_utils.common_traits import JSONValueType
+from pyglove.core.object_utils.json_conversion import Nestable
+from pyglove.core.object_utils.json_conversion import JSONValueType
 
-from pyglove.core.object_utils.common_traits import JSONConvertible
-from pyglove.core.object_utils.common_traits import from_json
-from pyglove.core.object_utils.common_traits import to_json
+from pyglove.core.object_utils.json_conversion import JSONConvertible
+from pyglove.core.object_utils.json_conversion import from_json
+from pyglove.core.object_utils.json_conversion import to_json
+from pyglove.core.object_utils.json_conversion import registered_types
 
 from pyglove.core.object_utils.common_traits import Formattable
 from pyglove.core.object_utils.common_traits import MaybePartial
 from pyglove.core.object_utils.common_traits import Functor
-
-from pyglove.core.object_utils.common_traits import registered_types
 
 from pyglove.core.object_utils.common_traits import explicit_method_override
 from pyglove.core.object_utils.common_traits import ensure_explicit_method_override
