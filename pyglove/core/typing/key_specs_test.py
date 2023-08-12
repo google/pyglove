@@ -14,10 +14,18 @@
 """Tests for pyglove.core.typing.key_specs."""
 
 import unittest
+from pyglove.core import object_utils
 from pyglove.core.typing import key_specs as ks
 
 
-class ConstStrKeyTest(unittest.TestCase):
+class KeySpecTest(unittest.TestCase):
+  """Base class for KeySpec tests."""
+
+  def assert_json_conversion(self, spec: ks.KeySpec):
+    self.assertEqual(object_utils.from_json(object_utils.to_json(spec)), spec)
+
+
+class ConstStrKeyTest(KeySpecTest):
   """Tests for `ConstStrKey`."""
 
   def test_basics(self):
@@ -42,8 +50,11 @@ class ConstStrKeyTest(unittest.TestCase):
     with self.assertRaisesRegex(KeyError, '\'.\' cannot be used in key.'):
       ks.ConstStrKey('a.b')
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(ks.ConstStrKey('a'))
 
-class StrKeyTest(unittest.TestCase):
+
+class StrKeyTest(KeySpecTest):
   """Tests for `StrKey`."""
 
   def test_basics(self):
@@ -70,8 +81,12 @@ class StrKeyTest(unittest.TestCase):
         KeyError, '.* cannot extend .* for keys are different.'):
       ks.StrKey('a.*').extend(ks.StrKey(regex='.*'))
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(ks.StrKey())
+    self.assert_json_conversion(ks.StrKey('a.*'))
 
-class ListKeyTest(unittest.TestCase):
+
+class ListKeyTest(KeySpecTest):
   """Tests for `ListKey`."""
 
   def test_basics(self):
@@ -130,8 +145,14 @@ class ListKeyTest(unittest.TestCase):
         TypeError, '.* cannot extend .*: max_value is greater.'):
       key.extend(ks.ListKey(max_value=5))
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(ks.ListKey())
+    self.assert_json_conversion(ks.ListKey(min_value=1))
+    self.assert_json_conversion(ks.ListKey(max_value=2))
+    self.assert_json_conversion(ks.ListKey(min_value=1, max_value=2))
 
-class TupleKeyTest(unittest.TestCase):
+
+class TupleKeyTest(KeySpecTest):
   """Tests for `TupleKey`."""
 
   def test_basics(self):
@@ -163,6 +184,10 @@ class TupleKeyTest(unittest.TestCase):
     with self.assertRaisesRegex(
         KeyError, '.* cannot extend .*: unmatched index.'):
       ks.TupleKey(2).extend(ks.TupleKey(1))
+
+  def test_json_conversion(self):
+    self.assert_json_conversion(ks.TupleKey())
+    self.assert_json_conversion(ks.TupleKey(0))
 
 
 if __name__ == '__main__':

@@ -15,10 +15,12 @@
 
 import abc
 import base64
+import collections
 import importlib
 import inspect
 import marshal
 import types
+import typing
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
@@ -277,7 +279,7 @@ def to_json(value: Any, **kwargs) -> Any:
     return [to_json(item, **kwargs) for item in value]
   elif isinstance(value, dict):
     return {k: to_json(v, **kwargs) for k, v in value.items()}
-  elif isinstance(value, type):
+  elif isinstance(value, (type, typing.GenericAlias)):  # pytype: disable=module-attr
     return _type_to_json(value)
   elif inspect.isbuiltin(value):
     return _builtin_function_to_json(value)
@@ -285,6 +287,12 @@ def to_json(value: Any, **kwargs) -> Any:
     return _function_to_json(value)
   elif inspect.ismethod(value):
     return _method_to_json(value)
+  # pytype: disable=module-attr
+  elif isinstance(value, typing._Final):  # pylint: disable=protected-access
+    # pytype: enable=module-attr
+    return _annotation_to_json(value)
+  elif value is ...:
+    return {JSONConvertible.TYPE_NAME_KEY: 'type', 'name': 'builtins.Ellipsis'}
   else:
     if JSONConvertible.TYPE_CONVERTER is not None:
       converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
@@ -321,6 +329,8 @@ def from_json(json_value: JSONValueType) -> Any:
       return _function_from_json(json_value)
     elif type_name == 'method':
       return _method_from_json(json_value)
+    # elif type_name == 'annotation':
+    #   return _annotation_from_json(json_value)
     else:
       cls = JSONConvertible.class_from_typename(type_name)
       if cls is None:
@@ -342,16 +352,20 @@ def _type_name(type_or_function: Union[Type[Any], types.FunctionType]) -> str:
 
 
 def _type_to_json(t: Type[Any]) -> Dict[str, str]:
+  """Converts a type to a JSON dict."""
   type_name = _type_name(t)
-  try:
-    if t is _load_symbol(type_name):
-      return {
-          JSONConvertible.TYPE_NAME_KEY: 'type',
-          'name': type_name
-      }
-  except Exception:  # pylint: disable=broad-exception-caught
-    pass
-  raise ValueError(f'Cannot convert local class {type_name!r} to JSON.')
+  origin = typing.get_origin(t) or t
+  if '<locals>' not in type_name and origin is _load_symbol(type_name):
+    result = {
+        JSONConvertible.TYPE_NAME_KEY: 'type',
+        'name': type_name,
+    }
+    args = typing.get_args(t)
+    if args:
+      result['args'] = to_json(args)
+    return result
+  else:
+    raise ValueError(f'Cannot convert local class {type_name!r} to JSON.')
 
 
 def _builtin_function_to_json(f: Any) -> Dict[str, str]:
@@ -380,6 +394,7 @@ def _function_to_json(f: types.FunctionType) -> Dict[str, str]:
 
 
 def _method_to_json(f: types.MethodType) -> Dict[str, str]:
+  """Converts a method to a JSON dict."""
   type_name = _type_name(f)
   if isinstance(f.__self__, type):
     return {
@@ -389,62 +404,127 @@ def _method_to_json(f: types.MethodType) -> Dict[str, str]:
   raise ValueError(f'Cannot convert instance method {type_name!r} to JSON.')
 
 
+_SUPPORTED_ANNOTATIONS = {
+    typing.Any: 'typing.Any',
+    typing.Sequence: 'typing.Sequence',
+    collections.abc.Sequence: 'typing.Sequence',
+    typing.List: 'typing.List',
+    list: 'typing.List',
+    typing.Tuple: 'typing.Tuple',
+    typing.Mapping: 'typing.Mapping',
+    collections.abc.Mapping: 'typing.Mapping',
+    typing.MutableMapping: 'typing.MutableMapping',
+    collections.abc.MutableMapping: 'typing.MutableMapping',
+    typing.Dict: 'typing.Dict',
+    dict: 'typing.Dict',
+    typing.Union: 'typing.Union',
+    typing.Optional: 'typing.Optional',
+    typing.Callable: 'typing.Callable',
+    collections.abc.Callable: 'typing.Callable',
+    typing.Set: 'typing.Set',
+    set: 'typing.Set',
+    typing.FrozenSet: 'typing.FrozenSet',
+    frozenset: 'typing.FrozenSet',
+}
+
+
+def _annotation_to_json(annotation) -> Dict[str, str]:
+  """Converts a typing annotation to a JSON dict."""
+  origin = typing.get_origin(annotation) or annotation
+  if origin in _SUPPORTED_ANNOTATIONS:
+    name = _SUPPORTED_ANNOTATIONS[origin]
+  elif isinstance(origin, type):
+    name = _type_name(origin)
+  else:
+    raise ValueError(f'Annotation cannot be converted to JSON: {annotation}.')
+
+  result = {JSONConvertible.TYPE_NAME_KEY: 'type', 'name': name}
+  args = typing.get_args(annotation)
+  if args:
+    if len(args) > 4:
+      raise NotImplementedError(
+          'Cannot convert generic type with more than 4 type arguments '
+          f'into JSON. Encountered: {annotation}.'
+      )
+    result['args'] = to_json(args)
+  return result
+
+
 # A symbol cache allows a symbol to be resolved just once upon multiple
 # serializations/deserializations.
 
 _LOADED_SYMBOLS = {}
 
+# Special builtin symbols which cannot be accessed from the `builtins` module.
+
+_SPECIAL_BUILTIN_SYMBOLS = {
+    'builtins.NoneType': type(None),
+    'builtins.Ellipsis': ...,
+}
+
 
 def _load_symbol(type_name: str) -> Any:
   """Loads a symbol from its type name."""
   symbol = _LOADED_SYMBOLS.get(type_name, None)
-  if symbol is None:
-    *maybe_modules, symbol_name = type_name.split('.')
-    module_end_pos = None
+  if symbol is not None:
+    return symbol
 
-    # NOTE(daiyip): symbols could be nested within classes, for example::
-    #
-    #  class A:
-    #    class B:
-    #      @classmethod
-    #      def x(cls):
-    #        pass
-    #
-    # In such case, class A will have type name `<module>.A`;
-    # class B will have type name `module.A.B` and class method `x`
-    # will have `module.A.B.x` as its type name.
-    #
-    # To support nesting, we need to infer the module names from type names
-    # correctly. This is done by detecting the first token in the module path
-    # whose first letter is capitalized, assuming class names always start
-    # with capital letters.
-    for i, name in enumerate(maybe_modules):
-      if name[0].isupper():
-        module_end_pos = i
-        break
-
-    # Figure out module path and parent symbol names.
-    if module_end_pos is None:
-      module_name = '.'.join(maybe_modules)
-      parent_symbols = []
-    else:
-      module_name = '.'.join(maybe_modules[:module_end_pos])
-      parent_symbols = maybe_modules[module_end_pos:]
-
-    # Import module and lookup parent symbols.
-    module = importlib.import_module(module_name)
-    parent = module
-    for name in parent_symbols:
-      parent = getattr(parent, name)
-
-    # Lookup the final symbol.
-    symbol = getattr(parent, symbol_name)
+  symbol = _SPECIAL_BUILTIN_SYMBOLS.get(type_name, None)
+  if symbol is not None:
     _LOADED_SYMBOLS[type_name] = symbol
+    return symbol
+
+  # Import symbol based on the module and symbol name.
+  *maybe_modules, symbol_name = type_name.split('.')
+  module_end_pos = None
+
+  # NOTE(daiyip): symbols could be nested within classes, for example::
+  #
+  #  class A:
+  #    class B:
+  #      @classmethod
+  #      def x(cls):
+  #        pass
+  #
+  # In such case, class A will have type name `<module>.A`;
+  # class B will have type name `module.A.B` and class method `x`
+  # will have `module.A.B.x` as its type name.
+  #
+  # To support nesting, we need to infer the module names from type names
+  # correctly. This is done by detecting the first token in the module path
+  # whose first letter is capitalized, assuming class names always start
+  # with capital letters.
+  for i, name in enumerate(maybe_modules):
+    if name[0].isupper():
+      module_end_pos = i
+      break
+
+  # Figure out module path and parent symbol names.
+  if module_end_pos is None:
+    module_name = '.'.join(maybe_modules)
+    parent_symbols = []
+  else:
+    module_name = '.'.join(maybe_modules[:module_end_pos])
+    parent_symbols = maybe_modules[module_end_pos:]
+
+  # Import module and lookup parent symbols.
+  module = importlib.import_module(module_name)
+  parent = module
+  for name in parent_symbols:
+    parent = getattr(parent, name)
+
+  # Lookup the final symbol.
+  symbol = getattr(parent, symbol_name)
+  _LOADED_SYMBOLS[type_name] = symbol
   return symbol
 
 
 def _type_from_json(json_value: Dict[str, str]) -> Type[Any]:
-  return _load_symbol(json_value['name'])
+  """Loads a type from a JSON dict."""
+  t = _load_symbol(json_value['name'])
+  if 'args' in json_value:
+    return _bind_type_args(t, from_json(json_value['args']))
+  return t
 
 
 def _function_from_json(json_value: Dict[str, str]) -> types.FunctionType:
@@ -466,3 +546,19 @@ def _function_from_json(json_value: Dict[str, str]) -> types.FunctionType:
 def _method_from_json(json_value: Dict[str, str]) -> types.MethodType:
   """Loads a class method from a JSON dict."""
   return _load_symbol(json_value['name'])
+
+
+def _bind_type_args(t, args):
+  """Bind type args to a type."""
+  # NOTE(daiyip): Haven't found an equivalence for expressing `t[**args]`,
+  # thus we hard code the logic based on the number of type args. May change
+  # if future when we find better ways of expressing this.
+  assert args and len(args) <= 4, args
+  if len(args) == 1:
+    return t[args[0]]
+  elif len(args) == 2:
+    return t[args[0], args[1]]
+  elif len(args) == 3:
+    return t[args[0], args[1], args[2]]
+  else:
+    return t[args[0], args[1], args[2], args[3]]

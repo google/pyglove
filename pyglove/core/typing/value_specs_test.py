@@ -22,11 +22,20 @@ from pyglove.core import object_utils
 from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
+from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.typing import typed_missing
+from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 
 
-class BoolTest(unittest.TestCase):
+class ValueSpecTest(unittest.TestCase):
+  """Base class for value spec test."""
+
+  def assert_json_conversion(self, v):
+    self.assertEqual(object_utils.from_json(v.to_json()), v)
+
+
+class BoolTest(ValueSpecTest):
   """Tests for `Bool`."""
 
   def test_value_type(self):
@@ -134,8 +143,14 @@ class BoolTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Bool().freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Bool())
+    self.assert_json_conversion(vs.Bool(True))
+    self.assert_json_conversion(vs.Bool(True).noneable())
+    self.assert_json_conversion(vs.Bool().noneable().freeze(True))
 
-class StrTest(unittest.TestCase):
+
+class StrTest(ValueSpecTest):
   """Tests for `Str`."""
 
   def test_value_type(self):
@@ -259,8 +274,14 @@ class StrTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Str().freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Str())
+    self.assert_json_conversion(vs.Str('a'))
+    self.assert_json_conversion(vs.Str('a', '.*').noneable())
+    self.assert_json_conversion(vs.Str().noneable().freeze('abc'))
 
-class IntTest(unittest.TestCase):
+
+class IntTest(ValueSpecTest):
   """Tests for `Int`."""
 
   def test_value_type(self):
@@ -433,8 +454,15 @@ class IntTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Int().freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Int())
+    self.assert_json_conversion(vs.Int(1))
+    self.assert_json_conversion(vs.Int(min_value=1).noneable())
+    self.assert_json_conversion(vs.Int(max_value=2).noneable())
+    self.assert_json_conversion(vs.Int(min_value=1, max_value=2).freeze(1))
 
-class FloatTest(unittest.TestCase):
+
+class FloatTest(ValueSpecTest):
   """Tests for `Float`."""
 
   def test_value_type(self):
@@ -598,8 +626,17 @@ class FloatTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Float().freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Float())
+    self.assert_json_conversion(vs.Float(1.0))
+    self.assert_json_conversion(vs.Float(min_value=1.0).noneable())
+    self.assert_json_conversion(vs.Float(max_value=2.0).noneable())
+    self.assert_json_conversion(
+        vs.Float(min_value=1.0, max_value=2.0).freeze(1.0)
+    )
 
-class EnumTest(unittest.TestCase):
+
+class EnumTest(ValueSpecTest):
   """Tests for `Enum`."""
 
   def test_value_type(self):
@@ -661,6 +698,7 @@ class EnumTest(unittest.TestCase):
     e = vs.Enum('a', ['a', 'b'])
     self.assertEqual(e, e)
     self.assertEqual(vs.Enum('a', ['a']), vs.Enum('a', ['a']))
+    self.assertEqual(vs.Enum('a', ['a']).noneable(), vs.Enum('a', ['a', None]))
     self.assertNotEqual(vs.Enum('a', ['a']), vs.Int())
     self.assertNotEqual(vs.Enum('a', ['a']), vs.Enum('a', ['a', 'b']))
     self.assertNotEqual(
@@ -724,8 +762,14 @@ class EnumTest(unittest.TestCase):
         TypeError, 'Cannot extend a frozen value spec.'):
       vs.Enum('c', ['a', 'b', 'c']).extend(v)
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Enum(1, [1, 'a']))
+    self.assert_json_conversion(vs.Enum(1, [1, 'a', None]))
+    self.assert_json_conversion(vs.Enum(1, [1, 'a']).noneable())
+    self.assert_json_conversion(vs.Enum(1, [1, 'a']).noneable().freeze(None))
 
-class ListTest(unittest.TestCase):
+
+class ListTest(ValueSpecTest):
   """Tests for `List`."""
 
   def test_value_type(self):
@@ -1000,8 +1044,24 @@ class ListTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.List(vs.Int()).freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.List(vs.Int()))
+    self.assert_json_conversion(vs.List(vs.Int(min_value=1), size=2))
+    self.assert_json_conversion(
+        vs.List(vs.Int().noneable(), min_size=1, max_size=2).noneable()
+    )
+    self.assert_json_conversion(
+        vs.List(vs.Int().noneable(), min_size=1, max_size=2).freeze([None])
+    )
 
-class TupleTest(unittest.TestCase):
+    def validator(x):
+      if sorted(x) != x:
+        raise ValueError('list must be sorted.')
+
+    self.assert_json_conversion(vs.List(vs.Int(), user_validator=validator))
+
+
+class TupleTest(ValueSpecTest):
   """Tests for `Tuple`."""
 
   def test_value_type(self):
@@ -1398,8 +1458,27 @@ class TupleTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Tuple(vs.Int()).freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Tuple(vs.Int()))
+    self.assert_json_conversion(vs.Tuple(vs.Int(), min_size=1, max_size=2))
+    self.assert_json_conversion(
+        vs.Tuple([vs.Int(min_value=1), vs.Str()]).noneable()
+    )
+    self.assert_json_conversion(
+        vs.Tuple([vs.Int(min_value=1), vs.Str()], default=(1, 'abc'))
+    )
+    self.assert_json_conversion(
+        vs.Tuple(vs.Int().noneable()).noneable().freeze((None, 1))
+    )
 
-class DictTest(unittest.TestCase):
+    def validator(x):
+      if sorted(x) != x:
+        raise ValueError('tuple must be sorted.')
+
+    self.assert_json_conversion(vs.Tuple(vs.Int(), user_validator=validator))
+
+
+class DictTest(ValueSpecTest):
   """Tests for `Dict`."""
 
   def test_value_type(self):
@@ -1497,6 +1576,10 @@ class DictTest(unittest.TestCase):
     self.assertEqual(vs.Dict().noneable(), vs.Dict().noneable())
     self.assertEqual(
         vs.Dict([('a', 1, 'field 1')]), vs.Dict([('a', 1, 'field 1')]))
+    self.assertEqual(
+        vs.Dict([(ks.StrKey(), 1, 'field 1')]),
+        vs.Dict([(ks.StrKey(), 1, 'field 1')]),
+    )
     self.assertNotEqual(vs.Dict(), vs.Dict().noneable())
     self.assertNotEqual(vs.Dict(), vs.Dict([('a', 1, 'field 1')]))
     self.assertNotEqual(vs.Dict(), vs.Dict([('a', 1, 'field 1')]))
@@ -1700,8 +1783,44 @@ class DictTest(unittest.TestCase):
     self.assertTrue(v.frozen)
     self.assertEqual(v.apply(typed_missing.MISSING_VALUE), dict(x=1, y=True))
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Dict())
+    self.assert_json_conversion(vs.Dict([('a', int, 'field 1', dict(x=1))]))
+    self.assert_json_conversion(
+        vs.Dict([('a', int, 'field 1', dict(x=1)), (ks.StrKey(), str)])
+    )
+    self.assert_json_conversion(
+        vs.Dict([
+            ('a', int, 'field 1', dict(x=1)),
+        ]).noneable()
+    )
+    x = vs.Dict([
+        ('a', int, 'field 1', dict(x=1)),
+    ]).freeze(dict(a=1))
+    y = object_utils.from_json(x.to_json())
+    self.assert_json_conversion(
+        vs.Dict([
+            ('a', int, 'field 1', dict(x=1)),
+        ]).freeze(dict(a=1))
+    )
 
-class ObjectTest(unittest.TestCase):
+    def validate(x):
+      if any(len(k) > 3 for k in x):
+        raise KeyError('Keys must be at most 3 characters long.')
+
+    self.assert_json_conversion(
+        vs.Dict([(ks.StrKey(), str)], user_validator=validate)
+    )
+
+
+# Global classes used for JSON conversion test.
+class P:
+
+  class Q:
+    pass
+
+
+class ObjectTest(ValueSpecTest):
   """Tests for `Object`."""
 
   def setUp(self):
@@ -1962,8 +2081,19 @@ class ObjectTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Object(self.A).freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Object(P))
+    self.assert_json_conversion(vs.Object(P.Q).noneable())
+    self.assert_json_conversion(vs.Object(P.Q).noneable())
+    self.assert_json_conversion(vs.Object(P).noneable().freeze(None))
 
-class CallableTest(unittest.TestCase):
+    def validator(x):
+      del x
+
+    self.assert_json_conversion(vs.Object(P, user_validator=validator))
+
+
+class CallableTest(ValueSpecTest):
   """Tests for `Callable`."""
 
   def test_value_type(self):
@@ -2342,8 +2472,40 @@ class CallableTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Callable().freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Callable())
+    self.assert_json_conversion(
+        vs.Callable([vs.Int(), vs.Object(P)], returns=vs.Int())
+    )
+    self.assert_json_conversion(
+        vs.Callable(
+            kw=[('x', vs.Int()), ('y', vs.Object(P))], returns=vs.Any(int)
+        )
+    )
+    x = vs.Callable([vs.Int()], default=lambda x: x + 1).noneable()
+    y = object_utils.from_json(x.to_json())
+    self.assert_json_conversion(
+        vs.Callable([vs.Int()], default=lambda x: x + 1).noneable()
+    )
+    self.assert_json_conversion(vs.Callable([vs.Int()]).freeze(lambda x: x + 1))
 
-class TypeTest(unittest.TestCase):
+    def validator(x):
+      del x
+
+    self.assert_json_conversion(vs.Callable(user_validator=validator))
+
+    # Functor.
+    self.assert_json_conversion(vs.Functor())
+    self.assert_json_conversion(
+        vs.Functor(
+            [vs.Int(), vs.Object(P)],
+            kw=[('x', vs.Int()), ('y', vs.Object(P))],
+            returns=vs.Any(int),
+        ).noneable()
+    )
+
+
+class TypeTest(ValueSpecTest):
   """Tests for `Type`."""
 
   def test_init(self):
@@ -2552,8 +2714,14 @@ class TypeTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Type(Exception).freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Type(Exception))
+    self.assert_json_conversion(vs.Type(typing.List[int]))
+    self.assert_json_conversion(vs.Type(Exception).noneable())
+    self.assert_json_conversion(vs.Type(Exception).freeze(ValueError))
 
-class UnionTest(unittest.TestCase):
+
+class UnionTest(ValueSpecTest):
   """Tests for `Union`."""
 
   def setUp(self):
@@ -2878,8 +3046,14 @@ class UnionTest(unittest.TestCase):
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Union([vs.Int(), vs.Str()]).freeze()
 
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]))
+    self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]).noneable())
+    self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()], default=1))
+    self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]).freeze(1))
 
-class AnyTest(unittest.TestCase):
+
+class AnyTest(ValueSpecTest):
   """Tests for `Any`."""
 
   def test_value_type(self):
@@ -2965,6 +3139,14 @@ class AnyTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Cannot freeze .* without a default value.'):
       vs.Any().freeze()
+
+  def test_json_conversion(self):
+    self.assert_json_conversion(vs.Any())
+    self.assert_json_conversion(vs.Any().noneable())
+    self.assert_json_conversion(vs.Any(int))
+    self.assert_json_conversion(vs.Any(typing.Any))
+    self.assert_json_conversion(vs.Any(default=1))
+    self.assert_json_conversion(vs.Any().freeze(1))
 
 
 @contextlib.contextmanager

@@ -14,8 +14,10 @@
 """Tests for pyglove.object_utils.json_conversion."""
 
 import abc
+import typing
 import unittest
 from pyglove.core.object_utils import json_conversion
+from pyglove.core.typing import inspect as pg_inspect
 
 
 class X:
@@ -38,6 +40,32 @@ class X:
 
 
 def bar():
+  pass
+
+T1 = typing.TypeVar('T1')
+T2 = typing.TypeVar('T2')
+T3 = typing.TypeVar('T3')
+T4 = typing.TypeVar('T4')
+T5 = typing.TypeVar('T5')
+
+
+class G1(typing.Generic[T1]):
+  pass
+
+
+class G2(typing.Generic[T1, T2]):
+  pass
+
+
+class G3(typing.Generic[T1, T2, T3]):
+  pass
+
+
+class G4(typing.Generic[T1, T2, T3, T4]):
+  pass
+
+
+class G5(typing.Generic[T1, T2, T3, T4, T5]):
   pass
 
 
@@ -130,6 +158,9 @@ class JSONConvertibleTest(unittest.TestCase):
   def assert_conversion_is(self, v):
     self.assertIs(json_conversion.from_json(json_conversion.to_json(v)), v)
 
+  def assert_conversion_equal(self, v):
+    self.assertEqual(json_conversion.from_json(json_conversion.to_json(v)), v)
+
   def test_json_conversion_for_types(self):
     # Built-in types.
     self.assert_conversion_is(int)
@@ -137,9 +168,16 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assert_conversion_is(float)
     self.assert_conversion_is(str)
     self.assert_conversion_is(list)
+    self.assert_conversion_equal(list[int])
     self.assert_conversion_is(tuple)
+    self.assert_conversion_equal(tuple[int, int])
     self.assert_conversion_is(dict)
+    self.assert_conversion_equal(dict[str, int])
     self.assert_conversion_is(Exception)
+    self.assert_conversion_is(type(None))
+    self.assert_conversion_is(...)
+    self.assert_conversion_equal(typing.Callable[[int, int], None])
+    self.assert_conversion_equal(typing.Callable[..., None])
 
     # User types.
     self.assert_conversion_is(X)
@@ -154,6 +192,34 @@ class JSONConvertibleTest(unittest.TestCase):
         ValueError, 'Cannot convert local class .* to JSON.'):
       json_conversion.to_json(B)
 
+    # Generic types.
+    self.assert_conversion_is(G1[int])
+    self.assert_conversion_is(G2[int, int])
+    self.assert_conversion_is(G3[int, int, int])
+    self.assert_conversion_is(G4[int, int, int, int])
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        'Cannot convert generic type with more than 4 type arguments'):
+      json_conversion.to_json(G5[int, int, int, int, int])
+
+  def test_json_conversion_for_annotations(self):
+    self.assert_conversion_is(typing.Any)
+    self.assert_conversion_is(typing.List)
+    self.assert_conversion_is(typing.List[typing.List[int]])
+    self.assert_conversion_is(typing.Annotated[int, 'abc'])
+    self.assert_conversion_is(typing.Dict[str, typing.Any])
+    self.assert_conversion_is(typing.Union[int, str])
+    self.assert_conversion_is(typing.Sequence[int])
+    self.assert_conversion_is(typing.Set[int])
+    self.assert_conversion_is(typing.FrozenSet[int])
+    self.assert_conversion_is(typing.Mapping[int, str])
+    self.assert_conversion_is(typing.MutableMapping[int, str])
+    # Optional will be converted to Union[int, None]
+    self.assert_conversion_equal(typing.Optional[int])
+
+    with self.assertRaisesRegex(ValueError, 'Annotation cannot be converted'):
+      json_conversion.to_json(typing.Literal)
+
   def test_json_conversion_for_functions(self):
     # Built-in functions.
     self.assert_conversion_is(print)
@@ -166,7 +232,7 @@ class JSONConvertibleTest(unittest.TestCase):
     # Lambda function.
     s = lambda x, y=1: x + y
     s1 = json_conversion.from_json(json_conversion.to_json(s))
-    self.assertEqual(s1.__qualname__, '<lambda>')
+    self.assertTrue(pg_inspect.callable_eq(s1, s))
     self.assertEqual(s1(1), 2)
     self.assertEqual(s1(1, 2), 3)
 
@@ -174,9 +240,9 @@ class JSONConvertibleTest(unittest.TestCase):
     def baz(x, y=1):
       return x + y
     baz1 = json_conversion.from_json(json_conversion.to_json(baz))
+    self.assertTrue(pg_inspect.callable_eq(baz1, baz))
     self.assertEqual(baz1(1), 2)
     self.assertEqual(baz1(1, 2), 3)
-    self.assertEqual(baz1.__qualname__, 'baz')
 
   def test_json_conversion_for_methods(self):
     # Test class-level method.

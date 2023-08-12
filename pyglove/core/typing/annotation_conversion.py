@@ -20,7 +20,7 @@ import typing
 
 from pyglove.core import object_utils
 from pyglove.core.typing import class_schema
-from pyglove.core.typing import generic
+from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 
@@ -171,7 +171,7 @@ def _value_spec_from_type_annotation(
   # Handling class.
   elif (
       inspect.isclass(annotation)
-      or generic.is_generic(annotation)
+      or pg_inspect.is_generic(annotation)
       or (isinstance(annotation, str) and not accept_value_as_annotation)
   ):
     return vs.Object(annotation)

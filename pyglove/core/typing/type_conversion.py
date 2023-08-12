@@ -18,7 +18,7 @@ import datetime
 from typing import Any, Callable, Optional, Tuple, Type, Union
 
 from pyglove.core import object_utils
-from pyglove.core.typing import generic
+from pyglove.core.typing import inspect as pg_inspect
 
 
 class _TypeConverterRegistry:
@@ -38,9 +38,9 @@ class _TypeConverterRegistry:
     """Register a converter from src type to dest type."""
     if (
         not isinstance(src, (tuple, type))
-        and not generic.is_generic(src)
+        and not pg_inspect.is_generic(src)
         or not isinstance(dest, (tuple, type))
-        and not generic.is_generic(dest)
+        and not pg_inspect.is_generic(dest)
     ):
       raise TypeError('Argument \'src\' and \'dest\' must be a type or '
                       'tuple of types.')
@@ -59,10 +59,10 @@ class _TypeConverterRegistry:
     # NOTE(daiyip): We do reverse lookup since usually subclass converter
     # is register after base class.
     for src_type, dest_type, converter, _ in reversed(self._converter_list):
-      if generic.is_subclass(src, src_type):
+      if pg_inspect.is_subclass(src, src_type):
         dest_types = dest_type if isinstance(dest_type, tuple) else (dest_type,)
         for dest_type in dest_types:
-          if generic.is_subclass(dest_type, dest):
+          if pg_inspect.is_subclass(dest_type, dest):
             return converter
     return None
 
@@ -71,7 +71,7 @@ class _TypeConverterRegistry:
     """Get converter from source type to a JSON simple type."""
     for src_type, _, converter, json_value_convertible in reversed(
         self._converter_list):
-      if generic.is_subclass(src, src_type) and json_value_convertible:
+      if pg_inspect.is_subclass(src, src_type) and json_value_convertible:
         return converter
     return None
 

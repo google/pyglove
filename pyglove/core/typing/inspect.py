@@ -13,8 +13,9 @@
 # limitations under the License.
 """Utility module for inspecting generics types."""
 
+import inspect
 import typing
-from typing import Any, Optional, Tuple, Type, Union
+from typing import Any, Callable, Optional, Tuple, Type, Union
 
 
 def is_instance(value: Any, target: Union[Type[Any], Tuple[Type[Any]]]) -> bool:
@@ -113,3 +114,45 @@ def get_type_args(
       if get_type(orig_base) is base:
         return typing.get_args(orig_base)
     return ()
+
+
+def callable_eq(
+    x: Optional[Callable[..., Any]], y: Optional[Callable[..., Any]]
+) -> bool:
+  """Returns True if two (maybe) callables are equal.
+
+  For functions: `x` and `y` are considered equal when they are the same
+    instance or have the same code (e.g. lambda x: x).
+
+  For methods: `x` and `y` are considered equal when:
+    static method: The same method from the same class hierarchy. E.g. subclass
+      inherits a base class' static method.
+    class method: The same method from the same class. Inherited class method
+      are considered different class method.
+    instance method: When `self` is not bound, the same method from the same
+      class hierarchy (like static method). When `self` is bound, the same
+      method on the same object.
+
+  Args:
+    x: An optional function or method object.
+    y: An optinoal function or method object.
+
+  Returns:
+    Returns True if `x` and `y` are considered equal. Meaning that they are
+      either the same instance or derived from the same code and have the same
+      effect.
+  """
+  if x is y:
+    return True
+  if x is None or y is None:
+    return False
+  if inspect.isfunction(x) and inspect.isfunction(y):
+    return _code_eq(x.__code__, y.__code__)
+  elif inspect.ismethod(x) and inspect.ismethod(y):
+    return _code_eq(x.__code__, y.__code__) and x.__self__ is y.__self__  # pytype: disable=attribute-error
+  return x == y
+
+
+def _code_eq(x, y) -> bool:
+  """Returns True if two compiled byte code is the same."""
+  return x.co_code == y.co_code

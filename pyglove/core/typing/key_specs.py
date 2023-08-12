@@ -14,7 +14,7 @@
 """Concrete key specifications for field definition."""
 
 import re
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pyglove.core import object_utils
 from pyglove.core.typing.class_schema import KeySpec
@@ -78,6 +78,12 @@ class ConstStrKey(KeySpecBase, object_utils.StrKey):
   def format(self, **kwargs) -> str:
     """Format this object."""
     return self._text
+
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+    return self.to_json_dict(
+        fields=dict(text=self._text),
+        **kwargs,
+    )
 
   def __hash__(self) -> int:
     """Hash function.
@@ -155,6 +161,13 @@ class StrKey(NonConstKey):
     ])
     return f'StrKey({regex_str})'
 
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+    regex = self._regex.pattern if self._regex is not None else None
+    return self.to_json_dict(
+        fields=dict(regex=regex),
+        **kwargs,
+    )
+
   def __hash__(self):
     """Hash function."""
     if self._regex:
@@ -229,6 +242,12 @@ class ListKey(NonConstKey):
     """Format this object."""
     return f'ListKey(min_value={self._min_value}, max_value={self._max_value})'
 
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+    return self.to_json_dict(
+        fields=dict(min_value=self._min_value, max_value=self._max_value),
+        **kwargs,
+    )
+
   def __eq__(self, other):
     """Operator==."""
     if self is other:
@@ -283,6 +302,12 @@ class TupleKey(NonConstKey):
   def format(self, **kwargs):
     """Format this object."""
     return 'TupleKey(index={self._index})'
+
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+    return self.to_json_dict(
+        fields=dict(index=self._index),
+        **kwargs,
+    )
 
   def __eq__(self, other):
     """Operator==."""

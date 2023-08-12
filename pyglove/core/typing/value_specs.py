@@ -21,11 +21,10 @@ import re
 import sys
 import typing
 import __main__
-
 from pyglove.core import object_utils
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
-from pyglove.core.typing import generic
+from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.typing import key_specs
 from pyglove.core.typing import type_conversion
 from pyglove.core.typing import typed_missing
@@ -56,7 +55,8 @@ class ValueSpecBase(ValueSpec):
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
           typing.Callable[[typing.Any], None]] = None,
-      is_noneable: bool = False):  # pyformat: disable
+      is_noneable: bool = False,
+      frozen: bool = False):  # pyformat: disable
     """Constructor of ValueSpecBase.
 
       This class provides common facilities for implementing ValueSpec,
@@ -76,6 +76,7 @@ class ValueSpecBase(ValueSpec):
         validation provided by built-in constraint, like `min_value` for
         `schema.Int`.
       is_noneable: (Optional) If True, None is acceptable for this spec.
+      frozen: If True, values other than the default value is not accceptable.
     """
     super().__init__()
     self._value_type = value_type
@@ -84,6 +85,8 @@ class ValueSpecBase(ValueSpec):
     self._default = MISSING_VALUE
     self._user_validator = user_validator
     self.set_default(default)
+    # Reset frozen after setting the default value.
+    self._frozen = frozen
 
   @property
   def is_noneable(self) -> bool:
@@ -228,7 +231,7 @@ class ValueSpecBase(ValueSpec):
     if (
         self.type_resolved
         and self.value_type is not None
-        and not generic.is_instance(value, self.value_type)
+        and not pg_inspect.is_instance(value, self.value_type)
     ):
       converter = type_conversion.get_first_applicable_converter(
           type(value), self.value_type)
@@ -284,6 +287,7 @@ class ValueSpecBase(ValueSpec):
 
   def _is_compatible(self, other: ValueSpec) -> bool:
     """Customized compatibility check for child class to override."""
+    del other
     return True
 
   @property
@@ -302,15 +306,20 @@ class ValueSpecBase(ValueSpec):
     """Operator==."""
     if self is other:
       return True
-    if (not isinstance(other, self.__class__)
-        or self.default != other.default
+    if (
+        not isinstance(other, self.__class__)
+        # Default value might be callable.
+        or not pg_inspect.callable_eq(self.default, other.default)
         or self.is_noneable != other.is_noneable
-        or self.frozen != other.frozen):
+        or self.frozen != other.frozen
+        or not pg_inspect.callable_eq(self.user_validator, other.user_validator)
+    ):
       return False
     return self._eq(other)
 
   def _eq(self, other: 'ValueSpec') -> bool:
     """Subclasses can override."""
+    del other
     return True
 
   def format(self, **kwargs) -> str:
@@ -326,21 +335,26 @@ class ValueSpecBase(ValueSpec):
 class PrimitiveType(ValueSpecBase):
   """Base class of value specification for primitive types."""
 
-  def __init__(self,
-               value_type: typing.Union[typing.Type[typing.Any],
-                                        typing.Tuple[typing.Type[typing.Any],
-                                                     ...]],
-               default: typing.Any = MISSING_VALUE,
-               is_noneable: bool = False):
+  def __init__(
+      self,
+      value_type: typing.Union[
+          typing.Type[typing.Any], typing.Tuple[typing.Type[typing.Any], ...]
+      ],
+      default: typing.Any = MISSING_VALUE,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):
     """Constructor.
 
     Args:
       value_type: Acceptable value type(s).
       default: Default value.
       is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
     super().__init__(
-        value_type, default, is_noneable=is_noneable)
+        value_type, default, is_noneable=is_noneable, frozen=frozen
+    )
 
 
 class Bool(PrimitiveType):
@@ -364,13 +378,30 @@ class Bool(PrimitiveType):
     pg.typing.Bool().freeze(True)
   """
 
-  def __init__(self, default: typing.Optional[bool] = MISSING_VALUE):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[bool] = MISSING_VALUE,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: Default value for the value spec.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
-    super().__init__(bool, default)
+    super().__init__(bool, default, is_noneable=is_noneable, frozen=frozen)
+
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            default=self.default,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
 
 
 class Str(PrimitiveType):
@@ -397,17 +428,34 @@ class Str(PrimitiveType):
     pg.typing.Str().freeze('foo')
   """
 
-  def __init__(self,
-               default: typing.Optional[str] = MISSING_VALUE,
-               regex: typing.Optional[str] = None):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[str] = MISSING_VALUE,
+      regex: typing.Optional[str] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: Default value for this value spec.
       regex: Optional regular expression for acceptable value.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
     self._regex = re.compile(regex) if regex else None
-    super().__init__(str, default)
+    super().__init__(str, default, is_noneable=is_noneable, frozen=frozen)
+
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            default=self.default,
+            regex=self._regex.pattern if self._regex else None,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
 
   def _validate(self, path: object_utils.KeyPath, value: str) -> None:
     """Validates applied value."""
@@ -466,7 +514,10 @@ class Number(PrimitiveType):
       value_type,  # typing.Type[numbers.Number]
       default: typing.Optional[numbers.Number] = MISSING_VALUE,
       min_value: typing.Optional[numbers.Number] = None,
-      max_value: typing.Optional[numbers.Number] = None):  # pytype: disable=annotation-type-mismatch
+      max_value: typing.Optional[numbers.Number] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -474,6 +525,8 @@ class Number(PrimitiveType):
       default: Default value for this spec.
       min_value: (Optional) minimum value of acceptable values.
       max_value: (Optional) maximum value of acceptable values.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
     if (min_value is not None and max_value is not None and
         min_value > max_value):
@@ -482,7 +535,9 @@ class Number(PrimitiveType):
           f'Encountered: min_value={min_value}, max_value={max_value}.')
     self._min_value = min_value
     self._max_value = max_value
-    super().__init__(value_type, default)
+    super().__init__(
+        value_type, default, is_noneable=is_noneable, frozen=frozen
+    )
 
   @property
   def min_value(self) -> typing.Optional[numbers.Number]:
@@ -554,6 +609,18 @@ class Number(PrimitiveType):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            default=self.default,
+            min_value=self._min_value,
+            max_value=self._max_value,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
 
 class Int(Number):
   """Value spec for int type.
@@ -579,18 +646,24 @@ class Int(Number):
     pg.typing.Int().freeze(1)
   """
 
-  def __init__(self,
-               default: typing.Optional[int] = MISSING_VALUE,
-               min_value: typing.Optional[int] = None,
-               max_value: typing.Optional[int] = None):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[int] = MISSING_VALUE,
+      min_value: typing.Optional[int] = None,
+      max_value: typing.Optional[int] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: (Optional) default value for this spec.
       min_value: (Optional) minimum value of acceptable values.
       max_value: (Optional) maximum value of acceptable values.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
-    super().__init__(int, default, min_value, max_value)
+    super().__init__(int, default, min_value, max_value, is_noneable, frozen)
 
 
 class Float(Number):
@@ -617,18 +690,24 @@ class Float(Number):
     pg.typing.Float().freeze(1)
   """
 
-  def __init__(self,
-               default: typing.Optional[float] = MISSING_VALUE,
-               min_value: typing.Optional[float] = None,
-               max_value: typing.Optional[float] = None):  # pytype: disable=annotation-type-mismatch
+  def __init__(
+      self,
+      default: typing.Optional[float] = MISSING_VALUE,
+      min_value: typing.Optional[float] = None,
+      max_value: typing.Optional[float] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       default: (Optional) default value for this spec.
       min_value: (Optional) minimum value of acceptable values.
       max_value: (Optional) maximum value of acceptable values.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
-    super().__init__(float, default, min_value, max_value)
+    super().__init__(float, default, min_value, max_value, is_noneable, frozen)
 
 
 class Enum(PrimitiveType):
@@ -649,12 +728,18 @@ class Enum(PrimitiveType):
     pg.typing.Enum('a', ['a', 'b', 'c']).freeze('a')
   """
 
-  def __init__(self, default: typing.Any, values: typing.List[typing.Any]):
+  def __init__(
+      self,
+      default: typing.Any,
+      values: typing.List[typing.Any],
+      frozen: bool = False,
+  ):
     """Constructor.
 
     Args:
       default: default value for this spec.
       values: all acceptable values.
+      frozen: If True, values other than the default value is not accceptable.
     """
     if not isinstance(values, list) or not values:
       raise ValueError(
@@ -664,10 +749,8 @@ class Enum(PrimitiveType):
           f'Enum default value {default!r} is not in candidate list {values}.')
 
     value_type = None
-    is_noneable = False
     for v in values:
       if v is None:
-        is_noneable = True
         continue
       if value_type is None:
         value_type = type(v)
@@ -679,13 +762,17 @@ class Enum(PrimitiveType):
           value_type = None
           break
 
+    is_noneable = any([v is None for v in values])
+
     # NOTE(daiyip): When enum values are strings, we relax the `value_type`
     # to accept text types (unicode) as well. This allows enum value be read
     # from unicode JSON file.
     if value_type is not None and issubclass(value_type, str):
       value_type = str
     self._values = values
-    super().__init__(value_type, default, is_noneable=is_noneable)
+    super().__init__(
+        value_type, default, is_noneable=is_noneable, frozen=frozen
+    )
 
   def noneable(self) -> 'Enum':
     """Noneable is specially treated for Enum."""
@@ -740,6 +827,14 @@ class Enum(PrimitiveType):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            default=self.default, values=self._values, frozen=self._frozen
+        ),
+        **kwargs,
+    )
+
 
 class List(ValueSpecBase):
   """Value spec for list type.
@@ -767,7 +862,11 @@ class List(ValueSpecBase):
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
       user_validator: typing.Optional[
-          typing.Callable[[typing.List[typing.Any]], None]] = None):  # pytype: disable=annotation-type-mismatch
+          typing.Callable[[typing.List[typing.Any]], None]
+      ] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -781,6 +880,8 @@ class List(ValueSpecBase):
         validation on the applied list, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating list size constraint.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
     if not isinstance(element_value, ValueSpec):
       raise ValueError('List element spec should be an ValueSpec object.')
@@ -809,7 +910,9 @@ class List(ValueSpecBase):
     self._element = Field(
         key_specs.ListKey(min_size, max_size),
         element_value, 'Field of list element')
-    super().__init__(list, default, user_validator)
+    super().__init__(
+        list, default, user_validator, is_noneable=is_noneable, frozen=frozen
+    )
 
   @property
   def element(self) -> Field:
@@ -921,6 +1024,20 @@ class List(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            element_value=self._element.value,
+            default=self._default,
+            min_size=self.min_size,
+            max_size=self.max_size,
+            user_validator=self._user_validator,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
 
 class Tuple(ValueSpecBase):
   """Value spec for tuple type.
@@ -951,7 +1068,11 @@ class Tuple(ValueSpecBase):
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Tuple[typing.Any, ...]], None]] = None):  # pytype: disable=annotation-type-mismatch
+          typing.Callable[[typing.Tuple[typing.Any, ...]], None]
+      ] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -960,14 +1081,16 @@ class Tuple(ValueSpecBase):
       default: (Optional) default value for this spec.
       min_size: (Optional) min size of tuple. If None, 0 will be used.
         Applicable only for variable-length tuple.
-      max_size: (Optional) max size of list.
-        Applicable only for variable-length tuple.
+      max_size: (Optional) max size of list. Applicable only for variable-length
+        tuple.
       size: (Optional) size of List. A shortcut to specify min_size and max_size
         at the same time. `size` and `min_size`/`max_size` are mutual exclusive.
       user_validator: (Optional) user function or callable object for additional
         validation on the applied tuple, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating tuple size constraint.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
     if isinstance(element_values, ValueSpec):
       if size is not None and (min_size is not None or max_size is not None):
@@ -1021,7 +1144,9 @@ class Tuple(ValueSpecBase):
     self._min_size = min_size
     self._max_size = max_size
     self._elements = elements
-    super().__init__(tuple, default, user_validator)
+    super().__init__(
+        tuple, default, user_validator, is_noneable=is_noneable, frozen=frozen
+    )
 
   @property
   def fixed_length(self) -> bool:
@@ -1219,6 +1344,28 @@ class Tuple(ValueSpecBase):
       ])
       return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    if self.fixed_length:
+      element_values = [e.value for e in self._elements]
+      min_size, max_size = None, None
+    else:
+      assert len(self._elements) == 1, self
+      element_values = self._elements[0].value
+      min_size, max_size = self.min_size, self.max_size
+
+    return self.to_json_dict(
+        fields=dict(
+            element_values=element_values,
+            default=self._default,
+            min_size=min_size,
+            max_size=max_size,
+            user_validator=self._user_validator,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
 
 class Dict(ValueSpecBase):
   """Value spec for dict type.
@@ -1258,25 +1405,34 @@ class Dict(ValueSpecBase):
 
   def __init__(
       self,
-      schema_or_field_list: typing.Optional[typing.Union[
-          Schema, typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
-      ]] = None,  # pylint: disable=bad-whitespace
+      schema_or_field_list: typing.Optional[
+          typing.Union[
+              Schema, typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
+          ]
+      ] = None,  # pylint: disable=bad-whitespace
+      default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Dict[typing.Any, typing.Any]], None]] = None):
+          typing.Callable[[typing.Dict[typing.Any, typing.Any]], None]
+      ] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
-      schema_or_field_list: (Optional) a Schema object for this Dict,
-        or a list of Field or Field equivalents: tuple of (<key_spec>,
-          <value_spec>, [description], [metadata]) When this field is empty, it
-          specifies a schema-less Dict that may accept arbitrary key/value
-          pairs.
+      schema_or_field_list: (Optional) a Schema object for this Dict, or a list
+        of Field or Field equivalents: tuple of (<key_spec>, <value_spec>,
+        [description], [metadata]) When this field is empty, it specifies a
+        schema-less Dict that may accept arbitrary key/value pairs.
+      default: Default value. If MISSING_VALUE, the default value will be
+        computed according to the schema.
       user_validator: (Optional) user function or callable object for additional
         validation on the applied dict, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating nested members by their schema if present.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
-    default_value = MISSING_VALUE
     schema = None
     if schema_or_field_list is not None:
       if isinstance(schema_or_field_list, Schema):
@@ -1284,10 +1440,15 @@ class Dict(ValueSpecBase):
       else:
         schema = class_schema.create_schema(
             schema_or_field_list, allow_nonconst_keys=True)
-      default_value = schema.apply({}, allow_partial=True)
+
     self._schema = schema
-    super().__init__(dict, MISSING_VALUE, user_validator)
-    self.set_default(default_value, use_default_apply=False)
+    super().__init__(
+        dict, default, user_validator, is_noneable=is_noneable, frozen=frozen
+    )
+
+    # Automatically generate default based on schema if default is not present.
+    if default == MISSING_VALUE:
+      self.set_default(default)
 
   @property
   def schema(self) -> typing.Optional[Schema]:
@@ -1297,8 +1458,19 @@ class Dict(ValueSpecBase):
   def noneable(self) -> 'Dict':
     """Override noneable in Dict to always set default value None."""
     self._is_noneable = True
-    self._default = None
+    self.set_default(None, False)
     return self
+
+  def set_default(
+      self, default: typing.Any, use_default_apply: bool = True
+  ) -> ValueSpec:
+    if default == MISSING_VALUE and self._schema:
+      self._use_generated_default = True
+      default = self._schema.apply({}, allow_partial=True)
+      return super().set_default(default, use_default_apply=False)
+    else:
+      self._use_generated_default = False
+      return super().set_default(default, use_default_apply)
 
   @functools.cached_property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -1369,6 +1541,17 @@ class Dict(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    fields = dict(
+        schema_or_field_list=self._schema,
+        user_validator=self._user_validator,
+        is_noneable=self._is_noneable,
+        frozen=self._frozen,
+    )
+    if not self._use_generated_default:
+      fields['default'] = self._default
+    return self.to_json_dict(fields=fields, **kwargs)
+
 
 class Object(ValueSpecBase):
   """Value spec for object type.
@@ -1393,7 +1576,11 @@ class Object(ValueSpecBase):
       cls: typing.Union[typing.Type[typing.Any], str],
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]] = None):
+          typing.Callable[[typing.Any], None]
+      ] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -1403,6 +1590,8 @@ class Object(ValueSpecBase):
         validation on the applied object, which can reject a value by raising
         Exceptions. Please note that this validation is an addition to
         validating object type constraint.
+      is_noneable: If True, None is acceptable.
+      frozen: If True, values other than the default value is not accceptable.
     """
     if cls is None:
       raise TypeError('"cls" for Object spec cannot be None.')
@@ -1414,12 +1603,14 @@ class Object(ValueSpecBase):
     elif isinstance(cls, type):
       if cls is object:
         raise TypeError('<class \'object\'> is too general for Object spec.')
-    elif not generic.is_generic(cls):
+    elif not pg_inspect.is_generic(cls):
       raise TypeError('"cls" for Object spec should be a type or str.')
 
     self._forward_ref = forward_ref
     self._type_args = type_args
-    super().__init__(cls, default, user_validator)
+    super().__init__(
+        cls, default, user_validator, is_noneable=is_noneable, frozen=frozen
+    )
 
   @property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -1471,7 +1662,7 @@ class Object(ValueSpecBase):
     # unresolved forward declarations, we consider them compatible.
     if not self.type_resolved or not other.type_resolved:
       return True
-    return generic.is_subclass(other.cls, self.cls)
+    return pg_inspect.is_subclass(other.cls, self.cls)
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
@@ -1518,6 +1709,18 @@ class Object(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            cls=self.cls,
+            default=self._default,
+            user_validator=self._user_validator,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
 
 class Callable(ValueSpecBase):
   """Value spec for callable.
@@ -1547,13 +1750,16 @@ class Callable(ValueSpecBase):
   def __init__(
       self,
       args: typing.Optional[typing.List[ValueSpec]] = None,
-      kw: typing.Optional[
-          typing.List[typing.Tuple[str, ValueSpec]]] = None,
+      kw: typing.Optional[typing.List[typing.Tuple[str, ValueSpec]]] = None,
       returns: typing.Optional[ValueSpec] = None,
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Callable], None]] = None,  # pylint: disable=g-bare-generic
-      callable_type: typing.Optional[typing.Type] = None):  # pylint: disable=g-bare-generic
+          typing.Callable[[typing.Callable[..., typing.Any]], None]
+      ] = None,
+      callable_type: typing.Optional[typing.Type[typing.Any]] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor."""
     args = args or []
     kw = kw or []
@@ -1585,7 +1791,13 @@ class Callable(ValueSpecBase):
     self._args = args
     self._kw = kw
     self._return_value = returns
-    super().__init__(callable_type, default, user_validator)
+    super().__init__(
+        callable_type,
+        default,
+        user_validator,
+        is_noneable=is_noneable,
+        frozen=frozen,
+    )
 
   @functools.cached_property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -1773,6 +1985,21 @@ class Callable(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            args=self._args,
+            kw=self._kw,
+            returns=self._return_value,
+            default=self._default,
+            user_validator=self._user_validator,
+            callable_type=self._value_type,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
 
 class Functor(Callable):
   """Value spec for Functor.
@@ -1802,12 +2029,15 @@ class Functor(Callable):
   def __init__(
       self,
       args: typing.Optional[typing.List[ValueSpec]] = None,
-      kw: typing.Optional[
-          typing.List[typing.Tuple[str, ValueSpec]]] = None,
+      kw: typing.Optional[typing.List[typing.Tuple[str, ValueSpec]]] = None,
       returns: typing.Optional[ValueSpec] = None,
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Callable], None]] = None):  # pylint: disable=g-bare-generic
+          typing.Callable[[typing.Callable[..., typing.Any]], None]
+      ] = None,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor."""
     super().__init__(
         args=args,
@@ -1815,11 +2045,28 @@ class Functor(Callable):
         returns=returns,
         default=default,
         user_validator=user_validator,
-        callable_type=object_utils.Functor)
+        callable_type=object_utils.Functor,
+        is_noneable=is_noneable,
+        frozen=frozen,
+    )
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
     return object_utils.Functor
+
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            args=self._args,
+            kw=self._kw,
+            returns=self._return_value,
+            default=self._default,
+            user_validator=self._user_validator,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
 
 
 class Type(ValueSpecBase):
@@ -1844,15 +2091,20 @@ class Type(ValueSpecBase):
   def __init__(
       self,
       t: typing.Union[typing.Type[typing.Any], str],
-      default: typing.Type = MISSING_VALUE):  # pylint: disable=g-bare-generic  # pytype: disable=annotation-type-mismatch
+      default: typing.Type[typing.Any] = MISSING_VALUE,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     forward_ref = None
     if isinstance(t, str):
       forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), t)
-    elif not (isinstance(t, type) or generic.is_generic(t) or t is typing.Any):
+    elif not (
+        isinstance(t, type) or pg_inspect.is_generic(t) or t is typing.Any
+    ):
       raise TypeError(f'{t!r} is not a type.')
     self._expected_type = t
     self._forward_ref = forward_ref
-    super().__init__(type, default)
+    super().__init__(type, default, is_noneable=is_noneable, frozen=frozen)
 
   @property
   def type(self) -> typing.Type[typing.Any]:
@@ -1870,7 +2122,7 @@ class Type(ValueSpecBase):
 
   def _validate(self, path: object_utils.KeyPath, value: typing.Type) -> None:  # pylint: disable=g-bare-generic
     """Validate applied value."""
-    if self.type_resolved and not generic.is_subclass(value, self.type):
+    if self.type_resolved and not pg_inspect.is_subclass(value, self.type):
       raise ValueError(
           object_utils.message_on_path(
               f'{value!r} is not a subclass of {self.type!r}', path))
@@ -1881,7 +2133,7 @@ class Type(ValueSpecBase):
     # unresolved forward declarations, we consider them compatible.
     if not self.type_resolved or not other.type_resolved:
       return True
-    return generic.is_subclass(other.type, self.type)
+    return pg_inspect.is_subclass(other.type, self.type)
 
   def _extend(self, base: 'Type') -> None:
     """Type specific extension."""
@@ -1911,6 +2163,17 @@ class Type(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            t=self._expected_type,
+            default=self._default,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
 
 class Union(ValueSpecBase):
   """Value spec for Union.
@@ -1934,14 +2197,20 @@ class Union(ValueSpecBase):
     ], default={'x': 1})
   """
 
-  def __init__(self,
-               candidates: typing.List[ValueSpec],
-               default: typing.Any = MISSING_VALUE):
+  def __init__(
+      self,
+      candidates: typing.List[ValueSpec],
+      default: typing.Any = MISSING_VALUE,
+      is_noneable: bool = False,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
       candidates: Value spec for candidate types.
       default: (Optional) default value of this spec.
+      is_noneable: (Optional) If True, None is acceptable for this spec.
+      frozen: If True, values other than the default value is not accceptable.
     """
     if not isinstance(candidates, list) or len(candidates) < 2:
       raise ValueError(
@@ -1987,10 +2256,12 @@ class Union(ValueSpecBase):
 
     self._candidates = candidates
     union_value_type = None if no_value_type_check else tuple(candidate_types)
-    super().__init__(union_value_type, default)
-
-    if has_noneable_candidate:
-      super().noneable()
+    super().__init__(
+        union_value_type,
+        default,
+        is_noneable=is_noneable or has_noneable_candidate,
+        frozen=frozen,
+    )
 
   @functools.cached_property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -2101,9 +2372,10 @@ class Union(ValueSpecBase):
           if p is not None:
             return p
       else:
-        if (c.__class__ is v.__class__
-            and (c.__class__ is not Object
-                 or generic.is_subclass(c.value_type, v.value_type))):
+        if c.__class__ is v.__class__ and (
+            c.__class__ is not Object
+            or pg_inspect.is_subclass(c.value_type, v.value_type)
+        ):
           return v
       return None
 
@@ -2155,6 +2427,17 @@ class Union(ValueSpecBase):
     ])
     return f'{self.__class__.__name__}({details})'
 
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            candidates=self._candidates,
+            default=self._default,
+            is_noneable=self._is_noneable,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
+
   def _eq(self, other: 'Union') -> bool:
     if len(self.candidates) != len(other.candidates):
       return False
@@ -2191,7 +2474,10 @@ class Any(ValueSpecBase):
       default: typing.Any = MISSING_VALUE,
       annotation: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]] = None):
+          typing.Callable[[typing.Any], None]
+      ] = None,
+      frozen: bool = False,
+  ):  # pytype: disable=annotation-type-mismatch
     """Constructor.
 
     Args:
@@ -2200,8 +2486,11 @@ class Any(ValueSpecBase):
       user_validator: (Optional) user function or callable object for additional
         validation on the applied value, which can reject a value by raising
         Exceptions.
+      frozen: If True, values other than the default value is not accceptable.
     """
-    super().__init__(object, default, user_validator, is_noneable=True)
+    super().__init__(
+        object, default, user_validator, is_noneable=True, frozen=frozen
+    )
     self._annotation = annotation
 
   def is_compatible(self, other: ValueSpec) -> bool:
@@ -2230,6 +2519,17 @@ class Any(ValueSpecBase):
 
   def _eq(self, other: 'Any') -> bool:
     return self.annotation == other.annotation
+
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+    return self.to_json_dict(
+        fields=dict(
+            default=self._default,
+            annotation=self._annotation,
+            user_validator=self._user_validator,
+            frozen=self._frozen,
+        ),
+        **kwargs,
+    )
 
 
 def _any_if_no_annotation(annotation: typing.Any):

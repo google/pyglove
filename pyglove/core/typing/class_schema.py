@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Ty
 from pyglove.core import object_utils
 
 
-class KeySpec(object_utils.Formattable):
+class KeySpec(object_utils.Formattable, object_utils.JSONConvertible):
   """Interface for key specifications.
 
   A key specification determines what keys are acceptable for a symbolic
@@ -91,6 +91,7 @@ class KeySpec(object_utils.Formattable):
   @classmethod
   def from_str(cls, key: str) -> 'KeySpec':
     """Get a concrete ValueSpec from annotation."""
+    del key
     assert False, 'Overridden in `key_specs.py`.'
 
 
@@ -164,7 +165,7 @@ class ForwardRef(object_utils.Formattable):
     return hash((self.module, self.name))
 
 
-class ValueSpec(object_utils.Formattable):
+class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
   """Interface for value specifications.
 
   A value specification defines what values are acceptable for a symbolic
@@ -530,10 +531,11 @@ class ValueSpec(object_utils.Formattable):
       auto_typing=False,
       accept_value_as_annotation=False) -> 'ValueSpec':
     """Gets a concrete ValueSpec from annotation."""
+    del annotation
     assert False, 'Overridden in `annotation_conversion.py`.'
 
 
-class Field(object_utils.Formattable):
+class Field(object_utils.Formattable, object_utils.JSONConvertible):
   """Class that represents the definition of one or a group of attributes.
 
   ``Field`` is held by a :class:`pyglove.Schema` object for defining the
@@ -604,6 +606,7 @@ class Field(object_utils.Formattable):
       metadata: Optional[Dict[str, Any]] = None,
       auto_typing=True) -> 'Field':
     """Gets a Field from annotation."""
+    del key, annotation, description, metadata, auto_typing
     assert False, 'Overridden in `annotation_conversion.py`.'
 
   @property
@@ -730,6 +733,17 @@ class Field(object_utils.Formattable):
     ])
     return f'Field({attr_str})'
 
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+    return self.to_json_dict(
+        fields=dict(
+            key_spec=self._key,
+            value_spec=self._value,
+            description=self._description,
+            metadata=self._metadata,
+        ),
+        **kwargs,
+    )
+
   def __eq__(self, other: Any) -> bool:
     """Operator==."""
     if self is other:
@@ -744,7 +758,7 @@ class Field(object_utils.Formattable):
     return not self.__eq__(other)
 
 
-class Schema(object_utils.Formattable):
+class Schema(object_utils.Formattable, object_utils.JSONConvertible):
   """Class that represents a schema.
 
   PyGlove's runtime type system is based on the concept of ``Schema`` (
@@ -856,7 +870,9 @@ class Schema(object_utils.Formattable):
         with value specification, etc.
     """
     if not isinstance(fields, list):
-      raise TypeError('Argument \'fields\' must be a list.')
+      raise TypeError(
+          f"Argument 'fields' must be a list. Encountered: {fields}."
+      )
 
     self._name = name
     self._allow_nonconst_keys = allow_nonconst_keys
@@ -1224,6 +1240,18 @@ class Schema(object_utils.Formattable):
       s.append(_indent(close_bracket, root_indent))
     return ''.join(s)
 
+  def to_json(self, **kwargs) -> Dict[str, Any]:
+    return self.to_json_dict(
+        fields=dict(
+            fields=list(self._fields.values()),
+            name=self._name,
+            description=self._description,
+            allow_nonconst_keys=self._allow_nonconst_keys,
+            metadata=self._metadata,
+        ),
+        **kwargs,
+    )
+
   def __str__(self) -> str:
     return self.format(compact=False, verbose=True)
 
@@ -1282,7 +1310,7 @@ def create_field(
     raise TypeError(
         f'Field definition should be tuples with 2 to 4 elements. '
         f'Encountered: {maybe_field}.')
-  key = None
+
   if isinstance(maybe_key_spec, (str, KeySpec)):
     key = maybe_key_spec
   else:

@@ -19,6 +19,7 @@ import sys
 from typing import Optional, Union, List
 import unittest
 
+from pyglove.core import object_utils
 from pyglove.core.typing import annotation_conversion  # pylint: disable=unused-import
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import custom_typing
@@ -212,6 +213,14 @@ class FieldTest(unittest.TestCase):
         'Field(key=a, value=Dict({\n'
         '    b = Int()\n'
         '  }), description=\'field a\')')
+
+  def test_json_conversion(self):
+    def assert_json_conversion(f):
+      self.assertEqual(object_utils.from_json(f.to_json()), f)
+
+    assert_json_conversion(Field('a', vs.Int()))
+    assert_json_conversion(Field('a', vs.Int(), 'description'))
+    assert_json_conversion(Field('a', vs.Int(), 'description', {'a': 1}))
 
 
 class SimpleObject:
@@ -730,6 +739,22 @@ class SchemaTest(unittest.TestCase):
                 'f': typed_missing.MISSING_VALUE,
             }
         })
+
+  def test_json_conversion(self):
+    schema = self._create_test_schema()
+    schema.set_description('Foo')
+    schema.set_name('Bar')
+    schema_copy = object_utils.from_json(schema.to_json())
+
+    # This compares fields only
+    self.assertEqual(schema_copy, schema)
+
+    self.assertEqual(schema_copy.name, schema.name)
+    self.assertEqual(schema_copy.description, schema.description)
+    self.assertEqual(schema.metadata, schema_copy.metadata)
+    self.assertEqual(
+        schema.allow_nonconst_keys, schema_copy.allow_nonconst_keys
+    )
 
 
 class CreateSchemaTest(unittest.TestCase):
