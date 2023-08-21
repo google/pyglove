@@ -17,6 +17,7 @@ import inspect
 import typing
 import unittest
 
+from pyglove.core.typing import annotated
 from pyglove.core.typing import annotation_conversion
 from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
@@ -26,6 +27,24 @@ from pyglove.core.typing.class_schema import ValueSpec
 
 class FieldFromAnnotationTest(unittest.TestCase):
   """Tests for Field.fromAnnotation."""
+
+  def test_from_pg_annotated(self):
+    self.assertEqual(
+        Field.from_annotation(
+            'x', annotated.Annotated[str, 'A str'], auto_typing=True),
+        Field('x', vs.Str(), 'A str'))
+    self.assertEqual(
+        Field.from_annotation(
+            'x',
+            annotated.Annotated[vs.Str().noneable(), 'A str'],
+            auto_typing=True),
+        Field('x', vs.Str().noneable(), 'A str'))
+    self.assertEqual(
+        Field.from_annotation(
+            'x',
+            annotated.Annotated[vs.Str().noneable(), 'A str', dict(foo=1)],
+            auto_typing=True),
+        Field('x', vs.Str().noneable(), 'A str', dict(foo=1)))
 
   def test_from_annotated(self):
     self.assertEqual(

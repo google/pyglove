@@ -19,6 +19,7 @@ import typing
 import unittest
 
 from pyglove.core import object_utils
+from pyglove.core.typing import annotation_conversion  # pylint: disable=unused-import
 from pyglove.core.typing import type_conversion
 from pyglove.core.typing import value_specs as vs
 

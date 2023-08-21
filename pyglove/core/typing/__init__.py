@@ -336,6 +336,9 @@ from pyglove.core.typing.value_specs import Type
 from pyglove.core.typing.value_specs import Union
 from pyglove.core.typing.value_specs import Any
 
+# Annotated.
+from pyglove.core.typing.annotated import Annotated
+
 # Type conversion.
 from pyglove.core.typing.type_conversion import register_converter
 from pyglove.core.typing.type_conversion import get_converter

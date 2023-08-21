@@ -84,6 +84,16 @@ class ForwardRefTest(unittest.TestCase):
     self.assertNotEqual(ref, class_schema.ForwardRef(unittest, 'FieldTest'))
     self.assertNotEqual(ref, class_schema.ForwardRef(self._module, 'Foo'))
 
+  def test_copy(self):
+    self.assertEqual(
+        copy.copy(class_schema.ForwardRef(self._module, 'FieldTest')),
+        class_schema.ForwardRef(self._module, 'FieldTest'),
+    )
+    self.assertEqual(
+        copy.deepcopy(class_schema.ForwardRef(self._module, 'FieldTest')),
+        class_schema.ForwardRef(self._module, 'FieldTest'),
+    )
+
 
 class FieldTest(unittest.TestCase):
   """Test for `Field` class."""

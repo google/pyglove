@@ -164,6 +164,10 @@ class ForwardRef(object_utils.Formattable):
   def __hash__(self) -> int:
     return hash((self.module, self.name))
 
+  def __deepcopy__(self, memo) -> 'ForwardRef':
+    """Override deep copy to avoid copying module."""
+    return ForwardRef(self.module, self.name)
+
 
 class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
   """Interface for value specifications.

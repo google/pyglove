@@ -13,6 +13,7 @@
 # limitations under the License.
 """Concrete value specifications for field definition."""
 
+import abc
 import copy
 import functools
 import inspect
@@ -35,6 +36,33 @@ from pyglove.core.typing.custom_typing import CustomTyping
 
 
 MISSING_VALUE = object_utils.MISSING_VALUE
+
+# Type alias for ValueSpec object or Python annotation that could be converted
+# to ValueSpec via `pg.typing.ValueSpec.from_annotation()`. This type alias is
+# just for better readability.
+ValueSpecOrAnnotation = typing.Any
+
+
+class GenericMeta(abc.ABCMeta):
+  """Metaclass for generic value spec."""
+
+  def __getitem__(cls, type_args: typing.Any) -> typing.Any:
+    if not isinstance(type_args, tuple):
+      type_args = (type_args,)
+    generic = cls.with_type_args(type_args)  # pytype: disable=attribute-error
+    if typing.TYPE_CHECKING and isinstance(generic, ValueSpec):
+      return generic.annotation
+    return generic
+
+
+class Generic(metaclass=GenericMeta):
+  """Generic value spec."""
+
+  @classmethod
+  def with_type_args(
+      cls, type_args: typing.Tuple[typing.Any, ...]
+  ) -> typing.Any:
+    raise NotImplementedError()
 
 
 class ValueSpecBase(ValueSpec):
@@ -96,7 +124,7 @@ class ValueSpecBase(ValueSpec):
   def noneable(self) -> 'ValueSpecBase':
     """Marks None is acceptable and returns `self`."""
     self._is_noneable = True
-    if MISSING_VALUE == self._default:
+    if MISSING_VALUE == self._default:  # pytype: disable=attribute-error
       self._default = None
     return self
 
@@ -836,7 +864,7 @@ class Enum(PrimitiveType):
     )
 
 
-class List(ValueSpecBase):
+class List(Generic, ValueSpecBase):
   """Value spec for list type.
 
   Examples::
@@ -856,7 +884,7 @@ class List(ValueSpecBase):
 
   def __init__(
       self,
-      element_value: ValueSpec,
+      element_value: ValueSpecOrAnnotation,
       default: typing.Optional[typing.List[typing.Any]] = MISSING_VALUE,
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
@@ -870,7 +898,8 @@ class List(ValueSpecBase):
     """Constructor.
 
     Args:
-      element_value: Value spec for list element.
+      element_value: A ``ValueSpec`` object or an equivalent annotation as the
+        spec for the list element.
       default: (Optional) default value for this spec.
       min_size: (Optional) min size of list. If None, 0 will be used.
       max_size: (Optional) max size of list.
@@ -883,8 +912,7 @@ class List(ValueSpecBase):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    if not isinstance(element_value, ValueSpec):
-      raise ValueError('List element spec should be an ValueSpec object.')
+    element_value = ValueSpec.from_annotation(element_value, auto_typing=True)
 
     if size is not None and (min_size is not None or max_size is not None):
       raise ValueError(
@@ -1038,8 +1066,17 @@ class List(ValueSpecBase):
         **kwargs,
     )
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Tuple[typing.Any, ...]) -> 'List':
+    if len(type_args) != 1:
+      raise TypeError(
+          '`pg.typing.List` requires 1 type argument. ',
+          f'Encountered: {type_args}.',
+      )
+    return cls(type_args[0])
 
-class Tuple(ValueSpecBase):
+
+class Tuple(Generic, ValueSpecBase):
   """Value spec for tuple type.
 
   Examples::
@@ -1062,7 +1099,9 @@ class Tuple(ValueSpecBase):
 
   def __init__(
       self,
-      element_values: typing.Union[ValueSpec, typing.List[ValueSpec]],
+      element_values: typing.Union[
+          ValueSpecOrAnnotation, typing.Sequence[ValueSpecOrAnnotation]
+      ],
       default: typing.Optional[typing.Tuple[typing.Any, ...]] = MISSING_VALUE,
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
@@ -1076,8 +1115,9 @@ class Tuple(ValueSpecBase):
     """Constructor.
 
     Args:
-      element_values: A ValueSpec as element spec for a variable-length tuple,
-        or a list of ValueSpec as elements specs for a fixed-length tuple.
+      element_values: A ValueSpec object or its equivalence as the element spec
+        for a variable-length tuple, or a sequence of ValueSpec objects or their
+        equivalences as the elements specs for a fixed-length tuple.
       default: (Optional) default value for this spec.
       min_size: (Optional) min size of tuple. If None, 0 will be used.
         Applicable only for variable-length tuple.
@@ -1092,7 +1132,23 @@ class Tuple(ValueSpecBase):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    if isinstance(element_values, ValueSpec):
+    if isinstance(element_values, (tuple, list)):
+      if not element_values:
+        raise ValueError("Argument 'element_values' must be a non-empty list.")
+      if size is not None or min_size is not None or max_size is not None:
+        raise ValueError(
+            '"size", "min_size" and "max_size" are not applicable '
+            f'for fixed-length Tuple with elements: {element_values!r}'
+        )
+      element_values = [
+          ValueSpec.from_annotation(v, auto_typing=True) for v in element_values
+      ]
+      min_size = len(element_values)
+      max_size = min_size
+    else:
+      element_values = ValueSpec.from_annotation(
+          element_values, auto_typing=True
+      )
       if size is not None and (min_size is not None or max_size is not None):
         raise ValueError(
             f'Either "size" or "min_size"/"max_size" pair can be specified. '
@@ -1114,17 +1170,6 @@ class Tuple(ValueSpecBase):
               f'Encountered: min_size={min_size}, max_size=max_size.')
       if min_size == max_size:
         element_values = [element_values] * min_size
-    elif isinstance(element_values, list) and element_values:
-      if size is not None or min_size is not None or max_size is not None:
-        raise ValueError(
-            f'"size", "min_size" and "max_size" are not applicable '
-            f'for fixed-length Tuple with elements: {element_values!r}')
-      min_size = len(element_values)
-      max_size = min_size
-    else:
-      raise ValueError(
-          f'Argument \'element_values\' must be a '
-          f'non-empty list: {element_values!r}')
 
     if isinstance(element_values, ValueSpec):
       elements = [
@@ -1366,8 +1411,14 @@ class Tuple(ValueSpecBase):
         **kwargs,
     )
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Any) -> 'Tuple':
+    if len(type_args) == 2 and type_args[1] is ...:
+      return cls(ValueSpec.from_annotation(type_args[0], auto_typing=True))
+    return cls(type_args)
 
-class Dict(ValueSpecBase):
+
+class Dict(Generic, ValueSpecBase):
   """Value spec for dict type.
 
   Examples::
@@ -1552,8 +1603,20 @@ class Dict(ValueSpecBase):
       fields['default'] = self._default
     return self.to_json_dict(fields=fields, **kwargs)
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Any) -> 'Dict':
+    if len(type_args) != 2:
+      raise TypeError(
+          '`pg.typing.Dict` requires 2 type arguments. '
+          f'Encountered: {type_args}'
+      )
+    if type_args[0] is str:
+      return cls([(key_specs.StrKey(), type_args[1])])
+    # TODO(daiyip): support non-string type keys.
+    return cls()
 
-class Object(ValueSpecBase):
+
+class Object(Generic, ValueSpecBase):
   """Value spec for object type.
 
   Examples::
@@ -1573,7 +1636,7 @@ class Object(ValueSpecBase):
 
   def __init__(
       self,
-      cls: typing.Union[typing.Type[typing.Any], str],
+      t: typing.Union[typing.Type[typing.Any], str],
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
           typing.Callable[[typing.Any], None]
@@ -1584,7 +1647,7 @@ class Object(ValueSpecBase):
     """Constructor.
 
     Args:
-      cls: Class of the object. Objects of subclass of this class is acceptable.
+      t: Class of the object. Objects of subclass of this class is acceptable.
       default: (Optional) default value of this spec.
       user_validator: (Optional) user function or callable object for additional
         validation on the applied object, which can reject a value by raising
@@ -1593,23 +1656,23 @@ class Object(ValueSpecBase):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    if cls is None:
+    if t is None:
       raise TypeError('"cls" for Object spec cannot be None.')
 
     forward_ref = None
     type_args = []
-    if isinstance(cls, str):
-      forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), cls)
-    elif isinstance(cls, type):
-      if cls is object:
+    if isinstance(t, str):
+      forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), t)
+    elif isinstance(t, type):
+      if t is object:
         raise TypeError('<class \'object\'> is too general for Object spec.')
-    elif not pg_inspect.is_generic(cls):
+    elif not pg_inspect.is_generic(t):
       raise TypeError('"cls" for Object spec should be a type or str.')
 
     self._forward_ref = forward_ref
     self._type_args = type_args
     super().__init__(
-        cls, default, user_validator, is_noneable=is_noneable, frozen=frozen
+        t, default, user_validator, is_noneable=is_noneable, frozen=frozen
     )
 
   @property
@@ -1712,7 +1775,7 @@ class Object(ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            cls=self.cls,
+            t=self.cls,
             default=self._default,
             user_validator=self._user_validator,
             is_noneable=self._is_noneable,
@@ -1721,8 +1784,17 @@ class Object(ValueSpecBase):
         **kwargs,
     )
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Any) -> 'Object':
+    if len(type_args) != 1:
+      raise TypeError(
+          '`pg.typing.Object` requires 1 type argument. '
+          f'Encountered: {type_args}'
+      )
+    return cls(type_args[0])
 
-class Callable(ValueSpecBase):
+
+class Callable(Generic, ValueSpecBase):
   """Value spec for callable.
 
   Examples::
@@ -1749,9 +1821,11 @@ class Callable(ValueSpecBase):
 
   def __init__(
       self,
-      args: typing.Optional[typing.List[ValueSpec]] = None,
-      kw: typing.Optional[typing.List[typing.Tuple[str, ValueSpec]]] = None,
-      returns: typing.Optional[ValueSpec] = None,
+      args: typing.Optional[typing.List[ValueSpecOrAnnotation]] = None,
+      kw: typing.Optional[
+          typing.List[typing.Tuple[str, ValueSpecOrAnnotation]]
+      ] = None,
+      returns: typing.Optional[ValueSpecOrAnnotation] = None,
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
           typing.Callable[[typing.Callable[..., typing.Any]], None]
@@ -1767,27 +1841,26 @@ class Callable(ValueSpecBase):
       raise TypeError(
           f'\'args\' should be a list of ValueSpec objects. '
           f'Encountered: {args!r}.')
-    for arg in args:
-      if not isinstance(arg, ValueSpec):
-        raise TypeError(
-            f'\'args\' should be a list of ValueSpec objects. '
-            f'Encountered: {args!r}.')
+    args = [ValueSpec.from_annotation(arg, auto_typing=True) for arg in args]
 
     if not isinstance(kw, list):
       raise TypeError(
           f'\'kw\' should be a list of (name, value_spec) tuples. '
           f'Encountered: {kw!r}.')
     for arg in kw:
-      if (not isinstance(arg, tuple) or len(arg) != 2 or
-          not isinstance(arg[0], str) or
-          not isinstance(arg[1], ValueSpec)):
+      if (
+          not isinstance(arg, tuple)
+          or len(arg) != 2
+          or not isinstance(arg[0], str)
+      ):
         raise TypeError(
             f'\'kw\' should be a list of (name, value_spec) tuples. '
             f'Encountered: {kw!r}.')
 
-    if returns is not None and not isinstance(returns, ValueSpec):
-      raise TypeError(
-          f'\'returns\' should be a ValueSpec object. Encountered: {returns!r}')
+    kw = [(k, ValueSpec.from_annotation(v, auto_typing=True)) for k, v in kw]
+
+    if returns is not None:
+      returns = ValueSpec.from_annotation(returns, auto_typing=True)
     self._args = args
     self._kw = kw
     self._return_value = returns
@@ -2000,6 +2073,24 @@ class Callable(ValueSpecBase):
         **kwargs,
     )
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Any) -> 'Callable':
+    if len(type_args) != 2:
+      raise TypeError(
+          f'`pg.typing.{cls.__name__}` requires 2 type arguments. '
+          f'Encountered: {type_args}'
+      )
+    if isinstance(type_args[0], (tuple, list)):
+      args = type_args[0]
+    elif type_args[0] is not ...:
+      args = [type_args[0]]
+    else:
+      args = []
+    returns = type_args[1]
+    if returns is None:
+      returns = type(None)
+    return cls(args=args, returns=returns)
+
 
 class Functor(Callable):
   """Value spec for Functor.
@@ -2028,9 +2119,11 @@ class Functor(Callable):
 
   def __init__(
       self,
-      args: typing.Optional[typing.List[ValueSpec]] = None,
-      kw: typing.Optional[typing.List[typing.Tuple[str, ValueSpec]]] = None,
-      returns: typing.Optional[ValueSpec] = None,
+      args: typing.Optional[typing.List[ValueSpecOrAnnotation]] = None,
+      kw: typing.Optional[
+          typing.List[typing.Tuple[str, ValueSpecOrAnnotation]]
+      ] = None,
+      returns: typing.Optional[ValueSpecOrAnnotation] = None,
       default: typing.Any = MISSING_VALUE,
       user_validator: typing.Optional[
           typing.Callable[[typing.Callable[..., typing.Any]], None]
@@ -2069,7 +2162,7 @@ class Functor(Callable):
     )
 
 
-class Type(ValueSpecBase):
+class Type(Generic, ValueSpecBase):
   """Value spec for type.
 
   Examples::
@@ -2174,8 +2267,20 @@ class Type(ValueSpecBase):
         **kwargs,
     )
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Any) -> 'Type':
+    if len(type_args) != 1:
+      raise TypeError(
+          '`pg.typing.Type` requires 1 type argument. '
+          f'Encountered: {type_args}.'
+      )
+    return cls(t=type_args[0])
 
-class Union(ValueSpecBase):
+
+# pytype: disable=attribute-error
+
+
+class Union(Generic, ValueSpecBase):
   """Value spec for Union.
 
   Examples::
@@ -2199,7 +2304,7 @@ class Union(ValueSpecBase):
 
   def __init__(
       self,
-      candidates: typing.List[ValueSpec],
+      candidates: typing.Sequence[ValueSpecOrAnnotation],
       default: typing.Any = MISSING_VALUE,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -2207,15 +2312,19 @@ class Union(ValueSpecBase):
     """Constructor.
 
     Args:
-      candidates: Value spec for candidate types.
+      candidates: A sequence of value spec objects or their equivalence as the
+        spec for candidate types.
       default: (Optional) default value of this spec.
       is_noneable: (Optional) If True, None is acceptable for this spec.
       frozen: If True, values other than the default value is not accceptable.
     """
-    if not isinstance(candidates, list) or len(candidates) < 2:
+    if not isinstance(candidates, (tuple, list)) or len(candidates) < 2:
       raise ValueError(
           f'Argument \'candidates\' must be a list of at least 2 '
           f'elements. Encountered {candidates}.')
+    candidates = [
+        ValueSpec.from_annotation(c, auto_typing=True) for c in candidates
+    ]
     candidates_by_type = {}
     has_noneable_candidate = False
     for i, c in enumerate(candidates):
@@ -2446,6 +2555,56 @@ class Union(ValueSpecBase):
       if sc != oc:
         return False
     return True
+
+  @classmethod
+  def with_type_args(cls, type_args: typing.Any) -> 'Union':
+    if len(type_args) < 2:
+      raise TypeError(
+          '`pg.typing.Union` requires at least 2 type arguments. '
+          f'Encountered: {type_args}.'
+      )
+    return cls(type_args)
+
+# pytype: enable=attribute-error
+
+
+class GenericTypeAlias(Generic):
+  """Base class for generic type aliases."""
+
+  def __init__(self, *args, **kwargs):
+    del args, kwargs
+    raise TypeError(
+        f'Generic type alias {self.__class__.__name__} cannot be instantiated.')
+
+
+class Sequence(GenericTypeAlias):
+  """Sequence."""
+
+  @classmethod
+  def with_type_args(
+      cls, type_args: typing.Tuple[typing.Any, ...]) -> Union:
+    if len(type_args) != 1:
+      raise TypeError(
+          '`pg.typing.Sequence` requires 1 type argument. '
+          f'Encountered: {type_args}.'
+      )
+    elem_spec = ValueSpec.from_annotation(type_args[0], auto_typing=True)
+    return Union([List(elem_spec), Tuple(elem_spec)])
+
+
+class Optional(GenericTypeAlias):
+  """Optional."""
+
+  @classmethod
+  def with_type_args(
+      cls, type_args: typing.Tuple[typing.Any, ...]) -> ValueSpec:
+    if len(type_args) != 1:
+      raise TypeError(
+          '`pg.typing.Optional` requires 1 type argument. '
+          f'Encountered: {type_args}.'
+      )
+    spec = ValueSpec.from_annotation(type_args[0], auto_typing=True)
+    return spec.noneable()
 
 
 class Any(ValueSpecBase):

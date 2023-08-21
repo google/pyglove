@@ -768,6 +768,18 @@ class EnumTest(ValueSpecTest):
 class ListTest(ValueSpecTest):
   """Tests for `List`."""
 
+  def test_generic(self):
+    self.assertEqual(vs.List[int], vs.List(vs.Int()))
+    self.assertEqual(vs.List[Exception], vs.List(vs.Object(Exception)))
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.List` requires 1 type argument'):
+      _ = vs.List[int, int]
+
+    # PyType checking.
+    typing.TYPE_CHECKING = True
+    self.assertIs(vs.List[int], typing.List[int])
+    typing.TYPE_CHECKING = False
+
   def test_value_type(self):
     self.assertEqual(vs.List(vs.Int()).value_type, list)
 
@@ -853,7 +865,8 @@ class ListTest(ValueSpecTest):
 
   def test_bad_init(self):
     with self.assertRaisesRegex(
-        ValueError, 'List element spec should be an ValueSpec object.'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.List(1)
 
     with self.assertRaisesRegex(ValueError,
@@ -1060,6 +1073,14 @@ class ListTest(ValueSpecTest):
 class TupleTest(ValueSpecTest):
   """Tests for `Tuple`."""
 
+  def test_generic(self):
+    self.assertEqual(vs.Tuple[int], vs.Tuple([vs.Int()]))
+    self.assertEqual(vs.Tuple[int, str], vs.Tuple([vs.Int(), vs.Str()]))
+    self.assertEqual(vs.Tuple[int, ...], vs.Tuple(vs.Int()))
+    with self.assertRaisesRegex(
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'):
+      _ = vs.Tuple[1]
+
   def test_value_type(self):
     self.assertEqual(vs.Tuple([vs.Int()]).value_type, tuple)
     self.assertEqual(vs.Tuple(vs.Int()).value_type, tuple)
@@ -1183,7 +1204,8 @@ class TupleTest(ValueSpecTest):
 
   def test_bad_init(self):
     with self.assertRaisesRegex(
-        ValueError, 'Argument \'element_values\' must be a non-empty list'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.Tuple(1)
 
     with self.assertRaisesRegex(
@@ -1191,7 +1213,8 @@ class TupleTest(ValueSpecTest):
       vs.Tuple([])
 
     with self.assertRaisesRegex(
-        ValueError, 'Items in \'element_values\' must be ValueSpec objects.'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.Tuple([1])
 
     with self.assertRaisesRegex(
@@ -1476,6 +1499,13 @@ class TupleTest(ValueSpecTest):
 
 class DictTest(ValueSpecTest):
   """Tests for `Dict`."""
+
+  def test_generic(self):
+    self.assertEqual(vs.Dict[str, int], vs.Dict([(ks.StrKey(), vs.Int())]))
+    self.assertEqual(vs.Dict[int, int], vs.Dict())
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Dict` requires 2 type arguments'):
+      _ = vs.Dict[str]
 
   def test_value_type(self):
     self.assertIs(vs.Dict().value_type, dict)
@@ -1847,6 +1877,12 @@ class ObjectTest(ValueSpecTest):
     self.D = D
     # pylint: enable=invalid-name
 
+  def test_generic(self):
+    self.assertEqual(vs.Object[self.A], vs.Object(self.A))
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Object` requires 1 type argument'):
+      _ = vs.Object[str, str]
+
   def test_value_type(self):
     self.assertEqual(vs.Object(self.A).value_type, self.A)
     v = vs.Object('A')
@@ -2092,6 +2128,22 @@ class ObjectTest(ValueSpecTest):
 class CallableTest(ValueSpecTest):
   """Tests for `Callable`."""
 
+  def test_generic(self):
+    self.assertEqual(
+        vs.Callable[..., None], vs.Callable(returns=vs.Object(type(None))))
+    self.assertEqual(
+        vs.Callable[[int, str], int],
+        vs.Callable(
+            [vs.Int(), vs.Str()],
+            returns=vs.Int()))
+    self.assertEqual(
+        vs.Functor[int, typing.Any],
+        vs.Functor([vs.Int()], returns=vs.Any(annotation=typing.Any)))
+
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Callable` requires 2 type arguments'):
+      _ = vs.Callable[int]
+
   def test_value_type(self):
     self.assertIsNone(vs.Callable().value_type)
     self.assertEqual(vs.Functor().annotation, object_utils.Functor)
@@ -2188,7 +2240,8 @@ class CallableTest(ValueSpecTest):
       vs.Callable(1)
 
     with self.assertRaisesRegex(
-        TypeError, '\'args\' should be a list of ValueSpec objects.'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.Callable([1])
 
     with self.assertRaisesRegex(
@@ -2200,11 +2253,13 @@ class CallableTest(ValueSpecTest):
       vs.Callable(kw=['a'])
 
     with self.assertRaisesRegex(
-        TypeError, '\'kw\' should be a list of \\(name, value_spec\\) tuples'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.Callable(kw=[('a', 1)])
 
     with self.assertRaisesRegex(
-        TypeError, '\'returns\' should be a ValueSpec object'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.Callable(returns=1)
 
   def test_apply_on_functions(self):
@@ -2504,6 +2559,12 @@ class CallableTest(ValueSpecTest):
 class TypeTest(ValueSpecTest):
   """Tests for `Type`."""
 
+  def test_generic(self):
+    self.assertEqual(vs.Type[str], vs.Type(str))
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Type` requires 1 type argument'):
+      _ = vs.Type[str, str]
+
   def test_init(self):
     with self.assertRaisesRegex(TypeError, '.* is not a type'):
       _ = vs.Type(1)
@@ -2720,6 +2781,12 @@ class TypeTest(ValueSpecTest):
 class UnionTest(ValueSpecTest):
   """Tests for `Union`."""
 
+  def test_generic(self):
+    self.assertEqual(vs.Union[int, str], vs.Union([vs.Int(), vs.Str()]))
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Union` requires at least 2 type arguments'):
+      _ = vs.Union[str]
+
   def setUp(self):
     super().setUp()
 
@@ -2862,7 +2929,8 @@ class UnionTest(ValueSpecTest):
       vs.Union([vs.Int()])
 
     with self.assertRaisesRegex(
-        ValueError, 'Items in \'candidates\' must be ValueSpec objects.'):
+        TypeError, 'Cannot convert 1 to `pg.typing.ValueSpec`'
+    ):
       vs.Union([1, 2])
 
     with self.assertRaisesRegex(
@@ -3047,6 +3115,33 @@ class UnionTest(ValueSpecTest):
     self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]).noneable())
     self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()], default=1))
     self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]).freeze(1))
+
+
+class GenericTypeAliasesTest(ValueSpecTest):
+  """Tests for generic type aliases."""
+
+  def test_sequence(self):
+    self.assertEqual(vs.Sequence[int], vs.Union([vs.List(int), vs.Tuple(int)]))
+    self.assertEqual(vs.Sequence[vs.Union[int, str]],
+                     vs.Union([vs.List(vs.Union[int, str]),
+                               vs.Tuple(vs.Union[int, str])]))
+    with self.assertRaisesRegex(
+        TypeError, 'Generic type alias .* cannot be instantiated'):
+      vs.Sequence(int)
+
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Sequence` requires 1 type argument'):
+      _ = vs.Sequence[int, str]
+
+  def test_optional(self):
+    self.assertEqual(vs.Optional[int], vs.Int().noneable())
+    self.assertEqual(vs.Optional[Exception], vs.Object(Exception).noneable())
+    with self.assertRaisesRegex(
+        TypeError, 'Generic type alias .* cannot be instantiated'):
+      vs.Optional(int)
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Optional` requires 1 type argument'):
+      _ = vs.Optional[int, str]
 
 
 class AnyTest(ValueSpecTest):

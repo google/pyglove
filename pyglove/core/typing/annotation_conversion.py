@@ -19,6 +19,7 @@ import types
 import typing
 
 from pyglove.core import object_utils
+from pyglove.core.typing import annotated
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.typing import key_specs as ks
@@ -42,7 +43,10 @@ def _field_from_annotation(
     auto_typing=True,
 ) -> class_schema.Field:
   """Creates a field from Python annotation."""
-  if _Annotated and typing.get_origin(annotation) is _Annotated:
+  if isinstance(annotation, annotated.Annotated):
+    field_spec = (
+        key, annotation.value_spec, annotation.docstring, annotation.metadata)
+  elif _Annotated and typing.get_origin(annotation) is _Annotated:
     type_args = typing.get_args(annotation)
     assert len(type_args) > 1, (annotation, type_args)
     field_spec = tuple([key] + list(type_args))
