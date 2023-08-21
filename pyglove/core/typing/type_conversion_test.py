@@ -126,8 +126,11 @@ class TypeConversionTest(unittest.TestCase):
 class BuiltInConversionsTest(unittest.TestCase):
   """Tests for built-in conversions."""
 
+  def test_int_to_float(self):
+    self.assertEqual(vs.Float().apply(1), 1.0)
+
   def test_datetime_to_int(self):
-    # Test built-in converter between int and datetime.datetime.
+    """Test built-in converter between int and datetime.datetime."""
     timestamp = calendar.timegm(datetime.datetime.now().timetuple())
     now = datetime.datetime.utcfromtimestamp(timestamp)
     self.assertEqual(vs.Object(datetime.datetime).apply(timestamp), now)
@@ -137,7 +140,7 @@ class BuiltInConversionsTest(unittest.TestCase):
         timestamp)
 
   def test_keypath_to_str(self):
-    # Test built-in converter between string and KeyPath.
+    """Test built-in converter between string and KeyPath."""
     self.assertEqual(
         vs.Object(object_utils.KeyPath).apply('a.b.c').keys,
         ['a', 'b', 'c'])

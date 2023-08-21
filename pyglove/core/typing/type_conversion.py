@@ -133,6 +133,9 @@ def register_converter(
 
 def _register_builtin_converters():
   """Register built-in converters."""
+  # int => float.
+  register_converter(int, float, float)
+
   # int <=> datetime.datetime.
   register_converter(int, datetime.datetime, datetime.datetime.utcfromtimestamp)
   register_converter(datetime.datetime, int,

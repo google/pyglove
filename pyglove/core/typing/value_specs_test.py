@@ -526,15 +526,11 @@ class FloatTest(ValueSpecTest):
 
   def test_apply(self):
     self.assertEqual(vs.Float().apply(1.), 1.)
+    self.assertEqual(vs.Float().apply(1), 1.)
     self.assertEqual(vs.Float(min_value=1., max_value=1.).apply(1.), 1.)
 
     with self.assertRaisesRegex(ValueError, 'Value cannot be None'):
       vs.Float().apply(None)
-
-    with self.assertRaisesRegex(
-        TypeError, 'Expect <(type|class) \'float\'> but encountered '
-        '<(type|class) \'int\'>.'):
-      vs.Float().apply(1)
 
     with self.assertRaisesRegex(
         ValueError, 'Value -1.0 is out of range \\(min=0.0, max=None\\).'):
