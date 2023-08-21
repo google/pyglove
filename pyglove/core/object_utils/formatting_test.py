@@ -141,7 +141,7 @@ class FormatTest(unittest.TestCase):
           }
         }"""))
 
-  def test_exclude_keys(self):
+  def test_include_exclude_keys(self):
     """Test format with excluded keys."""
 
     class A:
@@ -150,13 +150,21 @@ class FormatTest(unittest.TestCase):
     class B(common_traits.Formattable):
       """Custom formattable."""
 
-      def format(self, custom_param=None, exclude_keys=None, **kwargs):
+      def format(
+          self, custom_param=None,
+          include_keys=None, exclude_keys=None, **kwargs):
         exclude_keys = exclude_keys or set()
         kv = dict(a=1, b=2, c=3)
-        kv_pairs = [(k, v, None) for k, v in kv.items()
-                    if k not in exclude_keys]
+        def _should_include(k):
+          if include_keys:
+            return k in include_keys
+          return k not in exclude_keys
+        kv_pairs = [(k, v, None) for k, v in kv.items() if _should_include(k)]
         return f'B({formatting.kvlist_str(kv_pairs, compact=True)})'
 
+    self.assertEqual(
+        formatting.format(B(), compact=False, include_keys=set(['a', 'c'])),
+        'B(a=1, c=3)')
     self.assertEqual(
         formatting.format(B(), compact=False, exclude_keys=set(['a', 'c'])),
         'B(b=2)')

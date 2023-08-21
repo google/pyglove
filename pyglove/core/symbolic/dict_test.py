@@ -1956,6 +1956,14 @@ class FormatTest(unittest.TestCase):
         'A(x=2, y=MISSING_VALUE, z={p=[0: None, 1: True], '
         'q=\'foo\', t=\'foo\'})}]}}}')
 
+  def test_compact_include_keys(self):
+    self.assertEqual(
+        self._dict.format(compact=True, include_keys=set(['a1'])), '{a1=1}')
+
+  def test_compact_exclude_keys(self):
+    self.assertEqual(
+        self._dict.format(compact=True, exclude_keys=set(['a2'])), '{a1=1}')
+
   def test_compact_python_format(self):
     self.assertEqual(
         self._dict.format(compact=True, python_format=True),

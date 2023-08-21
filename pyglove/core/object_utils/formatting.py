@@ -120,6 +120,7 @@ def format(value: Any,              # pylint: disable=redefined-builtin
            root_indent: int = 0,
            list_wrap_threshold: int = 80,
            strip_object_id: bool = False,
+           include_keys: Optional[Set[str]] = None,
            exclude_keys: Optional[Set[str]] = None,
            **kwargs) -> str:
   """Formats a (maybe) hierarchical value with flags.
@@ -135,7 +136,9 @@ def format(value: Any,              # pylint: disable=redefined-builtin
       list value in a single line.
     strip_object_id: If True, format object as '<class-name>(...)' other than
       'object at <address>'.
+    include_keys: A set of keys to include from the top-level dict or object.
     exclude_keys: A set of keys to exclude from the top-level dict or object.
+      Applicable only when `include_keys` is set to None.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
 
@@ -147,6 +150,11 @@ def format(value: Any,              # pylint: disable=redefined-builtin
 
   def _indent(text, indent: int) -> str:
     return ' ' * 2 * indent + text
+
+  def _should_include_key(key: str) -> bool:
+    if include_keys:
+      return key in include_keys
+    return key not in exclude_keys
 
   def _format_child(v):
     return format(v, compact=compact, verbose=verbose,
@@ -161,6 +169,7 @@ def format(value: Any,              # pylint: disable=redefined-builtin
                         root_indent=root_indent,
                         list_wrap_threshold=list_wrap_threshold,
                         strip_object_id=strip_object_id,
+                        include_keys=include_keys,
                         exclude_keys=exclude_keys,
                         **kwargs)
   elif isinstance(value, (list, tuple)):
@@ -184,14 +193,14 @@ def format(value: Any,              # pylint: disable=redefined-builtin
       s = ['{']
       s.append(', '.join([
           f'{k!r}: {_format_child(v)}'
-          for k, v in value.items() if k not in exclude_keys
+          for k, v in value.items() if _should_include_key(k)
       ]))
       s.append('}')
     else:
       s = ['{\n']
       s.append(',\n'.join([
           _indent(f'{k!r}: {_format_child(v)}', root_indent + 1)
-          for k, v in value.items() if k not in exclude_keys
+          for k, v in value.items() if _should_include_key(k)
       ]))
       s.append('\n')
       s.append(_indent('}', root_indent))

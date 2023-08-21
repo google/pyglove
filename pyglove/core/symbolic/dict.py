@@ -863,6 +863,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       python_format: bool = False,
       hide_default_values: bool = False,
       hide_missing_values: bool = False,
+      include_keys: Optional[Set[str]] = None,
       exclude_keys: Optional[Set[str]] = None,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
@@ -874,13 +875,18 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     def _indent(text, indent):
       return ' ' * 2 * indent + text
 
+    def _should_include_key(key):
+      if include_keys:
+        return key in include_keys
+      return key not in exclude_keys
+
     field_list = []
     if self._value_spec and self._value_spec.schema:
       matched_keys, unmatched = self._value_spec.schema.resolve(self.keys())  # pytype: disable=attribute-error
       assert not unmatched
       for key_spec, keys in matched_keys.items():
         for key in keys:
-          if key not in exclude_keys:
+          if _should_include_key(key):
             field = self._value_spec.schema[key_spec]
             v = self.sym_getattr(key)
             if pg_typing.MISSING_VALUE == v:
@@ -891,7 +897,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             field_list.append((field, key, v))
     else:
       for k, v in self.sym_items():
-        if k not in exclude_keys:
+        if _should_include_key(k):
           field_list.append((None, k, v))
 
     open_bracket, close_bracket = object_utils.bracket_chars(bracket_type)
@@ -901,7 +907,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     if compact:
       s = [f'{cls_name}{open_bracket}']
       kv_strs = []
-      for f, k, v in field_list:
+      for _, k, v in field_list:
         v_str = object_utils.format(
             v,
             compact,
