@@ -257,6 +257,23 @@ class SchemaTest(unittest.TestCase):
         ]).noneable(), 'Field c.'),
     ], metadata={'init_arg_list': init_arg_list or []})
 
+  def test_create_schema_dict_input(self):
+    self.assertEqual(
+        class_schema.create_schema({
+            'a': (1, 'Field a.'),
+            'b': (vs.Bool() | None, 'Field b.'),
+            'c': (vs.Dict[{
+                'd': (vs.List[
+                    vs.Enum[0, 1, None].set_default(0)].set_default([0, 1]),
+                      'Field d.'),
+                'e': (vs.List[vs.Dict({
+                    ks.StrKey(regex='foo.*'): (vs.Str(), 'Mapped values.')
+                })], 'Field e.'),
+                'f': (SimpleObject, 'Field f.')
+            }] | None, 'Field c.')
+        }, metadata={'init_arg_list': []}),
+        self._create_test_schema())
+
   def test_basics(self):
     s = Schema([Field('a', vs.Int())], 'schema1',
                [class_schema.create_schema([('b', vs.Bool())])])

@@ -300,7 +300,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       new_fields = user_cls._infer_fields_from_annotations()
       cls_schema = schema_utils.formalize_schema(
           pg_typing.create_schema(
-              maybe_field_list=new_fields,
+              new_fields,
               name=user_cls.type_name,
               base_schema_list=base_schema_list,
               allow_nonconst_keys=True,

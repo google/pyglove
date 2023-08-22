@@ -132,6 +132,9 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
     self.assertEqual(
         ValueSpec.from_annotation(typing.Any, True),
         vs.Any(annotation=typing.Any))
+    self.assertEqual(
+        ValueSpec.from_annotation(vs.Any, True),
+        vs.Any(annotation=vs.Any))
 
   def test_bool(self):
     self.assertEqual(ValueSpec.from_annotation(bool, True), vs.Bool())

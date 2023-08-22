@@ -350,6 +350,12 @@ class ValueSpecBase(ValueSpec):
     del other
     return True
 
+  def __or__(self, other: typing.Any) -> bool:
+    return Union[self, other]
+
+  def __ror__(self, other: typing.Any) -> bool:
+    return Union[other, self]
+
   def format(self, **kwargs) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
@@ -432,7 +438,7 @@ class Bool(PrimitiveType):
     )
 
 
-class Str(PrimitiveType):
+class Str(Generic, PrimitiveType):
   """Value spec for string type.
 
   Examples::
@@ -533,8 +539,17 @@ class Str(PrimitiveType):
   def _eq(self, other: 'Str') -> bool:
     return self.regex == other.regex
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Tuple[typing.Any, ...]) -> 'Str':
+    if len(type_args) != 1:
+      raise TypeError(
+          '`pg.typing.Str` requires 1 argument as the regular expression for '
+          f'matching the str value. Encountered: {type_args!r}.'
+      )
+    return cls(regex=type_args[0])
 
-class Number(PrimitiveType):
+
+class Number(Generic, PrimitiveType):
   """Base class for value spec of numeric types."""
 
   def __init__(
@@ -649,6 +664,18 @@ class Number(PrimitiveType):
         **kwargs,
     )
 
+  @classmethod
+  def with_type_args(cls, type_args: typing.Tuple[typing.Any, ...]) -> 'Number':
+    if len(type_args) != 2:
+      raise TypeError(
+          f'`pg.typing.{cls.__name__}` requires 2 arguments as the '
+          'min value and the max value for the field. '
+          f'Encountered: {type_args!r}'
+      )
+    # pylint: disable=no-value-for-parameter
+    return cls(min_value=type_args[0], max_value=type_args[1])  # pytype: disable=missing-parameter
+    # pylint: enable=no-value-for-parameter
+
 
 class Int(Number):
   """Value spec for int type.
@@ -738,7 +765,7 @@ class Float(Number):
     super().__init__(float, default, min_value, max_value, is_noneable, frozen)
 
 
-class Enum(PrimitiveType):
+class Enum(Generic, PrimitiveType):
   """Value spec for enum type.
 
   Examples::
@@ -771,10 +798,11 @@ class Enum(PrimitiveType):
     """
     if not isinstance(values, list) or not values:
       raise ValueError(
-          f'Values for Enum should be a non-empty list. Found {values}')
-    if default not in values:
+          f'Values for Enum should be a non-empty list. Found {values!r}.')
+    if default != MISSING_VALUE and default not in values:
       raise ValueError(
-          f'Enum default value {default!r} is not in candidate list {values}.')
+          f'Enum default value {default!r} is not in candidate list '
+          f'{values!r}.')
 
     value_type = None
     for v in values:
@@ -862,6 +890,14 @@ class Enum(PrimitiveType):
         ),
         **kwargs,
     )
+
+  @classmethod
+  def with_type_args(cls, type_args: typing.Tuple[typing.Any, ...]) -> 'Enum':
+    if len(type_args) < 2:
+      raise TypeError(
+          '`pg.typing.Enum` requires at least 2 arguments as the candidate '
+          f'values for the enum Encountered: {type_args!r}')
+    return cls(default=MISSING_VALUE, values=list(type_args))
 
 
 class List(Generic, ValueSpecBase):
@@ -1456,9 +1492,11 @@ class Dict(Generic, ValueSpecBase):
 
   def __init__(
       self,
-      schema_or_field_list: typing.Optional[
+      schema: typing.Optional[
           typing.Union[
-              Schema, typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
+              Schema,
+              typing.Dict[str, typing.Any],
+              typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
           ]
       ] = None,  # pylint: disable=bad-whitespace
       default: typing.Any = MISSING_VALUE,
@@ -1471,10 +1509,11 @@ class Dict(Generic, ValueSpecBase):
     """Constructor.
 
     Args:
-      schema_or_field_list: (Optional) a Schema object for this Dict, or a list
-        of Field or Field equivalents: tuple of (<key_spec>, <value_spec>,
-        [description], [metadata]) When this field is empty, it specifies a
-        schema-less Dict that may accept arbitrary key/value pairs.
+      schema: (Optional) a Schema object for this Dict, or a dict of str key
+        to their value specs, or a list of Field or Field equivalents:
+        tuple of (<key_spec>, <value_spec>, [description], [metadata]) When this
+        field is empty, it specifies a schema-less Dict that may accept
+        arbitrary key/value pairs.
       default: Default value. If MISSING_VALUE, the default value will be
         computed according to the schema.
       user_validator: (Optional) user function or callable object for additional
@@ -1484,15 +1523,10 @@ class Dict(Generic, ValueSpecBase):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    schema = None
-    if schema_or_field_list is not None:
-      if isinstance(schema_or_field_list, Schema):
-        schema = schema_or_field_list
-      else:
-        schema = class_schema.create_schema(
-            schema_or_field_list, allow_nonconst_keys=True)
+    if schema is not None and not isinstance(schema, Schema):
+      schema = class_schema.create_schema(schema, allow_nonconst_keys=True)
 
-    self._schema = schema
+    self._schema = typing.cast(typing.Optional[Schema], schema)
     super().__init__(
         dict, default, user_validator, is_noneable=is_noneable, frozen=frozen
     )
@@ -1594,7 +1628,7 @@ class Dict(Generic, ValueSpecBase):
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     fields = dict(
-        schema_or_field_list=self._schema,
+        schema=self._schema,
         user_validator=self._user_validator,
         is_noneable=self._is_noneable,
         frozen=self._frozen,
@@ -1605,10 +1639,20 @@ class Dict(Generic, ValueSpecBase):
 
   @classmethod
   def with_type_args(cls, type_args: typing.Any) -> 'Dict':
+    if len(type_args) == 1:
+      if not isinstance(type_args[0], dict):
+        raise TypeError(
+            '`pg.typing.Dict` accepts 1 dict type argument as the schema, '
+            'or 2 type arguments as the key type and value type. '
+            f'Encountered: {type_args!r}.'
+        )
+      return cls(type_args[0])
+
     if len(type_args) != 2:
       raise TypeError(
-          '`pg.typing.Dict` requires 2 type arguments. '
-          f'Encountered: {type_args}'
+          '`pg.typing.Dict` accepts 1 dict type argument as the schema, '
+          'or 2 type arguments as the key type and value type. '
+          f'Encountered: {type_args!r}.'
       )
     if type_args[0] is str:
       return cls([(key_specs.StrKey(), type_args[1])])
@@ -2557,13 +2601,23 @@ class Union(Generic, ValueSpecBase):
     return True
 
   @classmethod
-  def with_type_args(cls, type_args: typing.Any) -> 'Union':
+  def with_type_args(cls, type_args: typing.Any) -> ValueSpec:
     if len(type_args) < 2:
       raise TypeError(
           '`pg.typing.Union` requires at least 2 type arguments. '
           f'Encountered: {type_args}.'
       )
-    return cls(type_args)
+    type_args = list(type_args)
+    noneable = None in type_args
+    if noneable:
+      type_args.remove(None)
+    if len(type_args) == 1:
+      v = ValueSpec.from_annotation(type_args[0], auto_typing=True)
+    else:
+      v = cls(type_args)
+    if noneable:
+      v = v.noneable()
+    return v
 
 # pytype: enable=attribute-error
 

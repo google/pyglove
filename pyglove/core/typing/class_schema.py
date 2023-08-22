@@ -1337,7 +1337,10 @@ def create_field(
 
 
 def create_schema(
-    maybe_field_list: List[Union[Field, Tuple]],  # pylint: disable=g-bare-generic
+    fields: Union[
+        Dict[str, Any],
+        List[Union[Field, Tuple]]   # pylint: disable=g-bare-generic
+    ],
     name: Optional[str] = None,
     base_schema_list: Optional[List[Schema]] = None,
     allow_nonconst_keys: bool = False,
@@ -1346,8 +1349,31 @@ def create_schema(
 ) -> Schema:
   """Creates ``Schema`` from a list of ``Field``s or equivalences.
 
+  Examples:
+
+    The following code examples are equivalent::
+
+      schema = pg.typing.create_schema({
+          'a': int,
+          'b': (int, 'field b'),
+          'c': (pg.typing.Str(regex='.*'), 'field c', dict(meta1=1))
+      })
+
+      schema = pg.typing.create_schema([
+          ('a', int),
+          ('b', int, 'field b'),
+          ('c', pg.typing.Str(regex='.*'), 'field c', dict(meta1=1)),
+      ])
+
+      schema = pg.typing.create_schema([
+          pg.typing.Field('a', pg.typing.Int()),
+          pg.typing.Field('b', pg.typing.Int(), 'field b'),
+          pg.typing.Field(
+              'c', pg.typing.Str(regex='.*'), 'field c', dict(meta1=1)),
+      ])
+
   Args:
-    maybe_field_list: A list of field equivalent values. A Field equivalent
+    fields: A dict, a list of field or equivalent values. A Field equivalent
       value is either a Field object or a tuple of 2 - 4 elements: `(<key>,
       <value>, [description], [metadata])`. `key` can be a KeySpec subclass
       object or string. `value` can be a ValueSpec subclass object or equivalent
@@ -1367,9 +1393,19 @@ def create_schema(
   Raises:
     TypeError: If input type is incorrect.
   """
-  if not isinstance(maybe_field_list, list):
-    raise TypeError('Schema definition should be a list of schema.Field or '
-                    'a list of tuples of (key, value, description, metadata).')
+  if isinstance(fields, dict):
+    normalized_fields = []
+    for k, v in fields.items():
+      if not isinstance(v, (tuple, list)):
+        v = (v,)
+      normalized_fields.append(tuple([k] + list(v)))
+    fields = normalized_fields
+
+  if not isinstance(fields, list):
+    raise TypeError(
+        'Schema definition should be a dict of field names to their '
+        'definitions, a list of `pg.typing.Field` objects or a list of tuples '
+        'in format (key, value, description, metadata).')
 
   metadata = metadata or {}
   if not isinstance(metadata, dict):
@@ -1377,7 +1413,7 @@ def create_schema(
                     f'Encountered: {metadata}.')
 
   return Schema(
-      fields=[create_field(maybe_field) for maybe_field in maybe_field_list],
+      fields=[create_field(maybe_field) for maybe_field in fields],
       name=name,
       base_schema_list=base_schema_list,
       allow_nonconst_keys=allow_nonconst_keys,

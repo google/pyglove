@@ -149,9 +149,26 @@ class BoolTest(ValueSpecTest):
     self.assert_json_conversion(vs.Bool(True).noneable())
     self.assert_json_conversion(vs.Bool().noneable().freeze(True))
 
+  def test_or(self):
+    self.assertEqual(vs.Bool() | None, vs.Bool().noneable())
+    self.assertEqual(None | vs.Bool(), vs.Bool().noneable())
+    self.assertEqual(vs.Bool() | vs.Int(), vs.Union([vs.Bool(), vs.Int()]))
+
 
 class StrTest(ValueSpecTest):
   """Tests for `Str`."""
+
+  def test_generic(self):
+    self.assertEqual(vs.Str['.*'], vs.Str(regex='.*'))
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Str` requires 1 argument'
+    ):
+      _ = vs.Str[1, 2]
+
+    with self.assertRaisesRegex(
+        TypeError, 'first argument must be string or compiled pattern'
+    ):
+      _ = vs.Str[1]
 
   def test_value_type(self):
     self.assertEqual(vs.Str().value_type, str)
@@ -283,6 +300,16 @@ class StrTest(ValueSpecTest):
 
 class IntTest(ValueSpecTest):
   """Tests for `Int`."""
+
+  def test_generic(self):
+    self.assertEqual(vs.Int[0, None], vs.Int(min_value=0, max_value=None))
+    self.assertEqual(vs.Int[None, 0], vs.Int(min_value=None, max_value=0))
+    self.assertEqual(vs.Int[0, 100], vs.Int(min_value=0, max_value=100))
+
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Int` requires 2 arguments'
+    ):
+      _ = vs.Int[1]
 
   def test_value_type(self):
     self.assertEqual(vs.Int().value_type, int)
@@ -465,6 +492,16 @@ class IntTest(ValueSpecTest):
 class FloatTest(ValueSpecTest):
   """Tests for `Float`."""
 
+  def test_generic(self):
+    self.assertEqual(vs.Float[0, None], vs.Float(min_value=0, max_value=None))
+    self.assertEqual(vs.Float[None, 0], vs.Float(min_value=None, max_value=0))
+    self.assertEqual(vs.Float[0, 100], vs.Float(min_value=0, max_value=100))
+
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Float` requires 2 arguments'
+    ):
+      _ = vs.Float[1]
+
   def test_value_type(self):
     self.assertEqual(vs.Float().value_type, float)
 
@@ -634,6 +671,17 @@ class FloatTest(ValueSpecTest):
 
 class EnumTest(ValueSpecTest):
   """Tests for `Enum`."""
+
+  def test_generic(self):
+    self.assertEqual(vs.Enum['a', 'b', 'c'],
+                     vs.Enum(vs.MISSING_VALUE, ['a', 'b', 'c']))
+    self.assertEqual(vs.Enum['a', 'b', 'c'].set_default('b'),
+                     vs.Enum('b', ['a', 'b', 'c']))
+
+    with self.assertRaisesRegex(
+        TypeError, '`pg.typing.Enum` requires at least 2 arguments'
+    ):
+      _ = vs.Enum['a']
 
   def test_value_type(self):
     self.assertEqual(vs.Enum('a', ['a', None]).value_type, str)
@@ -1503,9 +1551,26 @@ class DictTest(ValueSpecTest):
   def test_generic(self):
     self.assertEqual(vs.Dict[str, int], vs.Dict([(ks.StrKey(), vs.Int())]))
     self.assertEqual(vs.Dict[int, int], vs.Dict())
+    self.assertEqual(vs.Dict[{
+        'x': int,
+        'y': (str, 'field y.'),
+        'z': (vs.Int[0, None], 'field z.', dict(foo=1))
+    }], vs.Dict([
+        ('x', vs.Int()),
+        ('y', vs.Str(), 'field y.'),
+        ('z', vs.Int(min_value=0, max_value=None), 'field z.', dict(foo=1))
+    ]))
+
     with self.assertRaisesRegex(
-        TypeError, '`pg.typing.Dict` requires 2 type arguments'):
+        TypeError,
+        '`pg.typing.Dict` accepts 1 dict type argument as the schema'):
       _ = vs.Dict[str]
+
+    with self.assertRaisesRegex(
+        TypeError,
+        '`pg.typing.Dict` accepts 1 dict type argument as the schema, or '
+        '2 type arguments as the key type and value type'):
+      _ = vs.Dict[str, str, str]
 
   def test_value_type(self):
     self.assertIs(vs.Dict().value_type, dict)
@@ -1618,9 +1683,9 @@ class DictTest(ValueSpecTest):
         vs.Dict([('a', vs.Int())]))
 
     with self.assertRaisesRegex(
-        TypeError, 'Schema definition should be a list of schema.Field or '
-        'a list of tuples of \\(key, value, description, metadata\\).'):
-      vs.Dict({})
+        TypeError,
+        'Schema definition should be a dict .* a list .*'):
+      vs.Dict(int)
 
     with self.assertRaisesRegex(
         TypeError, 'The 1st element of field definition should be of '
@@ -2782,7 +2847,10 @@ class UnionTest(ValueSpecTest):
   """Tests for `Union`."""
 
   def test_generic(self):
+    self.assertEqual(vs.Union[int, None], vs.Int().noneable())
     self.assertEqual(vs.Union[int, str], vs.Union([vs.Int(), vs.Str()]))
+    self.assertEqual(vs.Union[int, str, None],
+                     vs.Union([vs.Int(), vs.Str()]).noneable())
     with self.assertRaisesRegex(
         TypeError, '`pg.typing.Union` requires at least 2 type arguments'):
       _ = vs.Union[str]

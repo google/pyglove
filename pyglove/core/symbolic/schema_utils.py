@@ -75,7 +75,7 @@ def augment_schema(
 
   return formalize_schema(
       pg_typing.create_schema(
-          maybe_field_list=fields,
+          fields=fields,
           name=schema.name,
           base_schema_list=[schema] if extend else [],
           description=description or schema.description,
@@ -217,7 +217,7 @@ def function_schema(
 
   return formalize_schema(
       pg_typing.create_schema(
-          maybe_field_list=arg_fields,
+          fields=arg_fields,
           name=f'{func.__module__}.{func.__name__}',
           metadata={
               'init_arg_list': init_arg_list,

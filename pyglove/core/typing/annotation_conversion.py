@@ -94,7 +94,7 @@ def _value_spec_from_type_annotation(
     return vs.Float()
   elif annotation is str:
     return vs.Str()
-  elif annotation is typing.Any:
+  elif annotation is typing.Any or annotation is vs.Any:
     return vs.Any().annotate(annotation)
 
   origin = typing.get_origin(annotation) or annotation
