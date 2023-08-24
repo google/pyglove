@@ -61,4 +61,5 @@ class EarlyStoppingPolicy(symbolic.Object):
     """
     for trial in history:
       if trial.status in ['COMPLETED', 'PENDING', 'STOPPING']:
+        # TODO(daiyip): Stopped trials do not need to be fed back.
         self.should_stop_early(trial)
