@@ -47,11 +47,8 @@ class TypeConversionTest(unittest.TestCase):
     self.assertIs(type_conversion.get_converter(A, int), a_converter)
     self.assertIs(type_conversion.get_json_value_converter(A), a_converter)
 
-    self.assertIsNone(
-        type_conversion.get_first_applicable_converter(A, (float, bool)))
-    self.assertIs(
-        type_conversion.get_first_applicable_converter(A, (float, int)),
-        a_converter)
+    self.assertIsNone(type_conversion.get_converter(A, (float, bool)))
+    self.assertIs(type_conversion.get_converter(A, (float, int)), a_converter)
 
     # B is a subclass of A, so A's converter applies.
     self.assertIs(type_conversion.get_converter(B, str), a_converter)
@@ -67,11 +64,8 @@ class TypeConversionTest(unittest.TestCase):
     self.assertIs(type_conversion.get_converter(B, int), b_converter)
     self.assertIs(type_conversion.get_json_value_converter(B), b_converter)
 
-    self.assertIsNone(
-        type_conversion.get_first_applicable_converter(B, (float, bool)))
-    self.assertIs(
-        type_conversion.get_first_applicable_converter(B, (float, int)),
-        b_converter)
+    self.assertIsNone(type_conversion.get_converter(B, (float, bool)))
+    self.assertIs(type_conversion.get_converter(B, (float, int)), b_converter)
 
     # Test generics.
     T = typing.TypeVar('T')

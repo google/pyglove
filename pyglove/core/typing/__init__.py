@@ -293,6 +293,7 @@ Following is an example of using `CustomTyping` to extend the schema system::
 """
 
 # pylint: disable=g-bad-import-order
+# pylint: disable=g-importing-member
 # pylint: disable=g-import-not-at-top
 
 # Missing value.
@@ -356,7 +357,6 @@ from pyglove.core.typing.annotated import Annotated
 # Type conversion.
 from pyglove.core.typing.type_conversion import register_converter
 from pyglove.core.typing.type_conversion import get_converter
-from pyglove.core.typing.type_conversion import get_first_applicable_converter
 from pyglove.core.typing.type_conversion import get_json_value_converter
 
 # Inspect helpers.
@@ -369,7 +369,7 @@ from pyglove.core.typing.inspect import has_generic_bases
 from pyglove.core.typing.inspect import callable_eq
 
 # Annotation conversion.
-import pyglove.core.typing.annotation_conversion
+import pyglove.core.typing.annotation_conversion  # pylint: disable=unused-import
 
 # Interface for custom typing.
 from pyglove.core.typing.custom_typing import CustomTyping
@@ -387,4 +387,5 @@ from pyglove.core.typing.callable_ext import CallableWithOptionalKeywordArgs
 from pyglove.core.typing.pytype_support import *
 
 # pylint: enable=g-import-not-at-top
+# pylint: enable=g-importing-member
 # pylint: enable=g-bad-import-order

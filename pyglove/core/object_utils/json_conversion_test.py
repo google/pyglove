@@ -14,7 +14,6 @@
 """Tests for pyglove.object_utils.json_conversion."""
 
 import abc
-import datetime
 import typing
 import unittest
 from pyglove.core.object_utils import json_conversion
@@ -268,7 +267,6 @@ class JSONConvertibleTest(unittest.TestCase):
 
   def test_json_conversion_for_opaque_objects(self):
     self.assert_conversion_equal(X(1))
-    self.assert_conversion_equal(datetime.datetime.now())
 
     class LocalX:
       pass

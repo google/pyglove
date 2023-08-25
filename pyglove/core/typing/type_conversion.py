@@ -80,19 +80,12 @@ _TYPE_CONVERTER_REGISTRY = _TypeConverterRegistry()
 
 
 def get_converter(
-    src: Type[Any], dest: Type[Any]
+    src: Type[Any], dest: Union[Type[Any], Tuple[Type[Any], ...]]
 ) -> Optional[Callable[[Any], Any]]:
   """Get converter from source type to destination type."""
-  return _TYPE_CONVERTER_REGISTRY.get_converter(src, dest)
-
-
-def get_first_applicable_converter(
-    src_type: Type[Any],
-    dest_type: Union[Type[Any], Tuple[Type[Any], ...]]):
-  """Get first applicable converter."""
-  dest_types = dest_type if isinstance(dest_type, tuple) else (dest_type,)
-  for dest_type in dest_types:
-    converter = get_converter(src_type, dest_type)
+  dest_types = dest if isinstance(dest, tuple) else (dest,)
+  for dest in dest_types:
+    converter = _TYPE_CONVERTER_REGISTRY.get_converter(src, dest)
     if converter is not None:
       return converter
   return None
