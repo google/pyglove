@@ -22,7 +22,7 @@ import marshal
 import pickle
 import types
 import typing
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -232,23 +232,36 @@ class JSONConvertible(metaclass=abc.ABCMeta):
   @classmethod
   def to_json_dict(
       cls,
-      fields: Dict[str, Any],
+      fields: Dict[str, Union[Tuple[Any, Any], Any]],
+      *,
+      exclude_default=False,
+      exclude_keys: Optional[Set[str]] = None,
       **kwargs) -> Dict[str, JSONValueType]:
     """Helper method to create JSON dict from class and field."""
     json_dict = {JSONConvertible.TYPE_NAME_KEY: _type_name(cls)}
-    json_dict.update({k: to_json(v, **kwargs) for k, v in fields.items()})
+    exclude_keys = exclude_keys or set()
+    if exclude_default:
+      for k, (v, default) in fields.items():
+        if k not in exclude_keys and v != default:
+          json_dict[k] = to_json(v, **kwargs)
+    else:
+      json_dict.update(
+          {k: to_json(v, **kwargs) for k, v in fields.items()
+           if k not in exclude_keys})
     return json_dict
 
-  @classmethod
   def __init_subclass__(cls):
     super().__init_subclass__()
     if not inspect.isabstract(cls) and cls.auto_register:
-      type_name = getattr(cls, 'type_name', _type_name(cls))
+      type_name = _type_name(cls)
       JSONConvertible.register(type_name, cls, override_existing=True)
 
 
 def _type_name(type_or_function: Union[Type[Any], types.FunctionType]) -> str:
   """Returns the ID for a type or function."""
+  type_name = getattr(type_or_function, 'type_name', None)
+  if type_name is not None:
+    return type_name
   return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
 
 

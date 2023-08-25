@@ -411,6 +411,9 @@ class Bool(PrimitiveType):
     pg.typing.Bool().freeze(True)
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.Bool'
+
   def __init__(
       self,
       default: typing.Optional[bool] = MISSING_VALUE,
@@ -429,10 +432,11 @@ class Bool(PrimitiveType):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            default=self.default,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            default=(self.default, MISSING_VALUE),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -461,6 +465,9 @@ class Str(Generic, PrimitiveType):
     pg.typing.Str().freeze('foo')
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.Str'
+
   def __init__(
       self,
       default: typing.Optional[str] = MISSING_VALUE,
@@ -482,11 +489,12 @@ class Str(Generic, PrimitiveType):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            default=self.default,
-            regex=self._regex.pattern if self._regex else None,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            default=(self.default, MISSING_VALUE),
+            regex=(self._regex.pattern if self._regex else None, None),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -654,12 +662,13 @@ class Number(Generic, PrimitiveType):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            default=self.default,
-            min_value=self._min_value,
-            max_value=self._max_value,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            default=(self.default, MISSING_VALUE),
+            min_value=(self._min_value, None),
+            max_value=(self._max_value, None),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -699,6 +708,9 @@ class Int(Number):
     # A frozen int with value set to 1 that is not modifiable by subclasses.
     pg.typing.Int().freeze(1)
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Int'
 
   def __init__(
       self,
@@ -744,6 +756,9 @@ class Float(Number):
     pg.typing.Float().freeze(1)
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.Float'
+
   def __init__(
       self,
       default: typing.Optional[float] = MISSING_VALUE,
@@ -781,6 +796,9 @@ class Enum(Generic, PrimitiveType):
    # A frozen enum with value set to 'a' that is not modifiable by subclasses.
     pg.typing.Enum('a', ['a', 'b', 'c']).freeze('a')
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Enum'
 
   def __init__(
       self,
@@ -885,8 +903,11 @@ class Enum(Generic, PrimitiveType):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            default=self.default, values=self._values, frozen=self._frozen
+            default=(self.default, MISSING_VALUE),
+            values=(self._values, None),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -916,6 +937,9 @@ class List(Generic, ValueSpecBase):
    # A frozen list that prevents subclass to extend/override.
     pg.typing.List(pg.typing.Int()).freeze([1])
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.List'
 
   def __init__(
       self,
@@ -1090,14 +1114,15 @@ class List(Generic, ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            element_value=self._element.value,
-            default=self._default,
-            min_size=self.min_size,
-            max_size=self.max_size,
-            user_validator=self._user_validator,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            element_value=(self._element.value, None),
+            default=(self._default, MISSING_VALUE),
+            min_size=(self.min_size, None),
+            max_size=(self.max_size, None),
+            user_validator=(self._user_validator, None),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -1131,6 +1156,9 @@ class Tuple(Generic, ValueSpecBase):
     # A frozen tuple that prevents subclass to extend/override.
     pg.typing.Tuple(pg.typing.Int()).freeze((1,))
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Tuple'
 
   def __init__(
       self,
@@ -1435,14 +1463,15 @@ class Tuple(Generic, ValueSpecBase):
 
     return self.to_json_dict(
         fields=dict(
-            element_values=element_values,
-            default=self._default,
-            min_size=min_size,
-            max_size=max_size,
-            user_validator=self._user_validator,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            element_values=(element_values, None),
+            default=(self._default, MISSING_VALUE),
+            min_size=(min_size, None),
+            max_size=(max_size, None),
+            user_validator=(self._user_validator, None),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -1488,6 +1517,9 @@ class Dict(Generic, ValueSpecBase):
         ('y, 2.0)
     ]).freeze()
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Dict'
 
   def __init__(
       self,
@@ -1627,14 +1659,14 @@ class Dict(Generic, ValueSpecBase):
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     fields = dict(
-        schema=self._schema,
-        user_validator=self._user_validator,
-        is_noneable=self._is_noneable,
-        frozen=self._frozen,
+        schema=(self._schema, None),
+        user_validator=(self._user_validator, None),
+        is_noneable=(self._is_noneable, False),
+        frozen=(self._frozen, False),
     )
     if not self._use_generated_default:
-      fields['default'] = self._default
-    return self.to_json_dict(fields=fields, **kwargs)
+      fields['default'] = (self._default, MISSING_VALUE)
+    return self.to_json_dict(fields=fields, exclude_default=True, **kwargs)
 
   @classmethod
   def with_type_args(cls, type_args: typing.Any) -> 'Dict':
@@ -1676,6 +1708,9 @@ class Object(Generic, ValueSpecBase):
     # An instance of class A with default value.
     pg.typing.Object(A, default=A())
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Object'
 
   def __init__(
       self,
@@ -1818,12 +1853,13 @@ class Object(Generic, ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            t=self.cls,
-            default=self._default,
-            user_validator=self._user_validator,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            t=(self.cls, None),
+            default=(self._default, MISSING_VALUE),
+            user_validator=(self._user_validator, None),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -1861,6 +1897,9 @@ class Callable(Generic, ValueSpecBase):
 
   See also: :class:`pyglove.typing.Functor`.
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Callable'
 
   def __init__(
       self,
@@ -2104,15 +2143,16 @@ class Callable(Generic, ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            args=self._args,
-            kw=self._kw,
-            returns=self._return_value,
-            default=self._default,
-            user_validator=self._user_validator,
-            callable_type=self._value_type,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            args=(self._args, []),
+            kw=(self._kw, []),
+            returns=(self._return_value, None),
+            default=(self._default, MISSING_VALUE),
+            user_validator=(self._user_validator, None),
+            callable_type=(self._value_type, None),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -2160,6 +2200,9 @@ class Functor(Callable):
   See also: :class:`pyglove.typing.Callable`.
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.Functor'
+
   def __init__(
       self,
       args: typing.Optional[typing.List[ValueSpecOrAnnotation]] = None,
@@ -2191,18 +2234,9 @@ class Functor(Callable):
     return object_utils.Functor
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
-    return self.to_json_dict(
-        fields=dict(
-            args=self._args,
-            kw=self._kw,
-            returns=self._return_value,
-            default=self._default,
-            user_validator=self._user_validator,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
-        ),
-        **kwargs,
-    )
+    exclude_keys = kwargs.pop('exclude_keys', set())
+    exclude_keys.add('callable_type')
+    return super().to_json(exclude_keys=exclude_keys, **kwargs)
 
 
 class Type(Generic, ValueSpecBase):
@@ -2223,6 +2257,9 @@ class Type(Generic, ValueSpecBase):
     # (B is a subclass of A).
     pg.typing.Type(A, default=B)
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Type'
 
   def __init__(
       self,
@@ -2302,11 +2339,12 @@ class Type(Generic, ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            t=self._expected_type,
-            default=self._default,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            t=(self._expected_type, None),
+            default=(self._default, MISSING_VALUE),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -2344,6 +2382,9 @@ class Union(Generic, ValueSpecBase):
         pg.typing.Object(B),
     ], default={'x': 1})
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.Union'
 
   def __init__(
       self,
@@ -2582,11 +2623,12 @@ class Union(Generic, ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            candidates=self._candidates,
-            default=self._default,
-            is_noneable=self._is_noneable,
-            frozen=self._frozen,
+            candidates=(self._candidates, None),
+            default=(self._default, MISSING_VALUE),
+            is_noneable=(self._is_noneable, False),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -2681,6 +2723,9 @@ class Any(ValueSpecBase):
     performed on this type.
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.Any'
+
   def __init__(
       self,
       default: typing.Any = MISSING_VALUE,
@@ -2735,11 +2780,12 @@ class Any(ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
         fields=dict(
-            default=self._default,
-            annotation=self._annotation,
-            user_validator=self._user_validator,
-            frozen=self._frozen,
+            default=(self._default, MISSING_VALUE),
+            annotation=(self._annotation, MISSING_VALUE),
+            user_validator=(self._user_validator, None),
+            frozen=(self._frozen, False),
         ),
+        exclude_default=True,
         **kwargs,
     )
 

@@ -134,11 +134,11 @@ class JSONConvertibleTest(unittest.TestCase):
 
     class T(json_conversion.JSONConvertible):
 
-      def __init__(self, x):
+      def __init__(self, x=None):
         self.x = x
 
       def to_json(self):
-        return T.to_json_dict(dict(x=self.x))
+        return T.to_json_dict(dict(x=(self.x, None)), exclude_default=True)
 
       def __eq__(self, other):
         return isinstance(other, T) and self.x == other.x
@@ -154,6 +154,15 @@ class JSONConvertibleTest(unittest.TestCase):
     ])
     self.assertEqual(json_conversion.from_json(json_value),
                      [(T(1), 2), {'y': T(3)}])
+
+    # Omitting default values.
+    json_value = json_conversion.to_json([(T(), 2), {'y': T(3)}])
+    self.assertEqual(json_value, [
+        ['__tuple__', {'_type': typename(T)}, 2],
+        {'y': {'_type': typename(T), 'x': 3}}
+    ])
+    self.assertEqual(json_conversion.from_json(json_value),
+                     [(T(), 2), {'y': T(3)}])
 
     # Test bad cases.
     with self.assertRaisesRegex(

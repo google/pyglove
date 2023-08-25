@@ -740,11 +740,12 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
     return self.to_json_dict(
         fields=dict(
-            key_spec=self._key,
-            value_spec=self._value,
-            description=self._description,
-            metadata=self._metadata,
+            key_spec=(self._key, None),
+            value_spec=(self._value, None),
+            description=(self._description, None),
+            metadata=(self._metadata, {}),
         ),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -1247,12 +1248,13 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
   def to_json(self, **kwargs) -> Dict[str, Any]:
     return self.to_json_dict(
         fields=dict(
-            fields=list(self._fields.values()),
-            name=self._name,
-            description=self._description,
-            allow_nonconst_keys=self._allow_nonconst_keys,
-            metadata=self._metadata,
+            fields=(list(self._fields.values()), []),
+            name=(self._name, None),
+            description=(self._description, None),
+            allow_nonconst_keys=(self._allow_nonconst_keys, False),
+            metadata=(self._metadata, {}),
         ),
+        exclude_default=True,
         **kwargs,
     )
 

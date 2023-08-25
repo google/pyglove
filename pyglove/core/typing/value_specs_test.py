@@ -34,6 +34,10 @@ class ValueSpecTest(unittest.TestCase):
   def assert_json_conversion(self, v):
     self.assertEqual(object_utils.from_json(v.to_json()), v)
 
+  def assert_json_conversion_key(self, v, key):
+    self.assertEqual(
+        v.to_json()[object_utils.JSONConvertible.TYPE_NAME_KEY], key)
+
 
 class BoolTest(ValueSpecTest):
   """Tests for `Bool`."""
@@ -148,6 +152,7 @@ class BoolTest(ValueSpecTest):
     self.assert_json_conversion(vs.Bool(True))
     self.assert_json_conversion(vs.Bool(True).noneable())
     self.assert_json_conversion(vs.Bool().noneable().freeze(True))
+    self.assert_json_conversion_key(vs.Bool(), 'pyglove.typing.Bool')
 
   def test_or(self):
     self.assertEqual(vs.Bool() | None, vs.Bool().noneable())
@@ -296,7 +301,7 @@ class StrTest(ValueSpecTest):
     self.assert_json_conversion(vs.Str('a'))
     self.assert_json_conversion(vs.Str('a', '.*').noneable())
     self.assert_json_conversion(vs.Str().noneable().freeze('abc'))
-
+    self.assert_json_conversion_key(vs.Str(), 'pyglove.typing.Str')
 
 class IntTest(ValueSpecTest):
   """Tests for `Int`."""
@@ -487,6 +492,7 @@ class IntTest(ValueSpecTest):
     self.assert_json_conversion(vs.Int(min_value=1).noneable())
     self.assert_json_conversion(vs.Int(max_value=2).noneable())
     self.assert_json_conversion(vs.Int(min_value=1, max_value=2).freeze(1))
+    self.assert_json_conversion_key(vs.Int(), 'pyglove.typing.Int')
 
 
 class FloatTest(ValueSpecTest):
@@ -667,6 +673,7 @@ class FloatTest(ValueSpecTest):
     self.assert_json_conversion(
         vs.Float(min_value=1.0, max_value=2.0).freeze(1.0)
     )
+    self.assert_json_conversion_key(vs.Float(), 'pyglove.typing.Float')
 
 
 class EnumTest(ValueSpecTest):
@@ -811,6 +818,7 @@ class EnumTest(ValueSpecTest):
     self.assert_json_conversion(vs.Enum(1, [1, 'a', None]))
     self.assert_json_conversion(vs.Enum(1, [1, 'a']).noneable())
     self.assert_json_conversion(vs.Enum(1, [1, 'a']).noneable().freeze(None))
+    self.assert_json_conversion_key(vs.Enum(1, [1, 2]), 'pyglove.typing.Enum')
 
 
 class ListTest(ValueSpecTest):
@@ -1116,6 +1124,7 @@ class ListTest(ValueSpecTest):
         raise ValueError('list must be sorted.')
 
     self.assert_json_conversion(vs.List(vs.Int(), user_validator=validator))
+    self.assert_json_conversion_key(vs.List(vs.Int()), 'pyglove.typing.List')
 
 
 class TupleTest(ValueSpecTest):
@@ -1543,6 +1552,7 @@ class TupleTest(ValueSpecTest):
         raise ValueError('tuple must be sorted.')
 
     self.assert_json_conversion(vs.Tuple(vs.Int(), user_validator=validator))
+    self.assert_json_conversion_key(vs.Tuple(vs.Int()), 'pyglove.typing.Tuple')
 
 
 class DictTest(ValueSpecTest):
@@ -1902,6 +1912,7 @@ class DictTest(ValueSpecTest):
     self.assert_json_conversion(
         vs.Dict([(ks.StrKey(), str)], user_validator=validate)
     )
+    self.assert_json_conversion_key(vs.Dict(), 'pyglove.typing.Dict')
 
 
 # Global classes used for JSON conversion test.
@@ -2188,6 +2199,7 @@ class ObjectTest(ValueSpecTest):
       del x
 
     self.assert_json_conversion(vs.Object(P, user_validator=validator))
+    self.assert_json_conversion_key(vs.Object(P), 'pyglove.typing.Object')
 
 
 class CallableTest(ValueSpecTest):
@@ -2609,6 +2621,7 @@ class CallableTest(ValueSpecTest):
       del x
 
     self.assert_json_conversion(vs.Callable(user_validator=validator))
+    self.assert_json_conversion_key(vs.Callable(), 'pyglove.typing.Callable')
 
     # Functor.
     self.assert_json_conversion(vs.Functor())
@@ -2619,6 +2632,7 @@ class CallableTest(ValueSpecTest):
             returns=vs.Any(int),
         ).noneable()
     )
+    self.assert_json_conversion_key(vs.Functor(), 'pyglove.typing.Functor')
 
 
 class TypeTest(ValueSpecTest):
@@ -2841,6 +2855,7 @@ class TypeTest(ValueSpecTest):
     self.assert_json_conversion(vs.Type(typing.List[int]))
     self.assert_json_conversion(vs.Type(Exception).noneable())
     self.assert_json_conversion(vs.Type(Exception).freeze(ValueError))
+    self.assert_json_conversion_key(vs.Type(Exception), 'pyglove.typing.Type')
 
 
 class UnionTest(ValueSpecTest):
@@ -3183,6 +3198,8 @@ class UnionTest(ValueSpecTest):
     self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]).noneable())
     self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()], default=1))
     self.assert_json_conversion(vs.Union([vs.Int(), vs.Str()]).freeze(1))
+    self.assert_json_conversion_key(
+        vs.Union([vs.Int(), vs.Str()]), 'pyglove.typing.Union')
 
 
 class GenericTypeAliasesTest(ValueSpecTest):
@@ -3306,6 +3323,7 @@ class AnyTest(ValueSpecTest):
     self.assert_json_conversion(vs.Any(typing.Any))
     self.assert_json_conversion(vs.Any(default=1))
     self.assert_json_conversion(vs.Any().freeze(1))
+    self.assert_json_conversion_key(vs.Any(), 'pyglove.typing.Any')
 
 
 @contextlib.contextmanager

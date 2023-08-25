@@ -48,6 +48,9 @@ class ConstStrKey(KeySpecBase, object_utils.StrKey):
       assert hash(key) == hash('x')
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.ConstStrKey'
+
   @property
   def is_const(self) -> bool:
     return True
@@ -130,6 +133,9 @@ class StrKey(NonConstKey):
       assert not key.match('bar')
   """
 
+  # Serialization key.
+  type_name = 'pyglove.typing.StrKey'
+
   def __init__(self, regex: Optional[str] = None):
     """Constructor.
 
@@ -164,7 +170,8 @@ class StrKey(NonConstKey):
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
     regex = self._regex.pattern if self._regex is not None else None
     return self.to_json_dict(
-        fields=dict(regex=regex),
+        fields=dict(regex=(regex, None)),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -194,6 +201,9 @@ class ListKey(NonConstKey):
       assert key.match(5)
       assert not key.match(0)
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.ListKey'
 
   def __init__(
       self, min_value: int = 0, max_value: Optional[int] = None):
@@ -244,7 +254,10 @@ class ListKey(NonConstKey):
 
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
     return self.to_json_dict(
-        fields=dict(min_value=self._min_value, max_value=self._max_value),
+        fields=dict(
+            min_value=(self._min_value, None),
+            max_value=(self._max_value, None)),
+        exclude_default=True,
         **kwargs,
     )
 
@@ -268,6 +281,9 @@ class TupleKey(NonConstKey):
       assert key.match(0)
       assert not key.match(1)
   """
+
+  # Serialization key.
+  type_name = 'pyglove.typing.TupleKey'
 
   def __init__(self, index: Optional[int] = None):
     """Constructor.
@@ -305,7 +321,8 @@ class TupleKey(NonConstKey):
 
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
     return self.to_json_dict(
-        fields=dict(index=self._index),
+        fields=dict(index=(self._index, None)),
+        exclude_default=True,
         **kwargs,
     )
 
