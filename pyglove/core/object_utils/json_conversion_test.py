@@ -14,6 +14,7 @@
 """Tests for pyglove.object_utils.json_conversion."""
 
 import abc
+import datetime
 import typing
 import unittest
 from pyglove.core.object_utils import json_conversion
@@ -37,6 +38,15 @@ class X:
 
       def instance_method(self):
         return str(self)
+
+  def __init__(self, x):
+    self.x = x
+
+  def __eq__(self, other):
+    return isinstance(other, X) and self.x == other.x
+
+  def __ne__(self, other):
+    return not self.__eq__(other)
 
 
 def bar():
@@ -255,6 +265,23 @@ class JSONConvertibleTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Cannot convert instance method .* to JSON.'):
       json_conversion.to_json(X.Y.Z().instance_method)
+
+  def test_json_conversion_for_opaque_objects(self):
+    self.assert_conversion_equal(X(1))
+    self.assert_conversion_equal(datetime.datetime.now())
+
+    class LocalX:
+      pass
+
+    with self.assertRaisesRegex(
+        ValueError, 'Cannot encode opaque object .* with pickle.'):
+      json_conversion.to_json(LocalX())
+
+    json_dict = json_conversion.to_json(X(1))
+    json_dict['value'] = 'abc'
+    with self.assertRaisesRegex(
+        ValueError, 'Cannot decode opaque object with pickle.'):
+      json_conversion.from_json(json_dict)
 
 
 if __name__ == '__main__':

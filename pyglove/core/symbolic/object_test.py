@@ -2874,7 +2874,7 @@ class SerializationTest(unittest.TestCase):
 
     c = self._C(self._X(1), y=True)
     with self.assertRaisesRegex(
-        ValueError, 'Cannot convert complex type .* to JSON.'):
+        ValueError, 'Cannot encode opaque object .* with pickle'):
       c.to_json_str()
 
     pg_typing.register_converter(self._X, int, convert_fn=lambda x: x.value)
@@ -2902,7 +2902,7 @@ class SerializationTest(unittest.TestCase):
       pass
 
     with self.assertRaisesRegex(
-        ValueError, 'Cannot convert complex type .* to JSON.'):
+        ValueError, 'Cannot encode opaque object .* with pickle'):
       base.to_json(self._A(w=Z(), y=True))
 
     with self.assertRaisesRegex(

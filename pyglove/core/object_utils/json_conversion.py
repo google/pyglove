@@ -19,6 +19,7 @@ import collections
 import importlib
 import inspect
 import marshal
+import pickle
 import types
 import typing
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
@@ -199,8 +200,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     Args:
       type_name: A global unique string identifier for subclass.
       subclass: A subclass of JSONConvertible.
-      override_existing: If True, registering an type name is allowed.
-        Otherwise an error will be raised.
+      override_existing: If True, override the class if the type name is
+        already present in the registry. Otherwise an error will be raised.
     """
     cls._TYPE_REGISTRY.register(type_name, subclass, override_existing)
 
@@ -244,6 +245,51 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     if not inspect.isabstract(cls) and cls.auto_register:
       type_name = getattr(cls, 'type_name', _type_name(cls))
       JSONConvertible.register(type_name, cls, override_existing=True)
+
+
+def _type_name(type_or_function: Union[Type[Any], types.FunctionType]) -> str:
+  """Returns the ID for a type or function."""
+  return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
+
+
+class _OpaqueObject(JSONConvertible):
+  """An JSON converter for opaque Python objects."""
+
+  def __init__(self, value: Any, encoded: bool = False):
+    if encoded:
+      value = self.decode(value)
+    self._value = value
+
+  @property
+  def value(self) -> Any:
+    """Returns the decoded value."""
+    return self._value
+
+  def encode(self, value: Any) -> JSONValueType:
+    try:
+      return base64.encodebytes(pickle.dumps(value)).decode('utf-8')
+    except Exception as e:
+      raise ValueError(
+          f'Cannot encode opaque object {value!r} with pickle.') from e
+
+  def decode(self, json_value: JSONValueType) -> Any:
+    assert isinstance(json_value, str), json_value
+    try:
+      return pickle.loads(base64.decodebytes(json_value.encode('utf-8')))
+    except Exception as e:
+      raise ValueError('Cannot decode opaque object with pickle.') from e
+
+  def to_json(self, **kwargs) -> JSONValueType:
+    return self.to_json_dict({
+        'value': self.encode(self._value)
+    }, **kwargs)
+
+  @classmethod
+  def from_json(cls, json_value: JSONValueType, *args, **kwargs) -> Any:
+    del args, kwargs
+    assert isinstance(json_value, dict) and 'value' in json_value, json_value
+    encoder = cls(json_value['value'], encoded=True)
+    return encoder.value
 
 
 def registered_types() -> Iterable[Tuple[str, Type[JSONConvertible]]]:
@@ -298,7 +344,7 @@ def to_json(value: Any, **kwargs) -> Any:
       converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
       if converter:
         return to_json(converter(value))
-    raise ValueError(f'Cannot convert complex type {value} to JSON.')
+    return _OpaqueObject(value).to_json(**kwargs)
 
 
 def from_json(json_value: JSONValueType) -> Any:
@@ -329,8 +375,6 @@ def from_json(json_value: JSONValueType) -> Any:
       return _function_from_json(json_value)
     elif type_name == 'method':
       return _method_from_json(json_value)
-    # elif type_name == 'annotation':
-    #   return _annotation_from_json(json_value)
     else:
       cls = JSONConvertible.class_from_typename(type_name)
       if cls is None:
@@ -344,11 +388,6 @@ def from_json(json_value: JSONValueType) -> Any:
 #
 # Helper methods for loading/saving Python types and functions.
 #
-
-
-def _type_name(type_or_function: Union[Type[Any], types.FunctionType]) -> str:
-  """Returns the ID for a type or function."""
-  return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
 
 
 def _type_to_json(t: Type[Any]) -> Dict[str, str]:

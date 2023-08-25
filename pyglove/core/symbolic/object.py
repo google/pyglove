@@ -456,7 +456,9 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     Returns:
       A symbolic Object instance.
     """
-    return cls(allow_partial=allow_partial, root_path=root_path, **json_value)
+    return cls(allow_partial=allow_partial, root_path=root_path, **{
+        k: base.from_json(v) for k, v in json_value.items()
+    })
 
   @object_utils.explicit_method_override
   def __init__(
