@@ -1577,34 +1577,6 @@ class SerializationTest(unittest.TestCase):
         ])))
     self.assertEqual(sl.to_json_str(), '[{"x": 1, "y": null}]')
 
-  def test_serialization_with_converter(self):
-
-    class A:
-
-      def __init__(self, value: float):
-        self.value = value
-
-      def __eq__(self, other):
-        return isinstance(other, A) and other.value == self.value
-
-    spec = pg_typing.List(pg_typing.Dict([
-        ('x', pg_typing.Int()),
-        ('y', pg_typing.Object(A))
-    ]))
-    sl = List([dict(x=1, y=A(2.0))], value_spec=spec)
-    with self.assertRaisesRegex(
-        ValueError, 'Cannot encode opaque object .* with pickle.'):
-      sl.to_json_str()
-
-    pg_typing.register_converter(A, float, convert_fn=lambda x: x.value)
-    pg_typing.register_converter(float, A, convert_fn=A)
-
-    self.assertEqual(sl.to_json(), [{'x': 1, 'y': 2.0}])
-    self.assertEqual(List.from_json(sl.to_json(), value_spec=spec), sl)
-
-    self.assertEqual(sl.to_json_str(), '[{"x": 1, "y": 2.0}]')
-    self.assertEqual(base.from_json_str(sl.to_json_str(), value_spec=spec), sl)
-
   def test_serialization_with_tuple(self):
     self.assertEqual(base.to_json_str((1, 2)), '["__tuple__", 1, 2]')
     self.assertEqual(base.from_json_str('["__tuple__", 1]'), (1,))

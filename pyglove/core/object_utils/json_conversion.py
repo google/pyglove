@@ -22,7 +22,7 @@ import marshal
 import pickle
 import types
 import typing
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -138,12 +138,6 @@ class JSONConvertible(metaclass=abc.ABCMeta):
 
   # Marker (as the first element of a list) for serializing tuples.
   TUPLE_MARKER = '__tuple__'
-
-  # Type converter that converts a complex type to basic JSON value type.
-  # When this field is set by users, the converter will be invoked when a
-  # complex value cannot be serialized by existing methods.
-  TYPE_CONVERTER: Optional[
-      Callable[[Type[Any]], Callable[[Any], JSONValueType]]] = None
 
   # Class property that indicates whether to automatically register class
   # for deserialization. Subclass can override.
@@ -340,10 +334,6 @@ def to_json(value: Any, **kwargs) -> Any:
   elif value is ...:
     return {JSONConvertible.TYPE_NAME_KEY: 'type', 'name': 'builtins.Ellipsis'}
   else:
-    if JSONConvertible.TYPE_CONVERTER is not None:
-      converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
-      if converter:
-        return to_json(converter(value))
     return _OpaqueObject(value).to_json(**kwargs)
 
 

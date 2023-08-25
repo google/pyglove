@@ -356,8 +356,6 @@ from pyglove.core.typing.annotated import Annotated
 # Type conversion.
 from pyglove.core.typing.type_conversion import register_converter
 from pyglove.core.typing.type_conversion import get_converter
-from pyglove.core.typing.type_conversion import get_first_applicable_converter
-from pyglove.core.typing.type_conversion import get_json_value_converter
 
 # Inspect helpers.
 from pyglove.core.typing.inspect import is_subclass
