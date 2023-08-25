@@ -27,8 +27,6 @@ class _TypeConverterRegistry:
   def __init__(self):
     """Constructor."""
     self._converter_list = []
-    self._json_value_types = set(
-        [int, float, bool, type(None), list, tuple, dict, str])
 
   def register(
       self,
@@ -44,11 +42,7 @@ class _TypeConverterRegistry:
     ):
       raise TypeError('Argument \'src\' and \'dest\' must be a type or '
                       'tuple of types.')
-    if isinstance(dest, tuple):
-      json_value_convertible = any(d in self._json_value_types for d in dest)
-    else:
-      json_value_convertible = dest in self._json_value_types
-    self._converter_list.append((src, dest, convert_fn, json_value_convertible))
+    self._converter_list.append((src, dest, convert_fn))
 
   def get_converter(
       self, src: Type[Any], dest: Type[Any]) -> Optional[Callable[[Any], Any]]:
@@ -58,7 +52,7 @@ class _TypeConverterRegistry:
     # We may consider more efficient way to do lookup in future.
     # NOTE(daiyip): We do reverse lookup since usually subclass converter
     # is register after base class.
-    for src_type, dest_type, converter, _ in reversed(self._converter_list):
+    for src_type, dest_type, converter in reversed(self._converter_list):
       if pg_inspect.is_subclass(src, src_type):
         dest_types = dest_type if isinstance(dest_type, tuple) else (dest_type,)
         for dest_type in dest_types:
@@ -66,41 +60,20 @@ class _TypeConverterRegistry:
             return converter
     return None
 
-  def get_json_value_converter(
-      self, src: Type[Any]) -> Optional[Callable[[Any], Any]]:
-    """Get converter from source type to a JSON simple type."""
-    for src_type, _, converter, json_value_convertible in reversed(
-        self._converter_list):
-      if pg_inspect.is_subclass(src, src_type) and json_value_convertible:
-        return converter
-    return None
-
 
 _TYPE_CONVERTER_REGISTRY = _TypeConverterRegistry()
 
 
 def get_converter(
-    src: Type[Any], dest: Type[Any]
+    src: Type[Any], dest: Union[Type[Any], Tuple[Type[Any], ...]]
 ) -> Optional[Callable[[Any], Any]]:
   """Get converter from source type to destination type."""
-  return _TYPE_CONVERTER_REGISTRY.get_converter(src, dest)
-
-
-def get_first_applicable_converter(
-    src_type: Type[Any],
-    dest_type: Union[Type[Any], Tuple[Type[Any], ...]]):
-  """Get first applicable converter."""
-  dest_types = dest_type if isinstance(dest_type, tuple) else (dest_type,)
-  for dest_type in dest_types:
-    converter = get_converter(src_type, dest_type)
+  dest_types = dest if isinstance(dest, tuple) else (dest,)
+  for dest in dest_types:
+    converter = _TYPE_CONVERTER_REGISTRY.get_converter(src, dest)
     if converter is not None:
       return converter
   return None
-
-
-def get_json_value_converter(src: Type[Any]) -> Optional[Callable[[Any], Any]]:
-  """Get converter from source type to a JSON simple type."""
-  return _TYPE_CONVERTER_REGISTRY.get_json_value_converter(src)
 
 
 def register_converter(
@@ -148,4 +121,3 @@ def _register_builtin_converters():
 
 
 _register_builtin_converters()
-object_utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter

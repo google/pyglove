@@ -2870,21 +2870,6 @@ class SerializationTest(unittest.TestCase):
     a = self._A(Y(1), y=True)
     self.assertEqual(base.from_json_str(a.to_json_str()), a)
 
-  def test_serialization_with_converter(self):
-
-    c = self._C(self._X(1), y=True)
-    with self.assertRaisesRegex(
-        ValueError, 'Cannot encode opaque object .* with pickle'):
-      c.to_json_str()
-
-    pg_typing.register_converter(self._X, int, convert_fn=lambda x: x.value)
-    pg_typing.register_converter(int, self._X, convert_fn=self._X)
-
-    self.assertEqual(
-        c.to_json_str(),
-        '{"_type": "%s", "w": 1, "x": 1, "y": true}' % self._C.type_name)
-    self.assertEqual(base.from_json_str(c.to_json_str()), c)
-
   def test_hide_default_values(self):
     b = self._B('foo', 1)
     self.assertEqual(

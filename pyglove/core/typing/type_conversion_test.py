@@ -45,18 +45,13 @@ class TypeConversionTest(unittest.TestCase):
 
     self.assertIs(type_conversion.get_converter(A, str), a_converter)
     self.assertIs(type_conversion.get_converter(A, int), a_converter)
-    self.assertIs(type_conversion.get_json_value_converter(A), a_converter)
 
-    self.assertIsNone(
-        type_conversion.get_first_applicable_converter(A, (float, bool)))
-    self.assertIs(
-        type_conversion.get_first_applicable_converter(A, (float, int)),
-        a_converter)
+    self.assertIsNone(type_conversion.get_converter(A, (float, bool)))
+    self.assertIs(type_conversion.get_converter(A, (float, int)), a_converter)
 
     # B is a subclass of A, so A's converter applies.
     self.assertIs(type_conversion.get_converter(B, str), a_converter)
     self.assertIs(type_conversion.get_converter(B, int), a_converter)
-    self.assertIs(type_conversion.get_json_value_converter(B), a_converter)
 
     b_converter = lambda b: b.y
     type_conversion.register_converter(B, (str, int), b_converter)
@@ -65,13 +60,9 @@ class TypeConversionTest(unittest.TestCase):
     # match.
     self.assertIs(type_conversion.get_converter(B, str), b_converter)
     self.assertIs(type_conversion.get_converter(B, int), b_converter)
-    self.assertIs(type_conversion.get_json_value_converter(B), b_converter)
 
-    self.assertIsNone(
-        type_conversion.get_first_applicable_converter(B, (float, bool)))
-    self.assertIs(
-        type_conversion.get_first_applicable_converter(B, (float, int)),
-        b_converter)
+    self.assertIsNone(type_conversion.get_converter(B, (float, bool)))
+    self.assertIs(type_conversion.get_converter(B, (float, int)), b_converter)
 
     # Test generics.
     T = typing.TypeVar('T')
@@ -120,8 +111,6 @@ class TypeConversionTest(unittest.TestCase):
         vs.Union([vs.Object(B), vs.Float()]).apply(A(1)).x, 1)
     self.assertEqual(vs.Object(A).apply(1).x, 1)
     self.assertEqual(vs.Object(A).apply('foo').x, 'foo')
-    self.assertEqual(type_conversion.get_json_value_converter(A)(A(1)), 1)
-    self.assertIsNone(type_conversion.get_json_value_converter(B))
 
 
 class BuiltInConversionsTest(unittest.TestCase):
@@ -136,9 +125,6 @@ class BuiltInConversionsTest(unittest.TestCase):
     now = datetime.datetime.utcfromtimestamp(timestamp)
     self.assertEqual(vs.Object(datetime.datetime).apply(timestamp), now)
     self.assertEqual(vs.Int().apply(now), timestamp)
-    self.assertEqual(
-        type_conversion.get_json_value_converter(datetime.datetime)(now),
-        timestamp)
 
   def test_keypath_to_str(self):
     """Test built-in converter between string and KeyPath."""
@@ -151,9 +137,6 @@ class BuiltInConversionsTest(unittest.TestCase):
         ['a', 'b', 'c'])
     self.assertEqual(
         vs.Str().apply(object_utils.KeyPath.parse('a.b.c')), 'a.b.c')
-    self.assertEqual(
-        type_conversion.get_json_value_converter(object_utils.KeyPath)(
-            object_utils.KeyPath.parse('a.b.c')), 'a.b.c')
 
 
 if __name__ == '__main__':

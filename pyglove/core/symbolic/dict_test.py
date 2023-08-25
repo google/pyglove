@@ -1838,34 +1838,6 @@ class SerializationTest(unittest.TestCase):
         ]))
     self.assertEqual(sd.to_json_str(), '{"x": 1, "y": null}')
 
-  def test_serialization_with_converter(self):
-
-    class A:
-
-      def __init__(self, value: float):
-        self.value = value
-
-      def __eq__(self, other):
-        return isinstance(other, A) and other.value == self.value
-
-    spec = pg_typing.Dict([
-        ('x', pg_typing.Int()),
-        ('y', pg_typing.Object(A))
-    ])
-    sd = Dict(x=1, y=A(2.0), value_spec=spec)
-    with self.assertRaisesRegex(
-        ValueError, 'Cannot encode opaque object .* with pickle'):
-      sd.to_json_str()
-
-    pg_typing.register_converter(A, float, convert_fn=lambda x: x.value)
-    pg_typing.register_converter(float, A, convert_fn=A)
-
-    self.assertEqual(sd.to_json(), {'x': 1, 'y': 2.0})
-    self.assertEqual(Dict.from_json(sd.to_json(), value_spec=spec), sd)
-
-    self.assertEqual(sd.to_json_str(), '{"x": 1, "y": 2.0}')
-    self.assertEqual(base.from_json_str(sd.to_json_str(), value_spec=spec), sd)
-
   def test_hide_default_values(self):
     sd = Dict.partial(
         x=1,

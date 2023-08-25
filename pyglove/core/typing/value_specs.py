@@ -261,8 +261,7 @@ class ValueSpecBase(ValueSpec):
         and self.value_type is not None
         and not pg_inspect.is_instance(value, self.value_type)
     ):
-      converter = type_conversion.get_first_applicable_converter(
-          type(value), self.value_type)
+      converter = type_conversion.get_converter(type(value), self.value_type)
       if converter is None:
         raise TypeError(
             object_utils.message_on_path(
@@ -2500,8 +2499,11 @@ class Union(Generic, ValueSpecBase):
     # tf.Tensor should be able to accept tf.Variable.
     matched_candidate = None
     for c in self._candidates:
-      if c.type_resolved and type_conversion.get_first_applicable_converter(
-          type(value), c.value_type) is not None:
+      if (
+          c.type_resolved
+          and type_conversion.get_converter(type(value), c.value_type)
+          is not None
+      ):
         matched_candidate = c
         break
 
