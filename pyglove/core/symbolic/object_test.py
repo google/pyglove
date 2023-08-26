@@ -2870,6 +2870,20 @@ class SerializationTest(unittest.TestCase):
     a = self._A(Y(1), y=True)
     self.assertEqual(base.from_json_str(a.to_json_str()), a)
 
+  def test_serialization_with_partial_object(self):
+
+    class P(Object):
+      x: int
+
+    class Q(Object):
+      p: P
+      y: str
+
+    self.assertEqual(
+        base.from_json_str(
+            Q.partial(P.partial()).to_json_str(), allow_partial=True),
+        Q.partial(P.partial()))
+
   def test_serialization_with_converter(self):
 
     c = self._C(self._X(1), y=True)
