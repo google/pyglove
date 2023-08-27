@@ -41,13 +41,16 @@ class ClassWrapperMeta(pg_object.ObjectMeta):
   def __repr__(self) -> Text:
     wrapped_cls = getattr(self, 'sym_wrapped_cls', None)
     if wrapped_cls is None:
-      return f'<class {self.type_name!r}>'
+      return f'<class {self.__type_name__!r}>'
     return f'Symbolic[{wrapped_cls!r}]'
 
   def __getattr__(self, name):
     """Pass through attribute requests to sym_wrapped_cls."""
-    wrapped_cls = object.__getattribute__(self, 'sym_wrapped_cls')
-    return getattr(wrapped_cls, name)
+    try:
+      return super().__getattr__(name)
+    except AttributeError:
+      wrapped_cls = object.__getattribute__(self, 'sym_wrapped_cls')
+      return getattr(wrapped_cls, name)
 
 
 class ClassWrapper(pg_object.Object, metaclass=ClassWrapperMeta):
@@ -287,6 +290,9 @@ def _subclassed_wrapper(
   cls = SubclassedWrapper
   cls.__name__ = class_name or user_cls.__name__
   cls.__module__ = module_name or user_cls.__module__
+  # NOTE(daiyip): for class wrapper, currently we don't not support nested
+  # class definition.
+  cls.__qualname__ = cls.__name__
   cls.__doc__ = user_cls.__doc__
 
   # Enable automatic registration for subclass.
@@ -365,25 +371,23 @@ def wrap(
   Args:
     cls: Class to wrap.
     init_args: An optional list of field definitions for the arguments of
-      __init__. It can be a sparse value specifications for argument
-      in the __init__ method of `cls`.
+      __init__. It can be a sparse value specifications for argument in the
+      __init__ method of `cls`.
     reset_state_fn: An optional callable object to reset the internal state of
       the user class when rebind happens.
-    repr: Options for generating `__repr__` and `__str__`.
-      If True (default), use symbolic representation if the user class does not
-        define its own. Otherwise use the user class' definition.
-      If False, always use non-symbolic representations, which falls back to
-        `object.__repr__` and `object.__str__` if the user class does not define
-        them.
-    eq: Options for generating `__eq__`, `__ne__` and `__hash__`.
-      If True and the `user_cls` defines `__eq__`, `__ne__` and `__hash__`,
-        use the definitions from the `user_cls`.
-      If True and the `user_cls` does not define `__eq__`, `__ne__` and
-        `__hash__`, use symbolic eq/hash.
-      If False (default), use `user_cls`'s definition if present, or the
-        definitions from the `object` class.
-    class_name: An optional string used as class name for the wrapper class.
-      If None, the wrapper class will use the class name of the wrapped class.
+    repr: Options for generating `__repr__` and `__str__`. If True (default),
+      use symbolic representation if the user class does not define its own.
+      Otherwise use the user class' definition. If False, always use
+      non-symbolic representations, which falls back to `object.__repr__` and
+      `object.__str__` if the user class does not define them.
+    eq: Options for generating `__eq__`, `__ne__` and `__hash__`. If True and
+      the `user_cls` defines `__eq__`, `__ne__` and `__hash__`, use the
+      definitions from the `user_cls`. If True and the `user_cls` does not
+      define `__eq__`, `__ne__` and `__hash__`, use symbolic eq/hash. If False
+      (default), use `user_cls`'s definition if present, or the definitions from
+      the `object` class.
+    class_name: An optional string used as class name for the wrapper class. If
+      None, the wrapper class will use the class name of the wrapped class.
     module_name: An optional string used as module name for the wrapper class.
       If None, the wrapper class will use the module name of the wrapped class.
     auto_doc: If True, the descriptions for init argument fields will be
@@ -391,15 +395,16 @@ def wrap(
     auto_typing: If True, PyGlove typing (runtime-typing) will be enabled based
       on type annotations inspected from the `__init__` method.
     serialization_key: An optional string to be used as the serialization key
-      for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
-      This is introduced for scenarios when we want to relocate a class, before
-      the downstream can recognize the new location, we need the class to
+      for the class during `sym_jsonify`. If None, `cls.__type_name__` will be
+      used. This is introduced for scenarios when we want to relocate a class,
+      before the downstream can recognize the new location, we need the class to
       serialize it using previous key.
     additional_keys: An optional list of strings as additional keys to
-      deserialize an object of the registered class. This can be useful
-      when we need to relocate or rename the registered class while being able
-      to load existing serialized JSON values.
+      deserialize an object of the registered class. This can be useful when we
+      need to relocate or rename the registered class while being able to load
+      existing serialized JSON values.
     override: Additional class attributes to override.
+
   Returns:
     A subclass of `cls` and `ClassWrapper`.
 

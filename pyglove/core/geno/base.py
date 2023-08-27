@@ -1406,7 +1406,9 @@ class DNA(symbolic.Object):
 
     if type_info:
       json_value = {
-          object_utils.JSONConvertible.TYPE_NAME_KEY: self.__class__.type_name,
+          object_utils.JSONConvertible.TYPE_NAME_KEY: (
+              self.__class__.__serialization_key__
+          ),
           'format': 'compact',
           'value': symbolic.to_json(value),
       }

@@ -93,14 +93,17 @@ class FunctorTest(unittest.TestCase):
       return a + b + c + sum(args) + sum(kwargs.values())
 
     self.assertEqual(
-        list(f.schema.values()), [
+        list(f.__schema__.values()),
+        [
             pg_typing.Field('a', pg_typing.Any()),
             pg_typing.Field('b', pg_typing.Any()),
-            pg_typing.Field('args',
-                            pg_typing.List(pg_typing.Any(), default=[])),
+            pg_typing.Field(
+                'args', pg_typing.List(pg_typing.Any(), default=[])
+            ),
             pg_typing.Field('c', pg_typing.Any(default=0)),
             pg_typing.Field(pg_typing.StrKey(), pg_typing.Any()),
-        ])
+        ],
+    )
     self.assertEqual(f.signature.args, [
         pg_typing.Argument('a', pg_typing.Any()),
         pg_typing.Argument('b', pg_typing.Any())
@@ -141,10 +144,12 @@ class FunctorTest(unittest.TestCase):
         pg_typing.Argument('b', pg_typing.Int(default=2)),
     ])
     self.assertEqual(
-        list(f.schema.values()), [
+        list(f.__schema__.values()),
+        [
             pg_typing.Field('a', pg_typing.Int(default=1)),
             pg_typing.Field('b', pg_typing.Int(default=2)),
-        ])
+        ],
+    )
     self.assertEqual(f.signature.return_value, pg_typing.Int())
     self.assertFalse(f.signature.has_varargs)
     self.assertFalse(f.signature.has_varkw)
@@ -166,14 +171,16 @@ class FunctorTest(unittest.TestCase):
       return a + b
 
     self.assertEqual(
-        list(f.schema.values()), [
+        list(f.__schema__.values()),
+        [
             pg_typing.Field('a', pg_typing.Int()),
             pg_typing.Field(
-                'args', 
-                pg_typing.List(pg_typing.Any(), default=[])),
+                'args', pg_typing.List(pg_typing.Any(), default=[])
+            ),
             pg_typing.Field('b', pg_typing.Int(default=2)),
             pg_typing.Field(pg_typing.StrKey(), pg_typing.Any()),
-        ])
+        ],
+    )
     self.assertEqual(
         f.signature.args,
         [pg_typing.Argument('a', pg_typing.Int())])
@@ -209,12 +216,14 @@ class FunctorTest(unittest.TestCase):
       """
       return a + b
 
-    self.assertEqual(f.schema.description, 'Compute the sum.')
+    self.assertEqual(f.__schema__.description, 'Compute the sum.')
     self.assertEqual(
-        list(f.schema.values()), [
+        list(f.__schema__.values()),
+        [
             pg_typing.Field('a', pg_typing.Int(default=1), 'an integer.'),
             pg_typing.Field('b', pg_typing.Int(default=2), 'another integer.'),
-        ])
+        ],
+    )
     self.assertEqual(f.signature.return_value, pg_typing.Int())
     self.assertFalse(f.signature.has_varargs)
     self.assertFalse(f.signature.has_varkw)
@@ -239,11 +248,13 @@ class FunctorTest(unittest.TestCase):
     self.assertFalse(f.signature.has_varargs)
     self.assertFalse(f.signature.has_varkw)
     self.assertEqual(
-        list(f.schema.values()), [
+        list(f.__schema__.values()),
+        [
             pg_typing.Field('a', pg_typing.Int()),
             pg_typing.Field('b', pg_typing.Any(default=1)),
             pg_typing.Field('c', pg_typing.Int(default=1)),
-        ])
+        ],
+    )
     self.assertEqual(f.partial()(a=2), 4)
     # Override 'a' with 2, provide 'b' with 2, use 'c' from default value 1.
     self.assertEqual(f.partial()(2, 2), 5)

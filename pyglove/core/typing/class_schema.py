@@ -572,6 +572,8 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
   See :class:`pyglove.KeySpec` and :class:`pyglove.ValueSpec` for details.
   """
 
+  __serialization_key__ = 'pyglove.typing.Field'
+
   def __init__(
       self,
       key_spec: Union[KeySpec, str],
@@ -783,7 +785,7 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
     class A(pg.Object):
       pass
 
-    print(A.schema)
+    print(A.__schema__)
 
     @pg.symbolize([
         ('a', pg.typing.Int()),
@@ -792,7 +794,7 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
     def foo(a, b):
       return a + b
 
-    print(foo.schema)
+    print(foo.__schema__)
 
   Implementation-wise it holds an ordered dictionary of a field key
   (:class:`pyglove.KeySpec`) to its field definition (:class:`pyglove.Field`).
@@ -842,6 +844,8 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
   a partially validated/transformed dict will be returned. Missing values in the
   object will be placeheld by :const:`pyglove.MISSING_VALUE`.
   """
+
+  __serialization_key__ = 'pyglove.typing.Schema'
 
   def __init__(
       self,

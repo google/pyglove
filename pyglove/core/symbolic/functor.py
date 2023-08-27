@@ -89,7 +89,7 @@ class Functor(pg_object.Object, object_utils.Functor):
   def _update_signatures_based_on_schema(cls):
     # Update __init_ signature.
     init_signature = pg_typing.Signature.from_schema(
-        cls.schema,
+        cls.__schema__,
         name='__init__',
         module_name=cls.__module__,
         qualname=cls.__qualname__,
@@ -106,7 +106,7 @@ class Functor(pg_object.Object, object_utils.Functor):
 
     # Update __call__ signature.
     call_signature = pg_typing.Signature.from_schema(
-        cls.schema,
+        cls.__schema__,
         name='__call__',
         module_name=cls.__module__,
         qualname=cls.__qualname__,
@@ -463,18 +463,16 @@ def functor(
     returns: Optional value spec for return value.
     base_class: Optional base class derived from `symbolic.Functor`. If None,
       returning functor will inherit from `symbolic.Functor`.
-    **kwargs: Keyword arguments for infrequently used options:
-      Acceptable keywords are:
-
-      * `serialization_key`: An optional string to be used as the serialization
-        key for the class during `sym_jsonify`. If None, `cls.type_name` will
-        be used. This is introduced for scenarios when we want to relocate a
-        class, before the downstream can recognize the new location, we need
-        the class to serialize it using previous key.
-      * `additional_keys`: An optional list of strings as additional keys to
-        deserialize an object of the registered class. This can be useful
-        when we need to relocate or rename the registered class while being
-        able to load existing serialized JSON values.
+    **kwargs: Keyword arguments for infrequently used options: Acceptable
+      keywords are:  * `serialization_key`: An optional string to be used as the
+      serialization key for the class during `sym_jsonify`. If None,
+      `cls.__type_name__` will be used. This is introduced for scenarios when we
+      want to relocate a class, before the downstream can recognize the new
+      location, we need the class to serialize it using previous key. *
+      `additional_keys`: An optional list of strings as additional keys to
+      deserialize an object of the registered class. This can be useful when we
+      need to relocate or rename the registered class while being able to load
+      existing serialized JSON values.
 
   Returns:
     A function that converts a regular function into a symbolic function.
@@ -514,29 +512,28 @@ def functor_class(
   Args:
     func: Function to be wrapped into a functor.
     args: Symbolic args specification. `args` is a list of tuples, each
-      describes an argument from the input
-      function. Each tuple is the format of:  (<argumment-name>, <value-spec>,
-      [description], [metadata-objects]).  `argument-name` - a `str` or
-      `pg_typing.StrKey` object. When `pg_typing.StrKey` is used, it
-      describes the wildcard keyword argument. `value-spec` - a
-      `pg_typing.ValueSpec` object or equivalent, e.g. primitive values which
-      will be converted to ValueSpec implementation according to its type and
-      used as its default value. `description` - a string to describe the
-      agument. `metadata-objects` - an optional list of any type, which can be
-      used to generate code according to the schema.
+      describes an argument from the input function. Each tuple is the format of
+      (<argumment-name>, <value-spec>, [description], [metadata-objects]).
+      `argument-name` - a `str` or `pg_typing.StrKey` object. When
+      `pg_typing.StrKey` is used, it describes the wildcard keyword argument.
+      `value-spec` - a `pg_typing.ValueSpec` object or equivalent, e.g.
+      primitive values which will be converted to ValueSpec implementation
+      according to its type and used as its default value. `description` - a
+      string to describe the agument. `metadata-objects` - an optional list of
+      any type, which can be used to generate code according to the schema.
       There are notable rules in filling the `args`: 1) When `args` is None or
-      arguments from the function signature are missing from it,
-      `schema.Field` for these fields will be automatically generated and
-      inserted into `args`.  That being said, every arguments in input
-      function will have a `schema.Field` counterpart in
-      `Functor.schema.fields` sorted by the declaration order of each argument
-      in the function signature ( other than the order in `args`).  2) Default
-      argument values are specified along with function definition as regular
-      python functions, instead of being set at `schema.Field` level. But
-      validation rules can be set using `args` and apply to argument values.
+      arguments from the function signature are missing from it, `schema.Field`
+      for these fields will be automatically generated and inserted into `args`.
+      That being said, every arguments in input function will have a
+      `schema.Field` counterpart in `Functor.__schema__.fields` sorted by the
+      declaration order of each argument in the function signature ( other than
+      the order in `args`). 2) Default argument values are specified along with
+      function definition as regular python functions, instead of being set at
+      `schema.Field` level. But validation rules can be set using `args` and
+      apply to argument values.
       For example::
 
-          @pg.functor([('c', pg.typing.Int(min_value=0), 'Arg c')])
+        @pg.functor([('c', pg.typing.Int(min_value=0), 'Arg c')])
           def foo(a, b, c=1, **kwargs):
             return a + b + c + sum(kwargs.values())
           
@@ -549,27 +546,27 @@ def functor_class(
           ]
           # Prebind a=1, b=2, with default value c=1.
           assert foo(1, 2)() == 4
-
     returns: Optional schema specification for the return value.
-    base_class: Optional base class (derived from `symbolic.Functor`).
-      If None, returned type will inherit from `Functor` directly.
+    base_class: Optional base class (derived from `symbolic.Functor`). If None,
+      returned type will inherit from `Functor` directly.
     auto_doc: If True, the descriptions of argument fields will be inherited
       from funciton docstr if they are not explicitly specified through
       ``args``.
-    auto_typing: If True, the value spec for constraining each argument
-      will be inferred from its annotation. Otherwise the value specs for all
-      arguments will be ``pg.typing.Any()``.
+    auto_typing: If True, the value spec for constraining each argument will be
+      inferred from its annotation. Otherwise the value specs for all arguments
+      will be ``pg.typing.Any()``.
     serialization_key: An optional string to be used as the serialization key
-      for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
-      This is introduced for scenarios when we want to relocate a class, before
-      the downstream can recognize the new location, we need the class to
+      for the class during `sym_jsonify`. If None, `cls.__type_name__` will be
+      used. This is introduced for scenarios when we want to relocate a class,
+      before the downstream can recognize the new location, we need the class to
       serialize it using previous key.
     additional_keys: An optional list of strings as additional keys to
-      deserialize an object of the registered class. This can be useful
-      when we need to relocate or rename the registered class while being able
-      to load existing serialized JSON values.
+      deserialize an object of the registered class. This can be useful when we
+      need to relocate or rename the registered class while being able to load
+      existing serialized JSON values.
     add_to_registry: If True, the newly created functor class will be added to
       the registry for deserialization.
+
   Returns:
     `symbolic.Functor` subclass that wraps input function.
 

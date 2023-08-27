@@ -35,7 +35,7 @@ during the declaration. For example::
   class A(pg.Object):
     pass
 
-  print(A.schema)
+  print(A.__schema__)
 
   @pg.symbolize([
       ('a', pg.typing.Int()),
@@ -44,7 +44,7 @@ during the declaration. For example::
   def foo(a, b):
     return a + b
 
-  print(foo.schema)
+  print(foo.__schema__)
 
 
 Key and Value Specifications
@@ -161,7 +161,7 @@ The code snippet below illustrates schema inheritance during subclassing::
   class B(A):
     pass
 
-  assert B.schema.fields.keys() == ['x', 'y', 'z']
+  assert B.__schema__.fields.keys() == ['x', 'y', 'z']
 
   @pg.members([
       # Raises: 'z' is frozen in class B and cannot be extended further.

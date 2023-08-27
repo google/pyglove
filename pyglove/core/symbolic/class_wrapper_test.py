@@ -126,8 +126,10 @@ class WrapTest(unittest.TestCase):
         self.z = x + y + sum(kwargs.values())
 
     A1 = pg_wrap(A, auto_typing=True)  # pylint: disable=invalid-name
-    self.assertEqual(A1.schema.get_field('x').value, pg_typing.Int())
-    self.assertEqual(A1.schema.get_field('y').value, pg_typing.Int(default=1))
+    self.assertEqual(A1.__schema__.get_field('x').value, pg_typing.Int())
+    self.assertEqual(
+        A1.__schema__.get_field('y').value, pg_typing.Int(default=1)
+    )
 
   def test_wrap_with_user_typing(self):
 
@@ -141,9 +143,9 @@ class WrapTest(unittest.TestCase):
 
     C1 = pg_wrap(C, [('x', pg_typing.Int())])  # pylint: disable=invalid-name
     self.assertEqual(inspect.getfullargspec(C1).args, ['self', 'x', 'y'])
-    self.assertIn('x', C1.schema)
-    self.assertIn('y', C1.schema)
-    self.assertNotIn('z', C1.schema)
+    self.assertIn('x', C1.__schema__)
+    self.assertIn('y', C1.__schema__)
+    self.assertNotIn('z', C1.__schema__)
 
     c = C1(1, 2)
     self.assertIsInstance(c, ClassWrapper)
@@ -190,11 +192,14 @@ class WrapTest(unittest.TestCase):
         self.y = y
 
     A1 = pg_wrap(A, auto_doc=True)  # pylint: disable=invalid-name
-    self.assertEqual(A1.schema.description, 'A test class.')
-    self.assertEqual(list(A1.schema.fields.values()), [
-        pg_typing.Field('x', pg_typing.Any(), 'Argument x.'),
-        pg_typing.Field('y', pg_typing.Any(), 'Argument y.'),
-    ])
+    self.assertEqual(A1.__schema__.description, 'A test class.')
+    self.assertEqual(
+        list(A1.__schema__.fields.values()),
+        [
+            pg_typing.Field('x', pg_typing.Any(), 'Argument x.'),
+            pg_typing.Field('y', pg_typing.Any(), 'Argument y.'),
+        ],
+    )
 
   def test_wrap_dataclass_with_auto_doc(self):
 
@@ -210,11 +215,14 @@ class WrapTest(unittest.TestCase):
       y: str
 
     A1 = pg_wrap(A, auto_doc=True)  # pylint: disable=invalid-name
-    self.assertEqual(A1.schema.description, 'A test class.')
-    self.assertEqual(list(A1.schema.fields.values()), [
-        pg_typing.Field('x', pg_typing.Any(annotation=int), 'Argument x.'),
-        pg_typing.Field('y', pg_typing.Any(annotation=str), 'Argument y.'),
-    ])
+    self.assertEqual(A1.__schema__.description, 'A test class.')
+    self.assertEqual(
+        list(A1.__schema__.fields.values()),
+        [
+            pg_typing.Field('x', pg_typing.Any(annotation=int), 'Argument x.'),
+            pg_typing.Field('y', pg_typing.Any(annotation=str), 'Argument y.'),
+        ],
+    )
 
   def test_automatic_reset_state(self):
 
@@ -579,7 +587,7 @@ class ClassWrapperTest(unittest.TestCase):
 
     self.assertIsInstance(C(1, 2), ClassWrapper)
     self.assertTrue(pg_eq(C(1, 2), C(1, 2)))
-    self.assertEqual(list(C.schema.fields.keys()), ['x', 'y'])
+    self.assertEqual(list(C.__schema__.fields.keys()), ['x', 'y'])
     self.assertEqual(repr(C), f'<class {C.type_name!r}>')
 
   def test_custom_metaclass(self):
@@ -597,7 +605,7 @@ class ClassWrapperTest(unittest.TestCase):
     self.assertTrue(issubclass(A1, ClassWrapper))
     self.assertTrue(issubclass(A1, A))
     self.assertEqual(A1.type_name, 'pyglove.core.symbolic.class_wrapper_test.A')
-    self.assertEqual(A1.schema, pg_typing.Schema([]))
+    self.assertEqual(A1.__schema__, pg_typing.Schema([]))
     self.assertEqual(A1.foo, 'foo')
     self.assertRegex(repr(A1), r'Symbolic\[.*\]')
 

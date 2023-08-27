@@ -78,14 +78,17 @@ class ObjectMetaTest(unittest.TestCase):
     self._C = C    # pylint: disable=invalid-name
 
   def test_schema(self):
-    self.assertEqual(self._C.schema, pg_typing.create_schema([
-        ('x', pg_typing.Int()),
-        ('y', pg_typing.Dict()),
-        ('z', pg_typing.List(pg_typing.Int(min_value=1))),
-        ('p', pg_typing.Bool().freeze(True)),
-        ('q', pg_typing.Bool(default=True)),
-        ('args', pg_typing.List(pg_typing.Str())),
-    ]))
+    self.assertEqual(
+        self._C.__schema__,
+        pg_typing.create_schema([
+            ('x', pg_typing.Int()),
+            ('y', pg_typing.Dict()),
+            ('z', pg_typing.List(pg_typing.Int(min_value=1))),
+            ('p', pg_typing.Bool().freeze(True)),
+            ('q', pg_typing.Bool(default=True)),
+            ('args', pg_typing.List(pg_typing.Str())),
+        ]),
+    )
 
   def test_sym_fields(self):
     self.assertEqual(
@@ -108,13 +111,13 @@ class ObjectMetaTest(unittest.TestCase):
         self._C.init_arg_list, ['x', 'y', 'z', '*args'])
 
   def test_serialization_key(self):
-    self.assertEqual(self._A.serialization_key, self._A.type_name)
-    self.assertEqual(self._B.serialization_key, 'B')
-    self.assertEqual(self._C.serialization_key, self._C.type_name)
+    self.assertEqual(self._A.__serialization_key__, self._A.__type_name__)
+    self.assertEqual(self._B.__serialization_key__, 'B')
+    self.assertEqual(self._C.__serialization_key__, self._C.__type_name__)
 
   def test_type_name(self):
-    self.assertEqual(self._A.type_name, 'pyglove.core.symbolic.object_test.A')
-    self.assertEqual(self._B.type_name, 'pyglove.core.symbolic.object_test.B')
+    self.assertEqual(
+        self._A.__type_name__, f'{self._A.__module__}.{self._A.__qualname__}')
 
 
 class ObjectTest(unittest.TestCase):
@@ -244,14 +247,12 @@ class ObjectTest(unittest.TestCase):
       _q: int = 2
 
     self.assertEqual(A.init_arg_list, ['x', 'y'])
-    self.assertEqual(
-        list(A.schema.fields.keys()),
-        ['x', 'y'])
+    self.assertEqual(list(A.__schema__.fields.keys()), ['x', 'y'])
 
     a = A(1)
     self.assertEqual(a.x, 1)
     self.assertEqual(a.y, 0.0)
-    self.assertEqual(A.schema.get_field('y').description, 'field y')
+    self.assertEqual(A.__schema__.get_field('y').description, 'field y')
 
     a = A(2, y=1.0)
     self.assertEqual(a.x, 2)
@@ -263,7 +264,7 @@ class ObjectTest(unittest.TestCase):
 
     self.assertEqual(B.init_arg_list, ['x', 'y', 'p', 'q'])
     self.assertEqual(
-        list(B.schema.fields.keys()),
+        list(B.__schema__.fields.keys()),
         ['x', 'y', 'p', 'q'],
     )
     b = B(1, q=2)
@@ -280,7 +281,7 @@ class ObjectTest(unittest.TestCase):
       y: float = 1.0
 
     self.assertEqual(
-        list(C.schema.fields.keys()),
+        list(C.__schema__.fields.keys()),
         ['x', 'y', 'p', 'q', 'k'],
     )
     self.assertEqual(C.init_arg_list, ['x', 'y', 'p', 'q', 'k'])
@@ -299,7 +300,7 @@ class ObjectTest(unittest.TestCase):
 
     self.assertEqual(D.init_arg_list, ['x', 'y', 'p', 'q', 'k', 'f', 'e'])
     self.assertEqual(
-        list(D.schema.fields.keys()),
+        list(D.__schema__.fields.keys()),
         ['x', 'y', 'p', 'q', 'k', 'f', 'e'],
     )
     d = D(1, q=2, k=3, e=4)
@@ -316,7 +317,7 @@ class ObjectTest(unittest.TestCase):
 
     self.assertEqual(E.init_arg_list, ['x'])
     self.assertEqual(
-        list(E.schema.fields.keys()),
+        list(E.__schema__.fields.keys()),
         [pg_typing.StrKey(), 'x'],
     )
     e = E(1, y=3)
@@ -817,8 +818,8 @@ class ObjectTest(unittest.TestCase):
 
     a = A(A(dict(y=A(1))))
     self.assertIsNone(a.sym_field)
-    self.assertIs(a.x.sym_field, A.schema.get_field('x'))
-    self.assertIs(a.x.x.sym_field, A.schema.get_field('x'))
+    self.assertIs(a.x.sym_field, A.__schema__.get_field('x'))
+    self.assertIs(a.x.x.sym_field, A.__schema__.get_field('x'))
     self.assertIsNone(a.x.x.y.sym_field)   # The dict is not schematized.
 
   def test_sym_attr_field(self):
@@ -831,10 +832,10 @@ class ObjectTest(unittest.TestCase):
       pass
 
     a = A(A(1, 2), A(3, 4))
-    self.assertIs(a.sym_attr_field('x'), A.schema.get_field('x'))
-    self.assertIs(a.sym_attr_field('y'), A.schema.get_field('y'))
-    self.assertIs(a.x.sym_attr_field('x'), A.schema.get_field('x'))
-    self.assertIs(a.y.sym_attr_field('y'), A.schema.get_field('y'))
+    self.assertIs(a.sym_attr_field('x'), A.__schema__.get_field('x'))
+    self.assertIs(a.sym_attr_field('y'), A.__schema__.get_field('y'))
+    self.assertIs(a.x.sym_attr_field('x'), A.__schema__.get_field('x'))
+    self.assertIs(a.y.sym_attr_field('y'), A.__schema__.get_field('y'))
 
   def test_sym_keys(self):
 
@@ -920,7 +921,8 @@ class ObjectTest(unittest.TestCase):
     a = A(1, 2, a='foo')
     json_dict = a.sym_jsonify()
     self.assertEqual(
-        json_dict, {'_type': A.type_name, 'x': 1, 'y': 2, 'a': 'foo'})
+        json_dict, {'_type': A.__type_name__, 'x': 1, 'y': 2, 'a': 'foo'}
+    )
     self.assertEqual(
         base.from_json(json_dict), a)
 
@@ -1678,7 +1680,7 @@ class MembersTest(unittest.TestCase):
     self.assertEqual(base.from_json(json_dict), A(1))
 
     # Despite of serialization key, `_type` with type name also works.
-    json_dict['_type'] = A.type_name
+    json_dict['_type'] = A.__type_name__
     self.assertEqual(base.from_json(json_dict), A(1))
 
   def test_additional_keys(self):
@@ -1692,7 +1694,7 @@ class MembersTest(unittest.TestCase):
       pass
 
     json_dict = A(1).to_json()
-    self.assertEqual(json_dict['_type'], A.type_name)
+    self.assertEqual(json_dict['_type'], A.__type_name__)
     self.assertEqual(base.from_json(json_dict), A(1))
 
     for key in additional_deserialization_keys:
@@ -2298,36 +2300,38 @@ class EventsTest(unittest.TestCase):
     self.assertEqual(len(root_updates[0]), 4)
 
     self.assertEqual(
-        root_updates[0], {
-            'a1':
-                base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a1'),
-                    target=sd,
-                    field=sd.value_spec.schema['a1'],
-                    old_value=MISSING_VALUE,
-                    new_value=1),
-            'a2.b1.c1[0].d1':
-                base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
-                    target=sd.a2.b1.c1[0],
-                    field=sd.a2.b1.c1[0].value_spec.schema['d1'],
-                    old_value='foo',
-                    new_value='bar'),
-            'a2.b1.c1[0].d2':
-                base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
-                    target=sd.a2.b1.c1[0],
-                    field=sd.a2.b1.c1[0].value_spec.schema['d2'],
-                    old_value=True,
-                    new_value=False),
-            'a2.b1.c1[0].d3.z':
-                base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
-                    target=sd.a2.b1.c1[0].d3,
-                    field=sd.a2.b1.c1[0].d3.__class__.schema['z'],
-                    old_value=MISSING_VALUE,
-                    new_value='foo')
-        })
+        root_updates[0],
+        {
+            'a1': base.FieldUpdate(
+                path=object_utils.KeyPath.parse('a1'),
+                target=sd,
+                field=sd.value_spec.schema['a1'],
+                old_value=MISSING_VALUE,
+                new_value=1,
+            ),
+            'a2.b1.c1[0].d1': base.FieldUpdate(
+                path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                target=sd.a2.b1.c1[0],
+                field=sd.a2.b1.c1[0].value_spec.schema['d1'],
+                old_value='foo',
+                new_value='bar',
+            ),
+            'a2.b1.c1[0].d2': base.FieldUpdate(
+                path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                target=sd.a2.b1.c1[0],
+                field=sd.a2.b1.c1[0].value_spec.schema['d2'],
+                old_value=True,
+                new_value=False,
+            ),
+            'a2.b1.c1[0].d3.z': base.FieldUpdate(
+                path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
+                target=sd.a2.b1.c1[0].d3,
+                field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
+                old_value=MISSING_VALUE,
+                new_value='foo',
+            ),
+        },
+    )
 
     # Inspect list node changes.
     self.assertEqual(
@@ -2335,29 +2339,30 @@ class EventsTest(unittest.TestCase):
         [
             # Root object rebind.
             {
-                '[0].d1':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
-                        target=sd.a2.b1.c1[0],
-                        field=sd.a2.b1.c1[0].value_spec.schema['d1'],
-                        old_value='foo',
-                        new_value='bar'),
-                '[0].d2':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
-                        target=sd.a2.b1.c1[0],
-                        field=sd.a2.b1.c1[0].value_spec.schema['d2'],
-                        old_value=True,
-                        new_value=False),
-                '[0].d3.z':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
-                        target=sd.a2.b1.c1[0].d3,
-                        field=sd.a2.b1.c1[0].d3.__class__.schema['z'],
-                        old_value=MISSING_VALUE,
-                        new_value='foo')
+                '[0].d1': base.FieldUpdate(
+                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d1'],
+                    old_value='foo',
+                    new_value='bar',
+                ),
+                '[0].d2': base.FieldUpdate(
+                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d2'],
+                    old_value=True,
+                    new_value=False,
+                ),
+                '[0].d3.z': base.FieldUpdate(
+                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
+                    target=sd.a2.b1.c1[0].d3,
+                    field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
+                    old_value=MISSING_VALUE,
+                    new_value='foo',
+                ),
             }
-        ])
+        ],
+    )
 
     # Inspect leaf node changes.
     self.assertEqual(
@@ -2841,7 +2846,9 @@ class SerializationTest(unittest.TestCase):
     b = self._B('foo', 1)
     self.assertEqual(
         b.to_json_str(),
-        '{"_type": "%s", "w": "foo", "x": 1, "z": null}' % self._B.type_name)
+        '{"_type": "%s", "w": "foo", "x": 1, "z": null}'
+        % self._B.__type_name__,
+    )
 
   def test_serialization_with_json_convertible(self):
 
@@ -2896,14 +2903,16 @@ class SerializationTest(unittest.TestCase):
 
     self.assertEqual(
         c.to_json_str(),
-        '{"_type": "%s", "w": 1, "x": 1, "y": true}' % self._C.type_name)
+        '{"_type": "%s", "w": 1, "x": 1, "y": true}' % self._C.__type_name__,
+    )
     self.assertEqual(base.from_json_str(c.to_json_str()), c)
 
   def test_hide_default_values(self):
     b = self._B('foo', 1)
     self.assertEqual(
         b.to_json_str(hide_default_values=True),
-        '{"_type": "%s", "w": "foo"}' % self._B.type_name)
+        '{"_type": "%s", "w": "foo"}' % self._B.__type_name__,
+    )
 
   def test_from_json(self):
     b = self._B('foo', 1)
@@ -2943,7 +2952,8 @@ class SerializationTest(unittest.TestCase):
     with open(path) as f:
       content = f.read()
     self.assertEqual(
-        content, '{"_type": "%s", "a": 1, "b": [0, 1]}' % A.type_name)
+        content, '{"_type": "%s", "a": 1, "b": [0, 1]}' % A.__type_name__
+    )
 
     # Test tracking origin.
     with flags.track_origin():

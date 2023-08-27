@@ -86,7 +86,7 @@ class SymbolizeFunctionsTest(unittest.TestCase):
     self.assertEqual(v['_type'], 'BAR')
 
     # Deserialize with type name: OK
-    v['_type'] = bar.type_name
+    v['_type'] = bar.__type_name__
     self.assertTrue(pg_eq(pg_from_json(v), b))
 
     # Deserialize with additional key: OK
@@ -109,10 +109,11 @@ class SymbolizeClassesTest(unittest.TestCase):
     A1 = pg_symbolize(A)  # pylint: disable=invalid-name
     self.assertIsInstance(A1(1, 2), A)
     self.assertIsInstance(A1(1, 2), ClassWrapper)
-    self.assertEqual(list(A1.schema.fields.keys()), ['x', 'y'])
+    self.assertEqual(list(A1.__schema__.fields.keys()), ['x', 'y'])
     self.assertEqual(
-        [f.value for f in A1.schema.fields.values()],
-        [pg_typing.Any(), pg_typing.Any()])
+        [f.value for f in A1.__schema__.fields.values()],
+        [pg_typing.Any(), pg_typing.Any()],
+    )
 
   def test_symbolize_a_class_by_decorator_without_call(self):
 
@@ -122,10 +123,11 @@ class SymbolizeClassesTest(unittest.TestCase):
         pass
 
     self.assertIsInstance(A(1, 2), ClassWrapper)
-    self.assertEqual(list(A.schema.fields.keys()), ['x', 'y'])
+    self.assertEqual(list(A.__schema__.fields.keys()), ['x', 'y'])
     self.assertEqual(
-        [f.value for f in A.schema.fields.values()],
-        [pg_typing.Any(), pg_typing.Any()])
+        [f.value for f in A.__schema__.fields.values()],
+        [pg_typing.Any(), pg_typing.Any()],
+    )
 
   def test_symbolize_a_class_by_decorator_without_args(self):
 
@@ -135,10 +137,11 @@ class SymbolizeClassesTest(unittest.TestCase):
         pass
 
     self.assertIsInstance(A(1, 2), ClassWrapper)
-    self.assertEqual(list(A.schema.fields.keys()), ['x', 'y'])
+    self.assertEqual(list(A.__schema__.fields.keys()), ['x', 'y'])
     self.assertEqual(
-        [f.value for f in A.schema.fields.values()],
-        [pg_typing.Any(), pg_typing.Any()])
+        [f.value for f in A.__schema__.fields.values()],
+        [pg_typing.Any(), pg_typing.Any()],
+    )
 
   def test_symbolize_a_class_by_decorator_with_typing(self):
 
@@ -150,10 +153,11 @@ class SymbolizeClassesTest(unittest.TestCase):
       def __init__(self, x, y):
         pass
 
-    self.assertEqual(list(A.schema.fields.keys()), ['x', 'y'])
+    self.assertEqual(list(A.__schema__.fields.keys()), ['x', 'y'])
     self.assertEqual(
-        [f.value for f in A.schema.fields.values()],
-        [pg_typing.Int(), pg_typing.Str()])
+        [f.value for f in A.__schema__.fields.values()],
+        [pg_typing.Int(), pg_typing.Str()],
+    )
 
   def test_symbolize_pg_object_subclass(self):
 
@@ -189,7 +193,7 @@ class SymbolizeClassesTest(unittest.TestCase):
     self.assertTrue(pg_eq(pg_from_json(v), b))
 
     # Deserialize with type name: OK
-    v['_type'] = B.type_name
+    v['_type'] = B.__type_name__
     self.assertTrue(pg_eq(pg_from_json(v), b))
 
     # Deserialize with additional key: OK

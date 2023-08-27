@@ -151,9 +151,9 @@ def update_schema(
       be attached to class schema.
     description: An optional description to set.
     serialization_key: An optional string to be used as the serialization key
-      for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
-      This is introduced for scenarios when we want to relocate a class, before
-      the downstream can recognize the new location, we need the class to
+      for the class during `sym_jsonify`. If None, `cls.__type_name__` will be
+      used. This is introduced for scenarios when we want to relocate a class,
+      before the downstream can recognize the new location, we need the class to
       serialize it using previous key.
     additional_keys: An optional list of strings as additional keys to
       deserialize an object of the registered class. This can be useful when we
@@ -164,7 +164,7 @@ def update_schema(
   """
   cls.apply_schema(
       augment_schema(
-          cls.schema,
+          cls.__schema__,
           fields=fields,
           extend=extend,
           init_arg_list=init_arg_list,
@@ -256,17 +256,20 @@ def auto_init_arg_list(cls):
   # This allows to bypass interface-only bases.
   init_arg_list = None
   for base_cls in cls.__bases__:
-    schema = getattr(base_cls, 'schema', None)
+    schema = getattr(base_cls, '__schema__', None)
     if isinstance(schema, pg_typing.Schema):
-      if list(schema.keys()) == list(cls.schema.keys()):
+      if list(schema.keys()) == list(cls.__schema__.keys()):
         init_arg_list = base_cls.init_arg_list
       else:
         break
   if init_arg_list is None:
     # Automatically generate from the field definitions in their
     # declaration order from base classes to subclasses.
-    init_arg_list = [str(key) for key in cls.schema.fields.keys()
-                     if isinstance(key, pg_typing.ConstStrKey)]
+    init_arg_list = [
+        str(key)
+        for key in cls.__schema__.fields.keys()
+        if isinstance(key, pg_typing.ConstStrKey)
+    ]
   return init_arg_list
 
 

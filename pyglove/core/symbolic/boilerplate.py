@@ -82,18 +82,16 @@ def boilerplate_class(
     value: Value that is used as the default value of the boilerplate class.
     init_arg_list: An optional list of strings as __init__ positional arguments
       names.
-    **kwargs: Keyword arguments for infrequently used options.
-      Acceptable keywords are:
-
-      * `serialization_key`: An optional string to be used as the serialization
-        key for the class during `sym_jsonify`. If None, `cls.type_name` will
-        be used. This is introduced for scenarios when we want to relocate a
-        class, before the downstream can recognize the new location, we need
-        the class to serialize it using previous key.
-      * `additional_keys`: An optional list of strings as additional keys to
-        deserialize an object of the registered class. This can be useful
-        when we need to relocate or rename the registered class while being able
-        to load existing serialized JSON values.
+    **kwargs: Keyword arguments for infrequently used options. Acceptable
+      keywords are:  * `serialization_key`: An optional string to be used as the
+      serialization key for the class during `sym_jsonify`. If None,
+      `cls.__type_name__` will be used. This is introduced for scenarios when we
+      want to relocate a class, before the downstream can recognize the new
+      location, we need the class to serialize it using previous key. *
+      `additional_keys`: An optional list of strings as additional keys to
+      deserialize an object of the registered class. This can be useful when we
+      need to relocate or rename the registered class while being able to load
+      existing serialized JSON values.
 
   Returns:
     A class which extends the input value's type, with its schema's default
@@ -124,6 +122,8 @@ def boilerplate_class(
   cls_module = caller_module.__name__ if caller_module else '__main__'
   cls = _BoilerplateClass
   cls.__name__ = cls_name
+  cls.__qualname__ = cls.__qualname__.replace(
+      'boilerplate_class.<locals>._BoilerplateClass', cls_name)
   cls.__module__ = cls_module
 
   # Enable automatic registration for subclass.
@@ -151,17 +151,19 @@ def boilerplate_class(
               pg_typing.MISSING_VALUE, use_default_apply=False)
     return value
 
-  # NOTE(daiyip): we call `cls.schema.apply` to freeze fields that have default
-  # values. But we no longer need to formalize `cls.schema`, since it's
-  # copied from the boilerplate object's class which was already formalized.
+  # NOTE(daiyip): we call `cls.__schema__.apply` to freeze fields that have
+  # default values. But we no longer need to formalize `cls.__schema__`, since
+  # it's copied from the boilerplate object's class which was already
+  # formalized.
   with flags.allow_writable_accessors():
-    cls.schema.apply(
+    cls.__schema__.apply(
         value._sym_attributes,  # pylint: disable=protected-access
         allow_partial=allow_partial,
-        child_transform=_freeze_field)
+        child_transform=_freeze_field,
+    )
 
   if init_arg_list is not None:
-    schema_utils.validate_init_arg_list(init_arg_list, cls.schema)
-    cls.schema.metadata['init_arg_list'] = init_arg_list
+    schema_utils.validate_init_arg_list(init_arg_list, cls.__schema__)
+    cls.__schema__.metadata['init_arg_list'] = init_arg_list
   cls.register_for_deserialization(serialization_key, additional_keys)
   return cls

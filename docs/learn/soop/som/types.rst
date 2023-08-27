@@ -136,7 +136,7 @@ or different default values. For example::
     # x : pg.typing.Int(min_value=1, max_value=10, default=1))
     # y : pg.typing.Float(min_value=0)
     # z : pg.typing.Str().noneable()
-    print(Bar.schema)
+    print(Bar.__schema__)
 
 
 Symbolizing a Regular Class

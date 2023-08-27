@@ -221,22 +221,25 @@ def patcher(
     arg_specs = cls.signature.args
     if len(arg_specs) < 1:
       raise TypeError(
-          f'Patcher function should have at least 1 argument '
-          f'as patching target. (Patcher={cls.type_name!r})')
+          'Patcher function should have at least 1 argument '
+          f'as patching target. (Patcher={cls.__type_name__!r})'
+      )
     if not _is_patcher_target_spec(arg_specs[0].value_spec):
       raise TypeError(
           f'{arg_specs[0].value_spec!r} cannot be used for constraining '
-          f'Patcher target. (Patcher={cls.type_name!r}, '
+          f'Patcher target. (Patcher={cls.__type_name__!r}, '
           f'Argument={arg_specs[0].name!r})\n'
-          f'Acceptable value spec types are: '
-          f'Any, Callable, Dict, Functor, List, Object.')
+          'Acceptable value spec types are: '
+          'Any, Callable, Dict, Functor, List, Object.'
+      )
     for arg_spec in arg_specs[1:]:
       if not _is_patcher_parameter_spec(arg_spec.value_spec):
         raise TypeError(
             f'{arg_spec.value_spec!r} cannot be used for constraining '
-            f'Patcher argument. (Patcher={cls.type_name!r}, '
+            f'Patcher argument. (Patcher={cls.__type_name__!r}, '
             f'Argument={arg_spec.name!r})\n'
-            f'Consider to treat it as string and parse yourself.')
+            'Consider to treat it as string and parse yourself.'
+        )
     return cls
   return _decorator
 
@@ -462,4 +465,3 @@ def parse_list(string: str,
   if string:
     return [convert_fn(i, piece) for i, piece in enumerate(string.split(':'))]
   return []
-

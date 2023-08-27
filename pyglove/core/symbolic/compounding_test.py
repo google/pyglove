@@ -266,7 +266,7 @@ class TypingTest(unittest.TestCase):
       return Foo(y)
 
     self.assertEqual(
-        foo.schema.get_field('y'), pg_typing.Field('y', pg_typing.Any())
+        foo.__schema__.get_field('y'), pg_typing.Field('y', pg_typing.Any())
     )
 
   def test_auto_typing(self):
@@ -279,7 +279,7 @@ class TypingTest(unittest.TestCase):
       return Foo(y + 1)
 
     self.assertEqual(
-        foo.schema.get_field('y'), pg_typing.Field('y', pg_typing.Int())
+        foo.__schema__.get_field('y'), pg_typing.Field('y', pg_typing.Int())
     )
 
   def test_auto_typing_with_docstr(self):
@@ -300,7 +300,7 @@ class TypingTest(unittest.TestCase):
       return Foo(y + 1)
 
     self.assertEqual(
-        foo.schema.get_field('y'),
+        foo.__schema__.get_field('y'),
         pg_typing.Field('y', pg_typing.Int(), 'field y.'),
     )
 
@@ -315,7 +315,7 @@ class TypingTest(unittest.TestCase):
       return Foo(v + 1, v + 2)
 
     self.assertEqual(
-        foo.schema.get_field('v'),
+        foo.__schema__.get_field('v'),
         pg_typing.Field('v', pg_typing.Int(), 'field v.'),
     )
 

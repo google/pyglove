@@ -54,7 +54,7 @@ class BoilerplateClassTest(unittest.TestCase):
 
   def test_basics(self):
     self.assertTrue(issubclass(B, A))
-    self.assertEqual(B.type_name, 'pyglove.core.symbolic.boilerplate_test.B')
+    self.assertEqual(B.__type_name__, 'pyglove.core.symbolic.boilerplate_test.B')
 
     with self.assertRaisesRegex(
         ValueError,
@@ -76,32 +76,51 @@ class BoilerplateClassTest(unittest.TestCase):
   def test_schema(self):
     # Boilerplate class' schema should carry the default value and be frozen.
     self.assertEqual(
-        B.schema,
+        B.__schema__,
         pg_typing.create_schema([
             ('a', pg_typing.Int()),
-            ('b', pg_typing.Union(
-                [pg_typing.Int(), pg_typing.Str()], default='foo').freeze()),
-            ('c', pg_typing.Dict([
-                ('d', pg_typing.List(pg_typing.Dict([
-                    ('e', pg_typing.Float()),
-                    ('f', pg_typing.Bool())
-                ]), default=List([Dict(e=1.0, f=True)])).freeze())
-            ]).freeze())
-        ]))
+            (
+                'b',
+                pg_typing.Union(
+                    [pg_typing.Int(), pg_typing.Str()], default='foo'
+                ).freeze(),
+            ),
+            (
+                'c',
+                pg_typing.Dict([(
+                    'd',
+                    pg_typing.List(
+                        pg_typing.Dict([
+                            ('e', pg_typing.Float()),
+                            ('f', pg_typing.Bool()),
+                        ]),
+                        default=List([Dict(e=1.0, f=True)]),
+                    ).freeze(),
+                )]).freeze(),
+            ),
+        ]),
+    )
 
     # Original class' schema should remain unchanged.
     self.assertEqual(
-        A.schema,
+        A.__schema__,
         pg_typing.create_schema([
             ('a', pg_typing.Int()),
             ('b', pg_typing.Union([pg_typing.Int(), pg_typing.Str()])),
-            ('c', pg_typing.Dict([
-                ('d', pg_typing.List(pg_typing.Dict([
-                    ('e', pg_typing.Float()),
-                    ('f', pg_typing.Bool())
-                ])))
-            ]))
-        ]))
+            (
+                'c',
+                pg_typing.Dict([(
+                    'd',
+                    pg_typing.List(
+                        pg_typing.Dict([
+                            ('e', pg_typing.Float()),
+                            ('f', pg_typing.Bool()),
+                        ])
+                    ),
+                )]),
+            ),
+        ]),
+    )
 
   def test_init(self):
     b = B(0)
@@ -124,21 +143,24 @@ class BoilerplateClassTest(unittest.TestCase):
 
     # Default value of the boilerplate class remain unchanged.
     self.assertEqual(
-        B.schema['c'].default_value,
-        Dict.partial({'d': [{
-            'e': 1.0,
-            'f': True,
-        }]}, value_spec=B.schema['c'].value))
+        B.__schema__['c'].default_value,
+        Dict.partial(
+            {
+                'd': [{
+                    'e': 1.0,
+                    'f': True,
+                }]
+            },
+            value_spec=B.__schema__['c'].value,
+        ),
+    )
 
     # Original object remain unchanged.
     self.assertTrue(template_object.c.d[0].f)
 
   def test_serialization(self):
     b = B(a=1)
-    self.assertEqual(b.to_json(), {
-        '_type': B.type_name,
-        'a': 1
-    })
+    self.assertEqual(b.to_json(), {'_type': B.__type_name__, 'a': 1})
     self.assertEqual(pg_from_json_str(b.to_json_str()), b)
 
 

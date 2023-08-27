@@ -411,8 +411,7 @@ class Bool(PrimitiveType):
     pg.typing.Bool().freeze(True)
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Bool'
+  __serialization_key__ = 'pyglove.typing.Bool'
 
   def __init__(
       self,
@@ -465,8 +464,7 @@ class Str(Generic, PrimitiveType):
     pg.typing.Str().freeze('foo')
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Str'
+  __serialization_key__ = 'pyglove.typing.Str'
 
   def __init__(
       self,
@@ -709,8 +707,7 @@ class Int(Number):
     pg.typing.Int().freeze(1)
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Int'
+  __serialization_key__ = 'pyglove.typing.Int'
 
   def __init__(
       self,
@@ -756,8 +753,7 @@ class Float(Number):
     pg.typing.Float().freeze(1)
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Float'
+  __serialization_key__ = 'pyglove.typing.Float'
 
   def __init__(
       self,
@@ -797,8 +793,7 @@ class Enum(Generic, PrimitiveType):
     pg.typing.Enum('a', ['a', 'b', 'c']).freeze('a')
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Enum'
+  __serialization_key__ = 'pyglove.typing.Enum'
 
   def __init__(
       self,
@@ -938,8 +933,7 @@ class List(Generic, ValueSpecBase):
     pg.typing.List(pg.typing.Int()).freeze([1])
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.List'
+  __serialization_key__ = 'pyglove.typing.List'
 
   def __init__(
       self,
@@ -1157,8 +1151,7 @@ class Tuple(Generic, ValueSpecBase):
     pg.typing.Tuple(pg.typing.Int()).freeze((1,))
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Tuple'
+  __serialization_key__ = 'pyglove.typing.Tuple'
 
   def __init__(
       self,
@@ -1518,8 +1511,7 @@ class Dict(Generic, ValueSpecBase):
     ]).freeze()
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Dict'
+  __serialization_key__ = 'pyglove.typing.Dict'
 
   def __init__(
       self,
@@ -1709,8 +1701,7 @@ class Object(Generic, ValueSpecBase):
     pg.typing.Object(A, default=A())
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Object'
+  __serialization_key__ = 'pyglove.typing.Object'
 
   def __init__(
       self,
@@ -1814,7 +1805,7 @@ class Object(Generic, ValueSpecBase):
   @property
   def schema(self) -> typing.Optional[Schema]:
     """Returns the schema of object class if available."""
-    return getattr(self.value_type, 'schema', None)
+    return getattr(self.value_type, '__schema__', None)
 
   def _eq(self, other: 'Object') -> bool:
     """Operator==."""
@@ -1898,8 +1889,7 @@ class Callable(Generic, ValueSpecBase):
   See also: :class:`pyglove.typing.Functor`.
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Callable'
+  __serialization_key__ = 'pyglove.typing.Callable'
 
   def __init__(
       self,
@@ -2200,8 +2190,7 @@ class Functor(Callable):
   See also: :class:`pyglove.typing.Callable`.
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Functor'
+  __serialization_key__ = 'pyglove.typing.Functor'
 
   def __init__(
       self,
@@ -2258,8 +2247,7 @@ class Type(Generic, ValueSpecBase):
     pg.typing.Type(A, default=B)
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Type'
+  __serialization_key__ = 'pyglove.typing.Type'
 
   def __init__(
       self,
@@ -2383,8 +2371,7 @@ class Union(Generic, ValueSpecBase):
     ], default={'x': 1})
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Union'
+  __serialization_key__ = 'pyglove.typing.Union'
 
   def __init__(
       self,
@@ -2723,8 +2710,7 @@ class Any(ValueSpecBase):
     performed on this type.
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.Any'
+  __serialization_key__ = 'pyglove.typing.Any'
 
   def __init__(
       self,

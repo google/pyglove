@@ -238,7 +238,7 @@ class JSONConvertible(metaclass=abc.ABCMeta):
       exclude_keys: Optional[Set[str]] = None,
       **kwargs) -> Dict[str, JSONValueType]:
     """Helper method to create JSON dict from class and field."""
-    json_dict = {JSONConvertible.TYPE_NAME_KEY: _type_name(cls)}
+    json_dict = {JSONConvertible.TYPE_NAME_KEY: _serialization_key(cls)}
     exclude_keys = exclude_keys or set()
     if exclude_default:
       for k, (v, default) in fields.items():
@@ -253,15 +253,21 @@ class JSONConvertible(metaclass=abc.ABCMeta):
   def __init_subclass__(cls):
     super().__init_subclass__()
     if not inspect.isabstract(cls) and cls.auto_register:
-      type_name = _type_name(cls)
+      type_name = _serialization_key(cls)
       JSONConvertible.register(type_name, cls, override_existing=True)
 
 
-def _type_name(type_or_function: Union[Type[Any], types.FunctionType]) -> str:
+def _serialization_key(
+    type_or_function: Union[Type[Any], types.FunctionType]) -> str:
   """Returns the ID for a type or function."""
-  type_name = getattr(type_or_function, 'type_name', None)
-  if type_name is not None:
-    return type_name
+  serializaton_key = getattr(type_or_function, '__serialization_key__', None)
+  if serializaton_key is not None:
+    return serializaton_key
+  return _type_name(type_or_function)
+
+
+def _type_name(
+    type_or_function: Union[Type[Any], types.FunctionType]) -> str:
   return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
 
 

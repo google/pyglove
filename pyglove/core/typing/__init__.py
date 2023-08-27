@@ -62,7 +62,7 @@ through decorators such as :func:`pyglove.members`, :func:`pyglove.symbolize` or
   class A(pg.Object):
     pass
 
-  print(A.schema)
+  print(A.__schema__)
 
   @pg.symbolize([
       ('a', pg.typing.Int()),
@@ -71,7 +71,7 @@ through decorators such as :func:`pyglove.members`, :func:`pyglove.symbolize` or
   def foo(a, b):
     return a + b
 
-  print(foo.schema)
+  print(foo.__schema__)
 
 
 The first argument of all the decorators takes a list of field definitions,
@@ -188,7 +188,7 @@ The code snippet below illustrates schema inheritance during subclassing::
   class B(A):
     pass
 
-  assert B.schema.fields.keys() == ['x', 'y', 'z']
+  assert B.__schema__.fields.keys() == ['x', 'y', 'z']
 
   @pg.members([
       # Raises: 'z' is frozen in class B and cannot be extended further.
@@ -289,7 +289,6 @@ Following is an example of using `CustomTyping` to extend the schema system::
   # FloatTensor can be accepted for all symbolic attributes
   # with Float value spec.
   f = Foo(x=FloatTensor(tf.constant(1.0)))
-
 """
 
 # pylint: disable=g-bad-import-order

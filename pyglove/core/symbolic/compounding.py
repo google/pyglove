@@ -108,9 +108,9 @@ def compound_class(
       inferred from its annotation. Otherwise the value specs for all arguments
       will be ``pg.typing.Any()``.
     serialization_key: An optional string to be used as the serialization key
-      for the class during `sym_jsonify`. If None, `cls.type_name` will be used.
-      This is introduced for scenarios when we want to relocate a class, before
-      the downstream can recognize the new location, we need the class to
+      for the class during `sym_jsonify`. If None, `cls.__type_name__` will be
+      used. This is introduced for scenarios when we want to relocate a class,
+      before the downstream can recognize the new location, we need the class to
       serialize it using previous key.
     additional_keys: An optional list of strings as additional keys to
       deserialize an object of the registered class. This can be useful when we

@@ -19,6 +19,7 @@ import inspect
 import typing
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
+from pyglove.core import logging
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
@@ -30,10 +31,8 @@ from pyglove.core.symbolic import schema_utils
 class ObjectMeta(abc.ABCMeta):
   """Meta class for pg.Object."""
 
-  @property
-  def schema(cls) -> pg_typing.Schema:
-    """Class level property for schema."""
-    return getattr(cls, '__schema__', None)
+  __schema__: pg_typing.Schema
+  __serialization_key__: str
 
   @property
   def sym_fields(cls) -> pg_typing.Dict:
@@ -41,7 +40,7 @@ class ObjectMeta(abc.ABCMeta):
     return getattr(cls, '__sym_fields')
 
   @property
-  def type_name(cls) -> str:
+  def __type_name__(cls) -> str:
     """Class level property for type name.
 
     NOTE(daiyip): This is used for serialization/deserialization.
@@ -49,17 +48,27 @@ class ObjectMeta(abc.ABCMeta):
     Returns:
       String of <module>.<class> as identifier.
     """
-    return f'{cls.__module__}.{cls.__name__}'
+    return f'{cls.__module__}.{cls.__qualname__}'
 
-  @property
-  def serialization_key(cls) -> str:
-    """Gets serialization type key."""
-    return getattr(cls, '__serialization_key__')
+  def __getattr__(cls, name):
+    # NOTE(daiyip): For backward compatibility, we allows these names to
+    # be used as aliases to the canonical names if users do not override them.
+    if name == 'schema':
+      logging.warning(
+          '`pg.Object.schema` is deprecated and will be removed in future. '
+          'Please use `__schema__` instead.')
+      return cls.__schema__
+    elif name == 'type_name':
+      logging.warning(
+          '`pg.Object.type_name` is deprecated and will be removed in future. '
+          'Please use `__type_name__` instead.')
+      return cls.__type_name__
+    raise AttributeError(name)
 
   @property
   def init_arg_list(cls) -> List[str]:
     """Gets __init__ positional argument list."""
-    return typing.cast(List[str], cls.schema.metadata['init_arg_list'])
+    return typing.cast(List[str], cls.__schema__.metadata['init_arg_list'])
 
   def apply_schema(cls, schema: pg_typing.Schema) -> None:
     """Applies a schema to a symbolic class.
@@ -75,8 +84,8 @@ class ObjectMeta(abc.ABCMeta):
     init_arg_list = schema.metadata.get('init_arg_list', None)
     if init_arg_list is None:
       init_arg_list = schema_utils.auto_init_arg_list(cls)
-      cls.schema.metadata['init_arg_list'] = init_arg_list
-    schema_utils.validate_init_arg_list(init_arg_list, cls.schema)
+      cls.__schema__.metadata['init_arg_list'] = init_arg_list
+    schema_utils.validate_init_arg_list(init_arg_list, cls.__schema__)
     cls._on_schema_update()  # pytype: disable=attribute-error
 
   def register_for_deserialization(
@@ -85,14 +94,14 @@ class ObjectMeta(abc.ABCMeta):
       additional_keys: Optional[List[str]] = None,
   ) -> None:
     """Register current symbolic class for deserialization."""
-    serialization_key = serialization_key or cls.type_name
+    serialization_key = serialization_key or cls.__type_name__
     setattr(cls, '__serialization_key__', serialization_key)
 
     serialization_keys = []
     serialization_keys.append(serialization_key)
     serialization_keys.extend(additional_keys or [])
-    if cls.type_name not in serialization_keys:
-      serialization_keys.append(cls.type_name)
+    if cls.__type_name__ not in serialization_keys:
+      serialization_keys.append(cls.__type_name__)
 
     # Register class with 'type' property.
     for key in serialization_keys:
@@ -131,7 +140,7 @@ class ObjectMeta(abc.ABCMeta):
 
       field = pg_typing.Field.from_annotation(key, attr_annotation)
       if isinstance(key, pg_typing.ConstStrKey):
-        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
         if attr_value != pg_typing.MISSING_VALUE:
           field.value.set_default(attr_value)
       fields.append(field)
@@ -142,10 +151,10 @@ class ObjectMeta(abc.ABCMeta):
 
   def _update_default_values_from_class_attributes(cls):
     """Updates the symbolic attribute defaults from class attributes."""
-    for field in cls.schema.fields.values():
+    for field in cls.__schema__.fields.values():
       if isinstance(field.key, pg_typing.ConstStrKey):
         attr_name = field.key.text
-        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
         if (
             attr_value != pg_typing.MISSING_VALUE
             and not isinstance(attr_value, property)
@@ -214,7 +223,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # x : pg.typing.Int(min_value=1, max_value=10, default=1))
     # y : pg.typing.Float(min_value=0)
     # z : pg.typing.Str().noneable()
-    print(Bar.schema)
+    print(Bar.__schema__)
   """
 
   # Disable pytype attribute checking.
@@ -256,7 +265,6 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   # Customizable class behaviors.
   #
 
-  @classmethod
   def __init_subclass__(cls, user_cls=None):
     """Initializes subclass.
 
@@ -283,6 +291,11 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             'know the implications, please decorate your overridden method '
             'with `@pg.explicit_method_override`.'
         ))
+
+    # Set `__serialization_key__` before JSONConvertible.__init_subclass__
+    # is called.
+    setattr(cls, '__serialization_key__', cls.__type_name__)
+
     super().__init_subclass__()
 
     user_cls = user_cls or cls
@@ -293,7 +306,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       # by looking at their inheritance chains.
       base_schema_list = []
       for base_cls in user_cls.__bases__:
-        base_schema = getattr(base_cls, 'schema', None)
+        base_schema = getattr(base_cls, '__schema__', None)
         if isinstance(base_schema, pg_typing.Schema):
           base_schema_list.append(base_schema)
 
@@ -301,7 +314,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       cls_schema = schema_utils.formalize_schema(
           pg_typing.create_schema(
               new_fields,
-              name=user_cls.type_name,
+              name=user_cls.__type_name__,
               base_schema_list=base_schema_list,
               allow_nonconst_keys=True,
               metadata={},
@@ -316,8 +329,6 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       if new_fields:
         cls_schema.metadata['init_arg_list'] = None
       user_cls.apply_schema(cls_schema)
-
-    setattr(cls, '__serialization_key__', cls.type_name)
 
   @classmethod
   def _on_schema_update(cls):
@@ -345,7 +356,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       # they need to synchronize the __init__ signature by themselves.
       return
     signature = pg_typing.Signature.from_schema(
-        cls.schema, cls.__module__, '__init__', f'{cls.__name__}.__init__'
+        cls.__schema__, cls.__module__, '__init__', f'{cls.__name__}.__init__'
     )
     pseudo_init = signature.make_function(['pass'])
 
@@ -367,10 +378,10 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   @classmethod
   def _generate_sym_attributes(cls):
     """Customizable trait: logics for generating symbolic attributes.."""
-    for key, field in cls.schema.fields.items():
+    for key, field in cls.__schema__.fields.items():
       if isinstance(key, pg_typing.ConstStrKey):
         attr_name = str(key)
-        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
+        attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
         if attr_value == pg_typing.MISSING_VALUE or (
             not inspect.isfunction(attr_value)
             and not isinstance(attr_value, property)
@@ -509,7 +520,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         init_super=not explicit_init)
 
     # Fill field_args and init_args from **kwargs.
-    _, unmatched_keys = self.__class__.schema.resolve(list(kwargs.keys()))
+    _, unmatched_keys = self.__class__.__schema__.resolve(list(kwargs.keys()))
     if unmatched_keys:
       arg_phrase = object_utils.auto_plural(len(unmatched_keys), 'argument')
       keys_str = object_utils.comma_delimited_str(unmatched_keys)
@@ -521,11 +532,11 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # Fill field_args and init_args from *args.
     init_arg_names = self.__class__.init_arg_list
     if args:
-      if not self.__class__.schema.fields:
+      if not self.__class__.__schema__.fields:
         raise TypeError(f'{self.__class__.__name__}() takes no arguments.')
       elif init_arg_names and init_arg_names[-1].startswith('*'):
         vararg_name = init_arg_names[-1][1:]
-        vararg_field = self.__class__.schema.get_field(vararg_name)
+        vararg_field = self.__class__.__schema__.get_field(vararg_name)
         assert vararg_field is not None
 
         num_named_args = len(init_arg_names) - 1
@@ -554,7 +565,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # Check missing arguments when partial binding is disallowed.
     if not base.accepts_partial(self):
       missing_args = []
-      for field in self.__class__.schema.fields.values():
+      for field in self.__class__.__schema__.fields.values():
         if (not field.value.has_default
             and isinstance(field.key, pg_typing.ConstStrKey)
             and field.key not in field_args):
@@ -792,9 +803,11 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # NOTE(daiyip): two types of members are treated as regular members:
     # 1) All private members which prefixed with '_'.
     # 2) Public members that are not declared as symbolic members.
-    if (not self.allow_symbolic_attribute
-        or not self.__class__.schema.get_field(name)
-        or name.startswith('_')):
+    if (
+        not self.allow_symbolic_attribute
+        or not self.__class__.__schema__.get_field(name)
+        or name.startswith('_')
+    ):
       super().__setattr__(name, value)
     else:
       if base.treats_as_sealed(self):
@@ -839,10 +852,14 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
   def sym_jsonify(self, **kwargs) -> object_utils.JSONValueType:
     """Converts current object to a dict of plain Python objects."""
-    return object_utils.merge([{
-        object_utils.JSONConvertible.TYPE_NAME_KEY:
-            self.__class__.serialization_key
-    }, self._sym_attributes.to_json(**kwargs)])
+    return object_utils.merge([
+        {
+            object_utils.JSONConvertible.TYPE_NAME_KEY: (
+                self.__class__.__serialization_key__
+            )
+        },
+        self._sym_attributes.to_json(**kwargs),
+    ])
 
   def format(self,
              compact: bool = False,
@@ -926,22 +943,20 @@ def members(
       be attached to class schema.
     init_arg_list: An optional sequence of strings as the positional argument
       list for `__init__`. This is helpful when symbolic attributes are
-      inherited from base classes or the user want to change its order.
-      If not provided, the `init_arg_list` will be automatically generated
-      from symbolic attributes defined from ``pg.members`` in their declaration
+      inherited from base classes or the user want to change its order. If not
+      provided, the `init_arg_list` will be automatically generated from
+      symbolic attributes defined from ``pg.members`` in their declaration
       order, from the base classes to the subclass.
-    **kwargs: Keyword arguments for infrequently used options.
-      Acceptable keywords are:
-
-      * `serialization_key`: An optional string to be used as the serialization
-        key for the class during `sym_jsonify`. If None, `cls.type_name` will be
-        used. This is introduced for scenarios when we want to relocate a class,
-        before the downstream can recognize the new location, we need the class
-        to serialize it using previous key.
-      * `additional_keys`: An optional list of strings as additional keys to
-        deserialize an object of the registered class. This can be useful
-        when we need to relocate or rename the registered class while being able
-        to load existing serialized JSON values.
+    **kwargs: Keyword arguments for infrequently used options. Acceptable
+      keywords are:  * `serialization_key`: An optional string to be used as the
+      serialization key for the class during `sym_jsonify`. If None,
+      `cls.__type_name__` will be used. This is introduced for scenarios when we
+      want to relocate a class, before the downstream can recognize the new
+      location, we need the class to serialize it using previous key. *
+      `additional_keys`: An optional list of strings as additional keys to
+      deserialize an object of the registered class. This can be useful when we
+      need to relocate or rename the registered class while being able to load
+      existing serialized JSON values.
 
   Returns:
     a decorator function that register the class or function with schema

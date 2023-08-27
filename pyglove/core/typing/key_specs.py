@@ -48,8 +48,7 @@ class ConstStrKey(KeySpecBase, object_utils.StrKey):
       assert hash(key) == hash('x')
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.ConstStrKey'
+  __serialization_key__ = 'pyglove.typing.ConstStrKey'
 
   @property
   def is_const(self) -> bool:
@@ -133,8 +132,7 @@ class StrKey(NonConstKey):
       assert not key.match('bar')
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.StrKey'
+  __serialization_key__ = 'pyglove.typing.StrKey'
 
   def __init__(self, regex: Optional[str] = None):
     """Constructor.
@@ -202,8 +200,7 @@ class ListKey(NonConstKey):
       assert not key.match(0)
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.ListKey'
+  __serialization_key__ = 'pyglove.typing.ListKey'
 
   def __init__(
       self, min_value: int = 0, max_value: Optional[int] = None):
@@ -282,8 +279,7 @@ class TupleKey(NonConstKey):
       assert not key.match(1)
   """
 
-  # Serialization key.
-  type_name = 'pyglove.typing.TupleKey'
+  __serialization_key__ = 'pyglove.typing.TupleKey'
 
   def __init__(self, index: Optional[int] = None):
     """Constructor.
