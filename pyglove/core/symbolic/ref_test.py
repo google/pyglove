@@ -50,6 +50,7 @@ class RefTest(unittest.TestCase):
     r = ref.Ref(A(1))
     self.assertIsInstance(r, ref.Ref)
     self.assertIsInstance(r.infer(), A)
+    self.assertEqual(ref.Ref(r), r)
 
   def test_type_check(self):
 

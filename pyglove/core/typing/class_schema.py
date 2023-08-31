@@ -198,8 +198,7 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
   | validation and        |                                                 |
   | transformation        |                                                 |
   +-----------------------+-------------------------------------------------+
-  | User customized value | :attr:`.user_validator`                         |
-  | validation            |                                                 |
+  | User transform        | :attr:`.transform`                              |
   +-----------------------+-------------------------------------------------+
   | Default value lookup  | :attr:`.default`                                |
   +-----------------------+-------------------------------------------------+
@@ -249,7 +248,7 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
       pg.typing.<ValueSpecClass>(
           [validation-rules],
           [default=<default>],
-          [user_validator=<user_validator>])
+          [transform=<transform>])
 
   After creation, a ``ValueSpec`` object can be modified with chaining.
   The code below creates an int specification with default value 1 and can
@@ -419,9 +418,8 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
 
   @property
   @abc.abstractmethod
-  def user_validator(
-      self) -> Optional[Callable[[Any], None]]:
-    """Returns a user validator which is used for custom validation logic."""
+  def transform(self) -> Optional[Callable[[Any], Any]]:
+    """Returns a transform that will be applied on the input before apply."""
 
   @abc.abstractmethod
   def is_compatible(self, other: 'ValueSpec') -> bool:
@@ -456,7 +454,8 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
       allow_partial: bool = False,
       child_transform: Optional[Callable[
           [object_utils.KeyPath, 'Field', Any], Any]] = None,
-      root_path: Optional[object_utils.KeyPath] = None) -> Any:
+      root_path: Optional[object_utils.KeyPath] = None,
+      ) -> Any:
     """Validates, completes and transforms the input value.
 
     Here is the procedure of ``apply``::
@@ -694,7 +693,12 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
       ValueError: if value is not acceptable, or value is MISSING_VALUE while
         allow_partial is set to False.
     """
-    value = self._value.apply(value, allow_partial, transform_fn, root_path)
+    value = self._value.apply(
+        value,
+        allow_partial=allow_partial,
+        child_transform=transform_fn,
+        root_path=root_path)
+
     if transform_fn:
       value = transform_fn(root_path, self, value)
     return value
@@ -1125,9 +1129,11 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
         if object_utils.MISSING_VALUE == value:
           value = copy.deepcopy(field.default_value)
 
-        child_path = object_utils.KeyPath(key, root_path)
         new_value = field.apply(
-            value, allow_partial, child_transform, child_path)
+            value,
+            allow_partial=allow_partial,
+            transform_fn=child_transform,
+            root_path=object_utils.KeyPath(key, root_path))
 
         # NOTE(daiyip): `pg.Dict.__getitem__`` has special logics in handling
         # `pg.Contextual`` values. Therefore, we user `dict.__getitem__()`` to

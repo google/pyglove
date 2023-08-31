@@ -869,6 +869,13 @@ class ListTest(ValueSpecTest):
     self.assertEqual(v.min_size, 2)
     self.assertEqual(v.max_size, 2)
 
+  def test_skip_user_transform(self):
+    v = vs.List(vs.Int())
+    self.assertIs(v.skip_user_transform, v)
+
+    vs.List(vs.Int(), transform=lambda k, f, v: v)
+    self.assertEqual(v.skip_user_transform, vs.List(vs.Int()))
+
   def test_noneable(self):
     self.assertFalse(vs.List(vs.Int()).is_noneable)
     self.assertTrue(vs.List(vs.Int()).noneable().is_noneable)
@@ -994,19 +1001,20 @@ class ListTest(ValueSpecTest):
         ValueError, 'Length of list .* is greater than max size \\(1\\).'):
       vs.List(vs.Int(), max_size=1).apply([0, 1])
 
-  def test_apply_with_user_validator(self):
+  def test_apply_with_transform(self):
     def _sum_greater_than_zero(value):
       if sum(value) <= 0:
         raise ValueError('Sum expected to be larger than zero')
+      return value
 
     self.assertEqual(
-        vs.List(vs.Int(), user_validator=_sum_greater_than_zero).apply([0, 1]),
+        vs.List(vs.Int(), transform=_sum_greater_than_zero).apply([0, 1]),
         [0, 1],
     )
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
-      vs.List(vs.List(vs.Int(), user_validator=_sum_greater_than_zero)).apply(
+      vs.List(vs.List(vs.Int(), transform=_sum_greater_than_zero)).apply(
           [[-1]]
       )
 
@@ -1123,7 +1131,7 @@ class ListTest(ValueSpecTest):
       if sorted(x) != x:
         raise ValueError('list must be sorted.')
 
-    self.assert_json_conversion(vs.List(vs.Int(), user_validator=validator))
+    self.assert_json_conversion(vs.List(vs.Int(), transform=validator))
     self.assert_json_conversion_key(vs.List(vs.Int()), 'pyglove.typing.List')
 
 
@@ -1353,20 +1361,21 @@ class TupleTest(ValueSpecTest):
         'Length of input tuple .* does not match the length of spec.'):
       vs.Tuple([vs.Int()]).apply((1, 1))
 
-  def test_apply_with_user_validator(self):
+  def test_apply_with_transform(self):
     def _sum_greater_than_zero(value):
-      if sum(list(value)) <= 0:
+      if sum(value) <= 0:
         raise ValueError('Sum expected to be larger than zero')
+      return tuple(value)
 
     self.assertEqual(
         vs.Tuple([vs.Int(), vs.Int()],
-                 user_validator=_sum_greater_than_zero).apply((0, 1)),
+                 transform=_sum_greater_than_zero).apply([0, 1]),
         (0, 1))
 
     with self.assertRaisesRegex(
         ValueError, 'Sum expected to be larger than zero \\(path=\\[0\\]\\)'):
       vs.Tuple(
-          [vs.Tuple([vs.Int()], user_validator=_sum_greater_than_zero)]
+          [vs.Tuple([vs.Int()], transform=_sum_greater_than_zero)]
       ).apply(((-1,),))
 
   def test_is_compatible(self):
@@ -1551,7 +1560,7 @@ class TupleTest(ValueSpecTest):
       if sorted(x) != x:
         raise ValueError('tuple must be sorted.')
 
-    self.assert_json_conversion(vs.Tuple(vs.Int(), user_validator=validator))
+    self.assert_json_conversion(vs.Tuple(vs.Int(), transform=validator))
     self.assert_json_conversion_key(vs.Tuple(vs.Int()), 'pyglove.typing.Tuple')
 
 
@@ -1800,13 +1809,14 @@ class DictTest(ValueSpecTest):
           ('b', vs.Bool().noneable(), 'field 2'),
       ]).apply({'b': True})
 
-  def test_apply_with_user_validator(self):
+  def test_apply_with_transform(self):
     def _sum_greater_than_zero(value):
       if sum(value.values()) <= 0:
         raise ValueError('Sum of values expected to be larger than zero')
+      return value
 
     self.assertEqual(
-        vs.Dict(user_validator=_sum_greater_than_zero).apply({
+        vs.Dict(transform=_sum_greater_than_zero).apply({
             'a': 1,
             'b': 2,
         }),
@@ -1819,7 +1829,7 @@ class DictTest(ValueSpecTest):
         ValueError,
         'Sum of values expected to be larger than zero \\(path=x\\)'):
       vs.Dict([
-          ('x', vs.Dict(user_validator=_sum_greater_than_zero))
+          ('x', vs.Dict(transform=_sum_greater_than_zero))
       ]).apply({'x': {'a': -1}})
 
   def test_is_compatible(self):
@@ -1910,7 +1920,7 @@ class DictTest(ValueSpecTest):
         raise KeyError('Keys must be at most 3 characters long.')
 
     self.assert_json_conversion(
-        vs.Dict([(ks.StrKey(), str)], user_validator=validate)
+        vs.Dict([(ks.StrKey(), str)], transform=validate)
     )
     self.assert_json_conversion_key(vs.Dict(), 'pyglove.typing.Dict')
 
@@ -2097,17 +2107,18 @@ class ObjectTest(ValueSpecTest):
     with self.assertRaisesRegex(ValueError, 'Object .* is not fully bound.'):
       vs.Object(self.C).apply(self.D())
 
-  def test_apply_with_user_validator(self):
+  def test_apply_with_transform(self):
     def _value_is_zero(b):
       if b.value != 0:
         raise ValueError('Value should be zero')
+      return b
 
     b = self.B()
     self.assertEqual(
-        vs.Object(self.B, user_validator=_value_is_zero).apply(b), b)
+        vs.Object(self.B, transform=_value_is_zero).apply(b), b)
 
     with self.assertRaisesRegex(ValueError, 'Value should be zero \\(path=\\)'):
-      vs.Object(self.B, user_validator=_value_is_zero).apply(self.B(1))
+      vs.Object(self.B, transform=_value_is_zero).apply(self.B(1))
 
   def test_is_compatible(self):
     self.assertTrue(vs.Object(self.A).is_compatible(vs.Object(self.A)))
@@ -2198,7 +2209,7 @@ class ObjectTest(ValueSpecTest):
     def validator(x):
       del x
 
-    self.assert_json_conversion(vs.Object(P, user_validator=validator))
+    self.assert_json_conversion(vs.Object(P, transform=validator))
     self.assert_json_conversion_key(vs.Object(P), 'pyglove.typing.Object')
 
 
@@ -2404,7 +2415,7 @@ class CallableTest(ValueSpecTest):
 
     self.assertEqual(vs.Callable().apply(CallableObject), CallableObject)
 
-  def test_apply_with_user_validator(self):
+  def test_apply_with_transform(self):
 
     class CallableObject:
       def __init__(self, value):
@@ -2416,11 +2427,12 @@ class CallableTest(ValueSpecTest):
     def _value_is_one(func):
       if func.value != 1:
         raise ValueError('Value should be one')
+      return func
 
     f = CallableObject(1)
-    self.assertIs(vs.Callable(user_validator=_value_is_one).apply(f), f)
+    self.assertIs(vs.Callable(transform=_value_is_one).apply(f), f)
     with self.assertRaisesRegex(ValueError, 'Value should be one \\(path=\\)'):
-      vs.Callable(user_validator=_value_is_one).apply(CallableObject(0))
+      vs.Callable(transform=_value_is_one).apply(CallableObject(0))
 
   def test_apply_on_functor(self):
 
@@ -2620,7 +2632,7 @@ class CallableTest(ValueSpecTest):
     def validator(x):
       del x
 
-    self.assert_json_conversion(vs.Callable(user_validator=validator))
+    self.assert_json_conversion(vs.Callable(transform=validator))
     self.assert_json_conversion_key(vs.Callable(), 'pyglove.typing.Callable')
 
     # Functor.
@@ -3266,16 +3278,17 @@ class AnyTest(ValueSpecTest):
     self.assertEqual(vs.Any().apply(1), 1)
     self.assertIsNone(vs.Any().apply(None))
 
-  def test_apply_with_user_validator(self):
+  def test_apply_with_transform(self):
     def _value_is_none(value):
       if value is not None:
         raise ValueError('Value should be None.')
+      return value
 
-    self.assertIsNone(vs.Any(user_validator=_value_is_none).apply(None))
+    self.assertIsNone(vs.Any(transform=_value_is_none).apply(None))
 
     with self.assertRaisesRegex(
         ValueError, 'Value should be None. \\(path=\\)'):
-      vs.Any(user_validator=_value_is_none).apply(1)
+      vs.Any(transform=_value_is_none).apply(1)
 
   def test_is_compatible(self):
     self.assertTrue(vs.Any().is_compatible(vs.Int()))

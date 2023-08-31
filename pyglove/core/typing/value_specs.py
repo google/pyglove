@@ -81,8 +81,8 @@ class ValueSpecBase(ValueSpec):
               typing.Tuple[typing.Type[typing.Any], ...]
           ]],
       default: typing.Any = MISSING_VALUE,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]] = None,
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Any]] = None,
       is_noneable: bool = False,
       frozen: bool = False):  # pyformat: disable
     """Constructor of ValueSpecBase.
@@ -98,11 +98,9 @@ class ValueSpecBase(ValueSpec):
       default: (Optional) Default value. If not specified, it always require
         user to provide. Or it can be any value that can be accepted by this
         spec, or None, which automatically add Noneable property to the spec.
-      user_validator: (Optional) user function or callable object for additional
-        validation on applied value, which can reject a value by raising
-        Exceptions. Please note that this validation is an addition to
-        validation provided by built-in constraint, like `min_value` for
-        `schema.Int`.
+      transform: (Optional) user-defined function to be called on the input
+        of `apply`. It could be used as a type converter or a custom
+        validator which may raise errors.
       is_noneable: (Optional) If True, None is acceptable for this spec.
       frozen: If True, values other than the default value is not accceptable.
     """
@@ -111,10 +109,20 @@ class ValueSpecBase(ValueSpec):
     self._is_noneable = is_noneable
     self._frozen = False
     self._default = MISSING_VALUE
-    self._user_validator = user_validator
+    self._transform = transform
+
     self.set_default(default)
     # Reset frozen after setting the default value.
     self._frozen = frozen
+
+  @functools.cached_property
+  def skip_user_transform(self) -> 'ValueSpec':
+    """Returns a value spec of this without transform."""
+    if self._transform is None:
+      return self
+    spec_without_transform = copy.copy(self)
+    spec_without_transform._transform = None  # pylint: disable=protected-access
+    return spec_without_transform
 
   @property
   def is_noneable(self) -> bool:
@@ -154,7 +162,7 @@ class ValueSpecBase(ValueSpec):
     # normalized to MISSING_VALUE for consistency.
     if MISSING_VALUE == default:
       default = MISSING_VALUE
-    if default != MISSING_VALUE and use_default_apply:
+    if MISSING_VALUE != default and use_default_apply:
       default = self.apply(default, allow_partial=True)
     self._default = default
     return self
@@ -163,9 +171,9 @@ class ValueSpecBase(ValueSpec):
              permanent_value: typing.Any = MISSING_VALUE,
              apply_before_use: bool = True) -> ValueSpec:
     """Sets the permanent value as default value and freeze the value spec."""
-    if permanent_value != MISSING_VALUE:
+    if MISSING_VALUE != permanent_value:
       self.set_default(permanent_value, use_default_apply=apply_before_use)
-    elif self._default == MISSING_VALUE:
+    elif MISSING_VALUE == self._default:
       raise ValueError(f'Cannot freeze {self} without a default value.')
     self._frozen = True
     return self
@@ -176,18 +184,18 @@ class ValueSpecBase(ValueSpec):
     return self._frozen
 
   @property
-  def user_validator(
-      self) -> typing.Optional[typing.Callable[[typing.Any], None]]:
+  def transform(
+      self) -> typing.Optional[typing.Callable[[typing.Any], typing.Any]]:
     """Returns user validator for custom validation logic."""
-    return self._user_validator
+    return self._transform
 
   def extend(self, base: ValueSpec) -> ValueSpec:
     """Extend current value spec on top of a base spec."""
     if base.frozen:
       raise TypeError(f'Cannot extend a frozen value spec: {base}')
 
-    if self._user_validator is None:
-      self._user_validator = base.user_validator
+    if self._transform is None:
+      self._transform = base.transform
 
     if isinstance(base, Any):
       return self
@@ -209,7 +217,6 @@ class ValueSpecBase(ValueSpec):
 
   def _extend(self, base: ValueSpec) -> None:
     """Customized extension that each subclass can override."""
-    pass
 
   def apply(
       self,
@@ -225,7 +232,7 @@ class ValueSpecBase(ValueSpec):
 
     if self.frozen:
       # Always return the default value if a field is frozen.
-      if value != MISSING_VALUE and value != self.default:
+      if MISSING_VALUE != value and self.default != value:
         raise ValueError(
             f'Frozen field is not assignable. (Path='
             f'\'{root_path}\', ValueSpec={self!r}, AssignedValue={value!r})')
@@ -243,6 +250,20 @@ class ValueSpecBase(ValueSpec):
         return
       raise ValueError(
           f'Value cannot be None. (Path=\'{root_path}\', ValueSpec={self!r})')
+
+    if MISSING_VALUE != value and self._transform is not None:
+      try:
+        value = self._transform(value)
+      except Exception as e:  # pylint: disable=broad-except
+        raise e.__class__(
+            object_utils.message_on_path(str(e), root_path)
+            ).with_traceback(sys.exc_info()[2])
+
+      return self.skip_user_transform.apply(
+          value,
+          allow_partial=allow_partial,
+          child_transform=child_transform,
+          root_path=root_path)
 
     # NOTE(daiyip): CustomTyping will take over the apply logic other than
     # standard apply process. This allows users to plugin complex types as
@@ -278,13 +299,6 @@ class ValueSpecBase(ValueSpec):
 
     # Validation is applied after transformation.
     self._validate(root_path, value)
-    if self._user_validator is not None:
-      try:
-        self._user_validator(value)
-      except Exception as e:  # pylint: disable=broad-except
-        raise e.__class__(
-            object_utils.message_on_path(str(e), root_path)
-            ).with_traceback(sys.exc_info()[2])
     return value
 
   def _validate(self, path: object_utils.KeyPath, value: typing.Any):
@@ -321,7 +335,7 @@ class ValueSpecBase(ValueSpec):
   def annotation(self) -> typing.Any:
     """Returns PyType annotation."""
     annotation = self._annotate()
-    if annotation != MISSING_VALUE and self.is_noneable:
+    if MISSING_VALUE != annotation and self.is_noneable:
       return typing.Optional[annotation]
     return annotation
 
@@ -339,7 +353,7 @@ class ValueSpecBase(ValueSpec):
         or not pg_inspect.callable_eq(self.default, other.default)
         or self.is_noneable != other.is_noneable
         or self.frozen != other.frozen
-        or not pg_inspect.callable_eq(self.user_validator, other.user_validator)
+        or not pg_inspect.callable_eq(self.transform, other.transform)
     ):
       return False
     return self._eq(other)
@@ -811,7 +825,7 @@ class Enum(Generic, PrimitiveType):
     if not isinstance(values, list) or not values:
       raise ValueError(
           f'Values for Enum should be a non-empty list. Found {values!r}.')
-    if default != MISSING_VALUE and default not in values:
+    if MISSING_VALUE != default and default not in values:
       raise ValueError(
           f'Enum default value {default!r} is not in candidate list '
           f'{values!r}.')
@@ -942,8 +956,8 @@ class List(Generic, ValueSpecBase):
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.List[typing.Any]], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.List[typing.Any]]
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -958,10 +972,9 @@ class List(Generic, ValueSpecBase):
       max_size: (Optional) max size of list.
       size: (Optional) size of List. A shortcut to specify min_size and max_size
         at the same time. `size` and `min_size`/`max_size` are mutual exclusive.
-      user_validator: (Optional) user function or callable object for additional
-        validation on the applied list, which can reject a value by raising
-        Exceptions. Please note that this validation is an addition to
-        validating list size constraint.
+      transform: (Optional) user-defined function to be called on the input
+        of `apply`. It could be used as a type converter or a custom
+        validator which may raise errors.
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
@@ -992,7 +1005,7 @@ class List(Generic, ValueSpecBase):
         key_specs.ListKey(min_size, max_size),
         element_value, 'Field of list element')
     super().__init__(
-        list, default, user_validator, is_noneable=is_noneable, frozen=frozen
+        list, default, transform, is_noneable=is_noneable, frozen=frozen
     )
 
   @property
@@ -1036,8 +1049,9 @@ class List(Generic, ValueSpecBase):
     # to get their symbolic form instead of the evaluated form.
     getitem = getattr(value, 'sym_getattr', value.__getitem__)
     for i, v in enumerate(value):
-      v = self._element.apply(v, allow_partial, child_transform,
-                              object_utils.KeyPath(i, root_path))
+      v = self._element.apply(
+          v, allow_partial=allow_partial, transform_fn=child_transform,
+          root_path=object_utils.KeyPath(i, root_path))
       if getitem(i) is not v:
         set_item(i, v)
     return value
@@ -1112,7 +1126,7 @@ class List(Generic, ValueSpecBase):
             default=(self._default, MISSING_VALUE),
             min_size=(self.min_size, None),
             max_size=(self.max_size, None),
-            user_validator=(self._user_validator, None),
+            transform=(self._transform, None),
             is_noneable=(self._is_noneable, False),
             frozen=(self._frozen, False),
         ),
@@ -1162,8 +1176,8 @@ class Tuple(Generic, ValueSpecBase):
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Tuple[typing.Any, ...]], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Tuple[typing.Any, ...]]
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -1181,10 +1195,9 @@ class Tuple(Generic, ValueSpecBase):
         tuple.
       size: (Optional) size of List. A shortcut to specify min_size and max_size
         at the same time. `size` and `min_size`/`max_size` are mutual exclusive.
-      user_validator: (Optional) user function or callable object for additional
-        validation on the applied tuple, which can reject a value by raising
-        Exceptions. Please note that this validation is an addition to
-        validating tuple size constraint.
+      transform: (Optional) user-defined function to be called on the input
+        of `apply`. It could be used as a type converter or a custom
+        validator which may raise errors.
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
@@ -1246,7 +1259,7 @@ class Tuple(Generic, ValueSpecBase):
     self._max_size = max_size
     self._elements = elements
     super().__init__(
-        tuple, default, user_validator, is_noneable=is_noneable, frozen=frozen
+        tuple, default, transform, is_noneable=is_noneable, frozen=frozen
     )
 
   @property
@@ -1317,8 +1330,8 @@ class Tuple(Generic, ValueSpecBase):
                 f'max size ({self.max_size}).', root_path))
     return tuple([
         self._elements[i if self.fixed_length else 0].apply(  # pylint: disable=g-complex-comprehension
-            v, allow_partial, child_transform,
-            object_utils.KeyPath(i, root_path))
+            v, allow_partial=allow_partial, transform_fn=child_transform,
+            root_path=object_utils.KeyPath(i, root_path))
         for i, v in enumerate(value)
     ])
 
@@ -1460,7 +1473,7 @@ class Tuple(Generic, ValueSpecBase):
             default=(self._default, MISSING_VALUE),
             min_size=(min_size, None),
             max_size=(max_size, None),
-            user_validator=(self._user_validator, None),
+            transform=(self._transform, None),
             is_noneable=(self._is_noneable, False),
             frozen=(self._frozen, False),
         ),
@@ -1502,7 +1515,7 @@ class Dict(Generic, ValueSpecBase):
 
     pg.typing.Dict([
         (pg.typing.StrKey(), pg.typing.Float())
-    ], user_validator=validate_sum)
+    ], transform=validate_sum)
 
     # A frozen dict that prevents subclass to extend/override.
     pg.typing.Dict([
@@ -1523,8 +1536,8 @@ class Dict(Generic, ValueSpecBase):
           ]
       ] = None,  # pylint: disable=bad-whitespace
       default: typing.Any = MISSING_VALUE,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Dict[typing.Any, typing.Any]], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Dict[typing.Any, typing.Any]]
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -1539,10 +1552,9 @@ class Dict(Generic, ValueSpecBase):
         arbitrary key/value pairs.
       default: Default value. If MISSING_VALUE, the default value will be
         computed according to the schema.
-      user_validator: (Optional) user function or callable object for additional
-        validation on the applied dict, which can reject a value by raising
-        Exceptions. Please note that this validation is an addition to
-        validating nested members by their schema if present.
+      transform: (Optional) user-defined function to be called on the input
+        of `apply`. It could be used as a type converter or a custom
+        validator which may raise errors.
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
@@ -1551,11 +1563,11 @@ class Dict(Generic, ValueSpecBase):
 
     self._schema = typing.cast(typing.Optional[Schema], schema)
     super().__init__(
-        dict, default, user_validator, is_noneable=is_noneable, frozen=frozen
+        dict, default, transform, is_noneable=is_noneable, frozen=frozen
     )
 
     # Automatically generate default based on schema if default is not present.
-    if default == MISSING_VALUE:
+    if MISSING_VALUE == default:
       self.set_default(default)
 
   @property
@@ -1572,7 +1584,7 @@ class Dict(Generic, ValueSpecBase):
   def set_default(
       self, default: typing.Any, use_default_apply: bool = True
   ) -> ValueSpec:
-    if default == MISSING_VALUE and self._schema:
+    if MISSING_VALUE == default and self._schema:
       self._use_generated_default = True
       default = self._schema.apply({}, allow_partial=True)
       return super().set_default(default, use_default_apply=False)
@@ -1599,7 +1611,11 @@ class Dict(Generic, ValueSpecBase):
     """Dict specific apply."""
     if not self._schema:
       return value
-    return self._schema.apply(value, allow_partial, child_transform, root_path)
+    return self._schema.apply(
+        value,
+        allow_partial=allow_partial,
+        child_transform=child_transform,
+        root_path=root_path)
 
   def _extend(self, base: 'Dict') -> None:
     """Dict specific extension."""
@@ -1652,7 +1668,7 @@ class Dict(Generic, ValueSpecBase):
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     fields = dict(
         schema=(self._schema, None),
-        user_validator=(self._user_validator, None),
+        transform=(self._transform, None),
         is_noneable=(self._is_noneable, False),
         frozen=(self._frozen, False),
     )
@@ -1707,8 +1723,8 @@ class Object(Generic, ValueSpecBase):
       self,
       t: typing.Union[typing.Type[typing.Any], str],
       default: typing.Any = MISSING_VALUE,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Any]
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -1718,10 +1734,9 @@ class Object(Generic, ValueSpecBase):
     Args:
       t: Class of the object. Objects of subclass of this class is acceptable.
       default: (Optional) default value of this spec.
-      user_validator: (Optional) user function or callable object for additional
-        validation on the applied object, which can reject a value by raising
-        Exceptions. Please note that this validation is an addition to
-        validating object type constraint.
+      transform: (Optional) user-defined function to be called on the input
+        of `apply`. It could be used as a type converter or a custom
+        validator which may raise errors.
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
@@ -1741,7 +1756,7 @@ class Object(Generic, ValueSpecBase):
     self._forward_ref = forward_ref
     self._type_args = type_args
     super().__init__(
-        t, default, user_validator, is_noneable=is_noneable, frozen=frozen
+        t, default, transform, is_noneable=is_noneable, frozen=frozen
     )
 
   @property
@@ -1846,7 +1861,7 @@ class Object(Generic, ValueSpecBase):
         fields=dict(
             t=(self.cls, None),
             default=(self._default, MISSING_VALUE),
-            user_validator=(self._user_validator, None),
+            transform=(self._transform, None),
             is_noneable=(self._is_noneable, False),
             frozen=(self._frozen, False),
         ),
@@ -1899,8 +1914,8 @@ class Callable(Generic, ValueSpecBase):
       ] = None,
       returns: typing.Optional[ValueSpecOrAnnotation] = None,
       default: typing.Any = MISSING_VALUE,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Callable[..., typing.Any]], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Callable[..., typing.Any]]
       ] = None,
       callable_type: typing.Optional[typing.Type[typing.Any]] = None,
       is_noneable: bool = False,
@@ -1939,7 +1954,7 @@ class Callable(Generic, ValueSpecBase):
     super().__init__(
         callable_type,
         default,
-        user_validator,
+        transform,
         is_noneable=is_noneable,
         frozen=frozen,
     )
@@ -2137,7 +2152,7 @@ class Callable(Generic, ValueSpecBase):
             kw=(self._kw, []),
             returns=(self._return_value, None),
             default=(self._default, MISSING_VALUE),
-            user_validator=(self._user_validator, None),
+            transform=(self._transform, None),
             callable_type=(self._value_type, None),
             is_noneable=(self._is_noneable, False),
             frozen=(self._frozen, False),
@@ -2200,8 +2215,8 @@ class Functor(Callable):
       ] = None,
       returns: typing.Optional[ValueSpecOrAnnotation] = None,
       default: typing.Any = MISSING_VALUE,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Callable[..., typing.Any]], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Callable[..., typing.Any]]
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -2212,7 +2227,7 @@ class Functor(Callable):
         kw=kw,
         returns=returns,
         default=default,
-        user_validator=user_validator,
+        transform=transform,
         callable_type=object_utils.Functor,
         is_noneable=is_noneable,
         frozen=frozen,
@@ -2519,7 +2534,11 @@ class Union(Generic, ValueSpecBase):
     for c in self._candidates:
       if (c.type_resolved
           and (c.value_type is None or isinstance(value, c.value_type))):
-        return c.apply(value, allow_partial, child_transform, root_path)
+        return c.apply(
+            value,
+            allow_partial=allow_partial,
+            child_transform=child_transform,
+            root_path=root_path)
 
     # NOTE(daiyip): This code is to support consider A as B scenario when there
     # is a converter from A to B (converter may return value that is not B). A
@@ -2716,8 +2735,8 @@ class Any(ValueSpecBase):
       self,
       default: typing.Any = MISSING_VALUE,
       annotation: typing.Any = MISSING_VALUE,
-      user_validator: typing.Optional[
-          typing.Callable[[typing.Any], None]
+      transform: typing.Optional[
+          typing.Callable[[typing.Any], typing.Any]
       ] = None,
       frozen: bool = False,
   ):  # pytype: disable=annotation-type-mismatch
@@ -2726,13 +2745,13 @@ class Any(ValueSpecBase):
     Args:
       default: (Optional) default value of this spec.
       annotation: (Optional) external provided type annotation.
-      user_validator: (Optional) user function or callable object for additional
-        validation on the applied value, which can reject a value by raising
-        Exceptions.
+      transform: (Optional) user-defined function to be called on the input
+        of `apply`. It could be used as a type converter or a custom
+        validator which may raise errors.
       frozen: If True, values other than the default value is not accceptable.
     """
     super().__init__(
-        object, default, user_validator, is_noneable=True, frozen=frozen
+        object, default, transform, is_noneable=True, frozen=frozen
     )
     self._annotation = annotation
 
@@ -2768,7 +2787,7 @@ class Any(ValueSpecBase):
         fields=dict(
             default=(self._default, MISSING_VALUE),
             annotation=(self._annotation, MISSING_VALUE),
-            user_validator=(self._user_validator, None),
+            transform=(self._transform, None),
             frozen=(self._frozen, False),
         ),
         exclude_default=True,
@@ -2778,7 +2797,7 @@ class Any(ValueSpecBase):
 
 def _any_if_no_annotation(annotation: typing.Any):
   """Returns typing.Any if annotation is MISSING_VALUE."""
-  return typing.Any if annotation == MISSING_VALUE else annotation
+  return typing.Any if MISSING_VALUE == annotation else annotation
 
 
 # We need to figure out the source file when a ForwardRef is created.

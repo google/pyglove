@@ -87,6 +87,8 @@ class Ref(Object, base.Inferential):
   @object_utils.explicit_method_override
   def __init__(self, value: Any, **kwargs) -> None:
     super().__init__(**kwargs)
+    if isinstance(value, Ref):
+      value = value.value
     self._value = value
 
   def _on_parent_change(
