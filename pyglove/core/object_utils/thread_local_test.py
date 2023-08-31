@@ -52,7 +52,7 @@ class ThreadLocalTest(unittest.TestCase):
     thread_local.thread_local_del(k)
     self.assertFalse(thread_local.thread_local_has(k))
 
-    self.assertIsNone(thread_local.thread_local_get('y', None))
+    self.assertFalse(thread_local.thread_local_has('y'))
     with self.assertRaisesRegex(
         ValueError, 'Key .* does not exist in thread-local storage'):
       thread_local.thread_local_get('abc')
@@ -70,16 +70,17 @@ class ThreadLocalTest(unittest.TestCase):
     self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 
   def test_thread_local_value_scope(self):
+    thread_local.thread_local_set('y', 2)
     with thread_local.thread_local_value_scope('y', 1, None):
       self.assertEqual(thread_local.thread_local_get('y'), 1)
-    self.assertIsNone(thread_local.thread_local_get('y'))
+    self.assertEqual(thread_local.thread_local_get('y'), 2)
 
     # Test thread locality.
     def thread_fun(i):
       def _fn():
         with thread_local.thread_local_value_scope('y', i, None):
           self.assertEqual(thread_local.thread_local_get('y'), i)
-        self.assertIsNone(thread_local.thread_local_get('y'))
+        self.assertFalse(thread_local.thread_local_has('y'))
       return _fn
     self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 

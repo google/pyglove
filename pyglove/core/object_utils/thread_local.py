@@ -28,12 +28,16 @@ def thread_local_value_scope(
     key: str, value_in_scope: Any, initial_value: Any
 ) -> Iterator[None]:
   """Context manager to set a thread local state within the scope."""
-  previous_value = getattr(_thread_local_state, key, initial_value)
+  has_key = thread_local_has(key)
+  previous_value = thread_local_get(key, initial_value)
   try:
-    setattr(_thread_local_state, key, value_in_scope)
+    thread_local_set(key, value_in_scope)
     yield
   finally:
-    setattr(_thread_local_state, key, previous_value)
+    if has_key:
+      thread_local_set(key, previous_value)
+    else:
+      thread_local_del(key)
 
 
 def thread_local_has(key: str) -> bool:
