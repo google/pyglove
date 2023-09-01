@@ -251,6 +251,18 @@ class ValueSpecBase(ValueSpec):
       raise ValueError(
           f'Value cannot be None. (Path=\'{root_path}\', ValueSpec={self!r})')
 
+    # NOTE(daiyip): CustomTyping will take over the apply logic other than
+    # standard apply process. This allows users to plugin complex types as
+    # the inputs for Schema.apply and have full control on the transform.
+    if isinstance(value, CustomTyping):
+      should_continue, value = value.custom_apply(
+          root_path,
+          self,
+          allow_partial=allow_partial,
+          child_transform=child_transform)
+      if not should_continue:
+        return value
+
     if MISSING_VALUE != value and self._transform is not None:
       try:
         value = self._transform(value)
@@ -264,18 +276,6 @@ class ValueSpecBase(ValueSpec):
           allow_partial=allow_partial,
           child_transform=child_transform,
           root_path=root_path)
-
-    # NOTE(daiyip): CustomTyping will take over the apply logic other than
-    # standard apply process. This allows users to plugin complex types as
-    # the inputs for Schema.apply and have full control on the transform.
-    if isinstance(value, CustomTyping):
-      should_continue, value = value.custom_apply(
-          root_path,
-          self,
-          allow_partial=allow_partial,
-          child_transform=child_transform)
-      if not should_continue:
-        return value
 
     if (
         self.type_resolved

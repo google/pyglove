@@ -22,6 +22,7 @@ from pyglove.core import object_utils
 from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
+from pyglove.core.typing import custom_typing
 from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.typing import typed_missing
 from pyglove.core.typing import key_specs as ks
@@ -868,13 +869,6 @@ class ListTest(ValueSpecTest):
     v = vs.List(vs.Int(), size=2)
     self.assertEqual(v.min_size, 2)
     self.assertEqual(v.max_size, 2)
-
-  def test_skip_user_transform(self):
-    v = vs.List(vs.Int())
-    self.assertIs(v.skip_user_transform, v)
-
-    vs.List(vs.Int(), transform=lambda k, f, v: v)
-    self.assertEqual(v.skip_user_transform, vs.List(vs.Int()))
 
   def test_noneable(self):
     self.assertFalse(vs.List(vs.Int()).is_noneable)
@@ -3337,6 +3331,45 @@ class AnyTest(ValueSpecTest):
     self.assert_json_conversion(vs.Any(default=1))
     self.assert_json_conversion(vs.Any().freeze(1))
     self.assert_json_conversion_key(vs.Any(), 'pyglove.typing.Any')
+
+
+class TransformTest(ValueSpecTest):
+
+  def test_skip_user_transform(self):
+    v = vs.List(vs.Int())
+    self.assertIs(v.skip_user_transform, v)
+
+    vs.List(vs.Int(), transform=lambda k, f, v: v)
+    self.assertEqual(v.skip_user_transform, vs.List(vs.Int()))
+
+  def test_transform_on_custom_typing(self):
+
+    class Ref(custom_typing.CustomTyping):
+
+      def __init__(self, value):
+        self.value = value
+
+      def custom_apply(self, root_path, value_spec, **kwargs):
+        return (False, Ref(value_spec.apply(self.value, **kwargs)))
+
+      def __eq__(self, other):
+        return isinstance(other, Ref) and self.value == other.value
+
+      def __ne__(self, other):
+        return not self.__eq__(other)
+
+    class A:
+      def __init__(self, value):
+        self.value = value
+
+      def __eq__(self, other):
+        return isinstance(other, A) and self.value == other.value
+
+      def __ne__(self, other):
+        return not self.__eq__(other)
+
+    v = vs.Object(A, transform=A)
+    self.assertEqual(v.apply(Ref(1)), Ref(A(1)))
 
 
 @contextlib.contextmanager
