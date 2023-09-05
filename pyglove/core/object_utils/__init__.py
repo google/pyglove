@@ -65,6 +65,8 @@ modules with the following features:
   +---------------------+--------------------------------------------+
   | Docstr handling     | :class:`pg.docstr`,                        |
   +---------------------+--------------------------------------------+
+  | Error handling     | :class:`pg.catch_errors`,                   |
+  +---------------------+--------------------------------------------+
 """
 # pylint: enable=line-too-long
 # pylint: disable=g-bad-import-order
@@ -137,5 +139,9 @@ from pyglove.core.object_utils.docstr_utils import DocStrArgument
 from pyglove.core.object_utils.docstr_utils import DocStrReturns
 from pyglove.core.object_utils.docstr_utils import DocStrRaises
 from pyglove.core.object_utils.docstr_utils import docstr
+
+# Handling exceptions.
+from pyglove.core.object_utils.error_utils import catch_errors
+from pyglove.core.object_utils.error_utils import CatchErrorsContext
 
 # pylint: enable=g-bad-import-order

@@ -289,6 +289,7 @@ is_partial = object_utils.is_partial
 format = object_utils.format   # pylint: disable=redefined-builtin
 print = object_utils.print    # pylint: disable=redefined-builtin
 docstr = object_utils.docstr
+catch_errors = object_utils.catch_errors
 
 #
 # Symbols from `logging.py`.

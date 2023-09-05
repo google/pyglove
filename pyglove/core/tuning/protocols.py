@@ -16,8 +16,6 @@
 import abc
 import contextlib
 import datetime
-import inspect
-import re
 import time
 import traceback
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
@@ -395,11 +393,10 @@ class Feedback(metaclass=abc.ABCMeta):
         reward, metrics, step=step, checkpoint_path=checkpoint_path)
     self.done(metadata=metadata, related_links=related_links)
 
-  @contextlib.contextmanager
   def skip_on_exceptions(
       self, exceptions: Sequence[
           Union[Type[Exception], Tuple[Exception, str]]]):
-    """Yield skip on exceptions.
+    """Returns a context manager to skip trial on user-specified exceptions.
 
     Usages::
 
@@ -415,41 +412,12 @@ class Feedback(metaclass=abc.ABCMeta):
       exceptions: A sequence of (exception type, or exception type plus regular
         expression for error message).
 
-    Yields:
-      None.
+    Returns:
+      A context manager for skipping trials on user-specified exceptions.
     """
-    error_mapping: Dict[Type[Exception], List[str]] = {}
-    for error_type in exceptions:
-      regex = None
-      if isinstance(error_type, tuple):
-        assert len(error_type) == 2, error_type
-        error_type, regex = error_type
-      if not (inspect.isclass(error_type)
-              and issubclass(error_type, Exception)):
-        raise TypeError(f'Exception contains non-except types: {error_type!r}.')
-      if error_type not in error_mapping:
-        error_mapping[error_type] = []
-      if regex is not None:
-        error_mapping[error_type].append(regex)
-
-    try:
-      yield
-    except tuple(error_mapping.keys()) as e:
-      error_message = str(e)
-      found_match = False
-      for error_type, error_regexes in error_mapping.items():
-        if isinstance(e, error_type):
-          if not error_regexes:
-            found_match = True
-          else:
-            for regex in error_regexes:
-              if re.match(regex, error_message):
-                found_match = True
-                break
-      if found_match:
-        self.skip(traceback.format_exc())
-      else:
-        raise
+    def skip_on_exception(unused_error):
+      self.skip(traceback.format_exc())
+    return object_utils.catch_errors(exceptions, skip_on_exception)
 
   @contextlib.contextmanager
   def ignore_race_condition(self):
