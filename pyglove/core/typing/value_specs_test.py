@@ -2432,7 +2432,7 @@ class CallableTest(ValueSpecTest):
 
     class FunctorWithRegularArgs(object_utils.Functor):
 
-      signature = callable_signature.Signature(
+      __signature__ = callable_signature.Signature(
           callable_type=callable_signature.CallableType.FUNCTION,
           name='foo',
           module_name='__main__',
@@ -2478,7 +2478,7 @@ class CallableTest(ValueSpecTest):
 
     class FunctorWithVarArgs(object_utils.Functor):
 
-      signature = callable_signature.Signature(
+      __signature__ = callable_signature.Signature(
           callable_type=callable_signature.CallableType.FUNCTION,
           name='foo',
           module_name='__main__',

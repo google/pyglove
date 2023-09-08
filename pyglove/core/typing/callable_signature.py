@@ -256,8 +256,8 @@ class Signature(object_utils.Formattable):
       raise TypeError(f'{callable_object!r} is not callable.')
 
     if isinstance(callable_object, object_utils.Functor):
-      assert callable_object.signature is not None
-      return callable_object.signature
+      assert callable_object.__signature__ is not None
+      return callable_object.__signature__
 
     func = callable_object
     if not inspect.isroutine(func):
