@@ -14,10 +14,9 @@
 """Symbolic function (Functor)."""
 
 import abc
-import contextlib
 import functools
 import inspect
-import threading
+
 import types
 import typing
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
@@ -65,52 +64,29 @@ class Functor(pg_object.Object, object_utils.Functor):
 
     sum()(1, 2, 3, 4)  # returns 10: a=1, b=2, *args=[3, 4]
     sum(c=4)(1, 2, 3)  # returns 10: a=1, b=2, *args=[3], **kwargs={'c': 4}
-
-  Or created by subclassing ``pg.Functor``::
-
-    class Sum(pg.Functor):
-      a: int
-      b: int = 1
-
-      def _call(self) -> int:
-        return self.a + self.b
-
-  Usage on subclassed functors is the same as functors created from functions.
   """
 
   # Allow assignment on symbolic attributes.
   allow_symbolic_assignment = True
 
-  # Key for storing override members during call.
-  _TLS_OVERRIDE_MEMBERS_KEY = '__override_members__'
+  # Do not infer symbolic fields from annotations, since functors are
+  # created from function definition which does not have class-level attributes.
+  infer_symbolic_fields_from_annotations = False
+
+  # Functor's schema will be inferred from the function signature based on
+  # `pg.functor` or `pg.symbolize`. Therefore we do not infer the schema
+  # automatically during class creation.
+  auto_schema = False
+
+  # Signature of this function.
+  signature: pg_typing.Signature
 
   #
   # Customizable class traits.
   #
 
   @classmethod
-  @property
-  def is_subclassed_functor(cls) -> bool:
-    """Returns True if this class is a subclassed Functor."""
-    return cls.auto_schema
-
-  @classmethod
   def _update_signatures_based_on_schema(cls):
-    # Update the return value of subclassed functors.
-    if cls.is_subclassed_functor:  # pylint: disable=using-constant-test
-      private_call_signature = pg_typing.Signature.from_callable(
-          cls._call, auto_typing=True
-      )
-      if (
-          len(private_call_signature.args) > 1
-          or private_call_signature.kwonlyargs
-      ):
-        raise TypeError(
-            '`_call` of a subclassed Functor should take no argument. '
-            f'Encountered: {cls._call}.'
-        )
-      cls.__schema__.metadata['returns'] = private_call_signature.return_value
-
     # Update __init_ signature.
     init_signature = pg_typing.Signature.from_schema(
         cls.__schema__,
@@ -121,14 +97,10 @@ class Functor(pg_object.Object, object_utils.Functor):
 
     pseudo_init = init_signature.make_function(['pass'])
 
-    # Save the original `Functor.__init__` before overriding it.
-    if not hasattr(cls, '__orig_init__'):
-      setattr(cls, '__orig_init__', cls.__init__)
-
     @object_utils.explicit_method_override
     @functools.wraps(pseudo_init)
     def _init(self, *args, **kwargs):
-      self.__class__.__orig_init__(self, *args, **kwargs)
+      Functor.__init__(self, *args, **kwargs)
 
     setattr(cls, '__init__', _init)
 
@@ -140,7 +112,7 @@ class Functor(pg_object.Object, object_utils.Functor):
         qualname=cls.__qualname__,
         is_method=False,
     )
-    setattr(cls, '__signature__', call_signature)
+    setattr(cls, 'signature', call_signature)
 
   def __new__(cls, *args, **kwargs):
     instance = object.__new__(cls)
@@ -177,40 +149,38 @@ class Functor(pg_object.Object, object_utils.Functor):
     _ = kwargs.pop('allow_partial', None)
 
     varargs = None
-    signature = self.__signature__
-    if len(args) > len(signature.args):
-      if signature.varargs:
-        varargs = list(args[len(signature.args) :])
-        args = args[: len(signature.args)]
+    if len(args) > len(self.signature.args):
+      if self.signature.varargs:
+        varargs = list(args[len(self.signature.args):])
+        args = args[:len(self.signature.args)]
       else:
-        arg_phrase = object_utils.auto_plural(len(signature.args), 'argument')
+        arg_phrase = object_utils.auto_plural(
+            len(self.signature.args), 'argument')
         was_phrase = object_utils.auto_plural(len(args), 'was', 'were')
         raise TypeError(
-            f'{signature.id}() takes {len(signature.args)} '
-            f'positional {arg_phrase} but {len(args)} {was_phrase} given.'
-        )
+            f'{self.signature.id}() takes {len(self.signature.args)} '
+            f'positional {arg_phrase} but {len(args)} {was_phrase} given.')
 
     bound_kwargs = dict()
     for i, v in enumerate(args):
       if pg_typing.MISSING_VALUE != v:
-        bound_kwargs[signature.args[i].name] = v
+        bound_kwargs[self.signature.args[i].name] = v
 
     if varargs is not None:
-      bound_kwargs[signature.varargs.name] = varargs
+      bound_kwargs[self.signature.varargs.name] = varargs
 
     for k, v in kwargs.items():
       if pg_typing.MISSING_VALUE != v:
         if k in bound_kwargs:
           raise TypeError(
-              f'{signature.id}() got multiple values for keyword '
-              f'argument {k!r}.'
-          )
+              f'{self.signature.id}() got multiple values for keyword '
+              f'argument {k!r}.')
         bound_kwargs[k] = v
 
     default_args = set()
     non_default_args = set(bound_kwargs)
 
-    for arg_spec in signature.named_args:
+    for arg_spec in self.signature.named_args:
       if not arg_spec.value_spec.has_default:
         continue
       arg_name = arg_spec.name
@@ -220,8 +190,8 @@ class Functor(pg_object.Object, object_utils.Functor):
         default_args.add(arg_name)
         non_default_args.discard(arg_name)
 
-    if signature.varargs and not varargs:
-      default_args.add(signature.varargs.name)
+    if self.signature.varargs and not varargs:
+      default_args.add(self.signature.varargs.name)
 
     super().__init__(allow_partial=True,
                      root_path=root_path,
@@ -232,19 +202,6 @@ class Functor(pg_object.Object, object_utils.Functor):
     self._specified_args = set(bound_kwargs)
     self._override_args = override_args
     self._ignore_extra_args = ignore_extra_args
-
-    # For subclassed Functor, we use thread-local storage for storing temporary
-    # member overrides from the arguments during functor call.
-    self._tls = threading.local() if self.is_subclassed_functor else None
-
-  def _sym_inferred(self, key: str, **kwargs: Any) -> Any:
-    """Overrides method to allow member overrides during call."""
-    if self._tls is not None:
-      overrides = getattr(self._tls, Functor._TLS_OVERRIDE_MEMBERS_KEY, {})
-      v = overrides.get(key, pg_typing.MISSING_VALUE)
-      if pg_typing.MISSING_VALUE != v:
-        return overrides[key]
-    return super()._sym_inferred(key, **kwargs)
 
   def _sym_clone(self, deep: bool, memo: Any = None) -> 'Functor':
     """Override to copy bound args."""
@@ -282,7 +239,7 @@ class Functor(pg_object.Object, object_utils.Functor):
   def __delattr__(self, name: str) -> None:
     """Discard a previously bound argument and reset to its default value."""
     del self._sym_attributes[name]
-    if self.__signature__.get_value_spec(name).has_default:
+    if self.signature.get_value_spec(name).has_default:
       self._default_args.add(name)
     self._specified_args.discard(name)
     self._non_default_args.discard(name)
@@ -359,60 +316,19 @@ class Functor(pg_object.Object, object_utils.Functor):
     Raises:
       TypeError: got multiple values for arguments or extra argument name.
     """
-    args, kwargs = self._parse_call_time_overrides(*args, **kwargs)
-    signature = self.__signature__
-
-    if self.is_subclassed_functor:
-      for arg_spec, arg_value in zip(signature.args, args):
-        kwargs[arg_spec.name] = arg_value
-
-      # Temporarily override members with argument values from the call.
-      with self._apply_call_time_overrides_to_members(**kwargs):
-        return_value = self._call()
-    else:
-      return_value = self._call(*args, **kwargs)
-
-    # Return value check.
-    if (
-        signature.return_value
-        and flags.is_type_check_enabled()
-        and return_value != pg_typing.MISSING_VALUE
-    ):
-      return_value = signature.return_value.apply(
-          return_value, root_path=self.sym_path + 'returns'
-      )
-    if flags.is_tracking_origin() and isinstance(return_value, base.Symbolic):
-      return_value.sym_setorigin(self, 'return')
-    return return_value
-
-  @contextlib.contextmanager
-  def _apply_call_time_overrides_to_members(self, **kwargs):
-    """Overrides member values within the scope."""
-    assert self._tls is not None
-    setattr(self._tls, Functor._TLS_OVERRIDE_MEMBERS_KEY, kwargs)
-    try:
-      yield
-    finally:
-      delattr(self._tls, Functor._TLS_OVERRIDE_MEMBERS_KEY)
-
-  def _parse_call_time_overrides(
-      self, *args, **kwargs
-  ) -> Tuple[List[Any], Dict[str, Any]]:
-    """Parses positional and keyword arguments from call-time overrides."""
     override_args = kwargs.pop('override_args', self._override_args)
     ignore_extra_args = kwargs.pop('ignore_extra_args', self._ignore_extra_args)
 
-    signature = self.__signature__
-    if len(args) > len(signature.args) and not signature.has_varargs:
+    if len(args) > len(self.signature.args) and not self.signature.has_varargs:
       if ignore_extra_args:
-        args = args[: len(signature.args)]
+        args = args[:len(self.signature.args)]
       else:
-        arg_phrase = object_utils.auto_plural(len(signature.args), 'argument')
+        arg_phrase = object_utils.auto_plural(
+            len(self.signature.args), 'argument')
         was_phrase = object_utils.auto_plural(len(args), 'was', 'were')
         raise TypeError(
-            f'{signature.id}() takes {len(signature.args)} '
-            f'positional {arg_phrase} but {len(args)} {was_phrase} given.'
-        )
+            f'{self.signature.id}() takes {len(self.signature.args)} '
+            f'positional {arg_phrase} but {len(args)} {was_phrase} given.')
 
     keyword_args = {
         k: v for k, v in self._sym_attributes.items()
@@ -422,29 +338,27 @@ class Functor(pg_object.Object, object_utils.Functor):
 
     # Work out varargs when positional arguments are provided.
     varargs = None
-    if signature.has_varargs:
-      varargs = list(args[len(signature.args) :])
+    if self.signature.has_varargs:
+      varargs = list(args[len(self.signature.args):])
       if flags.is_type_check_enabled():
         varargs = [
-            signature.varargs.value_spec.apply(
-                v, root_path=self.sym_path + signature.varargs.name
-            )
+            self.signature.varargs.value_spec.apply(
+                v, root_path=self.sym_path + self.signature.varargs.name)
             for v in varargs
         ]
-      args = args[: len(signature.args)]
+      args = args[:len(self.signature.args)]
 
     # Convert positional arguments to keyword arguments so we can map them back
     # later.
     for i in range(len(args)):
-      arg_spec = signature.args[i]
+      arg_spec = self.signature.args[i]
       arg_name = arg_spec.name
       if arg_name in self._specified_args:
         if not override_args:
           raise TypeError(
-              f'{signature.id}() got new value for argument {arg_name!r} '
-              f"from position {i}, but 'override_args' is set to False. "
-              f'Old value: {keyword_args[arg_name]!r}, new value: {args[i]!r}.'
-          )
+              f'{self.signature.id}() got new value for argument {arg_name!r} '
+              f'from position {i}, but \'override_args\' is set to False. '
+              f'Old value: {keyword_args[arg_name]!r}, new value: {args[i]!r}.')
       arg_value = args[i]
       if flags.is_type_check_enabled():
         arg_value = arg_spec.value_spec.apply(
@@ -455,26 +369,25 @@ class Functor(pg_object.Object, object_utils.Functor):
       if arg_name in self._specified_args:
         if not override_args:
           raise TypeError(
-              f'{signature.id}() got new value for argument {arg_name!r} '
-              "from keyword argument, while 'override_args' is set to "
+              f'{self.signature.id}() got new value for argument {arg_name!r} '
+              f'from keyword argument, while \'override_args\' is set to '
               f'False. Old value: {keyword_args[arg_name]!r}, '
-              f'new value: {arg_value!r}.'
-          )
-      arg_spec = signature.get_value_spec(arg_name)
+              f'new value: {arg_value!r}.')
+      arg_spec = self.signature.get_value_spec(arg_name)
       if arg_spec and flags.is_type_check_enabled():
         arg_value = arg_spec.apply(
             arg_value, root_path=self.sym_path + arg_name)
         keyword_args[arg_name] = arg_value
       elif not ignore_extra_args:
         raise TypeError(
-            f'{signature.id}() got an unexpected keyword argument {arg_name!r}.'
-        )
+            f'{self.signature.id}() got an unexpected '
+            f'keyword argument {arg_name!r}.')
 
     # Use positional arguments if possible. This allows us to handle varargs
     # with simplicity.
     list_args = []
     missing_required_arg_names = []
-    for arg in signature.args:
+    for arg in self.signature.args:
       if arg.name in keyword_args:
         list_args.append(keyword_args[arg.name])
         del keyword_args[arg.name]
@@ -488,16 +401,26 @@ class Functor(pg_object.Object, object_utils.Functor):
           len(missing_required_arg_names), 'argument')
       args_str = object_utils.comma_delimited_str(missing_required_arg_names)
       raise TypeError(
-          f'{signature.id}() missing {len(missing_required_arg_names)} '
-          f'required positional {arg_phrase}: {args_str}.'
-      )
+          f'{self.signature.id}() missing {len(missing_required_arg_names)} '
+          f'required positional {arg_phrase}: {args_str}.')
 
-    if signature.has_varargs:
-      prebound_varargs = keyword_args.pop(signature.varargs.name, None)
+    if self.signature.has_varargs:
+      prebound_varargs = keyword_args.pop(self.signature.varargs.name, None)
       varargs = varargs or prebound_varargs
       if varargs:
         list_args.extend(varargs)
-    return list_args, keyword_args
+
+    return_value = self._call(*list_args, **keyword_args)
+    if (
+        self.signature.return_value
+        and flags.is_type_check_enabled()
+        and return_value != pg_typing.MISSING_VALUE
+    ):
+      return_value = self.signature.return_value.apply(
+          return_value, root_path=self.sym_path + 'returns')
+    if flags.is_tracking_origin() and isinstance(return_value, base.Symbolic):
+      return_value.sym_setorigin(self, 'return')
+    return return_value
 
 
 def functor(
@@ -613,7 +536,7 @@ def functor_class(
         @pg.functor([('c', pg.typing.Int(min_value=0), 'Arg c')])
           def foo(a, b, c=1, **kwargs):
             return a + b + c + sum(kwargs.values())
-
+          
           assert foo.schema.fields() == [
               pg.typing.Field('a', pg.Any(), 'Argument a'.),
               pg.typing.Field('b', pg.Any(), 'Argument b'.),
@@ -660,16 +583,6 @@ def functor_class(
 
   class _Functor(base_class or Functor):
     """Functor wrapper for input function."""
-
-    # The schema for function-based Functor will be inferred from the function
-    # signature. Therefore we do not infer the schema automatically during class
-    # creation.
-    auto_schema = False
-
-    # Do not infer symbolic fields from annotations, since this functor is
-    # created from function definition which does not have class-level
-    # attributes.
-    infer_symbolic_fields_from_annotations = True
 
     def _call(self, *args, **kwargs):
       return func(*args, **kwargs)

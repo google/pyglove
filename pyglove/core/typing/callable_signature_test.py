@@ -299,13 +299,6 @@ class FromSchemaTest(unittest.TestCase):
           class_schema.Schema([], metadata=dict(init_arg_list=['a'])),
           '__main__', 'foo')
 
-    class Foo:
-      __call__ = 1
-
-    with self.assertRaisesRegex(
-        TypeError, '.*__call__ is not a method'):
-      callable_signature.Signature.from_callable(Foo)
-
 
 if __name__ == '__main__':
   unittest.main()

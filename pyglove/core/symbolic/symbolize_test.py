@@ -70,14 +70,11 @@ class SymbolizeFunctionsTest(unittest.TestCase):
     def f(x, y):
       del x, y
     self.assertTrue(issubclass(f, Functor))
-    self.assertEqual(
-        f.__signature__.args,
-        [
-            (pg_typing.Argument('x', pg_typing.Int())),
-            (pg_typing.Argument('y', pg_typing.Str())),
-        ],
-    )
-    self.assertEqual(f.__signature__.return_value, pg_typing.Int())
+    self.assertEqual(f.signature.args, [
+        (pg_typing.Argument('x', pg_typing.Int())),
+        (pg_typing.Argument('y', pg_typing.Str()))
+    ])
+    self.assertEqual(f.signature.return_value, pg_typing.Int())
 
   def test_symbolize_with_serialization_key(self):
     @pg_symbolize(serialization_key='BAR', additional_keys=['RRR'])

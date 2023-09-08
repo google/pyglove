@@ -15,7 +15,6 @@
 
 import inspect
 import io
-import typing
 import unittest
 
 from pyglove.core import object_utils
@@ -105,25 +104,20 @@ class FunctorTest(unittest.TestCase):
             pg_typing.Field(pg_typing.StrKey(), pg_typing.Any()),
         ],
     )
+    self.assertEqual(f.signature.args, [
+        pg_typing.Argument('a', pg_typing.Any()),
+        pg_typing.Argument('b', pg_typing.Any())
+    ])
     self.assertEqual(
-        f.__signature__.args,
-        [
-            pg_typing.Argument('a', pg_typing.Any()),
-            pg_typing.Argument('b', pg_typing.Any()),
-        ],
-    )
+        f.signature.varargs,
+        pg_typing.Argument('args', pg_typing.Any()))
     self.assertEqual(
-        f.__signature__.varargs, pg_typing.Argument('args', pg_typing.Any())
-    )
+        f.signature.varkw, pg_typing.Argument('kwargs', pg_typing.Any()))
     self.assertEqual(
-        f.__signature__.varkw, pg_typing.Argument('kwargs', pg_typing.Any())
-    )
-    self.assertEqual(
-        f.__signature__.kwonlyargs,
-        [pg_typing.Argument('c', pg_typing.Any(default=0))],
-    )
-    self.assertIsNone(f.__signature__.return_value, None)
-    self.assertTrue(f.__signature__.has_varargs)
+        f.signature.kwonlyargs,
+        [pg_typing.Argument('c', pg_typing.Any(default=0))])
+    self.assertIsNone(f.signature.return_value, None)
+    self.assertTrue(f.signature.has_varargs)
     self.assertIsInstance(f.partial(), Functor)
     self.assertEqual(f.partial()(1, 2), 3)
     self.assertEqual(f.partial(b=1)(1), 2)
@@ -145,13 +139,10 @@ class FunctorTest(unittest.TestCase):
     def f(a=1, b=2):
       return a + b
 
-    self.assertEqual(
-        f.__signature__.args,
-        [
-            pg_typing.Argument('a', pg_typing.Int(default=1)),
-            pg_typing.Argument('b', pg_typing.Int(default=2)),
-        ],
-    )
+    self.assertEqual(f.signature.args, [
+        pg_typing.Argument('a', pg_typing.Int(default=1)),
+        pg_typing.Argument('b', pg_typing.Int(default=2)),
+    ])
     self.assertEqual(
         list(f.__schema__.values()),
         [
@@ -159,9 +150,9 @@ class FunctorTest(unittest.TestCase):
             pg_typing.Field('b', pg_typing.Int(default=2)),
         ],
     )
-    self.assertEqual(f.__signature__.return_value, pg_typing.Int())
-    self.assertFalse(f.__signature__.has_varargs)
-    self.assertFalse(f.__signature__.has_varkw)
+    self.assertEqual(f.signature.return_value, pg_typing.Int())
+    self.assertFalse(f.signature.has_varargs)
+    self.assertFalse(f.signature.has_varkw)
     self.assertEqual(f.partial()(), 3)
     self.assertEqual(f.partial(a=2)(b=2), 4)
     self.assertEqual(f.partial(a=3, b=2)(), 5)
@@ -191,19 +182,18 @@ class FunctorTest(unittest.TestCase):
         ],
     )
     self.assertEqual(
-        f.__signature__.args, [pg_typing.Argument('a', pg_typing.Int())]
-    )
+        f.signature.args,
+        [pg_typing.Argument('a', pg_typing.Int())])
     self.assertEqual(
-        f.__signature__.varargs, pg_typing.Argument('args', pg_typing.Any())
-    )
+        f.signature.varargs,
+        pg_typing.Argument('args', pg_typing.Any()))
     self.assertEqual(
-        f.__signature__.kwonlyargs,
-        [pg_typing.Argument('b', pg_typing.Int(default=2))],
-    )
+        f.signature.kwonlyargs,
+        [pg_typing.Argument('b', pg_typing.Int(default=2))])
     self.assertEqual(
-        f.__signature__.varkw, pg_typing.Argument('kwargs', pg_typing.Any())
-    )
-    self.assertEqual(f.__signature__.return_value, pg_typing.Int())
+        f.signature.varkw,
+        pg_typing.Argument('kwargs', pg_typing.Any()))
+    self.assertEqual(f.signature.return_value, pg_typing.Int())
 
     # Test runtime value check.
     with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*'):
@@ -234,9 +224,9 @@ class FunctorTest(unittest.TestCase):
             pg_typing.Field('b', pg_typing.Int(default=2), 'another integer.'),
         ],
     )
-    self.assertEqual(f.__signature__.return_value, pg_typing.Int())
-    self.assertFalse(f.__signature__.has_varargs)
-    self.assertFalse(f.__signature__.has_varkw)
+    self.assertEqual(f.signature.return_value, pg_typing.Int())
+    self.assertFalse(f.signature.has_varargs)
+    self.assertFalse(f.signature.has_varkw)
     self.assertEqual(f.partial()(), 3)
     self.assertEqual(f.partial(a=2)(b=2), 4)
     self.assertEqual(f.partial(a=3, b=2)(), 5)
@@ -250,16 +240,13 @@ class FunctorTest(unittest.TestCase):
     def f(a, b=1, c=1):
       return a + b + c
 
-    self.assertEqual(
-        f.__signature__.args,
-        [
-            pg_typing.Argument('a', pg_typing.Int()),
-            pg_typing.Argument('b', pg_typing.Any(default=1)),
-            pg_typing.Argument('c', pg_typing.Int(default=1)),
-        ],
-    )
-    self.assertFalse(f.__signature__.has_varargs)
-    self.assertFalse(f.__signature__.has_varkw)
+    self.assertEqual(f.signature.args, [
+        pg_typing.Argument('a', pg_typing.Int()),
+        pg_typing.Argument('b', pg_typing.Any(default=1)),
+        pg_typing.Argument('c', pg_typing.Int(default=1)),
+    ])
+    self.assertFalse(f.signature.has_varargs)
+    self.assertFalse(f.signature.has_varkw)
     self.assertEqual(
         list(f.__schema__.values()),
         [
@@ -276,52 +263,6 @@ class FunctorTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, 'missing 1 required positional argument'):
       f.partial()()
-
-  def test_subclassed_functor_class(self):
-    class Foo(Functor):
-      x: int
-      y: int
-
-      __kwargs__: typing.Any
-
-      def _call(self) -> int:
-        return self.x + self.y
-
-    print(Foo.__signature__)
-    self.assertEqual(Foo.__signature__.name, '__call__')
-    self.assertEqual(Foo.__signature__.qualname, Foo.__qualname__)
-    self.assertEqual(Foo.__signature__.module_name, Foo.__module__)
-    self.assertEqual(
-        Foo.__signature__.args,
-        [
-            pg_typing.Argument('x', pg_typing.Int()),
-            pg_typing.Argument('y', pg_typing.Int()),
-        ],
-    )
-    self.assertEqual(
-        Foo.__signature__.varkw,
-        pg_typing.Argument('kwargs', pg_typing.Any(annotation=typing.Any)),
-    )
-    self.assertEqual(Foo.__signature__.return_value, pg_typing.Int())
-
-    foo = Foo(1, 2)
-    self.assertEqual(foo(), 3)
-    self.assertEqual(foo(2, override_args=True), 4)
-    self.assertEqual(foo.x, 1)
-    self.assertEqual(foo(y=3, override_args=True), 4)
-
-    # Partially bound.
-    foo = Foo(y=2)
-    self.assertEqual(foo(1), 3)
-
-    # Bad subclassed Functor.
-
-    with self.assertRaisesRegex(
-        TypeError, '`_call` of a subclassed Functor should take no argument'):
-
-      class Bar(Functor):  # pylint: disable=unused-variable
-        def _call(self, x: int) -> int:
-          pass
 
   def test_runtime_type_check(self):
     @pg_functor([
@@ -422,9 +363,8 @@ class FunctorTest(unittest.TestCase):
     f = pg_as_functor(lambda x: x)
     self.assertIsInstance(f, Functor)
     self.assertEqual(
-        f.__signature__.args, [pg_typing.Argument('x', pg_typing.Any())]
-    )
-    self.assertIsNone(f.__signature__.return_value)
+        f.signature.args, [pg_typing.Argument('x', pg_typing.Any())])
+    self.assertIsNone(f.signature.return_value)
     self.assertEqual(f(1), 1)
 
   def test_bad_definition(self):

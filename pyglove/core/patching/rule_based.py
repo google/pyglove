@@ -137,8 +137,7 @@ class Patcher(symbolic.Functor):
   def __call__(
       self,
       x: symbolic.Symbolic
-      ) -> Union[Dict[str, Any],
-                 Tuple[Dict[str, Any], Callable[[Any], None]]]:
+      ) -> Union[Dict[str, Any], Tuple[Dict[str, Any], Callable[[], None]]]:
     """Override __call__ to get rebind dict."""
     return super().__call__(x, override_args=True)
 
@@ -219,7 +218,7 @@ def patcher(
     cls = functor_decorator(fn)
     _PATCHER_REGISTRY.register(name or fn.__name__,
                                typing.cast(Type[Patcher], cls))
-    arg_specs = cls.__signature__.args
+    arg_specs = cls.signature.args
     if len(arg_specs) < 1:
       raise TypeError(
           'Patcher function should have at least 1 argument '
@@ -338,7 +337,7 @@ def from_uri(uri: str) -> Patcher:
   """Create a Patcher object from a URI-like string."""
   name, args, kwargs = parse_uri(uri)
   patcher_cls = typing.cast(Type[Any], _PATCHER_REGISTRY.get(name))
-  args, kwargs = parse_args(patcher_cls.__signature__, args, kwargs)
+  args, kwargs = parse_args(patcher_cls.signature, args, kwargs)
   return patcher_cls(object_utils.MISSING_VALUE, *args, **kwargs)
 
 
