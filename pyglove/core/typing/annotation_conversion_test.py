@@ -200,6 +200,11 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
         ValueSpec.from_annotation(typing.Sequence[int], True),
         vs.Union([vs.List(vs.Int()), vs.Tuple(vs.Int())]))
 
+  def test_enum(self):
+    self.assertEqual(
+        ValueSpec.from_annotation(typing.Literal[None, 1, 'foo'], True),
+        vs.Enum[None, 1, 'foo'])
+
   def test_dict(self):
     self.assertEqual(ValueSpec.from_annotation(dict, True), vs.Dict())
     self.assertEqual(ValueSpec.from_annotation(typing.Dict, True), vs.Dict())

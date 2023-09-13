@@ -118,10 +118,13 @@ def _value_spec_from_type_annotation(
         return vs.Tuple(_value_spec_from_type_annotation(args[0], False))
       return vs.Tuple([_value_spec_from_type_annotation(arg, False)
                        for arg in args])
-  # Handle sequence.
+  # Handling sequence.
   elif origin in (collections.abc.Sequence,):
     elem = _value_spec_from_annotation(args[0], True) if args else vs.Any()
     return vs.Union([vs.List(elem), vs.Tuple(elem)])
+  # Handling literals.
+  elif origin is typing.Literal:
+    return vs.Enum(object_utils.MISSING_VALUE, args)
   # Handling dict.
   elif origin in (dict, typing.Dict, collections.abc.Mapping):
     if not args:
