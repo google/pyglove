@@ -96,7 +96,7 @@ class StepWise(base.EarlyStopingPolicyBase):
               # For the last measurement of a pending trial, we use gate
               # predicate to determine the stopping decision.
               gate_predicate = self.plan[next_gate][1]
-              stopping_decision = gate_predicate(t, gate_history)
+              stopping_decision = gate_predicate(m, gate_history)
           gate_history.append(m)
           self._trial_gate_decision[t.id] = (next_gate, stopping_decision)
           next_gate += 1
