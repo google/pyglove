@@ -25,6 +25,10 @@ from pyglove.core.typing.class_schema import Field
 from pyglove.core.typing.class_schema import ValueSpec
 
 
+class Foo:
+  pass
+
+
 class FieldFromAnnotationTest(unittest.TestCase):
   """Tests for Field.fromAnnotation."""
 
@@ -235,31 +239,28 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
         vs.Callable(args=[vs.Int(), vs.Int()], returns=vs.Int()))
 
   def test_class(self):
-    class Foo:
-      pass
-
     self.assertEqual(
         ValueSpec.from_annotation(Foo, True), vs.Object(Foo))
     self.assertEqual(
         ValueSpec.from_annotation('Foo', True), vs.Object('Foo'))
     self.assertEqual(
         ValueSpec.from_annotation(Foo, False), vs.Any(annotation=Foo))
+    self.assertEqual(
+        ValueSpec.from_annotation(
+            typing.ForwardRef('Foo'), True), vs.Object(Foo))
 
   def test_generic_class(self):
     X = typing.TypeVar('X')
     Y = typing.TypeVar('Y')
 
-    class Foo(typing.Generic[X, Y]):
+    class Bar(typing.Generic[X, Y]):
       pass
 
     self.assertEqual(
-        ValueSpec.from_annotation(Foo[int, str], True), vs.Object(Foo[int, str])
+        ValueSpec.from_annotation(Bar[int, str], True), vs.Object(Bar[int, str])
     )
 
   def test_type(self):
-    class Foo:
-      pass
-
     self.assertEqual(
         ValueSpec.from_annotation(typing.Type[Foo], True), vs.Type(Foo)
     )

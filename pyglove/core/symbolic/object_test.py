@@ -3146,6 +3146,8 @@ class Foo(Object):
   x: typing.List[typing.Dict[str, int]] = [dict(x=1)]
   y: typing.Dict[str, int]
   z: bool = True
+  # Test forward reference.
+  p: typing.Optional['Foo'] = None
 
 
 class PickleTest(unittest.TestCase):
@@ -3160,7 +3162,8 @@ class PickleTest(unittest.TestCase):
     return v2
 
   def test_basic(self):
-    self.assert_pickle_correctness(Foo([dict(x=2)], dict(x=1)))
+    self.assert_pickle_correctness(
+        Foo([dict(x=2)], dict(x=1), p=Foo([], dict(a=2))))
 
   def test_sealed(self):
     self.assert_pickle_correctness(Foo([dict(x=2)], dict(x=1)).seal())

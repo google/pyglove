@@ -2806,7 +2806,6 @@ def _any_if_no_annotation(annotation: typing.Any):
 _VALUE_SPEC_CREATION_ROOT_SITES = [
     'pyglove/core/typing/',
     'pyglove/core/symbolic/',
-    'abc.py',
 ]
 
 
@@ -2815,8 +2814,10 @@ def _get_spec_callsite_module():
   calling_module = None
   callstack = inspect.stack()
   for frame, file, *_ in callstack[1:]:
-    if file.endswith('_test.py') or all(
-        site not in file for site in _VALUE_SPEC_CREATION_ROOT_SITES):
+    if (file.endswith('_test.py')
+        or ('<' not in file   # Exclude callstack from Python builtin modules.
+            and all(
+                site not in file for site in _VALUE_SPEC_CREATION_ROOT_SITES))):
       calling_module = inspect.getmodule(frame)
       break
   return calling_module or __main__

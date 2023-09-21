@@ -175,6 +175,8 @@ def _value_spec_from_type_annotation(
     if optional:
       spec = spec.noneable()
     return spec
+  elif isinstance(annotation, typing.ForwardRef):
+    return vs.Object(annotation.__forward_arg__)
   # Handling class.
   elif (
       inspect.isclass(annotation)
