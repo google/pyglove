@@ -324,6 +324,9 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(e.x, 1)
     self.assertEqual(e.y, 3)
 
+  def test_forward_reference(self):
+    self.assertIs(Foo.schema.get_field('p').value.cls, Foo)
+
   def test_update_of_default_values(self):
 
     class A(Object):

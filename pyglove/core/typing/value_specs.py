@@ -2806,6 +2806,7 @@ def _any_if_no_annotation(annotation: typing.Any):
 _VALUE_SPEC_CREATION_ROOT_SITES = [
     'pyglove/core/typing/',
     'pyglove/core/symbolic/',
+    'abc.py',
 ]
 
 
