@@ -2104,6 +2104,27 @@ class FormatTest(unittest.TestCase):
           }
         """),
     )
+    self.assertEqual(
+        Dict(x=1, y=inferred.ValueFromParentChain()).format(
+            compact=False, use_inferred=True),
+        inspect.cleandoc("""{
+            x = 1,
+            y = ValueFromParentChain()
+          }
+        """),
+    )
+    self.assertEqual(
+        Dict(y=2, p=Dict(x=1, y=inferred.ValueFromParentChain())).format(
+            compact=False, use_inferred=True),
+        inspect.cleandoc("""{
+            y = 2,
+            p = {
+              x = 1,
+              y = 2
+            }
+          }
+        """),
+    )
 
 
 def _on_change_callback(updates):

@@ -153,7 +153,10 @@ class Ref(Object, base.Inferential):
     if compact:
       return f'{self.__class__.__name__}({value_str})'
     else:
-      return f'{self.__class__.__name__}(\n  value = {value_str}\n)'
+      return (f'{self.__class__.__name__}(\n'
+              + '  ' * (root_indent + 1)
+              + f'value = {value_str}\n'
+              + '  ' * root_indent + ')')
 
 
 def maybe_ref(value: Any) -> Optional[Ref]:

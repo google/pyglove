@@ -762,6 +762,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       root_indent: int = 0,
       *,
       python_format: bool = False,
+      use_inferred: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.SQUARE,
       **kwargs) -> str:
@@ -776,9 +777,11 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     if compact:
       kv_strs = []
       for idx, elem in self.sym_items():
+        if use_inferred:
+          elem = self.sym_inferred(idx, default=elem)
         v_str = object_utils.format(
             elem, compact, verbose, root_indent + 1,
-            python_format=python_format, **kwargs)
+            python_format=python_format, use_inferred=use_inferred, **kwargs)
         if python_format:
           kv_strs.append(v_str)
         else:
@@ -788,13 +791,15 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     else:
       if self:
         for idx, elem in self.sym_items():
+          if use_inferred:
+            elem = self.sym_inferred(idx, default=elem)
           if idx == 0:
             s.append('\n')
           else:
             s.append(',\n')
           v_str = object_utils.format(
               elem, compact, verbose, root_indent + 1,
-              python_format=python_format, **kwargs)
+              python_format=python_format, use_inferred=use_inferred, **kwargs)
           if python_format:
             s.append(_indent(v_str, root_indent + 1))
           else:

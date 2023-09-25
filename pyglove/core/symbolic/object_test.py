@@ -3037,6 +3037,44 @@ class FormatTest(unittest.TestCase):
         'A(x=[A(x=1, y=None), A(x=\'foo\', y={\'a\': A(x=True, y=1.0)})], '
         'y=MISSING_VALUE)')
 
+  def test_noncompact_with_inferred_value(self):
+
+    class A(Object):
+      x: typing.Any
+      y: int
+
+    self.assertEqual(
+        A(x=1, y=inferred.ValueFromParentChain()).format(compact=False),
+        inspect.cleandoc("""A(
+            x = 1,
+            y = ValueFromParentChain()
+          )
+        """),
+    )
+    # Use inferred but values are not inferrable yet.
+    self.assertEqual(
+        A(x=1, y=inferred.ValueFromParentChain()).format(
+            compact=False, use_inferred=True),
+        inspect.cleandoc("""A(
+            x = 1,
+            y = ValueFromParentChain()
+          )
+        """),
+    )
+    # Use inferred and values are inferrable.
+    self.assertEqual(
+        A(y=2, x=A(x=1, y=inferred.ValueFromParentChain())).format(
+            compact=False, use_inferred=True),
+        inspect.cleandoc("""A(
+            x = A(
+              x = 1,
+              y = 2
+            ),
+            y = 2
+          )
+        """),
+    )
+
   def test_noncompact_python_format(self):
     self.assertEqual(
         self._a.format(compact=False, verbose=False, python_format=True),

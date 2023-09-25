@@ -865,6 +865,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       hide_missing_values: bool = False,
       include_keys: Optional[Set[str]] = None,
       exclude_keys: Optional[Set[str]] = None,
+      use_inferred: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
       key_as_attribute: bool = False,
@@ -889,6 +890,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           if _should_include_key(key):
             field = self._value_spec.schema[key_spec]
             v = self.sym_getattr(key)
+            if use_inferred:
+              v = self.sym_inferred(key, default=v)
             if pg_typing.MISSING_VALUE == v:
               if hide_missing_values:
                 continue
@@ -898,6 +901,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     else:
       for k, v in self.sym_items():
         if _should_include_key(k):
+          if use_inferred:
+            v = self.sym_inferred(k, default=v)
           field_list.append((None, k, v))
 
     open_bracket, close_bracket = object_utils.bracket_chars(bracket_type)
@@ -916,6 +921,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             hide_default_values=hide_default_values,
             hide_missing_values=hide_missing_values,
             python_format=python_format,
+            use_inferred=use_inferred,
             **kwargs)
         if not python_format or key_as_attribute:
           kv_strs.append(f'{k}={v_str}')
@@ -944,6 +950,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             hide_default_values=hide_default_values,
             hide_missing_values=hide_missing_values,
             python_format=python_format,
+            use_inferred=use_inferred,
             **kwargs)
         if not python_format:
           # Format in PyGlove's format (default).

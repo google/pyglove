@@ -26,6 +26,7 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import inferred
 from pyglove.core.symbolic import object as pg_object
+from pyglove.core.symbolic import ref
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.list import Insertion
 from pyglove.core.symbolic.list import List
@@ -1732,6 +1733,52 @@ class FormatTest(unittest.TestCase):
                 ]
               }
             }
+          }
+        ]"""))
+
+  def test_compact_inferred(self):
+    self.assertEqual(
+        List([ref.Ref(Dict(x=1, y=2))]).format(
+            compact=True, use_inferred=False),
+        '[0: Ref({x=1, y=2})]')
+
+    self.assertEqual(
+        List([inferred.ValueFromParentChain()]).format(
+            compact=True, use_inferred=True),
+        '[0: ValueFromParentChain()]')
+
+    self.assertEqual(
+        List([ref.Ref(Dict(x=1, y=2))]).format(
+            compact=True, use_inferred=True),
+        '[0: {x=1, y=2}]')
+
+  def test_noncompact_inferred(self):
+    self.assertEqual(
+        List([ref.Ref(Dict(x=1, y=2))]).format(
+            compact=False, use_inferred=False),
+        inspect.cleandoc("""[
+          0 : Ref(
+            value = {
+              x = 1,
+              y = 2
+            }
+          )
+        ]"""))
+
+    self.assertEqual(
+        List([inferred.ValueFromParentChain()]).format(
+            compact=False, use_inferred=True),
+        inspect.cleandoc("""[
+          0 : ValueFromParentChain()
+        ]"""))
+
+    self.assertEqual(
+        List([ref.Ref(Dict(x=1, y=2))]).format(
+            compact=False, use_inferred=True),
+        inspect.cleandoc("""[
+          0 : {
+            x = 1,
+            y = 2
           }
         ]"""))
 
