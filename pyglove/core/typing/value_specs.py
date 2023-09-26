@@ -2815,6 +2815,10 @@ def _get_spec_callsite_module():
   calling_module = None
   callstack = inspect.stack()
   for frame, file, *_ in callstack[1:]:
+    # NOTE(daiyip): Dealing with Jupyter notebook. For spec callsite within
+    # the notebook cell, the returned module shall be __main__.
+    if file.startswith('<ipython-input'):
+      break
     if (file.endswith('_test.py')
         or ('<' not in file   # Exclude callstack from Python builtin modules.
             and all(
