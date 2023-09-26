@@ -72,6 +72,15 @@ class DNASpec(symbolic.Object):
   method, it's aimed to be used within the same process, thus not required to
   be serializable.
   """
+
+  # Override format kwargs for __str__.
+  __str_format_kwargs__ = dict(
+      compact=True,
+      verbose=False,
+      hide_default_values=True,
+      hide_missing_values=True
+  )
+
   # NOTE(daiyip): we disable the symbolic comparison to allow hashing DNASpec
   # by object ID, therefore we can use DNASpec objects as the keys for a dict.
   # This is helpful when we want to align decision points using DNASpec as
@@ -332,14 +341,6 @@ class DNASpec(symbolic.Object):
     """Gets user data."""
     return self._userdata
 
-  def __str__(self):
-    """Operator str."""
-    return self.format(
-        compact=True,
-        verbose=False,
-        hide_default_values=True,
-        hide_missing_values=True)
-
   @classmethod
   def from_json(cls, json_value, *args, **kwargs) -> symbolic.Object:
     """Override from_json for backward compatibility with serialized data."""
@@ -467,6 +468,9 @@ class DNA(symbolic.Object):
     DNA('abc')
   """
   # pylint: enable=line-too-long
+
+  # Use compact format for __str__ output.
+  __str_format_kwargs__ = dict(compact=True)
 
   # Allow assignment on symbolic attributes.
   allow_symbolic_assignment = True
@@ -1685,10 +1689,6 @@ class DNA(symbolic.Object):
     """
     del use_literal_values
     return cls.from_dict(parameters, dna_spec)
-
-  def __str__(self) -> str:
-    """Use compact form as string representation."""
-    return self.format(compact=True)
 
 
 symbolic.members([

@@ -967,7 +967,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
   def __repr__(self) -> str:
     """Operator repr()."""
-    return self.format(compact=True)
+    return base.Symbolic.__repr__(self)
 
   def __eq__(self, other: Any) -> bool:
     """Operator ==."""

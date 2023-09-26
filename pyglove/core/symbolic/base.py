@@ -193,6 +193,9 @@ class Symbolic(
       :class:`pyglove.Dict`.
   """
 
+  # Do not include comments in str output.
+  __str_format_kwargs__ = dict(compact=False, verbose=False)
+
   # Symbolic sub-types that will be set when they are defined.
   # pylint: disable=invalid-name
 
@@ -1055,13 +1058,6 @@ class Symbolic(
     else:
       v = query(self, path_regex, where, False, custom_selector)
     object_utils.print(v, file=file, **kwargs)
-
-  def __str__(self) -> str:
-    """Override Formattable.__str__ by setting verbose to False."""
-    return self.format(compact=False, verbose=False)
-
-  def __repr__(self) -> str:
-    return self.format(compact=True)
 
   def __copy__(self) -> 'Symbolic':
     """Overridden shallow copy."""

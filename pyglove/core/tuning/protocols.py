@@ -36,10 +36,6 @@ class _DataEntity(symbolic.Object):
     """Hash code."""
     return hash(repr(self))
 
-  def __str__(self):
-    """Overrides __str__ to use non-verbose format."""
-    return self.format(compact=False, verbose=False)
-
 
 @symbolic.members([
     ('step', pg_typing.Int(), 'At which step the result is reported.'),

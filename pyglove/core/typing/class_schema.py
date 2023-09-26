@@ -519,14 +519,6 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
     """Operator !=."""
     return not self.__eq__(other)
 
-  def __repr__(self) -> str:
-    """Operator repr."""
-    return self.format(compact=True)
-
-  def __str__(self) -> str:
-    """Operator str."""
-    return self.format(compact=False, verbose=True)
-
   @classmethod
   def from_annotation(
       cls,
@@ -1267,9 +1259,6 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
         exclude_default=True,
         **kwargs,
     )
-
-  def __str__(self) -> str:
-    return self.format(compact=False, verbose=True)
 
   def __eq__(self, other: Any) -> bool:
     if self is other:

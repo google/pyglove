@@ -31,6 +31,12 @@ class Formattable(metaclass=abc.ABCMeta):
   All symbolic types implement this interface.
   """
 
+  # Additional format keyword arguments for `__str__`.
+  __str_format_kwargs__ = dict(compact=False, verbose=True)
+
+  # Additional format keyword arguments for `__repr__`.
+  __repr_format_kwargs__ = dict(compact=True)
+
   @abc.abstractmethod
   def format(self,
              compact: bool = False,
@@ -53,11 +59,11 @@ class Formattable(metaclass=abc.ABCMeta):
 
   def __str__(self) -> str:
     """Returns the full (maybe multi-line) representation of this object."""
-    return self.format(compact=False, verbose=True)
+    return self.format(**self.__str_format_kwargs__)
 
   def __repr__(self) -> str:
     """Returns a single-line representation of this object."""
-    return self.format(compact=True)
+    return self.format(**self.__repr_format_kwargs__)
 
 
 class MaybePartial(metaclass=abc.ABCMeta):
