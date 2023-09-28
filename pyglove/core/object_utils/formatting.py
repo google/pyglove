@@ -65,7 +65,7 @@ def kvlist_str(
 def quote_if_str(value: Any) -> Any:
   """Quotes the value if it is a str."""
   if isinstance(value, str):
-    return f'\'{value}\''
+    return repr(value)
   return value
 
 
@@ -206,10 +206,7 @@ def format(value: Any,              # pylint: disable=redefined-builtin
       s.append(_indent('}', root_indent))
   else:
     if isinstance(value, str):
-      # TODO(daiyip): since value can be unicode, we manually format the string
-      # instead of `repr`, which adds 'u' prefix. We need to revisit unicode
-      # handling as a horizontal topic for glove.
-      s = [f'\'{value}\'']
+      s = [repr(value)]
     else:
       s = [repr(value) if compact else str(value)]
       if strip_object_id and 'object at 0x' in s[-1]:

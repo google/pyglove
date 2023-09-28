@@ -34,6 +34,7 @@ class StringHelperTest(unittest.TestCase):
   def test_quote_if_str(self):
     self.assertEqual(formatting.quote_if_str(1), 1)
     self.assertEqual(formatting.quote_if_str('foo'), '\'foo\'')
+    self.assertEqual(formatting.quote_if_str('foo\'s\na'), '"foo\'s\\na"')
 
   def test_message_on_path(self):
     self.assertEqual(formatting.message_on_path('hi.', None), 'hi.')
@@ -71,24 +72,32 @@ class FormatTest(unittest.TestCase):
     self.assertEqual(formatting.format(1, compact=True), '1')
     self.assertEqual(formatting.format(1.0, compact=True), '1.0')
     self.assertEqual(formatting.format('foo', compact=True), '\'foo\'')
+    self.assertEqual(
+        formatting.format('foo\'s\na', compact=True), '"foo\'s\\na"')
 
     # Compact=False has no impact on simple types.
     self.assertEqual(formatting.format(True, compact=False), 'True')
     self.assertEqual(formatting.format(1, compact=False), '1')
     self.assertEqual(formatting.format(1.0, compact=False), '1.0')
     self.assertEqual(formatting.format('foo', compact=False), '\'foo\'')
+    self.assertEqual(
+        formatting.format('foo\'s\na', compact=False), '"foo\'s\\na"')
 
     # Verbose has no impact on simple types.
     self.assertEqual(formatting.format(True, verbose=True), 'True')
     self.assertEqual(formatting.format(1, verbose=True), '1')
     self.assertEqual(formatting.format(1.0, verbose=True), '1.0')
     self.assertEqual(formatting.format('foo', verbose=True), '\'foo\'')
+    self.assertEqual(
+        formatting.format('foo\'s\na', verbose=True), '"foo\'s\\na"')
 
     # Root indent has no impact on simple types.
     self.assertEqual(formatting.format(True, root_indent=4), 'True')
     self.assertEqual(formatting.format(1, root_indent=4), '1')
     self.assertEqual(formatting.format(1.0, root_indent=4), '1.0')
     self.assertEqual(formatting.format('foo', root_indent=4), '\'foo\'')
+    self.assertEqual(
+        formatting.format('foo\'s\na', root_indent=4), '"foo\'s\\na"')
 
   def test_complex_types(self):
 
@@ -107,13 +116,13 @@ class FormatTest(unittest.TestCase):
                 'a': CustomFormattable(),
                 'b': {
                     'c': [1, 2, 3],
-                    'd': ['foo', 'bar', 3, 4, 5]
+                    'd': ['foo', 'bar\na', 3, 4, 5]
                 }
             },
             compact=True,
             custom_param='foo'),
         "{'a': CustomFormattable(foo), 'b': {'c': [1, 2, 3], "
-        "'d': ['foo', 'bar', 3, 4, 5]}}")
+        "'d': ['foo', 'bar\\na', 3, 4, 5]}}")
 
     self.assertEqual(
         formatting.format(
@@ -121,7 +130,7 @@ class FormatTest(unittest.TestCase):
                 'a': A(),
                 'b': {
                     'c': [1, 2, 3],
-                    'd': ['foo', 'bar', 3, 4, 5]
+                    'd': ['foo', 'bar\na', 3, 4, 5]
                 }
             },
             compact=False,
@@ -133,7 +142,7 @@ class FormatTest(unittest.TestCase):
             'c': [1, 2, 3],
             'd': [
               'foo',
-              'bar',
+              'bar\\na',
               3,
               4,
               5
