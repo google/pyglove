@@ -3018,7 +3018,7 @@ class FormatTest(unittest.TestCase):
 
     @pg_members([
         ('x', pg_typing.Any(default=1), 'Field `x`.'),
-        ('y', pg_typing.Any(), 'Field `y`.')
+        ('y', pg_typing.Any(), 'Field `y`.\nAny type.')
     ])
     class A(Object):
       pass
@@ -3128,8 +3128,44 @@ class FormatTest(unittest.TestCase):
             0 : A(
               # Field `x`.
               x = 1,
+              # Field `y`.
+              # Any type.
+              y = None
+            ),
+            1 : A(
+              # Field `x`.
+              x = 'foo',
+              # Field `y`.
+              # Any type.
+              y = {
+                a = A(
+                  # Field `x`.
+                  x = True,
+                  # Field `y`.
+                  # Any type.
+                  y = 1.0
+                )
+              }
+            )
+          ],
+          # Field `y`.
+          # Any type.
+          y = MISSING_VALUE(Any())
+        )"""))
+
+  def test_noncompact_verbose_with_extra_blankline_for_field_docstr(self):
+    self.assertEqual(
+        self._a.format(
+            compact=False, verbose=True, extra_blankline_for_field_docstr=True),
+        inspect.cleandoc("""A(
+          # Field `x`.
+          x = [
+            0 : A(
+              # Field `x`.
+              x = 1,
 
               # Field `y`.
+              # Any type.
               y = None
             ),
             1 : A(
@@ -3137,12 +3173,14 @@ class FormatTest(unittest.TestCase):
               x = 'foo',
 
               # Field `y`.
+              # Any type.
               y = {
                 a = A(
                   # Field `x`.
                   x = True,
 
                   # Field `y`.
+                  # Any type.
                   y = 1.0
                 )
               }
@@ -3150,6 +3188,7 @@ class FormatTest(unittest.TestCase):
           ],
 
           # Field `y`.
+          # Any type.
           y = MISSING_VALUE(Any())
         )"""))
 
@@ -3165,16 +3204,18 @@ class FormatTest(unittest.TestCase):
           x = [
             0 : A(
               # Field `y`.
+              # Any type.
               y = None
             ),
             1 : A(
               # Field `x`.
               x = 'foo',
-
               # Field `y`.
+              # Any type.
               y = {
                 a = A(
                   # Field `y`.
+                  # Any type.
                   y = 1.0
                 )
               }

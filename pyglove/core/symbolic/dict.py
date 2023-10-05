@@ -869,6 +869,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
       key_as_attribute: bool = False,
+      extra_blankline_for_field_docstr: bool = False,
       **kwargs) -> str:
     """Formats this Dict."""
     cls_name = cls_name or ''
@@ -922,6 +923,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             hide_missing_values=hide_missing_values,
             python_format=python_format,
             use_inferred=use_inferred,
+            extra_blankline_for_field_docstr=extra_blankline_for_field_docstr,
             **kwargs)
         if not python_format or key_as_attribute:
           kv_strs.append(f'{k}={v_str}')
@@ -937,11 +939,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           s.append(',\n')
 
         if verbose and f and typing.cast(pg_typing.Field, f).description:
-          if i != 0:
+          if i != 0 and extra_blankline_for_field_docstr:
             s.append('\n')
-          s.append(_indent(
-              f'# {typing.cast(pg_typing.Field, f).description}\n',
-              root_indent + 1))
+          description = typing.cast(pg_typing.Field, f).description
+          for line in description.split('\n'):
+            s.append(_indent(f'# {line}\n', root_indent + 1))
         v_str = object_utils.format(
             v,
             compact,
@@ -951,6 +953,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             hide_missing_values=hide_missing_values,
             python_format=python_format,
             use_inferred=use_inferred,
+            extra_blankline_for_field_docstr=extra_blankline_for_field_docstr,
             **kwargs)
         if not python_format:
           # Format in PyGlove's format (default).

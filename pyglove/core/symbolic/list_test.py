@@ -1820,7 +1820,6 @@ class FormatTest(unittest.TestCase):
           0 : {
             # Field a1.
             a1 = 1,
-
             # Field a2.
             a2 = {
               # Field b1.

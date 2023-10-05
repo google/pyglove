@@ -1933,7 +1933,7 @@ class FormatTest(unittest.TestCase):
             ('b1', pg_typing.Dict([
                 ('c1', pg_typing.List(pg_typing.Dict([
                     ('d1', pg_typing.Str(), 'Field d1.'),
-                    ('d2', pg_typing.Bool(True)),
+                    ('d2', pg_typing.Bool(True), 'Field d2.\nA bool value.'),
                     ('d3', pg_typing.Object(A)),
                 ])), 'Field c1.')]), 'Field b1.')]),
          'Field a2.')
@@ -2031,7 +2031,45 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_verbose(self):
     self.assertEqual(
-        self._dict.format(compact=False, verbose=True),
+        self._dict.format(
+            compact=False, verbose=True),
+        inspect.cleandoc("""{
+          # Field a1.
+          a1 = 1,
+          # Field a2.
+          a2 = {
+            # Field b1.
+            b1 = {
+              # Field c1.
+              c1 = [
+                0 : {
+                  # Field d1.
+                  d1 = MISSING_VALUE(Str()),
+                  # Field d2.
+                  # A bool value.
+                  d2 = True,
+                  d3 = A(
+                    x = 2,
+                    y = MISSING_VALUE(Str()),
+                    z = {
+                      p = [
+                        0 : None,
+                        1 : True
+                      ],
+                      q = 'foo',
+                      t = 'foo'
+                    }
+                  )
+                }
+              ]
+            }
+          }
+        }"""))
+
+  def test_noncompact_verbose_with_extra_blankline_for_field_docstr(self):
+    self.assertEqual(
+        self._dict.format(
+            compact=False, verbose=True, extra_blankline_for_field_docstr=True),
         inspect.cleandoc("""{
           # Field a1.
           a1 = 1,
@@ -2045,6 +2083,9 @@ class FormatTest(unittest.TestCase):
                 0 : {
                   # Field d1.
                   d1 = MISSING_VALUE(Str()),
+
+                  # Field d2.
+                  # A bool value.
                   d2 = True,
                   d3 = A(
                     x = 2,
