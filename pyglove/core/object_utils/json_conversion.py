@@ -366,15 +366,24 @@ def to_json(value: Any, **kwargs) -> Any:
     return _OpaqueObject(value).to_json(**kwargs)
 
 
-def from_json(json_value: JSONValueType) -> Any:
+def from_json(json_value: JSONValueType,
+              *,
+              force_dict: bool = False,
+              **kwargs) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
 
   Args:
     json_value: Input JSON value.
+    force_dict: If True, "_type" keys will be stripped before loading. As a
+      result, JSONConvertible objects will be returned as dict.
+    **kwargs: Keyword arguments that will be passed to JSONConvertible.__init__.
 
   Returns:
     Deserialized value.
   """
+  if force_dict:
+    json_value = strip_types(json_value)
+
   if isinstance(json_value, list):
     if json_value and json_value[0] == JSONConvertible.TUPLE_MARKER:
       if len(json_value) < 2:
@@ -382,12 +391,12 @@ def from_json(json_value: JSONValueType) -> Any:
             f'Tuple should have at least one element '
             f'besides \'{JSONConvertible.TUPLE_MARKER}\'. '
             f'Encountered: {json_value}.')
-      return tuple([from_json(v) for v in json_value[1:]])
-    return [from_json(v) for v in json_value]
+      return tuple([from_json(v, **kwargs) for v in json_value[1:]])
+    return [from_json(v, **kwargs) for v in json_value]
   elif isinstance(json_value, dict):
     if JSONConvertible.TYPE_NAME_KEY not in json_value:
-      return {k: from_json(v) for k, v in json_value.items()}
-    type_name = json_value[JSONConvertible.TYPE_NAME_KEY]
+      return {k: from_json(v, **kwargs) for k, v in json_value.items()}
+    type_name = json_value.pop(JSONConvertible.TYPE_NAME_KEY)
     if type_name == 'type':
       return _type_from_json(json_value)
     elif type_name == 'function':
@@ -400,7 +409,23 @@ def from_json(json_value: JSONValueType) -> Any:
         raise TypeError(
             f'Type name \'{type_name}\' is not registered '
             f'with a `pg.JSONConvertible` subclass.')
-      return cls.from_json(json_value)
+      return cls.from_json(json_value, **kwargs)
+  return json_value
+
+
+def strip_types(json_value: JSONValueType) -> JSONValueType:
+  """Inplace strips the "_type" key from a JSON tree."""
+  def _strip_type(v) -> None:
+    if isinstance(v, (tuple, list)):
+      for x in v:
+        _strip_type(x)
+    elif isinstance(v, dict):
+      if JSONConvertible.TYPE_NAME_KEY in v:
+        v.pop(JSONConvertible.TYPE_NAME_KEY)
+      for x in v.values():
+        _strip_type(x)
+
+  _strip_type(json_value)
   return json_value
 
 

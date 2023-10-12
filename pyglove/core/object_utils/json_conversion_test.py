@@ -290,6 +290,21 @@ class JSONConvertibleTest(unittest.TestCase):
         ValueError, 'Cannot decode opaque object with pickle.'):
       json_conversion.from_json(json_dict)
 
+  def test_json_conversion_force_dict(self):
+    self.assertEqual(
+        json_conversion.from_json([
+            '__tuple__',
+            1,
+            {
+                '_type': 'Unknown type',
+                'x': [{
+                    '_type': 'Unknown type',
+                }]
+            }
+        ], force_dict=True),
+        (1, {'x': [{}]})
+    )
+
 
 if __name__ == '__main__':
   unittest.main()

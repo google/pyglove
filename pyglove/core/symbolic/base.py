@@ -1991,6 +1991,7 @@ def from_json(json_value: Any,
               *,
               allow_partial: bool = False,
               root_path: Optional[object_utils.KeyPath] = None,
+              force_dict: bool = False,
               **kwargs) -> Any:
   """Deserializes a (maybe) symbolic value from JSON value.
 
@@ -2011,6 +2012,8 @@ def from_json(json_value: Any,
     json_value: Input JSON value.
     allow_partial: Whether to allow elements of the list to be partial.
     root_path: KeyPath of loaded object in its object tree.
+    force_dict: If True, "_type" keys will be stripped before loading. As a
+      result, JSONConvertible objects will be returned as dict.
     **kwargs: Allow passing through keyword arguments to from_json of specific
       types.
 
@@ -2024,6 +2027,9 @@ def from_json(json_value: Any,
   assert Symbolic.DictType is not None
   if isinstance(json_value, Symbolic):
     return json_value
+
+  if force_dict:
+    json_value = object_utils.json_conversion.strip_types(json_value)
 
   kwargs.update({
       'allow_partial': allow_partial,
@@ -2047,15 +2053,7 @@ def from_json(json_value: Any,
   elif isinstance(json_value, dict):
     if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
       return Symbolic.DictType.from_json(json_value, **kwargs)
-    type_name = json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
-    cls = object_utils.JSONConvertible.class_from_typename(type_name)
-    if cls is None:
-      raise TypeError(
-          object_utils.message_on_path(
-              f'Type name \'{type_name}\' is not registered '
-              f'with a `pg.JSONConvertible` subclass.', root_path))
-    del json_value[object_utils.JSONConvertible.TYPE_NAME_KEY]
-    return cls.from_json(json_value, **kwargs)
+    return object_utils.from_json(json_value, **kwargs)
   return json_value
 
 
@@ -2063,6 +2061,7 @@ def from_json_str(json_str: str,
                   *,
                   allow_partial: bool = False,
                   root_path: Optional[object_utils.KeyPath] = None,
+                  force_dict: bool = False,
                   **kwargs) -> Any:
   """Deserialize (maybe) symbolic object from JSON string.
 
@@ -2084,6 +2083,8 @@ def from_json_str(json_str: str,
     allow_partial: If True, allow a partial symbolic object to be created.
       Otherwise error will be raised on partial value.
     root_path: The symbolic path used for the deserialized root object.
+    force_dict: If True, "_type" keys will be stripped before loading. As a
+      result, JSONConvertible objects will be returned as dict.
     **kwargs: Additional keyword arguments that will be passed to
       ``pg.from_json``.
 
@@ -2094,6 +2095,7 @@ def from_json_str(json_str: str,
       json.loads(json_str),
       allow_partial=allow_partial,
       root_path=root_path,
+      force_dict=force_dict,
       **kwargs)
 
 

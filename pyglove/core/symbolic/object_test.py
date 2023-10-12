@@ -2894,6 +2894,20 @@ class SerializationTest(unittest.TestCase):
             Q.partial(P.partial()).to_json_str(), allow_partial=True),
         Q.partial(P.partial()))
 
+  def test_serialization_with_force_dict(self):
+
+    class P(Object):
+      x: int
+
+    class Q(Object):
+      p: P
+      y: str
+
+    self.assertEqual(
+        base.from_json_str(Q(P(1), y='foo').to_json_str(), force_dict=True),
+        {'p': {'x': 1}, 'y': 'foo'}
+    )
+
   def test_serialization_with_converter(self):
 
     c = self._C(self._X(1), y=True)
