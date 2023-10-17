@@ -2964,13 +2964,30 @@ class SerializationTest(unittest.TestCase):
     tmp_dir = tempfile.gettempdir()
 
     # Test save/load in JSON.
-    path = os.path.join(tmp_dir, 'a.json')
+    path = os.path.join(tmp_dir, 'subdir/a.json')
     base.save(A(a=1, b=[0, 1]), path)
     with open(path) as f:
       content = f.read()
     self.assertEqual(
         content, '{"_type": "%s", "a": 1, "b": [0, 1]}' % A.__type_name__
     )
+    # Test save/load in TXT.
+    path2 = os.path.join(tmp_dir, 'subdir/a.txt')
+    base.save(A(a=1, b=[0, 1]), path2, file_format='txt')
+    content = base.load(path2, file_format='txt')
+    self.assertEqual(
+        content, 'A(\n  a = 1,\n  b = [\n    0 : 0,\n    1 : 1\n  ]\n)')
+
+    path3 = os.path.join(tmp_dir, 'subdir/b.txt')
+    base.save('foo', path3, file_format='txt')
+    self.assertEqual(base.load(path3, file_format='txt'), 'foo')
+
+    # Test save/load in unsupported format.
+    with self.assertRaisesRegex(ValueError, 'Unsupported `file_format`'):
+      base.save(A(a=1, b=[0]), path2, file_format='bin')
+
+    with self.assertRaisesRegex(ValueError, 'Unsupported `file_format`'):
+      base.load(path2, file_format='bin')
 
     # Test tracking origin.
     with flags.track_origin():

@@ -18,10 +18,11 @@ import copy
 import enum
 import inspect
 import json
+import os
 import re
 import sys
 import typing
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
@@ -2236,20 +2237,42 @@ def save(value: Any, path: str, *args, **kwargs) -> Any:
   return save_handler(value, path, *args, **kwargs)
 
 
-def default_load_handler(path: str) -> Any:
+def default_load_handler(
+    path: str,
+    file_format: Literal['json', 'txt'] = 'json',
+    **kwargs) -> Any:
   """Default load handler from file."""
+  del kwargs
   with open(path, 'r') as f:
     content = f.read()
-  return from_json_str(content, allow_partial=True)
+  if file_format == 'json':
+    return from_json_str(content, allow_partial=True)
+  elif file_format == 'txt':
+    return content
+  else:
+    raise ValueError(f'Unsupported `file_format`: {file_format!r}.')
 
 
 def default_save_handler(
     value: Any,
     path: str,
-    indent: Optional[int] = None) -> None:
+    *,
+    indent: Optional[int] = None,
+    file_format: Literal['json', 'txt'] = 'json',
+    **kwargs) -> None:
   """Default save handler to file."""
+  del kwargs
+  if file_format == 'json':
+    content = to_json_str(value, json_indent=indent)
+  elif file_format == 'txt':
+    content = value if isinstance(value, str) else object_utils.format(
+        value, compact=False, verbose=True)
+  else:
+    raise ValueError(f'Unsupported `file_format`: {file_format!r}.')
+
+  os.makedirs(os.path.dirname(path), exist_ok=True)
   with open(path, 'w') as f:
-    f.write(to_json_str(value, json_indent=indent))
+    f.write(content)
 
 
 #
