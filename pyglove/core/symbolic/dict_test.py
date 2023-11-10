@@ -1315,9 +1315,28 @@ class DictTest(unittest.TestCase):
       def infer(self):
         raise ValueError()
 
-    sd = Dict(x=Unresolvable())  # pylint: disable=no-value-for-parameter
+    # Test accessor writable within a sub-tree.
+    x = Unresolvable()
+    self.assertFalse(x.accessor_writable)
+
+    sd = Dict(x=x)  # pylint: disable=no-value-for-parameter
+
+    self.assertTrue(sd.accessor_writable)
+    self.assertFalse(x.accessor_writable)
+
     sd.set_accessor_writable(False)
-    self.assertFalse(sd.sym_getattr('x').accessor_writable)
+    self.assertFalse(sd.accessor_writable)
+    self.assertFalse(sd.accessor_writable)
+
+    sd.set_accessor_writable(True)
+    self.assertTrue(sd.accessor_writable)
+    self.assertFalse(x.accessor_writable)
+
+    x.set_accessor_writable(True)
+    self.assertTrue(sd.accessor_writable)
+    self.assertTrue(x.accessor_writable)
+
+    sd.set_accessor_writable(False)
     with self.assertRaisesRegex(
         base.WritePermissionError,
         'Cannot modify Dict field by attribute or key while '

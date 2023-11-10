@@ -584,7 +584,12 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             value_spec=self.__class__.sym_fields,
             allow_partial=allow_partial,
             sealed=sealed,
-            accessor_writable=self.__class__.allow_symbolic_assignment,
+            # NOTE(daiyip): Accessor writable is honored by
+            # `Object.__setattr__` thus we could always make `_sym_attributes`
+            # accessor writable. This prevents a child object's attribute access
+            # from being changed when it's attached to a parent whose symbolic
+            # attributes could not be directly written.
+            accessor_writable=True,
             root_path=root_path,
             as_object_attributes_container=True,
         ),
@@ -750,12 +755,6 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # calling `Dict.sym_nondefault`.
     setattr(self._sym_attributes, '_sym_nondefault_values', None)
     return self._sym_attributes.sym_nondefault(flatten=False)
-
-  def set_accessor_writable(self, writable: bool = True) -> 'Object':
-    """Sets accessor writable."""
-    self._sym_attributes.set_accessor_writable(writable)
-    super().set_accessor_writable(writable)
-    return self
 
   def seal(self, sealed: bool = True) -> 'Object':
     """Seal or unseal current object from further modification."""

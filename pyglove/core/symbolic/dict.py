@@ -395,16 +395,6 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           non_defaults[k] = v
     return non_defaults
 
-  def set_accessor_writable(self, writable: bool = True) -> 'Dict':
-    """Sets accessor writable."""
-    if self.accessor_writable == writable:
-      return self
-    for v in self.sym_values():
-      if isinstance(v, base.Symbolic):
-        v.set_accessor_writable(writable)
-    super().set_accessor_writable(writable)
-    return self
-
   def seal(self, sealed: bool = True) -> 'Dict':
     """Seals or unseals current object from further modification."""
     if self.is_sealed == sealed:

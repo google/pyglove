@@ -358,16 +358,6 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
         non_defaults[idx] = elem
     return non_defaults
 
-  def set_accessor_writable(self, writable: bool = True) -> 'List':
-    """Sets accessor writable."""
-    if self.accessor_writable == writable:
-      return self
-    for elem in self.sym_values():
-      if isinstance(elem, base.Symbolic):
-        elem.set_accessor_writable(writable)
-    super().set_accessor_writable(writable)
-    return self
-
   def seal(self, sealed: bool = True) -> 'List':
     """Seal or unseal current object from further modification."""
     if self.is_sealed == sealed:

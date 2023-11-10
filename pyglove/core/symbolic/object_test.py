@@ -1499,6 +1499,20 @@ class ObjectTest(unittest.TestCase):
     a.x = 2
     self.assertEqual(a.x, 2)
 
+    class B(Object):
+      allow_symbolic_assignment = True
+      y: int
+
+    a = A(x=B(1))
+    with self.assertRaisesRegex(
+        base.WritePermissionError,
+        'Cannot set attribute of .* while .*allow_symbolic_assignment` '
+        'is set to False.',
+    ):
+      a.x = 1
+    a.x.y = 2
+    self.assertEqual(a.x.y, 2)
+
   def test_seal(self):
 
     @pg_members([

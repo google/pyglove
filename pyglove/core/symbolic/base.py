@@ -1180,7 +1180,6 @@ class Symbolic(
           (value.sym_parent is not self
            or root_path != value.sym_path)):
         value = value.clone()
-      value.set_accessor_writable(self.accessor_writable)
 
     if isinstance(value, TopologyAware):
       value.sym_setpath(object_utils.KeyPath(key, self.sym_path))
