@@ -24,6 +24,7 @@ import sys
 import typing
 from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union
 
+from pyglove.core import io as pg_io
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import flags
@@ -2242,8 +2243,7 @@ def default_load_handler(
     **kwargs) -> Any:
   """Default load handler from file."""
   del kwargs
-  with open(path, 'r') as f:
-    content = f.read()
+  content = pg_io.readfile(path)
   if file_format == 'json':
     return from_json_str(content, allow_partial=True)
   elif file_format == 'txt':
@@ -2269,9 +2269,8 @@ def default_save_handler(
   else:
     raise ValueError(f'Unsupported `file_format`: {file_format!r}.')
 
-  os.makedirs(os.path.dirname(path), exist_ok=True)
-  with open(path, 'w') as f:
-    f.write(content)
+  pg_io.mkdirs(os.path.dirname(path), exist_ok=True)
+  pg_io.writefile(path, content)
 
 
 #

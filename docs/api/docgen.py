@@ -57,6 +57,7 @@ MODULES_TO_DOCUMENT = frozenset({
     'detouring',
     'geno',
     'hyper',
+    'io',
     'patching',
     'object_utils',
     'symbolic',

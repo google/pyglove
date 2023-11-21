@@ -48,8 +48,9 @@ Here lists the sub-modules included in the core PyGlove library:
 # pylint: disable=reimported
 # pylint: disable=g-import-not-at-top
 
+
 #
-# Symbols from 'symbolic.py'
+# Symbols from 'symbolic' sub-module.
 #
 
 
@@ -174,7 +175,7 @@ Insertion = symbolic.Insertion
 WritePermissionError = symbolic.WritePermissionError
 
 #
-# Symbols from 'typing.py'
+# Symbols from 'typing' sub-module.
 #
 
 # NOTE(daiyip): we introduce 'typing' as an alias for 'schema' sub-module, since
@@ -195,7 +196,7 @@ get_signature = typing.get_signature
 
 
 #
-# Symbols from 'geno.py'.
+# Symbols from 'geno' sub-module.
 #
 
 from pyglove.core import geno
@@ -208,7 +209,7 @@ random_dna = geno.random_dna
 
 
 #
-# Symbols from 'hyper.py'.
+# Symbols from 'hyper' sub-module.
 #
 
 from pyglove.core import hyper
@@ -237,7 +238,7 @@ random_sample = hyper.random_sample
 
 
 #
-# Symbols from 'tuning.py'.
+# Symbols from 'tuning' sub-module.
 #
 
 from pyglove.core import tuning
@@ -246,7 +247,7 @@ poll_result = tuning.poll_result
 
 
 #
-# Symbols from 'detouring.py'
+# Symbols from 'detouring' sub-module.
 #
 
 from pyglove.core import detouring
@@ -254,7 +255,7 @@ detour = detouring.detour
 
 
 #
-# Symbols from 'patching.py'.
+# Symbols from 'patching' sub-module.
 #
 
 from pyglove.core import patching
@@ -270,7 +271,7 @@ ObjectFactory = patching.ObjectFactory
 
 
 #
-# Symbols from 'object_utils.py'.
+# Symbols from 'object_utils' sub-module.
 #
 
 from pyglove.core import object_utils
@@ -292,11 +293,17 @@ docstr = object_utils.docstr
 catch_errors = object_utils.catch_errors
 
 #
+# Symbols from `io` sub-module.
+#
+
+from pyglove.core import io
+
+
+#
 # Symbols from `logging.py`.
 #
 
 from pyglove.core import logging
-
 
 # pylint: enable=g-import-not-at-top
 # pylint: enable=reimported
