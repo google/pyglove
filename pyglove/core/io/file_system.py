@@ -67,41 +67,59 @@ class FileSystem(metaclass=abc.ABCMeta):
   """Interface for a file system."""
 
   @abc.abstractmethod
-  def open(self, path: str, mode: str = 'r', **kwargs) -> File:
+  def open(
+      self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
+  ) -> File:
     """Opens a file with a path."""
 
   @abc.abstractmethod
-  def exists(self, path: str) -> bool:
+  def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     """Returns True if a path exists."""
 
   @abc.abstractmethod
-  def listdir(self, path: str) -> list[str]:
+  def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
     """Lists all files or sub-directories."""
 
   @abc.abstractmethod
-  def isdir(self, path: str) -> bool:
+  def isdir(self, path: Union[str, os.PathLike[str]]) -> bool:
     """Returns True if a path is a directory."""
 
   @abc.abstractmethod
-  def mkdir(self, path: str, mode: int = 0o777) -> None:
+  def mkdir(
+      self, path: Union[str, os.PathLike[str]], mode: int = 0o777
+  ) -> None:
     """Makes a directory based on a path."""
 
   @abc.abstractmethod
   def mkdirs(
-      self, path: str, mode: int = 0o777, exist_ok: bool = False) -> None:
+      self,
+      path: Union[str, os.PathLike[str]],
+      mode: int = 0o777,
+      exist_ok: bool = False,
+  ) -> None:
     """Makes a directory chain based on a path."""
 
   @abc.abstractmethod
-  def rm(self, path: str) -> None:
+  def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     """Removes a file based on a path."""
 
   @abc.abstractmethod
-  def rmdir(self, path: str) -> bool:
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> bool:
     """Removes a directory based on a path."""
 
   @abc.abstractmethod
-  def rmdirs(self, path: str) -> None:
+  def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
     """Removes a directory chain based on a path."""
+
+
+def _resolve_path(path: Union[str, os.PathLike[str]]) -> str:
+  if isinstance(path, str):
+    return path
+  elif hasattr(path, '__fspath__'):
+    return path.__fspath__()
+  else:
+    raise ValueError(f'Unsupported path: {path!r}.')
+
 
 #
 # The standard file system.
@@ -137,32 +155,40 @@ class StdFile(File):
 class StdFileSystem(FileSystem):
   """The standard file system."""
 
-  def open(self, path: str, mode: str = 'r', **kwargs) -> File:
+  def open(
+      self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
+  ) -> File:
     return StdFile(io.open(path, mode, **kwargs))
 
-  def exists(self, path: str) -> bool:
+  def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     return os.path.exists(path)
 
-  def listdir(self, path: str) -> list[str]:
+  def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
     return os.listdir(path)
 
-  def isdir(self, path: str) -> bool:
+  def isdir(self, path: Union[str, os.PathLike[str]]) -> bool:
     return os.path.isdir(path)
 
-  def mkdir(self, path: str, mode: int = 0o777) -> None:
+  def mkdir(
+      self, path: Union[str, os.PathLike[str]], mode: int = 0o777
+  ) -> None:
     os.mkdir(path, mode)
 
   def mkdirs(
-      self, path: str, mode: int = 0o777, exist_ok: bool = False) -> None:
+      self,
+      path: Union[str, os.PathLike[str]],
+      mode: int = 0o777,
+      exist_ok: bool = False,
+  ) -> None:
     os.makedirs(path, mode, exist_ok)
 
-  def rm(self, path: str) -> None:
+  def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     os.remove(path)
 
-  def rmdir(self, path: str) -> None:
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:
     os.rmdir(path)
 
-  def rmdirs(self, path: str) -> None:
+  def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
     os.removedirs(path)
 
 
@@ -206,10 +232,10 @@ class MemoryFileSystem(FileSystem):
     self._root = {}
     self._prefix = prefix
 
-  def _internal_path(self, path: str) -> str:
-    return '/' + path.lstrip(self._prefix)
+  def _internal_path(self, path: Union[str, os.PathLike[str]]) -> str:
+    return '/' + _resolve_path(path).lstrip(self._prefix)
 
-  def _locate(self, path: str) -> Any:
+  def _locate(self, path: Union[str, os.PathLike[str]]) -> Any:
     current = self._root
     for x in self._internal_path(path).split('/'):
       if not x:
@@ -219,7 +245,9 @@ class MemoryFileSystem(FileSystem):
       current = current[x]
     return current
 
-  def open(self, path: str, mode: str = 'r', **kwargs) -> File:
+  def open(
+      self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
+  ) -> File:
     file = self._locate(path)
     if isinstance(file, dict):
       raise IsADirectoryError(path)
@@ -234,19 +262,22 @@ class MemoryFileSystem(FileSystem):
       raise FileNotFoundError(path)
     return file
 
-  def exists(self, path: str) -> bool:
+  def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     return self._locate(path) is not None
 
-  def listdir(self, path: str) -> list[str]:
+  def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
     d = self._locate(path)
     if not isinstance(d, dict):
       raise FileNotFoundError(path)
     return list(d.keys())
 
-  def isdir(self, path: str) -> bool:
+  def isdir(self, path: Union[str, os.PathLike[str]]) -> bool:
     return isinstance(self._locate(path), dict)
 
-  def _parent_and_name(self, path: str) -> tuple[dict[str, Any], str]:
+  def _parent_and_name(
+      self, path: Union[str, os.PathLike[str]]
+  ) -> tuple[dict[str, Any], str]:
+    path = _resolve_path(path)
     rpos = path.rfind('/')
     assert rpos >= 0, path
     name = path[rpos + 1:]
@@ -255,7 +286,9 @@ class MemoryFileSystem(FileSystem):
       raise FileNotFoundError(path)
     return parent_dir, name
 
-  def mkdir(self, path: str, mode: int = 0o777) -> None:
+  def mkdir(
+      self, path: Union[str, os.PathLike[str]], mode: int = 0o777
+  ) -> None:
     del mode
     parent_dir, name = self._parent_and_name(path)
     if name in parent_dir:
@@ -263,7 +296,11 @@ class MemoryFileSystem(FileSystem):
     parent_dir[name] = {}
 
   def mkdirs(
-      self, path: str, mode: int = 0o777, exist_ok: bool = False) -> None:
+      self,
+      path: Union[str, os.PathLike[str]],
+      mode: int = 0o777,
+      exist_ok: bool = False,
+  ) -> None:
     del mode
     current = self._root
     dirs = self._internal_path(path).split('/')
@@ -280,7 +317,7 @@ class MemoryFileSystem(FileSystem):
         raise NotADirectoryError(path)
       current = entry
 
-  def rm(self, path: str) -> None:
+  def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     parent_dir, name = self._parent_and_name(path)
     entry = parent_dir.get(name)
     if entry is None:
@@ -289,7 +326,7 @@ class MemoryFileSystem(FileSystem):
       raise IsADirectoryError(path)
     del parent_dir[name]
 
-  def rmdir(self, path: str) -> None:
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:
     parent_dir, name = self._parent_and_name(path)
     entry = parent_dir.get(name)
     if entry is None:
@@ -300,7 +337,7 @@ class MemoryFileSystem(FileSystem):
       raise OSError(f'Directory not empty: {path!r}')
     del parent_dir[name]
 
-  def rmdirs(self, path: str) -> None:
+  def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
     def _rmdir(dir_dict, subpath: str) -> bool:
       if not subpath:
         if dir_dict:
@@ -333,9 +370,9 @@ class _FileSystemRegistry:
     self._filesystems.append((prefix, fs))
     self._filesystems.sort(key=lambda x: x[0], reverse=True)
 
-  def get(self, path: str) -> FileSystem:
+  def get(self, path: Union[str, os.PathLike[str]]) -> FileSystem:
     """Gets the file system for a path."""
-    path = path.lower()
+    path = _resolve_path(path)
     for prefix, fs in self._filesystems:
       if path.startswith(prefix):
         return fs
@@ -359,16 +396,17 @@ add_file_system('/mem/', MemoryFileSystem('/mem/'))
 #
 
 
-def open(path: str, mode: str = 'r', **kwargs) -> File:  # pylint:disable=redefined-builtin
+def open(path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs) -> File:  # pylint:disable=redefined-builtin
   """Opens a file with a path."""
   return _fs.get(path).open(path, mode, **kwargs)
 
 
 def readfile(
-    path: str,
+    path: Union[str, os.PathLike[str]],
     mode: str = 'r',
     nonexist_ok: bool = False,
-    **kwargs) -> Union[bytes, str, None]:
+    **kwargs,
+) -> Union[bytes, str, None]:
   """Reads content from a file."""
   try:
     with _fs.get(path).open(path, mode=mode, **kwargs) as f:
@@ -380,27 +418,30 @@ def readfile(
 
 
 def writefile(
-    path: str,
+    path: Union[str, os.PathLike[str]],
     content: Union[str, bytes],
     *,
     mode: str = 'w',
-    **kwargs) -> None:
+    **kwargs,
+) -> None:
   """Writes content to a file."""
   with _fs.get(path).open(path, mode=mode, **kwargs) as f:
     f.write(content)
 
 
-def rm(path: str) -> None:
+def rm(path: Union[str, os.PathLike[str]]) -> None:
   """Removes a file."""
   _fs.get(path).rm(path)
 
 
-def path_exists(path: str) -> bool:
+def path_exists(path: Union[str, os.PathLike[str]]) -> bool:
   """Returns True if path exists."""
   return _fs.get(path).exists(path)
 
 
-def listdir(path: str, fullpath: bool = False) -> list[str]:  # pylint: disable=redefined-builtin
+def listdir(
+    path: Union[str, os.PathLike[str]], fullpath: bool = False
+) -> list[str]:  # pylint: disable=redefined-builtin
   """Lists all files or sub-directories under a dir."""
   entries = _fs.get(path).listdir(path)
   if fullpath:
@@ -408,26 +449,30 @@ def listdir(path: str, fullpath: bool = False) -> list[str]:  # pylint: disable=
   return entries
 
 
-def isdir(path: str) -> bool:
+def isdir(path: Union[str, os.PathLike[str]]) -> bool:
   """Returns True if path is a directory."""
   return _fs.get(path).isdir(path)
 
 
-def mkdir(path: str, mode: int = 0o777) -> None:
+def mkdir(path: Union[str, os.PathLike[str]], mode: int = 0o777) -> None:
   """Makes a directory."""
   _fs.get(path).mkdir(path, mode=mode)
 
 
-def mkdirs(path: str, mode: int = 0o777, exist_ok: bool = False) -> None:
+def mkdirs(
+    path: Union[str, os.PathLike[str]],
+    mode: int = 0o777,
+    exist_ok: bool = False,
+) -> None:
   """Makes a directory chain."""
   _fs.get(path).mkdirs(path, mode=mode, exist_ok=exist_ok)
 
 
-def rmdir(path: str) -> bool:
+def rmdir(path: Union[str, os.PathLike[str]]) -> bool:
   """Removes a directory."""
   return _fs.get(path).rmdir(path)
 
 
-def rmdirs(path: str) -> bool:
+def rmdirs(path: Union[str, os.PathLike[str]]) -> bool:
   """Removes a directory chain until a parent directory is not empty."""
   return _fs.get(path).rmdirs(path)

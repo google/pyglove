@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import pathlib
 import tempfile
 import unittest
 from pyglove.core.io import file_system
@@ -90,6 +91,9 @@ class MemoryFileSystemTest(unittest.TestCase):
     file1 = os.path.join('/mem', 'file1')
     with self.assertRaises(FileNotFoundError):
       fs.open(file1)
+
+    with self.assertRaisesRegex(ValueError, 'Unsupported path'):
+      fs.open(1)
 
     with fs.open(file1, 'w') as f:
       f.write('hello\npyglove')
@@ -213,7 +217,7 @@ class FileIoApiTest(unittest.TestCase):
     self.assertFalse(file_system.path_exists(file2))
 
   def test_memory_filesystem(self):
-    file1 = '/mem/file1'
+    file1 = pathlib.Path('/mem/file1')
     with self.assertRaises(FileNotFoundError):
       file_system.readfile(file1)
     self.assertIsNone(file_system.readfile(file1, nonexist_ok=True))
