@@ -56,6 +56,7 @@ class _TypeRegistry:
     # class will always be picked up when there are multiple wrapper classes
     # registered for a user class.
     self._type_to_cls_map = dict()
+    self._prefix_mapping = dict()
 
   def register(
       self, type_name: str, cls: Type[Any], override_existing: bool = False
@@ -80,6 +81,10 @@ class _TypeRegistry:
           f'{self._type_to_cls_map[type_name].__name__}.')
     self._type_to_cls_map[type_name] = cls
 
+  def add_module_alias(self, module: str, alias: str) -> None:
+    """Maps a module name to another name. Usually due to rename."""
+    self._prefix_mapping[alias] = module
+
   def is_registered(self, type_name: str) -> bool:
     """Returns whether a type name is registered."""
     return type_name in self._type_to_cls_map
@@ -87,7 +92,17 @@ class _TypeRegistry:
   def class_from_typename(
       self, type_name: str) -> Optional[Type[Any]]:
     """Get class from type name."""
-    return self._type_to_cls_map.get(type_name, None)
+    cls = self._type_to_cls_map.get(type_name, None)
+    if cls is None:
+      # Modules could be renamed, to load legacy serialized objects, we
+      # use prefix mapping to get to their latest registry.
+      for k, v in self._prefix_mapping.items():
+        if type_name.startswith(f'{k}.'):
+          remapped_type_name = type_name.replace(k, v)
+          cls = self._type_to_cls_map.get(remapped_type_name, None)
+          if cls is not None:
+            break
+    return cls
 
   def iteritems(self) -> Iterable[Tuple[str, Type[Any]]]:
     """Iterate type registry."""
@@ -204,6 +219,11 @@ class JSONConvertible(metaclass=abc.ABCMeta):
         already present in the registry. Otherwise an error will be raised.
     """
     cls._TYPE_REGISTRY.register(type_name, subclass, override_existing)
+
+  @classmethod
+  def add_module_alias(cls, source_name: str, target_name: str) -> None:
+    """Adds a module alias so previous serialized objects could be loaded."""
+    cls._TYPE_REGISTRY.add_module_alias(source_name, target_name)
 
   @classmethod
   def is_registered(cls, type_name: str) -> bool:

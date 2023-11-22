@@ -164,6 +164,13 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assertEqual(json_conversion.from_json(json_value),
                      [(T(), 2), {'y': T(3)}])
 
+    # Test module alias.
+    json_conversion.JSONConvertible.add_module_alias(T.__module__, 'mymodule')
+    self.assertEqual(
+        json_conversion.from_json({'_type': f'mymodule.{T.__qualname__}'}),
+        T()
+    )
+
     # Test bad cases.
     with self.assertRaisesRegex(
         ValueError, 'Tuple should have at least one element besides .*'):
