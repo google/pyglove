@@ -1199,6 +1199,12 @@ class DictTest(unittest.TestCase):
     self.assertEqual(hash(Dict(x=a)), hash(Dict(x=b)))
     self.assertNotEqual(hash(Dict(x=B(1))), hash(Dict(x=B(2))))
 
+    class C(pg_object.Object):
+      x: str
+      use_symbolic_comparison = False
+
+    self.assertEqual(Dict(x=C('abc')).sym_hash(), Dict(x=C('abc')).sym_hash())
+
   def test_sym_parent(self):
     sd = Dict(x=dict(a=1), y=[])
     self.assertIsNone(sd.sym_parent)

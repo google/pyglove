@@ -459,7 +459,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Symbolic hashing."""
     return base.sym_hash(
         (self.__class__,
-         tuple([base.sym_hash((k, v)) for k, v in self.sym_items()
+         tuple([(k, base.sym_hash(v)) for k, v in self.sym_items()
                 if v != pg_typing.MISSING_VALUE])))
 
   def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
