@@ -369,31 +369,49 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def _sym_nondefault(self) -> typing.Dict[str, Any]:
     """Returns non-default values as key/value pairs in a dict."""
     non_defaults = dict()
-    if self._value_spec and self._value_spec.schema:
+    if self._value_spec is not None and self._value_spec.schema:
       dict_schema = self._value_spec.schema
-      matched_keys, unmatched_keys = dict_schema.resolve(self.keys())
-      assert not unmatched_keys
+      matched_keys, _ = dict_schema.resolve(self.keys())
       for key_spec, keys in matched_keys.items():
         value_spec = dict_schema[key_spec].value
         for key in keys:
-          v = self.sym_getattr(key)
-          child_has_non_defaults = False
-          if isinstance(v, base.Symbolic):
-            non_defaults_child = v.non_default_values(flatten=False)
-            if non_defaults_child:
-              non_defaults[key] = non_defaults_child
-              child_has_non_defaults = True
-          if not child_has_non_defaults and value_spec.default != v:
-            non_defaults[key] = v
+          diff = self._diff_base(self.sym_getattr(key), value_spec.default)
+          if pg_typing.MISSING_VALUE != diff:
+            non_defaults[key] = diff
     else:
       for k, v in self.sym_items():
         if isinstance(v, base.Symbolic):
-          non_defaults_child = v.non_default_values(flatten=False)
+          non_defaults_child = v.sym_nondefault(flatten=False)
           if non_defaults_child:
             non_defaults[k] = non_defaults_child
         else:
           non_defaults[k] = v
     return non_defaults
+
+  def _diff_base(self, value: Any, base_value: Any) -> Any:
+    """Computes the diff between a value and a base value."""
+    if base.eq(value, base_value):
+      return pg_typing.MISSING_VALUE
+
+    if (isinstance(value, list)
+        or not isinstance(value, base.Symbolic)
+        or pg_typing.MISSING_VALUE == base_value):
+      return value
+
+    if value.__class__ is base_value.__class__:
+      getter = lambda x, k: x.sym_getattr(k)
+    elif isinstance(value, dict) and isinstance(base_value, dict):
+      getter = lambda x, k: x[k]
+    else:
+      return value
+
+    diff = {}
+    for k, v in value.sym_items():
+      base_v = getter(base_value, k)
+      child_diff = self._diff_base(v, base_v)
+      if pg_typing.MISSING_VALUE != child_diff:
+        diff[k] = child_diff
+    return diff
 
   def seal(self, sealed: bool = True) -> 'Dict':
     """Seals or unseals current object from further modification."""
@@ -796,7 +814,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
               value = self.sym_getattr(key)
               if pg_typing.MISSING_VALUE == value:
                 continue
-              if hide_default_values and value == field.default_value:
+              if hide_default_values and base.eq(value, field.default_value):
                 continue
               json_repr[key] = base.to_json(
                   value, hide_default_values=hide_default_values, **kwargs)
@@ -886,7 +904,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             if pg_typing.MISSING_VALUE == v:
               if hide_missing_values:
                 continue
-            elif hide_default_values and v == field.default_value:
+            elif hide_default_values and base.eq(v, field.default_value):
               continue
             field_list.append((field, key, v))
     else:

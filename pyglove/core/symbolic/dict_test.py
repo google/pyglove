@@ -988,16 +988,32 @@ class DictTest(unittest.TestCase):
     self.assertEqual(sd.sym_missing(), {})
 
   def test_sym_nondefault(self):
-    # Refer to `test_non_default_values` for more details.
-    sd = Dict(x=1, value_spec=pg_typing.Dict([
+
+    class A(pg_object.Object):
+      x: int
+      use_symbolic_comparison = False
+
+    class B(pg_object.Object):
+      y: int = 1
+      use_symbolic_comparison = True
+
+    sd = Dict(x=1, y=dict(a1=A(1)), value_spec=pg_typing.Dict([
         ('x', pg_typing.Int(default=0)),
         ('y', pg_typing.Dict([
-            ('z', pg_typing.Int(default=1))
+            ('z', pg_typing.Int(default=1)),
+            ('a1', pg_typing.Object(A)),
+            ('a2', pg_typing.Object(A, default=A(1))),
+            ('b', pg_typing.Object(B, default=B(2))),
         ])),
     ]))
-    self.assertEqual(sd.sym_nondefault(), {'x': 1})
-    sd.rebind({'y.z': 2}, x=0)
-    self.assertEqual(sd.sym_nondefault(), {'y.z': 2})
+    self.assertTrue(base.eq(sd.sym_nondefault(), {'x': 1, 'y.a1': A(1)}))
+    sd.rebind({'y.z': 2, 'y.a2': A(2), 'y.b': B(1)}, x=0)
+    self.assertTrue(
+        base.eq(
+            sd.sym_nondefault(),
+            {'y.z': 2, 'y.a1': A(1), 'y.a2.x': 2, 'y.b.y': 1}
+        )
+    )
 
     # Test inferred value as the default value.
     sd = Dict(
@@ -1892,9 +1908,15 @@ class SerializationTest(unittest.TestCase):
     self.assertEqual(base.from_json_str(sd.to_json_str(), value_spec=spec), sd)
 
   def test_hide_default_values(self):
+
+    class A(pg_object.Object):
+      x: int = 1
+      use_symbolic_comparison = False
+
     sd = Dict.partial(
         x=1,
         value_spec=pg_typing.Dict([
+            ('v', pg_typing.Object(A, default=A(1))),
             ('w', pg_typing.Str()),
             ('x', pg_typing.Int()),
             ('y', pg_typing.Str().noneable()),
