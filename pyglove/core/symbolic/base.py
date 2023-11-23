@@ -1597,7 +1597,8 @@ def eq(left: Any, right: Any) -> bool:
         and not inspect.isclass(right)
         and right.sym_eq.__code__ is not Symbolic.sym_eq.__code__):
     return right.sym_eq(left)
-  return left == right
+  # Compare two maybe callable objects.
+  return pg_typing.callable_eq(left, right)
 
 
 def ne(left: Any, right: Any) -> bool:
@@ -1791,6 +1792,10 @@ def sym_hash(x: Any) -> int:
   """
   if isinstance(x, Symbolic):
     return x.sym_hash()
+  if inspect.isfunction(x):
+    return hash(x.__code__.co_code)
+  if inspect.ismethod(x):
+    return hash((sym_hash(x.__self__), x.__code__.co_code))  # pytype: disable=attribute-error
   return hash(x)
 
 

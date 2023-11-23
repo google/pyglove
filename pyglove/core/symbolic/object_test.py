@@ -1355,7 +1355,9 @@ class ObjectTest(unittest.TestCase):
         ('y', pg_typing.Int().noneable())
     ])
     class A(Object):
-      pass
+
+      def result(self):
+        return self.x + self.y
 
     self.assertEqual(hash(A(0)), hash(A(0)))
     self.assertEqual(hash(A(1, None)), hash(A(1, None)))
@@ -1383,6 +1385,16 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(hash(a), hash(b))
     self.assertEqual(hash(A(a)), hash(A(b)))
     self.assertNotEqual(hash(A(Y(1))), hash(A(Y(2))))
+
+    # Test symbolic hashing for functions and methods.
+    a = lambda x: x
+    b = base.from_json_str(base.to_json_str(a))
+    self.assertNotEqual(hash(a), hash(b))
+    self.assertEqual(base.sym_hash(a), base.sym_hash(b))
+    self.assertEqual(
+        base.sym_hash(A(1, 2).result), base.sym_hash(A(1, 2).result))
+    self.assertNotEqual(
+        base.sym_hash(A(1, 2).result), base.sym_hash(A(2, 3).result))
 
   def test_sym_parent(self):
 
