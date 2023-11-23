@@ -1626,6 +1626,19 @@ class SerializationTest(unittest.TestCase):
         ])))
     self.assertEqual(sl.to_json_str(hide_default_values=True), '[{"x": 1}]')
 
+  def test_use_inferred(self):
+    sl = List([0, List([inferred.ValueFromParentChain()])])
+    self.assertEqual(
+        sl.to_json_str(),
+        ('[0, [{"_type": "'
+         + inferred.ValueFromParentChain.__type_name__
+         + '"}]]')
+    )
+    self.assertEqual(
+        sl.to_json_str(use_inferred=True),
+        ('[0, [0]]')
+    )
+
   def test_from_json(self):
     spec = pg_typing.List(pg_typing.Dict([
         ('w', pg_typing.Str()),

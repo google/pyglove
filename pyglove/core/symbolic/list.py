@@ -741,9 +741,17 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       self._value_spec = value_spec
     return (proceed_with_standard_apply, self)
 
-  def sym_jsonify(self, **kwargs) -> object_utils.JSONValueType:
+  def sym_jsonify(
+      self,
+      use_inferred: bool = False,
+      **kwargs) -> object_utils.JSONValueType:
     """Converts current list to a list of plain Python objects."""
-    return [base.to_json(v, **kwargs) for v in self.sym_values()]
+    def json_item(idx):
+      v = self.sym_getattr(idx)
+      if use_inferred and isinstance(v, base.Inferential):
+        v = self.sym_inferred(idx, default=v)
+      return base.to_json(v, use_inferred=use_inferred, **kwargs)
+    return [json_item(i) for i in range(len(self))]
 
   def format(
       self,
@@ -767,7 +775,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     if compact:
       kv_strs = []
       for idx, elem in self.sym_items():
-        if use_inferred:
+        if use_inferred and isinstance(elem, base.Inferential):
           elem = self.sym_inferred(idx, default=elem)
         v_str = object_utils.format(
             elem, compact, verbose, root_indent + 1,
@@ -781,7 +789,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     else:
       if self:
         for idx, elem in self.sym_items():
-          if use_inferred:
+          if use_inferred and isinstance(elem, base.Inferential):
             elem = self.sym_inferred(idx, default=elem)
           if idx == 0:
             s.append('\n')

@@ -798,6 +798,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       self,
       hide_default_values: bool = False,
       exclude_keys: Optional[Sequence[str]] = None,
+      use_inferred: bool = False,
       **kwargs) -> object_utils.JSONValueType:
     """Converts current object to a dict with plain Python objects."""
     exclude_keys = set(exclude_keys or [])
@@ -812,16 +813,25 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           for key in keys:
             if key not in exclude_keys:
               value = self.sym_getattr(key)
+              if use_inferred and isinstance(value, base.Inferential):
+                value = self.sym_inferred(key, default=value)
               if pg_typing.MISSING_VALUE == value:
                 continue
               if hide_default_values and base.eq(value, field.default_value):
                 continue
               json_repr[key] = base.to_json(
-                  value, hide_default_values=hide_default_values, **kwargs)
+                  value, hide_default_values=hide_default_values,
+                  use_inferred=use_inferred,
+                  **kwargs)
       return json_repr
     else:
       return {
-          k: base.to_json(v, **kwargs)
+          k: base.to_json(
+              self.sym_inferred(k, default=v) if (
+                  use_inferred and isinstance(v, base.Inferential)) else v,
+              hide_default_values=hide_default_values,
+              use_inferred=use_inferred,
+              **kwargs)
           for k, v in self.sym_items()
           if k not in exclude_keys
       }
@@ -899,7 +909,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           if _should_include_key(key):
             field = self._value_spec.schema[key_spec]
             v = self.sym_getattr(key)
-            if use_inferred:
+            if use_inferred and isinstance(v, base.Inferential):
               v = self.sym_inferred(key, default=v)
             if pg_typing.MISSING_VALUE == v:
               if hide_missing_values:
@@ -910,7 +920,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     else:
       for k, v in self.sym_items():
         if _should_include_key(k):
-          if use_inferred:
+          if use_inferred and isinstance(v, base.Inferential):
             v = self.sym_inferred(k, default=v)
           field_list.append((None, k, v))
 

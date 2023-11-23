@@ -1925,6 +1925,39 @@ class SerializationTest(unittest.TestCase):
         ]))
     self.assertEqual(sd.to_json_str(hide_default_values=True), '{"x": 1}')
 
+  def test_use_inferred(self):
+    # Schematized dict.
+    sd = Dict(
+        x=1,
+        y=Dict(
+            x=inferred.ValueFromParentChain(),
+            value_spec=pg_typing.Dict([('x', pg_typing.Int())])
+        )
+    )
+    self.assertEqual(
+        sd.to_json_str(),
+        ('{"x": 1, "y": {"x": {"_type": "'
+         + inferred.ValueFromParentChain.__type_name__
+         + '"}}}')
+    )
+    self.assertEqual(
+        sd.to_json_str(use_inferred=True),
+        '{"x": 1, "y": {"x": 1}}'
+    )
+
+    # Non-schematized dict.
+    sd = Dict(x=1, y=Dict(x=inferred.ValueFromParentChain()))
+    self.assertEqual(
+        sd.to_json_str(),
+        ('{"x": 1, "y": {"x": {"_type": "'
+         + inferred.ValueFromParentChain.__type_name__
+         + '"}}}')
+    )
+    self.assertEqual(
+        sd.to_json_str(use_inferred=True),
+        '{"x": 1, "y": {"x": 1}}'
+    )
+
   def test_from_json(self):
     spec = pg_typing.Dict([
         ('w', pg_typing.Str()),
