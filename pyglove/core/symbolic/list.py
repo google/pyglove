@@ -505,6 +505,11 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       raise TypeError(
           f'list index must be an integer. Encountered {index!r}.')
 
+  def __iter__(self):
+    """Iterates the list."""
+    for i in range(len(self)):
+      yield self.sym_inferred(i)
+
   def __setitem__(self, index, value: Any) -> None:
     """Set item in this List."""
     if base.treats_as_sealed(self):
@@ -668,15 +673,17 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
     if base.treats_as_sealed(self):
       raise base.WritePermissionError('Cannot extend a sealed List.')
-    other = list(other)
+
+    # Extend on the symbolic form instead of the evaluated form.
+    iter_other = other.sym_values() if isinstance(other, List) else other
+    other = list(iter_other)
     if self.max_size is not None and len(self) + len(other) > self.max_size:
       raise ValueError(
           f'Cannot extend List: the number of elements '
           f'({len(self) + len(other)}) exceeds max size ({self.max_size}).')
+
     updates = []
-    # Extend on the symbolic form instead of the evaluated form.
-    iter_other = other.sym_values() if isinstance(other, List) else other
-    for v in iter_other:
+    for v in other:
       update = self._set_item_without_permission_check(len(self), v)
       if update is not None:
         updates.append(update)

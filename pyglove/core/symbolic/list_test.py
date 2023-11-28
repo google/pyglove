@@ -628,8 +628,11 @@ class ListTest(unittest.TestCase):
     self.assertIn(inferred.ValueFromParentChain(), sl)
 
   def test_iter(self):
-    sl = List([0, 1, 2, 3])
-    self.assertEqual(list(sl), [0, 1, 2, 3])
+    sl = List([5, 10, 15, 20])
+    self.assertEqual(list(sl), [5, 10, 15, 20])
+
+    sl = List([5, 10, List([inferred.ValueFromParentChain(), 15])])
+    self.assertEqual(list(iter(sl[2])), [5, 15])
 
   def test_non_default(self):
     sl = List([0])

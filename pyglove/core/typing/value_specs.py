@@ -1048,9 +1048,9 @@ class List(Generic, ValueSpecBase):
     # NOTE(daiyip): list elements can be contextual values, thus we try
     # to get their symbolic form instead of the evaluated form.
     getitem = getattr(value, 'sym_getattr', value.__getitem__)
-    for i, v in enumerate(value):
+    for i in range(len(value)):
       v = self._element.apply(
-          v, allow_partial=allow_partial, transform_fn=child_transform,
+          getitem(i), allow_partial=allow_partial, transform_fn=child_transform,
           root_path=object_utils.KeyPath(i, root_path))
       if getitem(i) is not v:
         set_item(i, v)
