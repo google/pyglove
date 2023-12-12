@@ -17,6 +17,36 @@ import unittest
 from pyglove.core.object_utils import common_traits
 
 
+class Foo(common_traits.Formattable):
+
+  def format(self, compact: bool = False, verbose: bool = True, **kwargs):
+    return f'{self.__class__.__name__}(compact={compact}, verbose={verbose})'
+
+
+class FormattableTest(unittest.TestCase):
+
+  def test_formattable(self):
+    foo = Foo()
+    self.assertEqual(repr(foo), 'Foo(compact=True, verbose=True)')
+    self.assertEqual(str(foo), 'Foo(compact=False, verbose=True)')
+
+  def test_formattable_with_custom_format(self):
+    class Bar(Foo):
+      __str_format_kwargs__ = {'compact': False, 'verbose': False}
+      __repr_format_kwargs__ = {'compact': True, 'verbose': False}
+
+    bar = Bar()
+    self.assertEqual(repr(bar), 'Bar(compact=True, verbose=False)')
+    self.assertEqual(str(bar), 'Bar(compact=False, verbose=False)')
+
+  def test_formattable_with_context_managers(self):
+    foo = Foo()
+    with common_traits.str_format(verbose=False):
+      with common_traits.repr_format(compact=False):
+        self.assertEqual(repr(foo), 'Foo(compact=False, verbose=True)')
+        self.assertEqual(str(foo), 'Foo(compact=False, verbose=False)')
+
+
 class ExplicitlyOverrideTest(unittest.TestCase):
 
   def test_explicitly_override(self):

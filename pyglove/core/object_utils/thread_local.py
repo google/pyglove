@@ -15,11 +15,10 @@
 
 import contextlib
 import threading
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Dict, Iterator
 
-from pyglove.core.object_utils.missing import MISSING_VALUE
-
-_RAISE_IF_NOT_FOUND = (MISSING_VALUE,)
+_MISSING = KeyError()
+_RAISE_IF_NOT_FOUND = ValueError()
 _thread_local_state = threading.local()
 
 
@@ -38,6 +37,25 @@ def thread_local_value_scope(
       thread_local_set(key, previous_value)
     else:
       thread_local_del(key)
+
+
+@contextlib.contextmanager
+def thread_local_arg_scope(key: str, **kwargs) -> Iterator[Dict[str, Any]]:
+  """Context manager to update args associated with key."""
+  previous_kwargs = thread_local_peek(key, {})
+  current_kwargs = previous_kwargs.copy()
+  current_kwargs.update(kwargs)
+
+  try:
+    thread_local_push(key, current_kwargs)
+    yield current_kwargs
+  finally:
+    thread_local_pop(key)
+
+
+def thread_local_kwargs(key: str) -> Dict[str, Any]:
+  """Returns the args associated with key in current thread."""
+  return thread_local_peek(key, {})
 
 
 def thread_local_has(key: str) -> bool:
@@ -69,8 +87,8 @@ def thread_local_map(
     value_fn: Callable[[Any], Any],
     default_initial_value: Any = _RAISE_IF_NOT_FOUND) -> Any:
   """Map a thread-local value."""
-  value = thread_local_get(key, MISSING_VALUE)
-  if value == MISSING_VALUE:
+  value = thread_local_get(key, _MISSING)
+  if value is _MISSING:
     value = default_initial_value
     if value is _RAISE_IF_NOT_FOUND:
       raise ValueError(f'Key {key!r} does not exist in thread-local storage.')
@@ -112,10 +130,25 @@ def thread_local_push(key: str, value: Any) -> None:
   )
 
 
+def thread_local_peek(
+    key: str, default_value: Any = _RAISE_IF_NOT_FOUND
+) -> Any:
+  """Peaks a value at stack top."""
+  stack = thread_local_get(key, _MISSING)
+  if stack is _MISSING or not stack:
+    if default_value is _RAISE_IF_NOT_FOUND:
+      raise ValueError(
+          f'Stack associated with key {key!r} does not exist in thread-local '
+          'storage or is empty.'
+      )
+    return default_value
+  return stack[-1]
+
+
 def thread_local_pop(key: str, default_value: Any = _RAISE_IF_NOT_FOUND) -> Any:
   """Pops a value from a stack identified by key."""
-  stack = thread_local_get(key, MISSING_VALUE)
-  if stack == MISSING_VALUE:
+  stack = thread_local_get(key, _MISSING)
+  if stack is _MISSING:
     if default_value is _RAISE_IF_NOT_FOUND:
       raise ValueError(f'Key {key!r} does not exist in thread-local storage.')
     return default_value
