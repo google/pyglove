@@ -84,6 +84,33 @@ class ThreadLocalTest(unittest.TestCase):
       return _fn
     self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 
+  def test_thread_local_arg_scope(self):
+    with thread_local.thread_local_arg_scope('arg_scope', x=1, y=2):
+      self.assertEqual(
+          thread_local.thread_local_kwargs('arg_scope'), dict(x=1, y=2)
+      )
+      with thread_local.thread_local_arg_scope('arg_scope', y=3, z=4):
+        self.assertEqual(
+            thread_local.thread_local_kwargs('arg_scope'), dict(x=1, y=3, z=4)
+        )
+      self.assertEqual(
+          thread_local.thread_local_kwargs('arg_scope'), dict(x=1, y=2)
+      )
+    self.assertEqual(thread_local.thread_local_kwargs('arg_scope'), dict())
+
+    # Test thread locality.
+    def thread_fun(i):
+      def _fn():
+        with thread_local.thread_local_arg_scope('arg_scope', x=i):
+          self.assertEqual(
+              thread_local.thread_local_kwargs('arg_scope'), dict(x=i)
+          )
+        self.assertEqual(thread_local.thread_local_kwargs('arg_scope'), dict())
+
+      return _fn
+
+    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
   def test_thread_local_increment_decrement(self):
     k = 'z'
     self.assertEqual(thread_local.thread_local_increment(k, 5), 6)
@@ -103,18 +130,29 @@ class ThreadLocalTest(unittest.TestCase):
       return _fn
     self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 
-  def test_thread_local_push_pop(self):
+  def test_thread_local_push_peak_pop(self):
     k = 'p'
     self.assertFalse(thread_local.thread_local_has(k))
     thread_local.thread_local_push(k, 1)
     self.assertEqual(thread_local.thread_local_get(k), [1])
+    self.assertEqual(thread_local.thread_local_peek(k), 1)
     thread_local.thread_local_push(k, 2)
     self.assertEqual(thread_local.thread_local_get(k), [1, 2])
+    self.assertEqual(thread_local.thread_local_peek(k), 2)
     self.assertEqual(thread_local.thread_local_pop(k), 2)
     self.assertEqual(thread_local.thread_local_get(k), [1])
+    self.assertEqual(thread_local.thread_local_peek(k), 1)
     self.assertEqual(thread_local.thread_local_pop(k), 1)
+
+    with self.assertRaisesRegex(
+        ValueError, 'Stack associated with key .* does not exist'
+    ):
+      thread_local.thread_local_peek(k)
+    self.assertEqual(thread_local.thread_local_peek(k, -1), -1)
+
     with self.assertRaisesRegex(IndexError, 'pop from empty list'):
       thread_local.thread_local_pop(k)
+
     self.assertEqual(thread_local.thread_local_pop(k, -1), -1)
     with self.assertRaisesRegex(
         ValueError, 'Key .* does not exist in thread-local storage'):

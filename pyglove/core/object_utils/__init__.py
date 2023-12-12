@@ -70,6 +70,7 @@ modules with the following features:
 """
 # pylint: enable=line-too-long
 # pylint: disable=g-bad-import-order
+# pylint: disable=g-importing-member
 
 # Common traits.
 from pyglove.core.object_utils.json_conversion import Nestable
@@ -116,6 +117,10 @@ from pyglove.core.object_utils.formatting import message_on_path
 from pyglove.core.object_utils.formatting import BracketType
 from pyglove.core.object_utils.formatting import bracket_chars
 
+# Context managers for defining the default format for __str__ and __repr__.
+from pyglove.core.object_utils.common_traits import str_format
+from pyglove.core.object_utils.common_traits import repr_format
+
 # Handling code generation.
 from pyglove.core.object_utils.codegen import make_function
 
@@ -144,4 +149,5 @@ from pyglove.core.object_utils.docstr_utils import docstr
 from pyglove.core.object_utils.error_utils import catch_errors
 from pyglove.core.object_utils.error_utils import CatchErrorsContext
 
+# pylint: enable=g-importing-member
 # pylint: enable=g-bad-import-order
