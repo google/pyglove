@@ -21,6 +21,7 @@ import traceback
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 from pyglove.core import geno
+from pyglove.core import logging
 from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
@@ -412,7 +413,9 @@ class Feedback(metaclass=abc.ABCMeta):
       A context manager for skipping trials on user-specified exceptions.
     """
     def skip_on_exception(unused_error):
-      self.skip(traceback.format_exc())
+      error_stack = traceback.format_exc()
+      logging.warning('Skipping trial on unhandled exception: %s', error_stack)
+      self.skip(error_stack)
     return object_utils.catch_errors(exceptions, skip_on_exception)
 
   @contextlib.contextmanager
