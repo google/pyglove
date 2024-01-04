@@ -19,8 +19,22 @@ from pyglove.core.object_utils import common_traits
 
 class Foo(common_traits.Formattable):
 
-  def format(self, compact: bool = False, verbose: bool = True, **kwargs):
+  def format(
+      self, compact: bool = False, verbose: bool = True, **kwargs):
     return f'{self.__class__.__name__}(compact={compact}, verbose={verbose})'
+
+
+class Bar(common_traits.Formattable):
+
+  def __init__(self, foo: Foo):
+    self._foo = foo
+
+  def format(
+      self, compact: bool = False, verbose: bool = True,
+      root_indent: int = 0, **kwargs):
+    foo_str = self._foo.format(
+        compact=compact, verbose=verbose, root_indent=root_indent + 1)
+    return f'{self.__class__.__name__}(foo={foo_str})'
 
 
 class FormattableTest(unittest.TestCase):
@@ -31,13 +45,13 @@ class FormattableTest(unittest.TestCase):
     self.assertEqual(str(foo), 'Foo(compact=False, verbose=True)')
 
   def test_formattable_with_custom_format(self):
-    class Bar(Foo):
+    class Baz(Foo):
       __str_format_kwargs__ = {'compact': False, 'verbose': False}
       __repr_format_kwargs__ = {'compact': True, 'verbose': False}
 
-    bar = Bar()
-    self.assertEqual(repr(bar), 'Bar(compact=True, verbose=False)')
-    self.assertEqual(str(bar), 'Bar(compact=False, verbose=False)')
+    bar = Baz()
+    self.assertEqual(repr(bar), 'Baz(compact=True, verbose=False)')
+    self.assertEqual(str(bar), 'Baz(compact=False, verbose=False)')
 
   def test_formattable_with_context_managers(self):
     foo = Foo()
@@ -45,6 +59,13 @@ class FormattableTest(unittest.TestCase):
       with common_traits.repr_format(compact=False):
         self.assertEqual(repr(foo), 'Foo(compact=False, verbose=True)')
         self.assertEqual(str(foo), 'Foo(compact=False, verbose=False)')
+
+    bar = Bar(foo)
+    with common_traits.repr_format(markdown=True):
+      self.assertEqual(repr(bar), '`Bar(foo=Foo(compact=True, verbose=True))`')
+    with common_traits.str_format(markdown=True):
+      self.assertEqual(
+          str(bar), '\n```\nBar(foo=Foo(compact=False, verbose=True))\n```\n')
 
 
 class ExplicitlyOverrideTest(unittest.TestCase):

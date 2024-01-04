@@ -279,6 +279,9 @@ KeyPath = object_utils.KeyPath
 MISSING_VALUE = object_utils.MISSING_VALUE
 
 Formattable = object_utils.Formattable
+repr_format = object_utils.repr_format
+str_format = object_utils.str_format
+
 MaybePartial = object_utils.MaybePartial
 JSONConvertible = object_utils.JSONConvertible
 DocStr = object_utils.DocStr
