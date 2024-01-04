@@ -146,17 +146,24 @@ class Ref(Object, base.Inferential):
       compact: bool = False,
       verbose: bool = False,
       root_indent: int = 0,
-      **kwargs: Any) -> str:
+      *,
+      markdown: bool = False,
+      **kwargs: Any,
+  ) -> str:
     value_str = object_utils.format(
         self._value,
         compact=compact, verbose=verbose, root_indent=root_indent + 1)
     if compact:
-      return f'{self.__class__.__name__}({value_str})'
+      s = f'{self.__class__.__name__}({value_str})'
     else:
-      return (f'{self.__class__.__name__}(\n'
-              + '  ' * (root_indent + 1)
-              + f'value = {value_str}\n'
-              + '  ' * root_indent + ')')
+      s = (
+          f'{self.__class__.__name__}(\n'
+          + '  ' * (root_indent + 1)
+          + f'value = {value_str}\n'
+          + '  ' * root_indent
+          + ')'
+      )
+    return object_utils.maybe_markdown_quote(s, markdown)
 
 
 def maybe_ref(value: Any) -> Optional[Ref]:

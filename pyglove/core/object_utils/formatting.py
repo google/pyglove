@@ -114,31 +114,35 @@ def bracket_chars(bracket_type: BracketType) -> Tuple[str, str]:
   return _BRACKET_CHARS[int(bracket_type)]
 
 
-def format(value: Any,              # pylint: disable=redefined-builtin
-           compact: bool = False,
-           verbose: bool = True,
-           root_indent: int = 0,
-           list_wrap_threshold: int = 80,
-           strip_object_id: bool = False,
-           include_keys: Optional[Set[str]] = None,
-           exclude_keys: Optional[Set[str]] = None,
-           **kwargs) -> str:
+def format(   # pylint: disable=redefined-builtin
+    value: Any,
+    compact: bool = False,
+    verbose: bool = True,
+    root_indent: int = 0,
+    list_wrap_threshold: int = 80,
+    strip_object_id: bool = False,
+    include_keys: Optional[Set[str]] = None,
+    exclude_keys: Optional[Set[str]] = None,
+    markdown: bool = False,
+    **kwargs,
+) -> str:
   """Formats a (maybe) hierarchical value with flags.
 
   Args:
     value: The value to format.
     compact: If True, this object will be formatted into a single line.
-    verbose: If True, this object will be formatted with verbosity.
-      Subclasses should define `verbosity` on their own.
+    verbose: If True, this object will be formatted with verbosity. Subclasses
+      should define `verbosity` on their own.
     root_indent: The start indent level for this object if the output is a
       multi-line string.
-    list_wrap_threshold: A threshold in number of characters for wrapping a
-      list value in a single line.
+    list_wrap_threshold: A threshold in number of characters for wrapping a list
+      value in a single line.
     strip_object_id: If True, format object as '<class-name>(...)' other than
       'object at <address>'.
     include_keys: A set of keys to include from the top-level dict or object.
     exclude_keys: A set of keys to exclude from the top-level dict or object.
       Applicable only when `include_keys` is set to None.
+    markdown: If True, use markdown notion to quote the formatted object.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
 
@@ -211,7 +215,17 @@ def format(value: Any,              # pylint: disable=redefined-builtin
       s = [repr(value) if compact else str(value)]
       if strip_object_id and 'object at 0x' in s[-1]:
         s = [f'{value.__class__.__name__}(...)']
-  return ''.join(s)
+  return maybe_markdown_quote(''.join(s), markdown)
+
+
+def maybe_markdown_quote(s: str, markdown: bool = True) -> str:
+  """Maybe quote the formatted string with markdown."""
+  if not markdown:
+    return s
+  if '\n' not in s:
+    return f'`{s}`'
+  else:
+    return f'```\n{s}\n```'
 
 
 def printv(v: Any, **kwargs):

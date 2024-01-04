@@ -61,15 +61,18 @@ class FieldUpdate(object_utils.Formattable):
     self.old_value = old_value
     self.new_value = new_value
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             *,
-             python_format: bool = False,
-             hide_default_values: bool = False,
-             hide_missing_values: bool = False,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      python_format: bool = False,
+      markdown: bool = False,
+      hide_default_values: bool = False,
+      hide_missing_values: bool = False,
+      **kwargs,
+  ) -> str:
     """Formats this object."""
     kwargs.update({
         'python_format': python_format,
@@ -87,7 +90,9 @@ class FieldUpdate(object_utils.Formattable):
              self.new_value, compact, verbose, root_indent + 1, **kwargs),
          object_utils.MISSING_VALUE),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def __eq__(self, other: Any) -> bool:
     """Operator ==."""

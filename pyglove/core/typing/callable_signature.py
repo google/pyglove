@@ -155,7 +155,7 @@ class Signature(object_utils.Formattable):
             self.varargs == other.varargs and self.varkw == other.varkw and
             self.return_value == other.return_value)
 
-  def format(self, *args, **kwargs) -> str:
+  def format(self, *args, markdown: bool = False, **kwargs) -> str:
     """Format current object."""
     details = object_utils.kvlist_str([
         ('', repr(self.id), ''),
@@ -165,7 +165,9 @@ class Signature(object_utils.Formattable):
         ('varargs', object_utils.format(self.varargs, **kwargs), 'None'),
         ('varkw', object_utils.format(self.varkw, **kwargs), 'None'),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   @classmethod
   def from_schema(

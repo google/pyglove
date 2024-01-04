@@ -767,10 +767,12 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       root_indent: int = 0,
       *,
       python_format: bool = False,
+      markdown: bool = False,
       use_inferred: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.SQUARE,
-      **kwargs) -> str:
+      **kwargs,
+  ) -> str:
     """Formats this List."""
 
     def _indent(text, indent):
@@ -813,7 +815,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
         s.append(_indent(close_bracket, root_indent))
       else:
         s.append(close_bracket)
-    return ''.join(s)
+    return object_utils.maybe_markdown_quote(''.join(s), markdown)
 
   def __copy__(self) -> 'List':
     """List.copy."""

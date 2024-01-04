@@ -111,6 +111,7 @@ from pyglove.core.object_utils.formatting import format            # pylint: dis
 from pyglove.core.object_utils.formatting import printv as print   # pylint: disable=redefined-builtin
 from pyglove.core.object_utils.formatting import kvlist_str
 from pyglove.core.object_utils.formatting import quote_if_str
+from pyglove.core.object_utils.formatting import maybe_markdown_quote
 from pyglove.core.object_utils.formatting import comma_delimited_str
 from pyglove.core.object_utils.formatting import auto_plural
 from pyglove.core.object_utils.formatting import message_on_path

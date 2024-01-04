@@ -3090,9 +3090,10 @@ class FormatTest(unittest.TestCase):
 
   def test_compact_python_format(self):
     self.assertEqual(
-        self._a.format(compact=True, python_format=True),
-        'A(x=[A(x=1, y=None), A(x=\'foo\', y={\'a\': A(x=True, y=1.0)})], '
-        'y=MISSING_VALUE)')
+        self._a.format(compact=True, python_format=True, markdown=True),
+        "`A(x=[A(x=1, y=None), A(x='foo', y={'a': A(x=True, y=1.0)})], "
+        'y=MISSING_VALUE)`',
+    )
 
   def test_noncompact_with_inferred_value(self):
 
@@ -3134,25 +3135,32 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_python_format(self):
     self.assertEqual(
-        self._a.format(compact=False, verbose=False, python_format=True),
-        inspect.cleandoc("""A(
-          x=[
+        self._a.format(
+            compact=False, verbose=False, python_format=True, markdown=True
+        ),
+        inspect.cleandoc("""
+            ```
             A(
-              x=1,
-              y=None
-            ),
-            A(
-              x='foo',
-              y={
-                'a': A(
-                  x=True,
-                  y=1.0
+              x=[
+                A(
+                  x=1,
+                  y=None
+                ),
+                A(
+                  x='foo',
+                  y={
+                    'a': A(
+                      x=True,
+                      y=1.0
+                    )
+                  }
                 )
-              }
+              ],
+              y=MISSING_VALUE(Any())
             )
-          ],
-          y=MISSING_VALUE(Any())
-        )"""))
+            ```
+            """),
+    )
 
   def test_noncompact_nonverbose(self):
     self.assertEqual(

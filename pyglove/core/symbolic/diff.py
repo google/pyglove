@@ -128,7 +128,9 @@ class Diff(PureSymbolic, pg_object.Object):
             verbose=verbose,
             root_indent=root_indent,
             cls_name='',
-            bracket_type=object_utils.BracketType.SQUARE)
+            bracket_type=object_utils.BracketType.SQUARE,
+            **kwargs,
+        )
       if self.left is self.right:
         cls_name = self.left.__name__
       else:
@@ -138,7 +140,9 @@ class Diff(PureSymbolic, pg_object.Object):
           verbose=verbose,
           root_indent=root_indent,
           cls_name=cls_name,
-          bracket_type=object_utils.BracketType.ROUND)
+          bracket_type=object_utils.BracketType.ROUND,
+          **kwargs,
+      )
 
 
 # NOTE(daiyip): we add the symbolic attribute to Diff after its declaration

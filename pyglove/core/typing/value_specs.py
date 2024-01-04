@@ -369,14 +369,16 @@ class ValueSpecBase(ValueSpec):
   def __ror__(self, other: typing.Any) -> bool:
     return Union[other, self]
 
-  def format(self, **kwargs) -> str:
+  def format(self, *, markdown: bool = False, **kwargs) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
         ('default', object_utils.quote_if_str(self._default), MISSING_VALUE),
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False)
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
 
 class PrimitiveType(ValueSpecBase):
@@ -544,7 +546,7 @@ class Str(Generic, PrimitiveType):
     """Annotate with PyType annotation."""
     return str
 
-  def format(self, **kwargs) -> str:
+  def format(self, *, markdown: bool = False, **kwargs) -> str:
     """Format this object."""
     regex_pattern = self._regex.pattern if self._regex else None
     details = object_utils.kvlist_str([
@@ -553,7 +555,9 @@ class Str(Generic, PrimitiveType):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False)
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def _eq(self, other: 'Str') -> bool:
     return self.regex == other.regex
@@ -660,7 +664,7 @@ class Number(Generic, PrimitiveType):
     return (self.min_value == other.min_value
             and self.max_value == other.max_value)
 
-  def format(self, **kwargs) -> str:
+  def format(self, *, markdown: bool = False, **kwargs) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
         ('default', self._default, MISSING_VALUE),
@@ -669,7 +673,9 @@ class Number(Generic, PrimitiveType):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False)
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -900,14 +906,16 @@ class Enum(Generic, PrimitiveType):
   def _eq(self, other: 'Enum') -> bool:
     return self.values == other.values
 
-  def format(self, **kwargs) -> str:
+  def format(self, *, markdown: bool = False, **kwargs) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
         ('default', object_utils.quote_if_str(self._default), MISSING_VALUE),
         ('values', self._values, None),
         ('frozen', self._frozen, False),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -1090,13 +1098,17 @@ class List(Generic, ValueSpecBase):
   def _eq(self, other: 'List') -> bool:
     return self.element == other.element
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             hide_default_values: bool = True,
-             hide_missing_values: bool = True,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      hide_default_values: bool = True,
+      hide_missing_values: bool = True,
+      **kwargs,
+  ) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
         ('', self._element.value.format(
@@ -1117,7 +1129,9 @@ class List(Generic, ValueSpecBase):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -1407,13 +1421,17 @@ class Tuple(Generic, ValueSpecBase):
             and self.min_size == other.min_size
             and self.max_size == other.max_size)
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             hide_default_values: bool = True,
-             hide_missing_values: bool = True,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      hide_default_values: bool = True,
+      hide_missing_values: bool = True,
+      **kwargs,
+  ) -> str:
     """Format this object."""
     if self.fixed_length:
       element_values = [f.value for f in self._elements]
@@ -1435,7 +1453,7 @@ class Tuple(Generic, ValueSpecBase):
           ('noneable', self._is_noneable, False),
           ('frozen', self._frozen, False),
       ])
-      return f'{self.__class__.__name__}({details})'
+      s = f'{self.__class__.__name__}({details})'
     else:
       details = object_utils.kvlist_str([
           ('', object_utils.format(
@@ -1456,7 +1474,8 @@ class Tuple(Generic, ValueSpecBase):
           ('max_size', self._max_size, None),
           ('noneable', self._is_noneable, False),
       ])
-      return f'{self.__class__.__name__}({details})'
+      s = f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(s, markdown)
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     if self.fixed_length:
@@ -1642,11 +1661,15 @@ class Dict(Generic, ValueSpecBase):
   def _eq(self, other: 'Dict') -> bool:
     return self.schema == other.schema
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Format this object."""
     schema_details = ''
     if self._schema:
@@ -1663,7 +1686,9 @@ class Dict(Generic, ValueSpecBase):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     fields = dict(
@@ -1828,13 +1853,17 @@ class Object(Generic, ValueSpecBase):
       return self.value_type == other.value_type
     return self.forward_refs == other.forward_refs
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             hide_default_values: bool = True,
-             hide_missing_values: bool = True,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      hide_default_values: bool = True,
+      hide_missing_values: bool = True,
+      **kwargs,
+  ) -> str:
     """Format this object."""
     if self._forward_ref is not None:
       name = self._forward_ref.name
@@ -1854,7 +1883,9 @@ class Object(Generic, ValueSpecBase):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -2132,7 +2163,7 @@ class Callable(Generic, ValueSpecBase):
             and self._kw == other.kw
             and self._return_value == other.return_value)
 
-  def format(self, **kwargs) -> str:
+  def format(self, *, markdown: bool = False, **kwargs) -> str:
     """Format this spec."""
     details = object_utils.kvlist_str([
         ('args', object_utils.format(self._args, **kwargs), '[]'),
@@ -2143,7 +2174,9 @@ class Callable(Generic, ValueSpecBase):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False)
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -2329,7 +2362,7 @@ class Type(Generic, ValueSpecBase):
       return self.type == other.type
     return self.forward_refs == other.forward_refs
 
-  def format(self, **kwargs):
+  def format(self, *, markdown: bool = False, **kwargs):
     """Format this object."""
     details = object_utils.kvlist_str([
         ('', self._expected_type, None),
@@ -2337,7 +2370,9 @@ class Type(Generic, ValueSpecBase):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -2605,11 +2640,15 @@ class Union(Generic, ValueSpecBase):
     ])
     return typing.Union[candidates]
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Format this object."""
     list_wrap_threshold = kwargs.pop('list_wrap_threshold', 20)
     details = object_utils.kvlist_str([
@@ -2624,7 +2663,9 @@ class Union(Generic, ValueSpecBase):
         ('noneable', self._is_noneable, False),
         ('frozen', self._frozen, False),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     return self.to_json_dict(
@@ -2759,7 +2800,7 @@ class Any(ValueSpecBase):
     """Any is compatible with any ValueSpec."""
     return True
 
-  def format(self, **kwargs) -> str:
+  def format(self, *, markdown: bool = False, **kwargs) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
         ('default', object_utils.format(self._default, **kwargs),
@@ -2767,7 +2808,9 @@ class Any(ValueSpecBase):
         ('frozen', self._frozen, False),
         ('annotation', self._annotation, MISSING_VALUE)
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def annotate(self, annotation: typing.Any) -> 'Any':
     """Set external type annotation."""

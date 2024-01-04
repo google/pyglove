@@ -199,6 +199,25 @@ class FormatTest(unittest.TestCase):
           }
         }"""))
 
+  def test_markdown(self):
+    self.assertEqual(
+        formatting.format([1], compact=True, markdown=True), '`[1]`'
+    )
+    self.assertEqual(
+        formatting.format(
+            [1, 2, 3], list_wrap_threshold=5, compact=False, markdown=True
+        ),
+        inspect.cleandoc("""
+            ```
+            [
+              1,
+              2,
+              3
+            ]
+            ```
+            """),
+    )
+
 
 if __name__ == '__main__':
   unittest.main()

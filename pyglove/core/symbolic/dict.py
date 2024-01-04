@@ -879,6 +879,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       root_indent: int = 0,
       *,
       python_format: bool = False,
+      markdown: bool = False,
       hide_default_values: bool = False,
       hide_missing_values: bool = False,
       include_keys: Optional[Set[str]] = None,
@@ -888,7 +889,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
       key_as_attribute: bool = False,
       extra_blankline_for_field_docstr: bool = False,
-      **kwargs) -> str:
+      **kwargs,
+  ) -> str:
     """Formats this Dict."""
     cls_name = cls_name or ''
     exclude_keys = exclude_keys or set()
@@ -926,7 +928,9 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     open_bracket, close_bracket = object_utils.bracket_chars(bracket_type)
     if not field_list:
-      return f'{cls_name}{open_bracket}{close_bracket}'
+      return object_utils.maybe_markdown_quote(
+          f'{cls_name}{open_bracket}{close_bracket}', markdown
+      )
 
     if compact:
       s = [f'{cls_name}{open_bracket}']
@@ -984,7 +988,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           s.append(_indent(f'\'{k}\': {v_str}', root_indent + 1))
       s.append('\n')
       s.append(_indent(close_bracket, root_indent))
-    return ''.join(s)
+    return object_utils.maybe_markdown_quote(''.join(s), markdown)
 
   def __repr__(self) -> str:
     """Operator repr()."""

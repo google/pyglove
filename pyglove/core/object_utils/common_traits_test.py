@@ -60,13 +60,6 @@ class FormattableTest(unittest.TestCase):
         self.assertEqual(repr(foo), 'Foo(compact=False, verbose=True)')
         self.assertEqual(str(foo), 'Foo(compact=False, verbose=False)')
 
-    bar = Bar(foo)
-    with common_traits.repr_format(markdown=True):
-      self.assertEqual(repr(bar), '`Bar(foo=Foo(compact=True, verbose=True))`')
-    with common_traits.str_format(markdown=True):
-      self.assertEqual(
-          str(bar), '\n```\nBar(foo=Foo(compact=False, verbose=True))\n```\n')
-
 
 class ExplicitlyOverrideTest(unittest.TestCase):
 

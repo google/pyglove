@@ -140,13 +140,15 @@ class ForwardRef(object_utils.Formattable):
       )
     return reference
 
-  def format(self, *args, **kwargs) -> str:
+  def format(self, *args, markdown: bool = False, **kwargs) -> str:
     """Format this object."""
     details = object_utils.kvlist_str([
         ('module', self.module.__name__, None),
         ('name', self.name, None),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def __eq__(self, other: Any) -> bool:
     """Operator==."""
@@ -705,11 +707,15 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
     """Returns True if current field's value is frozen."""
     return self._value.frozen
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Format this field into a string."""
     description = self._description
     if not verbose and self._description and len(self._description) > 20:
@@ -733,7 +739,7 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
         ('description', object_utils.quote_if_str(description), None),
         ('metadata', metadata, '{}')
     ])
-    return f'Field({attr_str})'
+    return object_utils.maybe_markdown_quote(f'Field({attr_str})', markdown)
 
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
     return self.to_json_dict(
@@ -1204,9 +1210,12 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
+      *,
+      markdown: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.ROUND,
-      **kwargs) -> str:
+      **kwargs,
+  ) -> str:
     """Format current Schema into nicely printed string."""
     if cls_name is None:
       cls_name = 'Schema'
@@ -1245,7 +1254,7 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
             _indent(f'{f.key} = {_format_child(f.value)}', root_indent + 1))
       s.append('\n')
       s.append(_indent(close_bracket, root_indent))
-    return ''.join(s)
+    return object_utils.maybe_markdown_quote(''.join(s), markdown)
 
   def to_json(self, **kwargs) -> Dict[str, Any]:
     return self.to_json_dict(

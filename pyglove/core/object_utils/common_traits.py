@@ -76,31 +76,13 @@ class Formattable(metaclass=abc.ABCMeta):
     """Returns the full (maybe multi-line) representation of this object."""
     kwargs = dict(self.__str_format_kwargs__)
     kwargs.update(thread_local.thread_local_kwargs(_TLS_STR_FORMAT_KWARGS))
-    return self._maybe_quote(self.format(**kwargs), **kwargs)
+    return self.format(**kwargs)
 
   def __repr__(self) -> str:
     """Returns a single-line representation of this object."""
     kwargs = dict(self.__repr_format_kwargs__)
     kwargs.update(thread_local.thread_local_kwargs(_TLS_REPR_FORMAT_KWARGS))
-    return self._maybe_quote(self.format(**kwargs), **kwargs)
-
-  def _maybe_quote(
-      self,
-      s: str,
-      *,
-      compact: bool = False,
-      root_indent: int = 0,
-      markdown: bool = False,
-      **kwargs
-  ) -> str:
-    """Maybe quote the formatted string with markdown."""
-    del kwargs
-    if not markdown or root_indent > 0:
-      return s
-    if compact:
-      return f'`{s}`'
-    else:
-      return f'\n```\n{s}\n```\n'
+    return self.format(**kwargs)
 
 
 class MaybePartial(metaclass=abc.ABCMeta):

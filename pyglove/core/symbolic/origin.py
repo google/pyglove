@@ -147,11 +147,15 @@ class Origin(object_utils.Formattable):
       o = getattr(o.source, 'sym_origin', None)
     return origins
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Formats this object."""
     if isinstance(self._source, (str, type(None))):
       source_str = object_utils.quote_if_str(self._source)
@@ -163,7 +167,9 @@ class Origin(object_utils.Formattable):
         ('tag', object_utils.quote_if_str(self._tag), None),
         ('source', source_str, None),
     ])
-    return f'{self.__class__.__name__}({details})'
+    return object_utils.maybe_markdown_quote(
+        f'{self.__class__.__name__}({details})', markdown
+    )
 
   def __eq__(self, other: Any) -> bool:
     """Operator ==."""

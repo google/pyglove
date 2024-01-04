@@ -1593,13 +1593,17 @@ class DNA(symbolic.Object):
     self._ensure_dna_spec()
     return self.spec.iter_dna(self)
 
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             list_wrap_threshold: int = 80,
-             as_dict: bool = False,
-             **kwargs):
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      list_wrap_threshold: int = 80,
+      as_dict: bool = False,
+      **kwargs,
+  ):
     """Customize format method for DNA for more compact representation."""
     if as_dict and self.spec:
       details = object_utils.format(
@@ -1608,25 +1612,31 @@ class DNA(symbolic.Object):
           verbose,
           root_indent,
           **kwargs)
-      return f'DNA({details})'
+      s = f'DNA({details})'
+      compact = False
+    else:
+      if 'list_wrap_threshold' not in kwargs:
+        kwargs['list_wrap_threshold'] = list_wrap_threshold
 
-    if 'list_wrap_threshold' not in kwargs:
-      kwargs['list_wrap_threshold'] = list_wrap_threshold
-
-    if not verbose:
-      return super().format(False, verbose, root_indent, **kwargs)
-
-    if self.is_leaf:
-      return f'DNA({self.value!r})'
-
-    rep = object_utils.format(
-        self.to_json(compact=True, type_info=False),
-        compact, verbose, root_indent, **kwargs)
-    if rep and rep[0] == '(':
-      # NOTE(daiyip): for conditional choice from the root,
-      # we don't want to keep duplicate round bracket.
-      return f'DNA{rep}'
-    return f'DNA({rep})'
+      if not verbose:
+        s = super().format(False, verbose, root_indent, **kwargs)
+      elif self.is_leaf:
+        s = f'DNA({self.value!r})'
+      else:
+        rep = object_utils.format(
+            self.to_json(compact=True, type_info=False),
+            compact,
+            verbose,
+            root_indent,
+            **kwargs,
+        )
+        if rep and rep[0] == '(':
+          # NOTE(daiyip): for conditional choice from the root,
+          # we don't want to keep duplicate round bracket.
+          s = f'DNA{rep}'
+        else:
+          s = f'DNA({rep})'
+    return object_utils.maybe_markdown_quote(s, markdown)
 
   def parameters(
       self, use_literal_values: bool = False) -> Dict[str, str]:
