@@ -691,8 +691,8 @@ class ObjectTest(unittest.TestCase):
 
     class A(Object):
       x: Any
-      p: Any | None = None
-      q: Any | None = None
+      p: Any = None
+      q: Any = None
 
       def _on_bound(self):
         super()._on_bound()
