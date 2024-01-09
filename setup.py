@@ -72,7 +72,7 @@ setup(
     packages=find_namespace_packages(include=['pyglove*']),
     install_requires=_parse_requirements('requirements.txt'),
     extras_require={},
-    requires_python='>=3.7',
+    requires_python='>=3.9',
     include_package_data=True,
     # PyPI package information.
     classifiers=[
