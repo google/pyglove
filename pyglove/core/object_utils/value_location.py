@@ -292,7 +292,7 @@ class KeyPath(common_traits.Formattable):
     assert isinstance(other, KeyPath)
     return KeyPath(other.keys, self)
 
-  def query(self, src: Any) -> Any:
+  def query(self, src: Any, use_inferred: bool = False) -> Any:
     """Query the value from the source object based on current path.
 
     Example::
@@ -315,6 +315,8 @@ class KeyPath(common_traits.Formattable):
 
     Args:
       src: Source value to query.
+      use_inferred: If True, infer `pg.Inferential` values. Otherwise returns
+        their symbolic form. Applicable only for symbolic values.
 
     Returns:
       Value from src if path exists.
@@ -323,14 +325,16 @@ class KeyPath(common_traits.Formattable):
       KeyError: Path doesn't exist in src.
       RuntimeError: Called on a KeyPath that is considered as removed.
     """
-    return self._query(0, src)
+    return self._query(0, src, use_inferred)
 
-  def _query(self, key_pos: int, src: Any) -> Any:
+  def _query(self, key_pos: int, src: Any, use_inferred: bool) -> Any:
     """Query the value of current path up to key_pos from an object.
 
     Args:
       key_pos: Start position in self._keys.
       src: Source value to query.
+      use_inferred: If True, infer `pg.Inferential` values. Otherwise returns
+        their symbolic form. Applicable only for symbolic values.
 
     Returns:
       Value from src if path exists.
@@ -343,10 +347,13 @@ class KeyPath(common_traits.Formattable):
     key = self.keys[key_pos]
     # NOTE(daiyip): For contextual value (e.g. ``pg.ContextualValue``),
     # `query` returns its symbolic form instead of its evaluated value.
-    if hasattr(src, 'sym_getattr'):
-      assert hasattr(src, 'sym_hasattr')
+    if hasattr(src, 'sym_hasattr'):
       if src.sym_hasattr(key):
-        return self._query(key_pos + 1, src.sym_getattr(key))
+        if use_inferred:
+          v = src.sym_inferred(key)
+        else:
+          v = src.sym_getattr(key)
+        return self._query(key_pos + 1, v, use_inferred)
     elif hasattr(src, '__getitem__'):
       if isinstance(key, int):
         if not hasattr(src, '__len__'):
@@ -354,14 +361,14 @@ class KeyPath(common_traits.Formattable):
               f'Cannot query index ({key}) on object ({src!r}): '
               f'\'__len__\' does not exist.')
         if key < len(src):
-          return self._query(key_pos + 1, src[key])
+          return self._query(key_pos + 1, src[key], use_inferred)
       else:
         if not hasattr(src, '__contains__'):
           raise KeyError(
               f'Cannot query key ({key!r}) on object ({src!r}): '
               f'\'__contains__\' does not exist.')
         if key in src:
-          return self._query(key_pos + 1, src[key])
+          return self._query(key_pos + 1, src[key], use_inferred)
     else:
       raise KeyError(
           f'Cannot query sub-key {key!r} of object ({src!r}): '
@@ -375,10 +382,13 @@ class KeyPath(common_traits.Formattable):
     """Returns True if key has special characters."""
     return any([c in key for c in ['[', ']', '.']])
 
-  def get(self, src: Any, default_value: Optional[Any] = None) -> Any:
+  def get(self,
+          src: Any,
+          default_value: Optional[Any] = None,
+          use_inferred: bool = False) -> Any:
     """Gets the value of current path from an object with a default value."""
     try:
-      return self.query(src)
+      return self.query(src, use_inferred)
     except KeyError:
       return default_value
 

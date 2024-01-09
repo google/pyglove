@@ -20,6 +20,7 @@ import os
 import pickle
 import tempfile
 import typing
+from typing import Any
 import unittest
 
 from pyglove.core import object_utils
@@ -688,15 +689,20 @@ class ObjectTest(unittest.TestCase):
 
   def test_sym_get(self):
 
-    @pg_members([('x', pg_typing.Any()), ('p', pg_typing.Any().noneable())])
     class A(Object):
+      x: Any
+      p: Any | None = None
+      q: Any | None = None
 
       def _on_bound(self):
         super()._on_bound()
         self.y = 1
 
     a = A(
-        A(dict(y=A(1, p=inferred.ValueFromParentChain()))),
+        A(dict(y=A(
+            1,
+            p=inferred.ValueFromParentChain(),
+            q=inferred.ValueFromParentChain()))),
         p=inferred.ValueFromParentChain(),
     )
 
@@ -709,6 +715,7 @@ class ObjectTest(unittest.TestCase):
         a.sym_get(object_utils.KeyPath.parse('x.x.y.p')),
         a.x.x.y.sym_getattr('p'),
     )
+    self.assertIsNone(a.sym_get('x.x.y.q', use_inferred=True))
 
     with self.assertRaisesRegex(
         KeyError, 'Path y does not exist.'):  # `y` is not a symbolic field.

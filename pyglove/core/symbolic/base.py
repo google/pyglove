@@ -428,7 +428,8 @@ class Symbolic(
   def sym_get(
       self,
       path: Union[object_utils.KeyPath, str, int],
-      default: Any = RAISE_IF_NOT_FOUND) -> Any:
+      default: Any = RAISE_IF_NOT_FOUND,
+      use_inferred: bool = False) -> Any:
     """Returns a sub-node by path.
 
     NOTE: there is no `sym_set`, use `sym_rebind`.
@@ -437,6 +438,8 @@ class Symbolic(
       path: A KeyPath object or equivalence.
       default: Default value if path does not exists. If absent, `KeyError` will
         be thrown.
+      use_inferred: If True, return inferred value instead of the symbolic form
+        of `pg.Inferential` objects.
 
     Returns:
       Value of symbolic attribute specified by path if found, otherwise the
@@ -447,9 +450,9 @@ class Symbolic(
     """
     path = object_utils.KeyPath.from_value(path)
     if default is RAISE_IF_NOT_FOUND:
-      return path.query(self)
+      return path.query(self, use_inferred=use_inferred)
     else:
-      return path.get(self, default)
+      return path.get(self, default, use_inferred=use_inferred)
 
   @abc.abstractmethod
   def sym_hasattr(self, key: Union[str, int]) -> bool:

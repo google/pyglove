@@ -273,9 +273,10 @@ class KeyPathTest(unittest.TestCase):
 
   def test_query(self):
 
-    def query_shall_succeed(path_str, obj, expected_value):
+    def query_shall_succeed(path_str, obj, expected_value, use_inferred=False):
       self.assertEqual(
-          value_location.KeyPath.parse(path_str).query(obj), expected_value)
+          value_location.KeyPath.parse(path_str).query(obj, use_inferred),
+          expected_value)
 
     def query_shall_fail(path_str,
                          obj,
@@ -326,6 +327,18 @@ class KeyPathTest(unittest.TestCase):
       def sym_getattr(self, name):
         return self._map[name]
 
+      def sym_inferred(self, key):
+        return Bar(z=self._map[key])
+
+      def __contains__(self, key):
+        return key in self._map
+
+      def __eq__(self, other):
+        return self._map == other._map
+
+      def __ne__(self, other):
+        return not self.__eq__(other)
+
     src = {'a': [{'c': 'foo'},
                  {'d': [1, 2]}],
            'b': True,
@@ -339,6 +352,7 @@ class KeyPathTest(unittest.TestCase):
     query_shall_succeed('a[1].d[1]', src, src['a'][1]['d'][1])
     query_shall_succeed('b', src, src['b'])
     query_shall_succeed('f.x', src, 0)
+    query_shall_succeed('f.x.z', src, Bar(z=0), use_inferred=True)
 
     query_shall_fail('c', src, 'Path .* does not exist: key .* is absent')
     query_shall_fail('a.c', src, 'Path .* does not exist: key .* is absent')
@@ -352,6 +366,8 @@ class KeyPathTest(unittest.TestCase):
         '\'__contains__\' does not exist')
     query_shall_fail(
         'f.z', src, 'Path .* does not exist: key .* is absent')
+    query_shall_fail('f.x.z', src, 'Cannot query sub-key .* does not exist')
+
     # Test get method.
     get_shall_succeed('', src, None, src)
     get_shall_succeed('a[1].d[1]', src, None, src['a'][1]['d'][1])
