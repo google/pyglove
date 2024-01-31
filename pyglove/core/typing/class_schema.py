@@ -15,7 +15,6 @@
 
 import abc
 import copy
-import functools
 import inspect
 import sys
 import types
@@ -126,7 +125,7 @@ class ForwardRef(object_utils.Formattable):
     """Returns True if the symbol for the name is resolved.."""
     return hasattr(self.module, self.name)
 
-  @functools.cached_property
+  @property
   def cls(self) -> Type[Any]:
     """Returns the resolved reference class.."""
     reference = getattr(self.module, self.name, None)
