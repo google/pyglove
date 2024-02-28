@@ -685,7 +685,7 @@ class Symbolic(
     not including the stack frame inside ``sym_setorigin``.
     """
     if self.sym_origin is not None:
-      current_source = self.sym_origin.source
+      current_source = self.sym_origin.source  # pytype: disable=attribute-error  # always-use-property-annotation
       if current_source is not None and current_source is not source:
         raise ValueError(
             f'Cannot set the origin with a different source value. '
