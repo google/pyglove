@@ -112,6 +112,15 @@ class EvolvableTest(unittest.TestCase):
             ])
         ]))
 
+    # Mutating at root.
+    v = evolve(
+        seed_program(), lambda k, v, p: ReLU(),
+        weights=lambda mt, k, v, p: 1.0 if p is None else 0.0)
+    self.assertEqual(
+        v.mutate(seed_program()),
+        ReLU()
+    )
+
   def test_insertion(self):
     v = evolve(
         seed_program(), lambda k, v, p: ReLU(),
@@ -161,6 +170,7 @@ class EvolvableTest(unittest.TestCase):
     # NOTE(daiyip): Conv.kernel_size is marked with 'no_mutation', thus
     # it should not show here.
     self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (MutationType.REPLACE, ''),
         (MutationType.REPLACE, 'layers'),
         (MutationType.INSERT, 'layers[0]'),
         (MutationType.DELETE, 'layers[0]'),
@@ -193,6 +203,7 @@ class EvolvableTest(unittest.TestCase):
         weights=lambda *x: 1.0)
     points, _ = v.mutation_points_and_weights(symbolic.List([1]))
     self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (MutationType.REPLACE, ''),
         (MutationType.INSERT, '[0]'),
         (MutationType.DELETE, '[0]'),
         (MutationType.REPLACE, '[0]'),
@@ -204,6 +215,7 @@ class EvolvableTest(unittest.TestCase):
     points, _ = v.mutation_points_and_weights(
         symbolic.List([1, 2], value_spec=value_spec))
     self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (MutationType.REPLACE, ''),
         (MutationType.INSERT, '[0]'),
         (MutationType.DELETE, '[0]'),
         (MutationType.REPLACE, '[0]'),
@@ -215,6 +227,7 @@ class EvolvableTest(unittest.TestCase):
     points, _ = v.mutation_points_and_weights(
         symbolic.List([1], value_spec=value_spec))
     self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (MutationType.REPLACE, ''),
         (MutationType.INSERT, '[0]'),
         (MutationType.REPLACE, '[0]'),
         (MutationType.INSERT, '[1]'),
@@ -222,6 +235,7 @@ class EvolvableTest(unittest.TestCase):
     points, _ = v.mutation_points_and_weights(
         symbolic.List([1, 2, 3], value_spec=value_spec))
     self.assertEqual([(p.mutation_type, p.location) for p in points], [
+        (MutationType.REPLACE, ''),
         (MutationType.DELETE, '[0]'),
         (MutationType.REPLACE, '[0]'),
         (MutationType.DELETE, '[1]'),

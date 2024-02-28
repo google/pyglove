@@ -46,7 +46,7 @@ class MutationPoint:
   mutation_type: 'MutationType'
   location: object_utils.KeyPath
   old_value: Any
-  parent: symbolic.Symbolic
+  parent: Optional[symbolic.Symbolic]
 
 
 class Evolvable(custom.CustomHyper):
@@ -76,7 +76,6 @@ class Evolvable(custom.CustomHyper):
                                p: Optional[symbolic.Symbolic]):
       """Visiting function for a symbolic node."""
       def _add_point(mt: MutationType, k=k, v=v, p=p):
-        assert p is not None
         mutation_points.append(MutationPoint(mt, k, v, p))
         mutation_weights.append(self._weights(mt, k, v, p))
 
@@ -85,7 +84,8 @@ class Evolvable(custom.CustomHyper):
         f = p.sym_attr_field(k.key)
         if f and f.metadata and 'no_mutation' in f.metadata:
           return symbolic.TraverseAction.CONTINUE
-        _add_point(MutationType.REPLACE)
+
+      _add_point(MutationType.REPLACE)
 
       # Special handle list traversal to add insertion and deletion.
       if isinstance(v, symbolic.List):
@@ -148,10 +148,13 @@ class Evolvable(custom.CustomHyper):
 
     # Mutating value.
     if point.mutation_type == MutationType.REPLACE:
-      assert point.location, point
-      value.rebind({
-          str(point.location): self.node_transform(
-              point.location, point.old_value, point.parent)})
+      if point.location:
+        value.rebind({
+            str(point.location): self.node_transform(
+                point.location, point.old_value, point.parent)})
+      else:
+        value = self.node_transform(
+            point.location, point.old_value, point.parent)
     elif point.mutation_type == MutationType.INSERT:
       assert isinstance(point.parent, symbolic.List), point
       assert point.old_value == object_utils.MISSING_VALUE, point
