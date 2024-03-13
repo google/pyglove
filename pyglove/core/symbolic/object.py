@@ -381,7 +381,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     for key, field in cls.__schema__.fields.items():
       if isinstance(key, pg_typing.ConstStrKey):
         attr_name = str(key)
-        attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
+        attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
         if attr_value == pg_typing.MISSING_VALUE or (
             not inspect.isfunction(attr_value)
             and not isinstance(attr_value, property)

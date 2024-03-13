@@ -398,6 +398,14 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(a.z(), 5)
     self.assertEqual(a.sym_init_args.z, 3)
 
+    # Make sure overridden property is inherited by subclass correctly.
+    class B(A):
+      pass
+
+    b = B(1, 2, 3)
+    self.assertEqual(b.x, 2)
+    self.assertEqual(b.sym_init_args.x, 1)
+
   def test_runtime_type_check(self):
 
     @pg_members([
