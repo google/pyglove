@@ -684,8 +684,9 @@ def functor_class(
   cls.auto_register = True
 
   # Apply function schema.
-  schema = schema_utils.function_schema(
-      func, args, returns, auto_doc=auto_doc, auto_typing=auto_typing)
+  schema = schema_utils.callable_schema(
+      func, args, returns, auto_doc=auto_doc, auto_typing=auto_typing
+  )
   cls.apply_schema(schema)
 
   # Register functor class for deserialization if needed.

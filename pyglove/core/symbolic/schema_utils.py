@@ -177,7 +177,7 @@ def update_schema(
     cls.register_for_deserialization(serialization_key, additional_keys)
 
 
-def function_schema(
+def callable_schema(
     func: types.FunctionType,
     args: Optional[
         List[
@@ -193,8 +193,9 @@ def function_schema(
     *,
     auto_typing: bool = True,
     auto_doc: bool = True,
+    remove_self: bool = False,
 ) -> pg_typing.Schema:
-  """Returns the schema from the signature of a function."""
+  """Returns the schema from the signature of a callable."""
   args_docstr = None
   description = None
   if auto_doc:
@@ -210,15 +211,23 @@ def function_schema(
     raise ValueError('return value spec should not have default value.')
   returns = returns or signature.return_value
 
+  if remove_self and arg_fields and arg_fields[0].key == 'self':
+    arg_fields.pop(0)
+
   # Generate init_arg_list from signature.
   init_arg_list = [arg.name for arg in signature.args]
   if signature.varargs:
     init_arg_list.append(f'*{signature.varargs.name}')
 
+  # Decide schema name.
+  module_name = getattr(func, '__module__', None)
+  func_name = func.__qualname__
+  schema_name = f'{module_name}.{func_name}' if module_name else func_name
+
   return formalize_schema(
       pg_typing.create_schema(
           fields=arg_fields,
-          name=f'{func.__module__}.{func.__name__}',
+          name=schema_name,
           metadata={
               'init_arg_list': init_arg_list,
               'varargs_name': getattr(signature.varargs, 'name', None),

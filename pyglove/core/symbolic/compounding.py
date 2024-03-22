@@ -127,7 +127,7 @@ def compound_class(
   if not inspect.isfunction(factory_fn):
     raise TypeError('Decorator `compound` is only applicable to functions.')
 
-  schema = schema_utils.function_schema(
+  schema = schema_utils.callable_schema(
       factory_fn,
       args=args,
       returns=pg_typing.Object(base_class) if base_class else None,

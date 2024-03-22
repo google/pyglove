@@ -143,7 +143,7 @@ from pyglove.core.symbolic.base import WritePermissionError
 # TODO(daiyip): internal dependencies, remove later.
 from pyglove.core.symbolic.schema_utils import formalize_schema
 from pyglove.core.symbolic.schema_utils import augment_schema
-from pyglove.core.symbolic.schema_utils import function_schema
+from pyglove.core.symbolic.schema_utils import callable_schema
 from pyglove.core.symbolic.schema_utils import update_schema
 
 
