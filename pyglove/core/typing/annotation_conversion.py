@@ -171,7 +171,7 @@ def _value_spec_from_type_annotation(
     if len(args) == 1:
       spec = _value_spec_from_annotation(args[0], True)
     else:
-      spec = vs.Union([_value_spec_from_annotation(x, True) for x in set(args)])
+      spec = vs.Union([_value_spec_from_annotation(x, True) for x in args])
     if optional:
       spec = spec.noneable()
     return spec
