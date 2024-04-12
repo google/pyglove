@@ -394,15 +394,15 @@ def from_json(json_value: JSONValueType,
 
   Args:
     json_value: Input JSON value.
-    force_dict: If True, "_type" keys will be stripped before loading. As a
-      result, JSONConvertible objects will be returned as dict.
+    force_dict: If True, "_type" keys will be renamed to "type_name" before
+      loading. As a result, JSONConvertible objects will be returned as dict.
     **kwargs: Keyword arguments that will be passed to JSONConvertible.__init__.
 
   Returns:
     Deserialized value.
   """
   if force_dict:
-    json_value = strip_types(json_value)
+    json_value = replace_type_with_type_names(json_value)
 
   if isinstance(json_value, list):
     if json_value and json_value[0] == JSONConvertible.TUPLE_MARKER:
@@ -433,19 +433,19 @@ def from_json(json_value: JSONValueType,
   return json_value
 
 
-def strip_types(json_value: JSONValueType) -> JSONValueType:
+def replace_type_with_type_names(json_value: JSONValueType) -> JSONValueType:
   """Inplace strips the "_type" key from a JSON tree."""
-  def _strip_type(v) -> None:
+  def _replace_type(v) -> None:
     if isinstance(v, (tuple, list)):
       for x in v:
-        _strip_type(x)
+        _replace_type(x)
     elif isinstance(v, dict):
       if JSONConvertible.TYPE_NAME_KEY in v:
-        v.pop(JSONConvertible.TYPE_NAME_KEY)
+        v['type_name'] = v.pop(JSONConvertible.TYPE_NAME_KEY)
       for x in v.values():
-        _strip_type(x)
+        _replace_type(x)
 
-  _strip_type(json_value)
+  _replace_type(json_value)
   return json_value
 
 

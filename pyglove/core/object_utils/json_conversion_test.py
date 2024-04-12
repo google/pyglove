@@ -309,7 +309,12 @@ class JSONConvertibleTest(unittest.TestCase):
                 }]
             }
         ], force_dict=True),
-        (1, {'x': [{}]})
+        (1, {
+            'type_name': 'Unknown type',
+            'x': [{
+                'type_name': 'Unknown type',
+            }]
+        })
     )
 
 

@@ -2043,7 +2043,8 @@ def from_json(json_value: Any,
     return json_value
 
   if force_dict:
-    json_value = object_utils.json_conversion.strip_types(json_value)
+    json_value = object_utils.json_conversion.replace_type_with_type_names(
+        json_value)
 
   kwargs.update({
       'allow_partial': allow_partial,
@@ -2255,10 +2256,9 @@ def default_load_handler(
     file_format: Literal['json', 'txt'] = 'json',
     **kwargs) -> Any:
   """Default load handler from file."""
-  del kwargs
   content = pg_io.readfile(path)
   if file_format == 'json':
-    return from_json_str(content, allow_partial=True)
+    return from_json_str(content, allow_partial=True, **kwargs)
   elif file_format == 'txt':
     return content
   else:
@@ -2273,9 +2273,8 @@ def default_save_handler(
     file_format: Literal['json', 'txt'] = 'json',
     **kwargs) -> None:
   """Default save handler to file."""
-  del kwargs
   if file_format == 'json':
-    content = to_json_str(value, json_indent=indent)
+    content = to_json_str(value, json_indent=indent, **kwargs)
   elif file_format == 'txt':
     content = value if isinstance(value, str) else object_utils.format(
         value, compact=False, verbose=True)
