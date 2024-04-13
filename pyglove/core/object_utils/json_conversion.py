@@ -336,7 +336,7 @@ def registered_types() -> Iterable[Tuple[str, Type[JSONConvertible]]]:
   return JSONConvertible.registered_types()
 
 
-def to_json(value: Any, **kwargs) -> Any:
+def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
   """Serializes a (maybe) JSONConvertible value into a plain Python object.
 
   Args:
@@ -348,6 +348,8 @@ def to_json(value: Any, **kwargs) -> Any:
       * Tuple types;
       * Dict types.
 
+    force_dict: If True, "_type" keys will be renamed to "type_name".
+      As a result, JSONConvertible objects will be returned as dict.
     **kwargs: Keyword arguments to pass to value.to_json if value is
       JSONConvertible.
 
@@ -355,35 +357,42 @@ def to_json(value: Any, **kwargs) -> Any:
     JSON value.
   """
   if isinstance(value, (type(None), bool, int, float, str)):
-    return value
+    v = value
   elif isinstance(value, JSONConvertible):
-    return value.to_json(**kwargs)
+    v = value.to_json(**kwargs)
   elif isinstance(value, tuple):
-    return [JSONConvertible.TUPLE_MARKER] + to_json(list(value), **kwargs)
+    v = [JSONConvertible.TUPLE_MARKER] + to_json(list(value), **kwargs)
   elif isinstance(value, list):
-    return [to_json(item, **kwargs) for item in value]
+    v = [to_json(item, **kwargs) for item in value]
   elif isinstance(value, dict):
-    return {k: to_json(v, **kwargs) for k, v in value.items()}
+    v = {k: to_json(v, **kwargs) for k, v in value.items()}
   elif isinstance(value, (type, typing.GenericAlias)):  # pytype: disable=module-attr
-    return _type_to_json(value)
+    v = _type_to_json(value)
   elif inspect.isbuiltin(value):
-    return _builtin_function_to_json(value)
+    v = _builtin_function_to_json(value)
   elif inspect.isfunction(value):
-    return _function_to_json(value)
+    v = _function_to_json(value)
   elif inspect.ismethod(value):
-    return _method_to_json(value)
+    v = _method_to_json(value)
   # pytype: disable=module-attr
   elif isinstance(value, typing._Final):  # pylint: disable=protected-access
     # pytype: enable=module-attr
-    return _annotation_to_json(value)
+    v = _annotation_to_json(value)
   elif value is ...:
-    return {JSONConvertible.TYPE_NAME_KEY: 'type', 'name': 'builtins.Ellipsis'}
+    v = {JSONConvertible.TYPE_NAME_KEY: 'type', 'name': 'builtins.Ellipsis'}
   else:
+    v, converted = None, False
     if JSONConvertible.TYPE_CONVERTER is not None:
       converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
       if converter:
-        return to_json(converter(value))
-    return _OpaqueObject(value).to_json(**kwargs)
+        v = to_json(converter(value))
+        converted = True
+    if not converted:
+      v = _OpaqueObject(value).to_json(**kwargs)
+
+  if force_dict:
+    v = replace_type_with_type_names(v)
+  return v
 
 
 def from_json(json_value: JSONValueType,

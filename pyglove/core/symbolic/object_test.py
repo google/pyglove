@@ -2945,6 +2945,17 @@ class SerializationTest(unittest.TestCase):
       y: str
 
     self.assertEqual(
+        Q(P(1), y='foo').to_json(force_dict=True),
+        {
+            'p': {
+                'type_name': P.__type_name__,
+                'x': 1
+            },
+            'y': 'foo',
+            'type_name': Q.__type_name__,
+        }
+    )
+    self.assertEqual(
         base.from_json_str(Q(P(1), y='foo').to_json_str(), force_dict=True),
         {
             'p': {

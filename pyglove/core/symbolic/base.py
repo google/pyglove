@@ -952,11 +952,11 @@ class Symbolic(
 
   def to_json(self, **kwargs) -> object_utils.JSONValueType:
     """Alias for `sym_jsonify`."""
-    return self.sym_jsonify(**kwargs)
+    return to_json(self, **kwargs)
 
   def to_json_str(self, json_indent: Optional[int] = None, **kwargs) -> str:
     """Serializes current object into a JSON string."""
-    return json.dumps(self.sym_jsonify(**kwargs), indent=json_indent)
+    return to_json_str(self, json_indent=json_indent, **kwargs)
 
   @classmethod
   def load(cls, *args, **kwargs) -> Any:
@@ -2114,7 +2114,7 @@ def from_json_str(json_str: str,
       **kwargs)
 
 
-def to_json(value: Any, **kwargs) -> Any:
+def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
   """Serializes a (maybe) symbolic value into a plain Python object.
 
   Example::
@@ -2139,6 +2139,8 @@ def to_json(value: Any, **kwargs) -> Any:
       * Tuple types;
       * Dict types.
 
+    force_dict: If True, "_type" keys will be renamed to "type_name".
+      As a result, JSONConvertible objects will be returned as dict.
     **kwargs: Keyword arguments to pass to value.to_json if value is
       JSONConvertible.
 
@@ -2148,8 +2150,11 @@ def to_json(value: Any, **kwargs) -> Any:
   # NOTE(daiyip): special handling `sym_jsonify` since symbolized
   # classes may have conflicting `to_json` method in their existing classes.
   if isinstance(value, Symbolic):
-    return value.sym_jsonify(**kwargs)
-  return object_utils.to_json(value, **kwargs)
+    v = value.sym_jsonify(**kwargs)
+    if force_dict:
+      v = object_utils.json_conversion.replace_type_with_type_names(v)
+    return v
+  return object_utils.to_json(value, force_dict=force_dict, **kwargs)
 
 
 def to_json_str(value: Any,

@@ -299,6 +299,10 @@ class JSONConvertibleTest(unittest.TestCase):
 
   def test_json_conversion_force_dict(self):
     self.assertEqual(
+        json_conversion.to_json([int], force_dict=True),
+        [{'name': 'builtins.int', 'type_name': 'type'}]
+    )
+    self.assertEqual(
         json_conversion.from_json([
             '__tuple__',
             1,
