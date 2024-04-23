@@ -207,7 +207,7 @@ class ValueSpecBase(ValueSpec):
                         f'no compatible type found in Union.')
       base = base_counterpart
 
-    if not isinstance(self, base.__class__):
+    if not isinstance(self, (base.__class__, Enum)):
       raise TypeError(f'{self!r} cannot extend {base!r}: incompatible type.')
     if not base.is_noneable and self._is_noneable:
       raise TypeError(f'{self!r} cannot extend {base!r}: '
@@ -884,9 +884,14 @@ class Enum(Generic, PrimitiveType):
 
   def _extend(self, base: 'Enum') -> None:
     """Enum specific extend."""
-    if not set(base.values).issuperset(set(self._values)):
-      raise TypeError(
-          f'{self} cannot extend {base}: values in base should be super set.')
+    for v in self._values:
+      try:
+        _ = base.apply(v)
+      except (TypeError, ValueError)as e:
+        raise TypeError(
+            f'{self} cannot extend {base}: '
+            f'{repr(v)} is not an acceptable value.'
+        ) from e
 
   def _is_compatible(self, other: 'Enum') -> bool:
     """Enum specific compatibility check."""

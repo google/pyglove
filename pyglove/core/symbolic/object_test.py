@@ -1754,6 +1754,68 @@ class MembersTest(unittest.TestCase):
         pass
 
 
+class InheritanceTest(unittest.TestCase):
+  """Tests for `pg.Object` inheritance."""
+
+  def test_single_inheritance(self):
+
+    class A(Object):
+      x: Any
+
+    class B(A):
+      y: str
+
+    self.assertEqual(list(B.__schema__.keys()), ['x', 'y'])
+
+    class C(B):
+      # Be more specific about x and y's type.
+      x: int
+      y: typing.Literal['a', 'b']
+
+    self.assertEqual(list(C.__schema__.keys()), ['x', 'y'])
+    self.assertEqual(C.__schema__['x'].value, pg_typing.Int())
+    self.assertEqual(
+        C.__schema__['y'].value,
+        pg_typing.Enum(pg_typing.MISSING_VALUE, ['a', 'b'])
+    )
+
+  def test_bad_inheritance(self):
+
+    class A(Object):
+      x: int
+
+    with self.assertRaisesRegex(TypeError, 'incompatible type'):
+
+      class B(A):    # pylint: disable=unused-variable
+        x: str
+
+  def test_multi_inheritance(self):
+
+    class A(Object):
+      x: str
+
+    class B(A):
+      x = 'foo'
+
+      def foo(self):
+        return 'B'
+
+    class C(A):
+      y: int
+
+      def bar(self):
+        return 'C'
+
+    class D(B, C):
+      pass
+
+    self.assertEqual(list(D.__schema__.keys()), ['x', 'y'])
+    self.assertEqual(D.__schema__['x'].default_value, 'foo')
+    d = D(y=2)
+    self.assertEqual(d.x, 'foo')
+    self.assertEqual(d.foo(), 'B')
+
+
 class InitSignatureTest(unittest.TestCase):
   """Tests for `pg.Object.__init__` signature."""
 

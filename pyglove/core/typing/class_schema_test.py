@@ -395,6 +395,42 @@ class SchemaTest(unittest.TestCase):
             }, noneable=True)
           )"""))
 
+  def test_merge(self):
+    """Tests for Schema.merge."""
+    self.assertEqual(
+        Schema.merge([
+            class_schema.create_schema([
+                ('a', vs.Int()),
+                ('b', vs.Bool().noneable()),
+            ]),
+            class_schema.create_schema([
+                ('a', vs.Str()),
+                ('c', vs.Float()),
+            ]),
+        ]),
+        class_schema.create_schema([
+            ('a', vs.Int()),
+            ('b', vs.Bool().noneable()),
+            ('c', vs.Float()),
+        ]),
+    )
+    self.assertEqual(
+        Schema.merge([
+            class_schema.create_schema([
+                ('a', vs.Int()),
+                (ks.StrKey(), vs.Str().noneable()),
+            ], allow_nonconst_keys=True),
+            class_schema.create_schema([
+                ('c', vs.Float()),
+            ]),
+        ]),
+        class_schema.create_schema([
+            ('a', vs.Int()),
+            ('c', vs.Float()),
+            (ks.StrKey(), vs.Str().noneable()),
+        ], allow_nonconst_keys=True),
+    )
+
   def test_extend(self):
     """Tests for Schema.extend."""
 

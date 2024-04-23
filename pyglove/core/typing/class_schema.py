@@ -18,7 +18,7 @@ import copy
 import inspect
 import sys
 import types
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Type, Union
 
 from pyglove.core import object_utils
 
@@ -897,14 +897,50 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
         break
 
     if base_schema_list:
-      # Extend base schema from the nearest ancestor to the farthest.
-      for base in reversed(base_schema_list):
-        self.extend(base)
+      base = Schema.merge(base_schema_list)
+      self.extend(base)
 
     if not allow_nonconst_keys and self._dynamic_field is not None:
       raise ValueError(
           f'NonConstKey is not allowed in schema. '
           f'Encountered \'{self._dynamic_field.key}\'.')
+
+  @classmethod
+  def merge(
+      cls,
+      schema_list: Sequence['Schema'],
+      name: Optional[str] = None,
+      description: Optional[str] = None
+    ) -> 'Schema':
+    """Merge multiple schemas into one.
+
+    For fields shared by multiple schemas, the first appeared onces will be
+    used in the merged schema.
+
+    Args:
+      schema_list: A list of schemas to merge.
+      name: (Optional) name of the merged schema.
+      description: (Optinoal) description of the schema.
+
+    Returns:
+      The merged schema.
+    """
+    field_names = set()
+    fields = []
+    kw_field = None
+    for schema in schema_list:
+      for key, field in schema.fields.items():
+        if key.is_const and key not in field_names:
+          fields.append(field)
+          field_names.add(key)
+        elif not key.is_const and kw_field is None:
+          kw_field = field
+
+    if kw_field is not None:
+      fields.append(kw_field)
+    return Schema(
+        fields, name=name, description=description, allow_nonconst_keys=True
+    )
 
   def extend(self, base: 'Schema') -> 'Schema':
     """Extend current schema based on a base schema."""

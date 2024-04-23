@@ -791,7 +791,7 @@ class EnumTest(ValueSpecTest):
 
     # Child cannot extend a non-noneable base to noneable.
     with self.assertRaisesRegex(
-        TypeError, '.* cannot extend .*: values in base should be super set.'):
+        TypeError, '.* cannot extend .*: \'b\' is not an acceptable value.'):
       vs.Enum('a', ['a', 'b']).extend(vs.Enum('a', ['a']))
 
   def test_freeze(self):
@@ -3160,7 +3160,7 @@ class UnionTest(ValueSpecTest):
 
     # Test enum of different values cannot be extended.
     with self.assertRaisesRegex(
-        TypeError, '.* cannot extend .*: values in base should be super set.'):
+        TypeError, '.* cannot extend .*: 1 is not an acceptable value'):
       vs.Union([vs.Enum(1, [1, 2]), vs.Int()]).extend(
           vs.Union([vs.Enum('a', ['a', 'b']), vs.Int()]))
 
