@@ -181,7 +181,9 @@ _PATCHER_REGISTRY = _PatcherRegistry()
 
 def patcher(
     args: Optional[List[Tuple[str, pg_typing.ValueSpec]]] = None,
-    name: Optional[str] = None) -> Any:
+    name: Optional[str] = None,
+    auto_typing: bool = False,
+    auto_doc: bool = False) -> Any:
   """Decorate a function into a Patcher and register it.
 
   A patcher function is defined as:
@@ -209,11 +211,20 @@ def patcher(
     args: A list of (arg_name, arg_value_spec) to schematize patcher arguments.
     name: String to be used as patcher name in URI. If None, function name will
       be used as patcher name.
+    auto_typing: If True, automatically inference the typing from the
+      function signature.
+    auto_doc: If True, use the docstring of the function as the docstring of
+      the patcher.
 
   Returns:
     A decorator that converts a function into a Patcher subclass.
   """
-  functor_decorator = symbolic.functor(args, base_class=Patcher)
+  functor_decorator = symbolic.functor(
+      args,
+      base_class=Patcher,
+      auto_typing=auto_typing,
+      auto_doc=auto_doc
+  )
   def _decorator(fn):
     """Returns decorated Patcher class."""
     cls = functor_decorator(fn)
