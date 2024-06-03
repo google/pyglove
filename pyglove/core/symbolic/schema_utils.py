@@ -267,7 +267,8 @@ def auto_init_arg_list(cls):
   for base_cls in cls.__bases__:
     schema = getattr(base_cls, '__schema__', None)
     if isinstance(schema, pg_typing.Schema):
-      if list(schema.keys()) == list(cls.__schema__.keys()):
+      if ([(k, f.frozen) for k, f in schema.fields.items()]
+          == [(k, f.frozen) for k, f in cls.__schema__.fields.items()]):
         init_arg_list = base_cls.init_arg_list
       else:
         break
@@ -276,8 +277,8 @@ def auto_init_arg_list(cls):
     # declaration order from base classes to subclasses.
     init_arg_list = [
         str(key)
-        for key in cls.__schema__.fields.keys()
-        if isinstance(key, pg_typing.ConstStrKey)
+        for key, field in cls.__schema__.fields.items()
+        if isinstance(key, pg_typing.ConstStrKey) and not field.frozen
     ]
   return init_arg_list
 

@@ -107,7 +107,7 @@ class ObjectMetaTest(unittest.TestCase):
     self.assertEqual(
         self._A.init_arg_list, ['x', 'y', 'z', 'p'])
     self.assertEqual(
-        self._B.init_arg_list, ['x', 'y', 'z', 'p', 'q'])
+        self._B.init_arg_list, ['x', 'y', 'z', 'q'])
     self.assertEqual(
         self._C.init_arg_list, ['x', 'y', 'z', '*args'])
 
@@ -369,6 +369,9 @@ class ObjectTest(unittest.TestCase):
       # Member method will not override non-callable symbolic attribute.
       def y(self):
         return self.sym_init_args.y * 2
+
+    self.assertTrue(H.__schema__.fields['x'].frozen)
+    self.assertFalse(H.__schema__.fields['y'].frozen)
 
     h = H(y=1)
     self.assertEqual(h.x(1), 3)

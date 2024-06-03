@@ -796,6 +796,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
   def sym_jsonify(
       self,
+      hide_frozen: bool = True,
       hide_default_values: bool = False,
       exclude_keys: Optional[Sequence[str]] = None,
       use_inferred: bool = False,
@@ -809,26 +810,30 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         # NOTE(daiyip): The key values of frozen field can safely be excluded
         # since they will be the same for a class.
         field = self._value_spec.schema[key_spec]
-        if not field.frozen:
-          for key in keys:
-            if key not in exclude_keys:
-              value = self.sym_getattr(key)
-              if use_inferred and isinstance(value, base.Inferential):
-                value = self.sym_inferred(key, default=value)
-              if pg_typing.MISSING_VALUE == value:
-                continue
-              if hide_default_values and base.eq(value, field.default_value):
-                continue
-              json_repr[key] = base.to_json(
-                  value, hide_default_values=hide_default_values,
-                  use_inferred=use_inferred,
-                  **kwargs)
+        if hide_frozen and field.frozen:
+          continue
+        for key in keys:
+          if key not in exclude_keys:
+            value = self.sym_getattr(key)
+            if use_inferred and isinstance(value, base.Inferential):
+              value = self.sym_inferred(key, default=value)
+            if pg_typing.MISSING_VALUE == value:
+              continue
+            if hide_default_values and base.eq(value, field.default_value):
+              continue
+            json_repr[key] = base.to_json(
+                value,
+                hide_frozen=hide_frozen,
+                hide_default_values=hide_default_values,
+                use_inferred=use_inferred,
+                **kwargs)
       return json_repr
     else:
       return {
           k: base.to_json(
               self.sym_inferred(k, default=v) if (
                   use_inferred and isinstance(v, base.Inferential)) else v,
+              hide_frozen=hide_frozen,
               hide_default_values=hide_default_values,
               use_inferred=use_inferred,
               **kwargs)
@@ -880,6 +885,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       *,
       python_format: bool = False,
       markdown: bool = False,
+      hide_frozen: bool = True,
       hide_default_values: bool = False,
       hide_missing_values: bool = False,
       include_keys: Optional[Set[str]] = None,
@@ -910,6 +916,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         for key in keys:
           if _should_include_key(key):
             field = self._value_spec.schema[key_spec]
+            if hide_frozen and field.frozen:
+              continue
             v = self.sym_getattr(key)
             if use_inferred and isinstance(v, base.Inferential):
               v = self.sym_inferred(key, default=v)
@@ -941,6 +949,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             compact,
             verbose,
             root_indent + 1,
+            hide_frozen=hide_frozen,
             hide_default_values=hide_default_values,
             hide_missing_values=hide_missing_values,
             python_format=python_format,
@@ -971,6 +980,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             compact,
             verbose,
             root_indent + 1,
+            hide_frozen=hide_frozen,
             hide_default_values=hide_default_values,
             hide_missing_values=hide_missing_values,
             python_format=python_format,

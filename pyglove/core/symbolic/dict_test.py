@@ -1907,6 +1907,36 @@ class SerializationTest(unittest.TestCase):
     self.assertEqual(sd.to_json_str(), '{"x": 1, "y": 2.0}')
     self.assertEqual(base.from_json_str(sd.to_json_str(), value_spec=spec), sd)
 
+  def test_hide_frozen(self):
+
+    class A(pg_object.Object):
+      x: pg_typing.Int().freeze(1)
+
+    sd = Dict.partial(
+        a=A(),
+        value_spec=pg_typing.Dict([
+            ('a', pg_typing.Object(A)),
+            ('b', pg_typing.Bool(True).freeze()),
+        ]))
+    self.assertEqual(
+        sd.to_json(),
+        {
+            'a': {
+                '_type': A.__type_name__
+            },
+        }
+    )
+    self.assertEqual(
+        sd.to_json(hide_frozen=False),
+        {
+            'a': {
+                '_type': A.__type_name__,
+                'x': 1,
+            },
+            'b': True
+        }
+    )
+
   def test_hide_default_values(self):
 
     class A(pg_object.Object):
@@ -2253,6 +2283,24 @@ class FormatTest(unittest.TestCase):
             }
           }
         """),
+    )
+
+  def test_hide_frozen(self):
+    d = Dict(x=1, value_spec=pg_typing.Dict([
+        ('x', pg_typing.Int()),
+        ('y', pg_typing.Bool(True).freeze()),
+        ('z', pg_typing.Dict([
+            ('v', pg_typing.Int(1)),
+            ('w', pg_typing.Bool().freeze(True)),
+        ]))
+    ]))
+    self.assertEqual(
+        d.format(compact=True),
+        '{x=1, z={v=1}}'
+    )
+    self.assertEqual(
+        d.format(compact=False, hide_frozen=False),
+        '{\n  x = 1,\n  y = True,\n  z = {\n    v = 1,\n    w = True\n  }\n}'
     )
 
 

@@ -149,22 +149,27 @@ class ObjectMeta(abc.ABCMeta):
     fields = cls._end_annotation_inference(fields)  # pytype: disable=attribute-error
     return fields
 
-  def _update_default_values_from_class_attributes(cls):
-    """Updates the symbolic attribute defaults from class attributes."""
-    for field in cls.__schema__.fields.values():
+  def _update_default_values_from_class_attributes(
+      cls, schema: pg_typing.Schema):
+    """Freezes callable fields if their defaults are provided as methods."""
+    for field in schema.fields.values():
       if isinstance(field.key, pg_typing.ConstStrKey):
-        attr_name = field.key.text
-        attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
-        if (
-            attr_value != pg_typing.MISSING_VALUE
-            and not isinstance(attr_value, property)
-            and (
-                # This allows class methods to be used as callable
-                # symbolic attributes.
-                not inspect.isfunction(attr_value)
-                or isinstance(field.value, pg_typing.Callable)
-                )
-        ):
+        attr_value = cls.__dict__.get(field.key.text, pg_typing.MISSING_VALUE)
+        if (attr_value == pg_typing.MISSING_VALUE
+            or isinstance(attr_value, property)):
+          continue
+        if inspect.isfunction(attr_value):
+          # When users add a method that has the same name as as field, two
+          # scenarios emerge. If the field is a callable type, the method will
+          # serve as the default value for the field. As a result, we freeze the
+          # field so it can't be provided from the constructor. If the field is
+          # not a callable type, the symbolic field and the method will coexist,
+          # meaning that the method has higher priority when being accessed,
+          # while users still can use `sym_getattr` to access the value for the
+          # symboic field.
+          if isinstance(field.value, pg_typing.Callable):
+            field.value.freeze(attr_value, apply_before_use=False)
+        else:
           field.value.set_default(attr_value)
 
 
@@ -320,6 +325,9 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
               metadata={},
           )
       )
+      # Freeze callable symbolic attributes if they are provided as methods.
+      user_cls._update_default_values_from_class_attributes(cls_schema)
+
       # NOTE(daiyip): When new fields are added through class attributes.
       # We invalidate `init_arg_list` so PyGlove could recompute it based
       # on its schema during `apply_schema`. Otherwise, we inherit the
@@ -333,10 +341,6 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   @classmethod
   def _on_schema_update(cls):
     """Customizable trait: handling schema change."""
-    # Update the default value for each field after schema is updated. This is
-    # because that users may change a field's default value via class attribute.
-    cls._update_default_values_from_class_attributes()  # pylint: disable=no-value-for-parameter
-
     # Update all schema-based signatures.
     cls._update_signatures_based_on_schema()
 

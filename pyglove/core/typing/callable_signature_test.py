@@ -230,6 +230,8 @@ class FromSchemaTest(unittest.TestCase):
     s = class_schema.Schema([
         class_schema.Field('x', vs.Int(), 'x'),
         class_schema.Field('y', vs.Int(), 'y'),
+        # Frozen fields will be ignored.
+        class_schema.Field('v', vs.Bool().freeze(True), 'v'),
         class_schema.Field('z', vs.List(vs.Int()), 'z'),
         class_schema.Field(ks.StrKey(), vs.Str(), 'kwargs'),
     ], metadata=dict(init_arg_list=init_arg_list), allow_nonconst_keys=True)

@@ -228,7 +228,7 @@ class Signature(object_utils.Formattable):
     kwonlyargs = []
     varkw = None
     for key, field in schema.fields.items():
-      if key not in existing_names:
+      if key not in existing_names and not field.frozen:
         if key.is_const:
           kwonlyargs.append(Argument(str(key), field.value))
         else:
