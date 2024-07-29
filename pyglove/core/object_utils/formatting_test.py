@@ -218,6 +218,14 @@ class FormatTest(unittest.TestCase):
             """),
     )
 
+  def test_max_len(self):
+    self.assertEqual(
+        formatting.format('foo', max_str_len=2), '\'fo...\''
+    )
+    self.assertEqual(
+        formatting.format(b'bar', max_bytes_len=2), 'b\'ba...\''
+    )
+
 
 if __name__ == '__main__':
   unittest.main()

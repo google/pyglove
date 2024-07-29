@@ -124,6 +124,8 @@ def format(   # pylint: disable=redefined-builtin
     include_keys: Optional[Set[str]] = None,
     exclude_keys: Optional[Set[str]] = None,
     markdown: bool = False,
+    max_str_len: int | None = None,
+    max_bytes_len: int | None = None,
     **kwargs,
 ) -> str:
   """Formats a (maybe) hierarchical value with flags.
@@ -143,6 +145,10 @@ def format(   # pylint: disable=redefined-builtin
     exclude_keys: A set of keys to exclude from the top-level dict or object.
       Applicable only when `include_keys` is set to None.
     markdown: If True, use markdown notion to quote the formatted object.
+    max_str_len: The max length of the string to be formatted. If the string is
+      longer than this length, it will be truncated.
+    max_bytes_len: The max length of the bytes to be formatted. If the bytes is
+      longer than this length, it will be truncated.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
 
@@ -210,6 +216,12 @@ def format(   # pylint: disable=redefined-builtin
       s.append(_indent('}', root_indent))
   else:
     if isinstance(value, str):
+      if max_str_len is not None and len(value) > max_str_len:
+        value = value[:max_str_len] + '...'
+      s = [repr(value)]
+    elif isinstance(value, bytes):
+      if max_bytes_len is not None and len(value) > max_bytes_len:
+        value = value[:max_bytes_len] + b'...'
       s = [repr(value)]
     else:
       s = [repr(value) if compact else str(value)]
