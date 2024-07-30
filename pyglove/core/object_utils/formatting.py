@@ -171,6 +171,8 @@ def format(   # pylint: disable=redefined-builtin
                   root_indent=root_indent + 1,
                   list_wrap_threshold=list_wrap_threshold,
                   strip_object_id=strip_object_id,
+                  max_str_len=max_str_len,
+                  max_bytes_len=max_bytes_len,
                   **kwargs)
 
   if isinstance(value, common_traits.Formattable):
@@ -181,6 +183,8 @@ def format(   # pylint: disable=redefined-builtin
                         strip_object_id=strip_object_id,
                         include_keys=include_keys,
                         exclude_keys=exclude_keys,
+                        max_str_len=max_str_len,
+                        max_bytes_len=max_bytes_len,
                         **kwargs)
   elif isinstance(value, (list, tuple)):
     # Always try compact representation if length is not too long.
