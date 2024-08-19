@@ -124,8 +124,8 @@ def format(   # pylint: disable=redefined-builtin
     include_keys: Optional[Set[str]] = None,
     exclude_keys: Optional[Set[str]] = None,
     markdown: bool = False,
-    max_str_len: int | None = None,
-    max_bytes_len: int | None = None,
+    max_str_len: Optional[int] = None,
+    max_bytes_len: Optional[int] = None,
     **kwargs,
 ) -> str:
   """Formats a (maybe) hierarchical value with flags.
