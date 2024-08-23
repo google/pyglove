@@ -29,8 +29,8 @@ class CatchErrorsContext:
 @contextlib.contextmanager
 def catch_errors(
     errors: Union[
-        Union[Type[Exception], Tuple[Exception, str]],
-        Sequence[Union[Type[Exception], Tuple[Exception, str]]],
+        Union[Type[Exception], Tuple[Type[Exception], str]],
+        Sequence[Union[Type[Exception], Tuple[Type[Exception], str]]],
     ],
     error_handler: Optional[Callable[[Exception], None]] = None
 ):
