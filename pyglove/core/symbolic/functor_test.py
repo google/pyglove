@@ -108,19 +108,41 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(
         f.__signature__.args,
         [
-            pg_typing.Argument('a', pg_typing.Any()),
-            pg_typing.Argument('b', pg_typing.Any()),
+            pg_typing.Argument(
+                'a',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Any()
+            ),
+            pg_typing.Argument(
+                'b',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Any()
+            ),
         ],
     )
     self.assertEqual(
-        f.__signature__.varargs, pg_typing.Argument('args', pg_typing.Any())
+        f.__signature__.varargs,
+        pg_typing.Argument(
+            'args',
+            pg_typing.Argument.Kind.VAR_POSITIONAL,
+            pg_typing.List(pg_typing.Any())
+        )
     )
     self.assertEqual(
-        f.__signature__.varkw, pg_typing.Argument('kwargs', pg_typing.Any())
+        f.__signature__.varkw,
+        pg_typing.Argument(
+            'kwargs',
+            pg_typing.Argument.Kind.VAR_KEYWORD,
+            pg_typing.Dict(pg_typing.Any())
+        )
     )
     self.assertEqual(
         f.__signature__.kwonlyargs,
-        [pg_typing.Argument('c', pg_typing.Any(default=0))],
+        [pg_typing.Argument(
+            'c',
+            pg_typing.Argument.Kind.KEYWORD_ONLY,
+            pg_typing.Any(default=0)
+        )],
     )
     self.assertIsNone(f.__signature__.return_value, None)
     self.assertTrue(f.__signature__.has_varargs)
@@ -148,8 +170,16 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(
         f.__signature__.args,
         [
-            pg_typing.Argument('a', pg_typing.Int(default=1)),
-            pg_typing.Argument('b', pg_typing.Int(default=2)),
+            pg_typing.Argument(
+                'a',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int(default=1)
+            ),
+            pg_typing.Argument(
+                'b',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int(default=2)
+            ),
         ],
     )
     self.assertEqual(
@@ -191,17 +221,36 @@ class FunctorTest(unittest.TestCase):
         ],
     )
     self.assertEqual(
-        f.__signature__.args, [pg_typing.Argument('a', pg_typing.Int())]
+        f.__signature__.args,
+        [pg_typing.Argument(
+            'a',
+            pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+            pg_typing.Int()
+        )]
     )
     self.assertEqual(
-        f.__signature__.varargs, pg_typing.Argument('args', pg_typing.Any())
+        f.__signature__.varargs,
+        pg_typing.Argument(
+            'args',
+            pg_typing.Argument.Kind.VAR_POSITIONAL,
+            pg_typing.List(pg_typing.Any())
+        )
     )
     self.assertEqual(
         f.__signature__.kwonlyargs,
-        [pg_typing.Argument('b', pg_typing.Int(default=2))],
+        [pg_typing.Argument(
+            'b',
+            pg_typing.Argument.Kind.KEYWORD_ONLY,
+            pg_typing.Int(default=2)
+        )],
     )
     self.assertEqual(
-        f.__signature__.varkw, pg_typing.Argument('kwargs', pg_typing.Any())
+        f.__signature__.varkw,
+        pg_typing.Argument(
+            'kwargs',
+            pg_typing.Argument.Kind.VAR_KEYWORD,
+            pg_typing.Dict(pg_typing.Any())
+        )
     )
     self.assertEqual(f.__signature__.return_value, pg_typing.Int())
 
@@ -253,9 +302,21 @@ class FunctorTest(unittest.TestCase):
     self.assertEqual(
         f.__signature__.args,
         [
-            pg_typing.Argument('a', pg_typing.Int()),
-            pg_typing.Argument('b', pg_typing.Any(default=1)),
-            pg_typing.Argument('c', pg_typing.Int(default=1)),
+            pg_typing.Argument(
+                'a',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int()
+            ),
+            pg_typing.Argument(
+                'b',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Any(default=1)
+            ),
+            pg_typing.Argument(
+                'c',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int(default=1)
+            ),
         ],
     )
     self.assertFalse(f.__signature__.has_varargs)
@@ -287,20 +348,31 @@ class FunctorTest(unittest.TestCase):
       def _call(self) -> int:
         return self.x + self.y
 
-    print(Foo.__signature__)
     self.assertEqual(Foo.__signature__.name, '__call__')
     self.assertEqual(Foo.__signature__.qualname, Foo.__qualname__)
     self.assertEqual(Foo.__signature__.module_name, Foo.__module__)
     self.assertEqual(
         Foo.__signature__.args,
         [
-            pg_typing.Argument('x', pg_typing.Int()),
-            pg_typing.Argument('y', pg_typing.Int()),
+            pg_typing.Argument(
+                'x',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int()
+            ),
+            pg_typing.Argument(
+                'y',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int()
+            ),
         ],
     )
     self.assertEqual(
         Foo.__signature__.varkw,
-        pg_typing.Argument('kwargs', pg_typing.Any(annotation=typing.Any)),
+        pg_typing.Argument(
+            'kwargs',
+            pg_typing.Argument.Kind.VAR_KEYWORD,
+            pg_typing.Dict(pg_typing.Any(annotation=typing.Any)),
+        ),
     )
     self.assertEqual(Foo.__signature__.return_value, pg_typing.Int())
 
@@ -422,7 +494,10 @@ class FunctorTest(unittest.TestCase):
     f = pg_as_functor(lambda x: x)
     self.assertIsInstance(f, Functor)
     self.assertEqual(
-        f.__signature__.args, [pg_typing.Argument('x', pg_typing.Any())]
+        f.__signature__.args,
+        [pg_typing.Argument(
+            'x', pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD, pg_typing.Any()
+        )]
     )
     self.assertIsNone(f.__signature__.return_value)
     self.assertEqual(f(1), 1)
@@ -453,41 +528,20 @@ class FunctorTest(unittest.TestCase):
     # `pg.functor` decorator found extra symbolic argument.
     with self.assertRaisesRegex(
         ValueError,
-        'the value spec for positional wildcard argument .*'
-        'must be a `pg.typing.List` instance'):
+        'Variable positional argument .* should have a value of .*List'
+    ):
       @pg_functor([('args', pg_typing.Int())])
       def f3(*args):  # pylint: disable=unused-variable
         del args
 
-    # `pg.functor` decorator has multiple StrKey.
-    with self.assertRaisesRegex(
-        KeyError,
-        '.* multiple StrKey found in symbolic arguments declaration.'):
-      @pg_functor([
-          ('a', pg_typing.Int()),
-          (pg_typing.StrKey(), pg_typing.Any()),
-          (pg_typing.StrKey(), pg_typing.Any()),
-      ])  # pylint: disable=unused-variable
-      def f4(a, **kwargs):
-        del a, kwargs
-
-    with self.assertRaisesRegex(
-        KeyError, '.* multiple symbolic fields found for argument.'):
-      @pg_functor([
-          ('a', pg_typing.Int()),
-          ('a', pg_typing.Str()),
-      ])  # pylint: disable=unused-variable
-      def f5(a):
-        del a
-
     with self.assertRaisesRegex(
         ValueError,
-        '.* the default value .* of symbolic argument .* does not equal '
-        'to the default value .* specified at function signature'):
+        'The annotated default value .* is not equal'
+    ):
       @pg_functor([
           ('a', pg_typing.Int(default=2)),
       ])  # pylint: disable=unused-variable
-      def f6(a=1):
+      def f4(a=1):
         del a
 
     with self.assertRaisesRegex(
@@ -495,7 +549,7 @@ class FunctorTest(unittest.TestCase):
       @pg_functor([
           ('a', pg_typing.Int()),
       ], returns=pg_typing.Any(default=None))
-      def f7(a=1):  # pylint: disable=unused-variable
+      def f5(a=1):  # pylint: disable=unused-variable
         del a
 
   def test_bad_call(self):

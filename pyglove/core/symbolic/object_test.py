@@ -69,7 +69,7 @@ class ObjectMetaTest(unittest.TestCase):
       pass
 
     @pg_members([
-        ('args', pg_typing.List(pg_typing.Str())),
+        ('args', pg_typing.List(pg_typing.Str(), default=[])),
     ], init_arg_list=['x', 'y', 'z', '*args'])
     class C(B):
       pass
@@ -87,7 +87,7 @@ class ObjectMetaTest(unittest.TestCase):
             ('z', pg_typing.List(pg_typing.Int(min_value=1))),
             ('p', pg_typing.Bool().freeze(True)),
             ('q', pg_typing.Bool(default=True)),
-            ('args', pg_typing.List(pg_typing.Str())),
+            ('args', pg_typing.List(pg_typing.Str(), default=[])),
         ]),
     )
 
@@ -100,16 +100,14 @@ class ObjectMetaTest(unittest.TestCase):
             ('z', pg_typing.List(pg_typing.Int(min_value=1))),
             ('p', pg_typing.Bool().freeze(True)),
             ('q', pg_typing.Bool(default=True)),
-            ('args', pg_typing.List(pg_typing.Str())),
-        ]))
+            ('args', pg_typing.List(pg_typing.Str(), default=[])),
+        ])
+    )
 
   def test_init_arg_list(self):
-    self.assertEqual(
-        self._A.init_arg_list, ['x', 'y', 'z', 'p'])
-    self.assertEqual(
-        self._B.init_arg_list, ['x', 'y', 'z', 'q'])
-    self.assertEqual(
-        self._C.init_arg_list, ['x', 'y', 'z', '*args'])
+    self.assertEqual(self._A.init_arg_list, ['x', 'y', 'z', 'p'])
+    self.assertEqual(self._B.init_arg_list, ['x', 'y', 'z', 'q'])
+    self.assertEqual(self._C.init_arg_list, ['x', 'y', 'z', '*args'])
 
   def test_serialization_key(self):
     self.assertEqual(self._A.__serialization_key__, self._A.__type_name__)

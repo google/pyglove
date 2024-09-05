@@ -13,6 +13,7 @@
 # limitations under the License.
 """Tests for pyglove.object_utils.docstr_utils."""
 
+import inspect
 import unittest
 from pyglove.core.object_utils import docstr_utils
 
@@ -57,7 +58,8 @@ class DocStrTest(unittest.TestCase):
       del args, kwargs
       return x + y
 
-    self.assertEqual(docstr_utils.docstr(my_sum), docstr_utils.DocStr(
+    docstr = docstr_utils.docstr(my_sum)
+    self.assertEqual(docstr, docstr_utils.DocStr(
         style=docstr_utils.DocStrStyle.GOOGLE,
         short_description='Returns the sum of two integers.',
         long_description='This function will return the sum of two integers.',
@@ -93,6 +95,11 @@ class DocStrTest(unittest.TestCase):
             )
         ]
     ))
+    sig = inspect.signature(my_sum)
+    self.assertIsNotNone(docstr.parameter(sig.parameters['x']))
+    self.assertIsNotNone(docstr.parameter(sig.parameters['y']))
+    self.assertIsNotNone(docstr.parameter(sig.parameters['args']))
+    self.assertIsNotNone(docstr.parameter(sig.parameters['kwargs']))
 
     class Foo:
       pass

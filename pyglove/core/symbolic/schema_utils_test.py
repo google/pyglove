@@ -17,12 +17,14 @@ import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core.symbolic import functor as pg_functor
 from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
+from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic import schema_utils
 
 
-class CallableSchemaTest(unittest.TestCase):
-  """Tests for `callable_schema`."""
+class GetSchemaTest(unittest.TestCase):
+  """Tests for `schema`."""
 
   def test_function_schema(self):
     def foo(x: int, *args, y: str, **kwargs) -> float:
@@ -39,7 +41,7 @@ class CallableSchemaTest(unittest.TestCase):
       """
       del x, y, args, kwargs
 
-    schema = schema_utils.callable_schema(foo, auto_typing=True, auto_doc=True)
+    schema = schema_utils.schema(foo, auto_typing=True, auto_doc=True)
     self.assertEqual(schema.name, f'{foo.__module__}.{foo.__qualname__}')
     self.assertEqual(schema.description, 'A function.')
     self.assertEqual(
@@ -60,6 +62,20 @@ class CallableSchemaTest(unittest.TestCase):
         ],
     )
 
+  def test_schema_on_symbolic_classes(self):
+
+    class A(pg_object.Object):
+      x: int
+      y: str
+
+    self.assertIs(schema_utils.schema(A), A.__schema__)
+
+    @pg_functor.functor(auto_typing=True)
+    def foo(x: int, y: str):
+      del x, y
+
+    self.assertIs(schema_utils.schema(foo), foo.__schema__)
+
   def test_class_init_schema(self):
     class A:
 
@@ -77,7 +93,7 @@ class CallableSchemaTest(unittest.TestCase):
         """
         del x, y, args, kwargs
 
-    schema = schema_utils.callable_schema(
+    schema = schema_utils.schema(
         A.__init__, auto_typing=True, auto_doc=True, remove_self=True
     )
     self.assertEqual(schema.name, f'{A.__module__}.{A.__init__.__qualname__}')

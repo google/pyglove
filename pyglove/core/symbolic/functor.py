@@ -99,7 +99,7 @@ class Functor(pg_object.Object, object_utils.Functor):
     # Update the return value of subclassed functors.
     if cls.is_subclassed_functor:  # pylint: disable=using-constant-test
       private_call_signature = pg_typing.Signature.from_callable(
-          cls._call, auto_typing=True
+          cls._call, auto_typing=True, auto_doc=True,
       )
       if (
           len(private_call_signature.args) > 1
@@ -426,7 +426,7 @@ class Functor(pg_object.Object, object_utils.Functor):
       varargs = list(args[len(signature.args) :])
       if flags.is_type_check_enabled():
         varargs = [
-            signature.varargs.value_spec.apply(
+            signature.varargs.value_spec.element.value.apply(
                 v, root_path=self.sym_path + signature.varargs.name
             )
             for v in varargs
@@ -571,10 +571,11 @@ def functor(
 
 def functor_class(
     func: types.FunctionType,
-    args: Optional[List[Union[
-        Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-        Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]]
-    ] = None,   # pylint: disable=bad-continuation
+    args: Union[
+        List[Union[pg_typing.Field, pg_typing.FieldDef]],
+        Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
+        None
+    ] = None,
     returns: Optional[pg_typing.ValueSpec] = None,
     base_class: Optional[Type[Functor]] = None,
     *,
@@ -684,10 +685,11 @@ def functor_class(
   cls.auto_register = True
 
   # Apply function schema.
-  schema = schema_utils.callable_schema(
-      func, args, returns, auto_doc=auto_doc, auto_typing=auto_typing
+  cls.apply_schema(
+      schema_utils.schema(
+          func, args, returns, auto_doc=auto_doc, auto_typing=auto_typing
+      )
   )
-  cls.apply_schema(schema)
 
   # Register functor class for deserialization if needed.
   if add_to_registry:

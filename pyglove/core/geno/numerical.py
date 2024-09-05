@@ -164,15 +164,15 @@ class Float(DecisionPoint):
     if not compact:
       return super().format(compact, verbose, root_indent, **kwargs)
     if show_id:
-      kvlist = [('id', object_utils.quote_if_str(str(self.id)), '\'\'')]
+      kvlist = [('id', str(self.id), '\'\'')]
     else:
       kvlist = []
     details = object_utils.kvlist_str(kvlist + [
-        ('name', object_utils.quote_if_str(self.name), None),
+        ('name', self.name, None),
         ('min_value', self.min_value, None),
         ('max_value', self.max_value, None),
         ('scale', self.scale, None),
-        ('hints', object_utils.quote_if_str(self.hints), None),
+        ('hints', self.hints, None),
     ])
     return f'{self.__class__.__name__}({details})'
 

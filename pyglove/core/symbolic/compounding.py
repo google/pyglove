@@ -17,7 +17,7 @@ import abc
 import inspect
 import sys
 import types
-from typing import Any, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from pyglove.core import object_utils
 from pyglove.core.symbolic import schema_utils
@@ -53,16 +53,11 @@ _COMPOUND_OWNED_ATTR_NAMES = frozenset(dir(Compound))
 def compound_class(
     factory_fn: types.FunctionType,
     base_class: Optional[Type[Object]] = None,
-    args: Optional[
-        List[
-            Union[
-                Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-                Tuple[
-                    Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any
-                ],
-            ]
-        ]
-    ] = None,  # pylint: disable=bad-continuation
+    args: Union[
+        List[Union[pg_typing.Field, pg_typing.FieldDef]],
+        Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
+        None
+    ] = None,
     *,
     lazy_build: bool = True,
     auto_doc: bool = True,
@@ -127,7 +122,7 @@ def compound_class(
   if not inspect.isfunction(factory_fn):
     raise TypeError('Decorator `compound` is only applicable to functions.')
 
-  schema = schema_utils.callable_schema(
+  schema = schema_utils.schema(
       factory_fn,
       args=args,
       returns=pg_typing.Object(base_class) if base_class else None,

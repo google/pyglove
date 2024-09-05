@@ -387,10 +387,21 @@ class PatcherHelpersTest(unittest.TestCase):
     signature = pg_typing.Signature(
         pg_typing.CallableType.FUNCTION, 'foo', '__main__',
         [
-            pg_typing.Argument('src', pg_typing.Any()),
-            pg_typing.Argument('x', pg_typing.Int()),
-            pg_typing.Argument('y', pg_typing.List(
-                pg_typing.Float(min_value=0.0, max_value=1.0)))
+            pg_typing.Argument(
+                'src',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Any()
+            ),
+            pg_typing.Argument(
+                'x',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int()
+            ),
+            pg_typing.Argument(
+                'y',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.List(pg_typing.Float(min_value=0.0, max_value=1.0))
+            )
         ])
     args, kwargs = rule_based.parse_args(signature, ['0'], {'y': '0.1:0.5'})
     self.assertEqual(args, [0])

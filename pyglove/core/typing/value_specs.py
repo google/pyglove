@@ -154,16 +154,19 @@ class ValueSpecBase(ValueSpec):
     """Returns the default value."""
     return self._default
 
-  def set_default(self,
-                  default: typing.Any,
-                  use_default_apply: bool = True) -> ValueSpec:
+  def set_default(
+      self,
+      default: typing.Any,
+      use_default_apply: bool = True,
+      root_path: typing.Optional[object_utils.KeyPath] = None
+  ) -> ValueSpec:
     """Set default value and returns `self`."""
     # NOTE(daiyip): Default can be schema.MissingValue types, all are
     # normalized to MISSING_VALUE for consistency.
     if MISSING_VALUE == default:
       default = MISSING_VALUE
     if MISSING_VALUE != default and use_default_apply:
-      default = self.apply(default, allow_partial=True)
+      default = self.apply(default, allow_partial=True, root_path=root_path)
     self._default = default
     return self
 
@@ -174,7 +177,7 @@ class ValueSpecBase(ValueSpec):
     if MISSING_VALUE != permanent_value:
       self.set_default(permanent_value, use_default_apply=apply_before_use)
     elif MISSING_VALUE == self._default:
-      raise ValueError(f'Cannot freeze {self} without a default value.')
+      raise ValueError(f'Cannot freeze {self!r} without a default value.')
     self._frozen = True
     return self
 
@@ -192,7 +195,7 @@ class ValueSpecBase(ValueSpec):
   def extend(self, base: ValueSpec) -> ValueSpec:
     """Extend current value spec on top of a base spec."""
     if base.frozen:
-      raise TypeError(f'Cannot extend a frozen value spec: {base}')
+      raise TypeError(f'Cannot extend a frozen value spec: {base!r}')
 
     if self._transform is None:
       self._transform = base.transform
@@ -229,7 +232,6 @@ class ValueSpecBase(ValueSpec):
       root_path: typing.Optional[object_utils.KeyPath] = None) -> typing.Any:  # pyformat: disable pylint: disable=line-too-long
     """Apply spec to validate and complete value."""
     root_path = root_path or object_utils.KeyPath()
-
     if self.frozen:
       # Always return the default value if a field is frozen.
       if MISSING_VALUE != value and self.default != value:
@@ -369,15 +371,28 @@ class ValueSpecBase(ValueSpec):
   def __ror__(self, other: typing.Any) -> bool:
     return Union[other, self]
 
-  def format(self, *, markdown: bool = False, **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs
+  ) -> str:
     """Format this object."""
-    details = object_utils.kvlist_str([
-        ('default', object_utils.quote_if_str(self._default), MISSING_VALUE),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False)
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('default', self._default, MISSING_VALUE),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False)
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
 
@@ -546,17 +561,30 @@ class Str(Generic, PrimitiveType):
     """Annotate with PyType annotation."""
     return str
 
-  def format(self, *, markdown: bool = False, **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs
+  ) -> str:
     """Format this object."""
     regex_pattern = self._regex.pattern if self._regex else None
-    details = object_utils.kvlist_str([
-        ('default', object_utils.quote_if_str(self._default), MISSING_VALUE),
-        ('regex', object_utils.quote_if_str(regex_pattern), None),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False)
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('default', self._default, MISSING_VALUE),
+            ('regex', regex_pattern, None),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def _eq(self, other: 'Str') -> bool:
@@ -632,19 +660,23 @@ class Number(Generic, PrimitiveType):
       if min_value is None:
         min_value = base.min_value
       elif min_value < base.min_value:
-        raise TypeError(f'{self} cannot extend {base}: min_value is smaller.')
+        raise TypeError(
+            f'{self!r} cannot extend {base!r}: min_value is smaller.'
+        )
 
     max_value = self._max_value
     if base.max_value is not None:
       if max_value is None:
         max_value = base.max_value
       elif max_value > base.max_value:
-        raise TypeError(f'{self} cannot extend {base}: max_value is larger.')
+        raise TypeError(
+            f'{self!r} cannot extend {base!r}: max_value is larger.'
+        )
 
     if (min_value is not None and max_value is not None and
         min_value > max_value):
       raise TypeError(
-          f'{self} cannot extend {base}: '
+          f'{self!r} cannot extend {base!r}: '
           f'min_value ({min_value}) is greater than max_value ({max_value}) '
           'after extension.')
     self._min_value = min_value
@@ -664,17 +696,30 @@ class Number(Generic, PrimitiveType):
     return (self.min_value == other.min_value
             and self.max_value == other.max_value)
 
-  def format(self, *, markdown: bool = False, **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs
+  ) -> str:
     """Format this object."""
-    details = object_utils.kvlist_str([
-        ('default', self._default, MISSING_VALUE),
-        ('min', self._min_value, None),
-        ('max', self._max_value, None),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False)
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('default', self._default, MISSING_VALUE),
+            ('min', self._min_value, None),
+            ('max', self._max_value, None),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False)
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -889,7 +934,7 @@ class Enum(Generic, PrimitiveType):
         _ = base.apply(v)
       except (TypeError, ValueError)as e:
         raise TypeError(
-            f'{self} cannot extend {base}: '
+            f'{self!r} cannot extend {base!r}: '
             f'{repr(v)} is not an acceptable value.'
         ) from e
 
@@ -911,15 +956,28 @@ class Enum(Generic, PrimitiveType):
   def _eq(self, other: 'Enum') -> bool:
     return self.values == other.values
 
-  def format(self, *, markdown: bool = False, **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs
+  ) -> str:
     """Format this object."""
-    details = object_utils.kvlist_str([
-        ('default', object_utils.quote_if_str(self._default), MISSING_VALUE),
-        ('values', self._values, None),
-        ('frozen', self._frozen, False),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('default', self._default, MISSING_VALUE),
+            ('values', self._values, None),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -1110,32 +1168,24 @@ class List(Generic, ValueSpecBase):
       root_indent: int = 0,
       *,
       markdown: bool = False,
-      hide_default_values: bool = True,
-      hide_missing_values: bool = True,
       **kwargs,
   ) -> str:
     """Format this object."""
-    details = object_utils.kvlist_str([
-        ('', self._element.value.format(
-            compact=compact,
-            verbose=verbose,
-            root_indent=root_indent,
-            **kwargs), None),
-        ('min_size', self.min_size, 0),
-        ('max_size', self.max_size, None),
-        ('default', object_utils.format(
-            self._default,
-            compact=compact,
-            verbose=verbose,
-            root_indent=root_indent + 1,
-            hide_default_values=hide_default_values,
-            hide_missing_values=hide_missing_values,
-            **kwargs), 'MISSING_VALUE'),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('', self._element.value, None),
+            ('min_size', self.min_size, 0),
+            ('max_size', self.max_size, None),
+            ('default', self._default, MISSING_VALUE),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -1335,7 +1385,7 @@ class Tuple(Generic, ValueSpecBase):
             object_utils.message_on_path(
                 f'Length of input tuple ({len(value)}) does not match the '
                 f'length of spec ({len(self.elements)}). '
-                f'Input: {value}, Spec: {self}', root_path))
+                f'Input: {value}, Spec: {self!r}', root_path))
     else:
       if len(value) < self.min_size:
         raise ValueError(
@@ -1359,34 +1409,34 @@ class Tuple(Generic, ValueSpecBase):
     if self.fixed_length and base.fixed_length:
       if len(self.elements) != len(base.elements):
         raise TypeError(
-            f'{self} cannot extend {base}: unmatched number of elements.')
+            f'{self!r} cannot extend {base!r}: unmatched number of elements.')
       for i, element in enumerate(self._elements):
         element.extend(base.elements[i])
     elif self.fixed_length and not base.fixed_length:
       if base.min_size > len(self):
         raise TypeError(
-            f'{self} cannot extend {base} as it has '
+            f'{self!r} cannot extend {base!r} as it has '
             f'less elements than required.')
       if base.max_size is not None and base.max_size < len(self):
         raise TypeError(
-            f'{self} cannot extend {base} as it has '
+            f'{self!r} cannot extend {base!r} as it has '
             f'more elements than required.')
       for i, element in enumerate(self._elements):
         element.extend(base.elements[0])
     elif not self.fixed_length and base.fixed_length:
       raise TypeError(
-          f'{self} cannot extend {base}: a variable length tuple '
+          f'{self!r} cannot extend {base!r}: a variable length tuple '
           f'cannot extend a fixed length tuple.')
     else:
       assert not self.fixed_length and not base.fixed_length
       if self.min_size != 0 and self.min_size < base.min_size:
         raise TypeError(
-            f'{self} cannot extend {base} as it has smaller min size.')
+            f'{self!r} cannot extend {base!r} as it has smaller min size.')
       if (self.max_size is not None
           and base.max_size is not None
           and self.max_size > base.max_size):
         raise TypeError(
-            f'{self} cannot extend {base} as it has greater max size.')
+            f'{self!r} cannot extend {base!r} as it has greater max size.')
       if self._min_size == 0:
         self._min_size = base.min_size
       if self._max_size is None:
@@ -1433,54 +1483,31 @@ class Tuple(Generic, ValueSpecBase):
       root_indent: int = 0,
       *,
       markdown: bool = False,
-      hide_default_values: bool = True,
-      hide_missing_values: bool = True,
       **kwargs,
   ) -> str:
     """Format this object."""
     if self.fixed_length:
-      element_values = [f.value for f in self._elements]
-      details = object_utils.kvlist_str([
-          ('', object_utils.format(
-              element_values,
-              compact=compact,
-              verbose=verbose,
-              root_indent=root_indent,
-              **kwargs), None),
-          ('default', object_utils.format(
-              self._default,
-              compact=compact,
-              verbose=verbose,
-              root_indent=root_indent + 1,
-              hide_default_values=hide_default_values,
-              hide_missing_values=hide_missing_values,
-              **kwargs), 'MISSING_VALUE'),
-          ('noneable', self._is_noneable, False),
-          ('frozen', self._frozen, False),
-      ])
-      s = f'{self.__class__.__name__}({details})'
+      value = [f.value for f in self._elements]
+      default_min, default_max = self._min_size, self._max_size
     else:
-      details = object_utils.kvlist_str([
-          ('', object_utils.format(
-              self._elements[0].value,
-              compact=compact,
-              verbose=verbose,
-              root_indent=root_indent,
-              **kwargs), None),
-          ('default', object_utils.format(
-              self._default,
-              compact=compact,
-              verbose=verbose,
-              root_indent=root_indent + 1,
-              hide_default_values=hide_default_values,
-              hide_missing_values=hide_missing_values,
-              **kwargs), 'MISSING_VALUE'),
-          ('min_size', self._min_size, 0),
-          ('max_size', self._max_size, None),
-          ('noneable', self._is_noneable, False),
-      ])
-      s = f'{self.__class__.__name__}({details})'
-    return object_utils.maybe_markdown_quote(s, markdown)
+      value = self._elements[0].value
+      default_min, default_max = 0, None
+    return object_utils.kvlist_str(
+        [
+            ('', value, None),
+            ('default', self._default, MISSING_VALUE),
+            ('min_size', self._min_size, default_min),
+            ('max_size', self._max_size, default_max),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
+    )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     if self.fixed_length:
@@ -1552,12 +1579,12 @@ class Dict(Generic, ValueSpecBase):
 
   def __init__(
       self,
-      schema: typing.Optional[
-          typing.Union[
-              Schema,
-              typing.Dict[str, typing.Any],
-              typing.List[typing.Union[Field, typing.Tuple]]  # pylint: disable=g-bare-generic
-          ]
+      schema: typing.Union[
+          class_schema.ValueSpec,
+          Schema,
+          typing.Dict[class_schema.FieldKeyDef, class_schema.FieldValueDef],
+          typing.List[typing.Union[Field, class_schema.FieldDef]],
+          None,
       ] = None,  # pylint: disable=bad-whitespace
       default: typing.Any = MISSING_VALUE,
       transform: typing.Optional[
@@ -1569,11 +1596,17 @@ class Dict(Generic, ValueSpecBase):
     """Constructor.
 
     Args:
-      schema: (Optional) a Schema object for this Dict, or a dict of str key
-        to their value specs, or a list of Field or Field equivalents:
-        tuple of (<key_spec>, <value_spec>, [description], [metadata]) When this
-        field is empty, it specifies a schema-less Dict that may accept
-        arbitrary key/value pairs.
+      schema: (Optional) a Schema object for this Dict, or a dict of field key
+        to field value definition, or a list of field definitions, or a value
+        spec.
+        If None, it specifies a schema-less Dict that may accept arbitrary
+        key/value pairs.
+        If a value spec, it specifies a Dict that may accept arbitrary keys with
+        values constrained by the value spec.
+        A field definition is a tuple of
+          (<key_spec>, <value_spec>, [description], [metadata]).
+        A field value definition is a tuple of
+          (<value_spec>, [description], [metadata]).
       default: Default value. If MISSING_VALUE, the default value will be
         computed according to the schema.
       transform: (Optional) user-defined function to be called on the input
@@ -1582,8 +1615,16 @@ class Dict(Generic, ValueSpecBase):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    if schema is not None and not isinstance(schema, Schema):
-      schema = class_schema.create_schema(schema, allow_nonconst_keys=True)
+    if schema is not None:
+      if not isinstance(schema, (Schema, list, dict)):
+        schema = [
+            (
+                key_specs.StrKey(),
+                ValueSpec.from_annotation(schema, auto_typing=True)
+            )
+        ]
+      if not isinstance(schema, Schema):
+        schema = class_schema.create_schema(schema, allow_nonconst_keys=True)
 
     self._schema = typing.cast(typing.Optional[Schema], schema)
     super().__init__(
@@ -1606,7 +1647,10 @@ class Dict(Generic, ValueSpecBase):
     return self
 
   def set_default(
-      self, default: typing.Any, use_default_apply: bool = True
+      self,
+      default: typing.Any,
+      use_default_apply: bool = True,
+      root_path: typing.Optional[object_utils.KeyPath] = None,
   ) -> ValueSpec:
     if MISSING_VALUE == default and self._schema:
       self._use_generated_default = True
@@ -1639,7 +1683,8 @@ class Dict(Generic, ValueSpecBase):
         value,
         allow_partial=allow_partial,
         child_transform=child_transform,
-        root_path=root_path)
+        root_path=root_path
+    )
 
   def _extend(self, base: 'Dict') -> None:
     """Dict specific extension."""
@@ -1676,23 +1721,20 @@ class Dict(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    schema_details = ''
-    if self._schema:
-      schema_details = self._schema.format(
-          compact,
-          verbose,
-          root_indent,
-          cls_name='',
-          bracket_type=object_utils.BracketType.CURLY,
-          **kwargs)
-
-    details = object_utils.kvlist_str([
-        ('', schema_details, ''),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('fields',
+             list(self._schema.values()) if self._schema else None,
+             None),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -1865,8 +1907,6 @@ class Object(Generic, ValueSpecBase):
       root_indent: int = 0,
       *,
       markdown: bool = False,
-      hide_default_values: bool = True,
-      hide_missing_values: bool = True,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -1874,22 +1914,19 @@ class Object(Generic, ValueSpecBase):
       name = self._forward_ref.name
     else:
       name = self._value_type.__name__
-
-    details = object_utils.kvlist_str([
-        ('', name, None),
-        ('default', object_utils.format(
-            self._default,
-            compact,
-            verbose,
-            root_indent,
-            hide_default_values=hide_default_values,
-            hide_missing_values=hide_missing_values,
-            **kwargs), 'MISSING_VALUE'),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('', object_utils.RawText(name), None),
+            ('default', self._default, MISSING_VALUE),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2033,7 +2070,9 @@ class Callable(Generic, ValueSpecBase):
     if not (self._args or self._kw or self._return_value):
       return
 
-    signature = callable_signature.get_signature(value)
+    signature = callable_signature.signature(
+        value, auto_typing=False, auto_doc=False
+    )
 
     if len(self._args) > len(signature.args) and not signature.has_varargs:
       raise TypeError(
@@ -2053,9 +2092,9 @@ class Callable(Generic, ValueSpecBase):
                 f'Expected: {dest_spec!r}, Actual: {src_spec!r}.',
                 path))
     if len(self._args) > len(signature.args):
-      assert signature.has_varargs
-      assert signature.varargs  # for pytype
-      dest_spec = signature.varargs.value_spec
+      assert signature.varargs
+      assert isinstance(signature.varargs.value_spec, List), signature.varargs
+      dest_spec = signature.varargs.value_spec.element.value
       for i in range(len(signature.args), len(self._args)):
         src_spec = self._args[i]
         if not dest_spec.is_compatible(src_spec):
@@ -2080,15 +2119,16 @@ class Callable(Generic, ValueSpecBase):
                   f'Value spec of keyword argument {arg_name!r} is not '
                   f'compatible. Expected: {src_spec!r}, Actual: {dest_spec!r}.',
                   path))
-      elif signature.has_varkw:
-        assert signature.varkw  # for pytype
-        if not signature.varkw.value_spec.is_compatible(src_spec):
+      elif signature.varkw:
+        assert isinstance(signature.varkw.value_spec, Dict), signature.varkw
+        varkw_value_spec = signature.varkw.value_spec.schema.dynamic_field.value   # pytype: disable=attribute-error
+        if not varkw_value_spec.is_compatible(src_spec):
           raise TypeError(
               object_utils.message_on_path(
                   f'Value spec of keyword argument {arg_name!r} is not '
                   f'compatible with the value spec of '
                   f'**{signature.varkw.name}. '
-                  f'Expected: {signature.varkw.value_spec!r}, '
+                  f'Expected: {varkw_value_spec!r}, '
                   f'Actual: {src_spec!r}.', path))
       else:
         raise TypeError(
@@ -2168,19 +2208,31 @@ class Callable(Generic, ValueSpecBase):
             and self._kw == other.kw
             and self._return_value == other.return_value)
 
-  def format(self, *, markdown: bool = False, **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Format this spec."""
-    details = object_utils.kvlist_str([
-        ('args', object_utils.format(self._args, **kwargs), '[]'),
-        ('kw', object_utils.format(self._kw, **kwargs), '[]'),
-        ('returns', object_utils.format(self._return_value, **kwargs), 'None'),
-        ('default', object_utils.format(
-            self._default, **kwargs), 'MISSING_VALUE'),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False)
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('args', self._args, []),
+            ('kw', self._kw, []),
+            ('returns', self._return_value, None),
+            ('default', self._default, MISSING_VALUE),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False)
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2367,16 +2419,29 @@ class Type(Generic, ValueSpecBase):
       return self.type == other.type
     return self.forward_refs == other.forward_refs
 
-  def format(self, *, markdown: bool = False, **kwargs):
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Format this object."""
-    details = object_utils.kvlist_str([
-        ('', self._expected_type, None),
-        ('default', self._default, MISSING_VALUE),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('', self._expected_type, None),
+            ('default', self._default, MISSING_VALUE),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2655,21 +2720,20 @@ class Union(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    list_wrap_threshold = kwargs.pop('list_wrap_threshold', 20)
-    details = object_utils.kvlist_str([
-        ('', object_utils.format(
-            self._candidates,
-            compact,
-            verbose,
-            root_indent + 1,
-            list_wrap_threshold=list_wrap_threshold,
-            **kwargs), None),
-        ('default', object_utils.quote_if_str(self._default), MISSING_VALUE),
-        ('noneable', self._is_noneable, False),
-        ('frozen', self._frozen, False),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('', self._candidates, None),
+            ('default', self._default, MISSING_VALUE),
+            ('noneable', self._is_noneable, False),
+            ('frozen', self._frozen, False),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        list_wrap_threshold=kwargs.pop('list_wrap_threshold', 20),
+        **kwargs
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2805,16 +2869,28 @@ class Any(ValueSpecBase):
     """Any is compatible with any ValueSpec."""
     return True
 
-  def format(self, *, markdown: bool = False, **kwargs) -> str:
+  def format(
+      self,
+      compact: bool = False,
+      verbose: bool = True,
+      root_indent: int = 0,
+      *,
+      markdown: bool = False,
+      **kwargs,
+  ) -> str:
     """Format this object."""
-    details = object_utils.kvlist_str([
-        ('default', object_utils.format(self._default, **kwargs),
-         'MISSING_VALUE'),
-        ('frozen', self._frozen, False),
-        ('annotation', self._annotation, MISSING_VALUE)
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('default', self._default, MISSING_VALUE),
+            ('frozen', self._frozen, False),
+            ('annotation', self._annotation, MISSING_VALUE)
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def annotate(self, annotation: typing.Any) -> 'Any':
@@ -2879,3 +2955,33 @@ def _get_spec_callsite_module():
 ValueSpec.ListType = List
 ValueSpec.DictType = Dict
 ValueSpec.ObjectType = Object
+
+
+def ensure_value_spec(
+    value_spec: class_schema.ValueSpec,
+    src_spec: class_schema.ValueSpec,
+    root_path: typing.Optional[object_utils.KeyPath] = None
+) -> typing.Optional[class_schema.ValueSpec]:
+  """Extract counter part from value spec that matches dest spec type.
+
+  Args:
+    value_spec: Value spec.
+    src_spec: Destination value spec.
+    root_path: An optional path for the value to include in error message.
+
+  Returns:
+    value_spec of src_spec_type
+
+  Raises:
+    TypeError: When value_spec cannot match src_spec_type.
+  """
+  if isinstance(value_spec, Union):
+    value_spec = value_spec.get_candidate(src_spec)
+  if isinstance(value_spec, Any):
+    return None
+  if not src_spec.is_compatible(value_spec):
+    raise TypeError(
+        object_utils.message_on_path(
+            f'Source spec {src_spec} is not compatible with destination '
+            f'spec {value_spec}.', root_path))
+  return value_spec

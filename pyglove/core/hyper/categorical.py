@@ -330,8 +330,8 @@ class ManyOf(Choices):
       if not dest_spec.is_compatible(src_spec):
         raise TypeError(
             object_utils.message_on_path(
-                f'Cannot bind an incompatible value spec {dest_spec} '
-                f'to {self.__class__.__name__} with bound spec {src_spec}.',
+                f'Cannot bind an incompatible value spec {dest_spec!r} '
+                f'to {self.__class__.__name__} with bound spec {src_spec!r}.',
                 path))
       return (False, self)
 
@@ -414,9 +414,9 @@ class OneOf(Choices):
       if not value_spec.is_compatible(self._value_spec):
         raise TypeError(
             object_utils.message_on_path(
-                f'Cannot bind an incompatible value spec {value_spec} '
+                f'Cannot bind an incompatible value spec {value_spec!r} '
                 f'to {self.__class__.__name__} with bound '
-                f'spec {self._value_spec}.', path))
+                f'spec {self._value_spec!r}.', path))
       return (False, self)
 
     for i, c in enumerate(self.candidates):

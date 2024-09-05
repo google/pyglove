@@ -598,14 +598,14 @@ class Choices(DecisionPoint):
         s.append(_indent(f'({i}): {value_str}\n', root_indent + 1))
     s.append(_indent(']', root_indent))
     if show_id:
-      kvlist = [('id', object_utils.quote_if_str(str(self.id)), '\'\'')]
+      kvlist = [('id', str(self.id), '\'\'')]
     else:
       kvlist = []
     additionl_properties = object_utils.kvlist_str(kvlist + [
-        ('name', object_utils.quote_if_str(self.name), None),
+        ('name', self.name, None),
         ('distinct', self.distinct, True),
         ('sorted', self.sorted, False),
-        ('hints', object_utils.quote_if_str(self.hints), None),
+        ('hints', self.hints, None),
         ('subchoice_index', self.subchoice_index, None)
     ], compact=False, root_indent=root_indent)
     if additionl_properties:

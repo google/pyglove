@@ -29,10 +29,6 @@ class KeySpecBase(KeySpec):
       raise KeyError(f'{self} cannot extend {base} for keys are different.')
     return self
 
-  def __repr__(self) -> str:
-    """Operator repr."""
-    return self.__str__()
-
   def __ne__(self, other: Any) -> bool:
     """Operator !=."""
     return not self.__eq__(other)
@@ -159,11 +155,12 @@ class StrKey(NonConstKey):
 
   def format(self, **kwargs):
     """Format this object."""
-    regex_str = object_utils.kvlist_str([
-        ('regex', object_utils.quote_if_str(
-            self._regex.pattern if self._regex else None), None)
-    ])
-    return f'StrKey({regex_str})'
+    return object_utils.kvlist_str(
+        [
+            ('regex', getattr(self._regex, 'pattern', None), None)
+        ],
+        label=self.__class__.__name__
+    )
 
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
     regex = self._regex.pattern if self._regex is not None else None

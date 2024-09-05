@@ -15,6 +15,7 @@
 
 import dataclasses
 import enum
+import inspect
 from typing import Any, Dict, List, Optional
 
 import docstring_parser
@@ -73,6 +74,16 @@ class DocStr:
   returns: Optional[DocStrReturns]
   raises: List[DocStrRaises]
   blank_after_short_description: bool = True
+
+  def parameter(self, param: inspect.Parameter) -> Optional[DocStrArgument]:
+    """Returns doc str for an inspected parameter."""
+    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+      name = f'*{param.name}'
+    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+      name = f'**{param.name}'
+    else:
+      name = param.name
+    return self.args.get(name)
 
   @classmethod
   def parse(cls, text: str, style: Optional[DocStrStyle] = None) -> 'DocStr':

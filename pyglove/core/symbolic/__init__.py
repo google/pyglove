@@ -141,10 +141,12 @@ from pyglove.core.symbolic.list import mark_as_insertion
 from pyglove.core.symbolic.base import WritePermissionError
 
 # TODO(daiyip): internal dependencies, remove later.
+from pyglove.core.symbolic.schema_utils import schema
 from pyglove.core.symbolic.schema_utils import formalize_schema
 from pyglove.core.symbolic.schema_utils import augment_schema
-from pyglove.core.symbolic.schema_utils import callable_schema
 from pyglove.core.symbolic.schema_utils import update_schema
 
+# For backward compatibility.
+callable_schema = schema
 
 # pylint: enable=g-bad-import-order

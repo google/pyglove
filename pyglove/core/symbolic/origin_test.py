@@ -92,11 +92,13 @@ class OriginTest(unittest.TestCase):
   def test_format(self):
     a = Dict(a=1)
     o = Origin(None, '__init__')
-    self.assertEqual(o.format(), 'Origin(tag=\'__init__\')')
+    self.assertEqual(o.format(compact=True), 'Origin(tag=\'__init__\')')
 
     o = Origin('/path/to/file', 'load')
     self.assertEqual(
-        o.format(), 'Origin(tag=\'load\', source=\'/path/to/file\')')
+        o.format(compact=False),
+        "Origin(\n  tag='load',\n  source='/path/to/file'\n)"
+    )
 
     o = Origin(a, 'builder')
     self.assertEqual(

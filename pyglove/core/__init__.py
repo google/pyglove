@@ -88,6 +88,9 @@ Functor = symbolic.Functor
 Inferentiable = symbolic.Inferential
 InferredValue = symbolic.InferredValue
 
+# Function to get schema of a class or a function.
+schema = symbolic.schema
+
 # Reference types.
 Ref = symbolic.Ref
 maybe_ref = symbolic.maybe_ref
@@ -192,7 +195,7 @@ CustomTyping = typing.CustomTyping
 
 get_converter = typing.get_converter
 register_converter = typing.register_converter
-get_signature = typing.get_signature
+signature = typing.signature
 
 
 #

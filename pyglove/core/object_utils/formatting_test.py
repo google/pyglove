@@ -22,14 +22,82 @@ from pyglove.core.object_utils import formatting
 class StringHelperTest(unittest.TestCase):
   """Tests for string helper methods in formatting."""
 
+  def test_raw_text(self):
+    raw = formatting.RawText('abc')
+    self.assertEqual(formatting.format(raw), 'abc')
+    self.assertEqual(formatting.format(raw, compact=True), 'abc')
+    self.assertEqual(raw, formatting.RawText('abc'))
+    self.assertEqual(raw, 'abc')
+    self.assertNotEqual(raw, formatting.RawText('abcd'))
+    self.assertNotEqual(raw, 'abcd')
+
   def test_kvlist_str(self):
     self.assertEqual(
         formatting.kvlist_str([
             ('', 'foo', None),
             ('a', 1, None),
             ('b', 'str', (None, 'str')),
+            ('c', [1, 2, 3], False),
+        ], label='Foo'),
+        'Foo(\'foo\', a=1, c=[1, 2, 3])'
+    )
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', formatting.RawText('foo'), None),
+            ('a', 1, None),
+            ('b', 'str', (None, 'str')),
             ('c', True, False),
-        ]), 'foo, a=1, c=True')
+        ], label='Foo', markdown=True),
+        '`Foo(foo, a=1, c=True)`'
+    )
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', 'foo', None),
+            ('a', 1, None),
+            ('b', 'str', (None, 'str')),
+            ('c', True, False),
+        ]),
+        '\'foo\', a=1, c=True'
+    )
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', 'foo', None),
+            ('a', 1, None),
+            ('b', 'str', (None, 'str')),
+            ('c', True, False),
+        ], label='Foo', compact=False),
+        'Foo(\n  \'foo\',\n  a=1,\n  c=True\n)'
+    )
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', 'foo', None),
+            ('a', 1, None),
+            ('b', 'str', (None, 'str')),
+            ('c', dict(x=1), False),
+        ], label='Foo', markdown=True, compact=False),
+        '```\nFoo(\n  \'foo\',\n  a=1,\n  c={\n    \'x\': 1\n  }\n)\n```'
+    )
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', 'foo', None),
+            ('a', 1, None),
+            ('b', 'str', (None, 'str')),
+            ('c', dict(x=1), False),
+        ], compact=False),
+        '\'foo\',\na=1,\nc={\n  \'x\': 1\n}'
+    )
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', 'foo', 'foo')
+        ], label='Foo', compact=False),
+        'Foo()'
+    )
 
   def test_quote_if_str(self):
     self.assertEqual(formatting.quote_if_str(1), 1)
@@ -41,6 +109,9 @@ class StringHelperTest(unittest.TestCase):
     self.assertEqual(
         formatting.message_on_path('hi.', formatting.KeyPath()),
         'hi. (path=)')
+    self.assertEqual(
+        formatting.message_on_path('hi.', formatting.KeyPath(['a'])),
+        'hi. (path=a)')
 
   def test_comma_delimited_str(self):
     self.assertEqual(

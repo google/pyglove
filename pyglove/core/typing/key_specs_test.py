@@ -67,6 +67,7 @@ class StrKeyTest(KeySpecTest):
 
   def test_match_with_regex(self):
     key = ks.StrKey('a.*')
+    self.assertEqual(repr(key), 'StrKey(regex=\'a.*\')')
     self.assertTrue(key.match('a1'))
     self.assertTrue(key.match('a'))
     self.assertFalse(key.match('b'))

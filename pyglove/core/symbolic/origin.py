@@ -158,17 +158,25 @@ class Origin(object_utils.Formattable):
   ) -> str:
     """Formats this object."""
     if isinstance(self._source, (str, type(None))):
-      source_str = object_utils.quote_if_str(self._source)
+      source_str = self._source
     else:
       source_info = object_utils.format(
-          self._source, compact, verbose, root_indent + 1, **kwargs)
-      source_str = f'{source_info} at 0x{id(self._source):8x}'
-    details = object_utils.kvlist_str([
-        ('tag', object_utils.quote_if_str(self._tag), None),
-        ('source', source_str, None),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+          self._source, compact, verbose, root_indent + 1, **kwargs
+      )
+      source_str = object_utils.RawText(
+          f'{source_info} at 0x{id(self._source):8x}'
+      )
+
+    return object_utils.kvlist_str(
+        [
+            ('tag', self._tag, None),
+            ('source', source_str, None),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown
     )
 
   def __eq__(self, other: Any) -> bool:

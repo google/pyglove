@@ -76,29 +76,31 @@ class BoilerplateClassTest(unittest.TestCase):
   def test_schema(self):
     # Boilerplate class' schema should carry the default value and be frozen.
     self.assertEqual(
-        B.__schema__,
-        pg_typing.create_schema([
-            ('a', pg_typing.Int()),
-            (
-                'b',
-                pg_typing.Union(
-                    [pg_typing.Int(), pg_typing.Str()], default='foo'
-                ).freeze(),
-            ),
-            (
-                'c',
-                pg_typing.Dict([(
-                    'd',
-                    pg_typing.List(
-                        pg_typing.Dict([
-                            ('e', pg_typing.Float()),
-                            ('f', pg_typing.Bool()),
-                        ]),
-                        default=List([Dict(e=1.0, f=True)]),
+        list(B.__schema__.fields.values()),
+        list(pg_typing.create_schema(
+            [
+                ('a', pg_typing.Int()),
+                (
+                    'b',
+                    pg_typing.Union(
+                        [pg_typing.Int(), pg_typing.Str()], default='foo'
                     ).freeze(),
-                )]).freeze(),
-            ),
-        ]),
+                ),
+                (
+                    'c',
+                    pg_typing.Dict([(
+                        'd',
+                        pg_typing.List(
+                            pg_typing.Dict([
+                                ('e', pg_typing.Float()),
+                                ('f', pg_typing.Bool()),
+                            ]),
+                            default=List([Dict(e=1.0, f=True)]),
+                        ).freeze(),
+                    )]).freeze(),
+                ),
+            ],
+        ).fields.values())
     )
 
     # Original class' schema should remain unchanged.

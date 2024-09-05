@@ -17,7 +17,7 @@ import abc
 import functools
 import inspect
 import typing
-from typing import Any, Dict, Iterator, List, Optional, Sequence, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 from pyglove.core import logging
 from pyglove.core import object_utils
@@ -884,10 +884,10 @@ base.Symbolic.ObjectType = Object
 
 
 def members(
-    fields: List[Union[
-        pg_typing.Field,
-        Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-        Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any]]],
+    fields: Union[
+        List[Union[pg_typing.Field, pg_typing.FieldDef]],
+        Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
+    ],
     metadata: Optional[Dict[str, Any]] = None,
     init_arg_list: Optional[Sequence[str]] = None,
     **kwargs

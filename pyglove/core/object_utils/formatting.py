@@ -14,17 +14,68 @@
 """Utilities for formatting objects."""
 
 import enum
+import io
 import sys
 from typing import Any, List, Optional, Sequence, Set, Tuple
 from pyglove.core.object_utils import common_traits
 from pyglove.core.object_utils.value_location import KeyPath
 
 
+class BracketType(enum.IntEnum):
+  """Bracket types used for complex type formatting."""
+  # Round bracket.
+  ROUND = 0
+
+  # Square bracket.
+  SQUARE = 1
+
+  # Curly bracket.
+  CURLY = 2
+
+
+_BRACKET_CHARS = [
+    ('(', ')'),
+    ('[', ']'),
+    ('{', '}'),
+]
+
+
+def bracket_chars(bracket_type: BracketType) -> Tuple[str, str]:
+  """Gets bracket character."""
+  return _BRACKET_CHARS[int(bracket_type)]
+
+
+class RawText(common_traits.Formattable):
+  """Raw text."""
+
+  def __init__(self, text: str):
+    self.text = text
+
+  def format(self, *args, **kwargs):
+    return self.text
+
+  def __eq__(self, other: Any) -> bool:
+    if isinstance(other, RawText):
+      return self.text == other.text
+    elif isinstance(other, str):
+      return self.text == other
+    return False
+
+  def __ne__(self, other: Any) -> bool:
+    return not self.__eq__(other)
+
+
 def kvlist_str(
     kvlist: List[Tuple[str, Any, Any]],
     compact: bool = True,
     verbose: bool = False,
-    root_indent: int = 0) -> str:
+    root_indent: int = 0,
+    *,
+    label: Optional[str] = None,
+    bracket_type: BracketType = BracketType.ROUND,
+    markdown: bool = False,
+    **kwargs,
+) -> str:
   """Formats a list key/value pairs into a comma delimited string.
 
   Args:
@@ -34,12 +85,21 @@ def kvlist_str(
     verbose: If True, format value in kvlist in verbose.
     root_indent: The indent should be applied for values in kvlist if they are
       multi-line.
-
+    label: (Optional) If not None, add label to brace all kv pairs.
+    bracket_type: Bracket type used for embracing the kv pairs. Applicable only
+      when `name` is not None.
+    markdown: If True, use markdown notion to quote the formatted object.
+    **kwargs: Keyword arguments that will be passed through unto child
+      ``Formattable`` objects.
   Returns:
     A formatted string from a list of key/value pairs delimited by comma.
   """
-  s = []
+  s = io.StringIO()
   is_first = True
+  bracket_start, bracket_end = bracket_chars(bracket_type)
+
+  child_indent = (root_indent + 1) if label else root_indent
+  body = io.StringIO()
   for k, v, d in kvlist:
     if isinstance(d, tuple):
       include_pair = True
@@ -51,15 +111,40 @@ def kvlist_str(
       include_pair = v != d
     if include_pair:
       if not is_first:
-        s.append(', ')
-      if not isinstance(v, str):
-        v = format(v, compact=compact, verbose=verbose, root_indent=root_indent)
+        body.write(',')
+        body.write(' ' if compact else '\n')
+      v = format(
+          v, compact=compact,
+          verbose=verbose,
+          root_indent=child_indent,
+          **kwargs
+      )
+      if not compact:
+        body.write(_indent('', child_indent))
       if k:
-        s.append(f'{k}={v}')
+        body.write(f'{k}={v}')
       else:
-        s.append(str(v))
+        body.write(str(v))
       is_first = False
-  return ''.join(s)
+
+  if label and not is_first and not compact:
+    body.write('\n')
+
+  body = body.getvalue()
+  if label is None:
+    s = body
+  else:
+    s.write(label)
+    s.write(bracket_start)
+    if body:
+      if not compact:
+        s.write('\n')
+      s.write(body)
+      if not compact:
+        s.write(_indent('', root_indent))
+    s.write(bracket_end)
+    s = s.getvalue()
+  return maybe_markdown_quote(s, markdown)
 
 
 def quote_if_str(value: Any) -> Any:
@@ -88,30 +173,6 @@ def message_on_path(
   if path is None:
     return message
   return f'{message} (path={path})'
-
-
-class BracketType(enum.IntEnum):
-  """Bracket types used for complex type formatting."""
-  # Round bracket.
-  ROUND = 0
-
-  # Square bracket.
-  SQUARE = 1
-
-  # Curly bracket.
-  CURLY = 2
-
-
-_BRACKET_CHARS = [
-    ('(', ')'),
-    ('[', ']'),
-    ('{', '}'),
-]
-
-
-def bracket_chars(bracket_type: BracketType) -> Tuple[str, str]:
-  """Gets bracket character."""
-  return _BRACKET_CHARS[int(bracket_type)]
 
 
 def format(   # pylint: disable=redefined-builtin
@@ -157,9 +218,6 @@ def format(   # pylint: disable=redefined-builtin
   """
 
   exclude_keys = exclude_keys or set()
-
-  def _indent(text, indent: int) -> str:
-    return ' ' * 2 * indent + text
 
   def _should_include_key(key: str) -> bool:
     if include_keys:
@@ -248,3 +306,7 @@ def printv(v: Any, **kwargs):
   """Prints formatted value."""
   fs = kwargs.pop('file', sys.stdout)
   print(format(v, **kwargs), file=fs)
+
+
+def _indent(text: str, indent: int) -> str:
+  return ' ' * 2 * indent + text

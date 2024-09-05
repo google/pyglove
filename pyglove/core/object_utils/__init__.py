@@ -117,6 +117,7 @@ from pyglove.core.object_utils.formatting import auto_plural
 from pyglove.core.object_utils.formatting import message_on_path
 from pyglove.core.object_utils.formatting import BracketType
 from pyglove.core.object_utils.formatting import bracket_chars
+from pyglove.core.object_utils.formatting import RawText
 
 # Context managers for defining the default format for __str__ and __repr__.
 from pyglove.core.object_utils.common_traits import str_format

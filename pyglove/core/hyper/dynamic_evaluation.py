@@ -243,7 +243,7 @@ class DynamicEvaluationContext:
     """Registers a parameter with current context and return its first value."""
     def _add_child_decision_point(c):
       if isinstance(c, types.LambdaType):
-        s = pg_typing.get_signature(c)
+        s = pg_typing.signature(c, auto_typing=False, auto_doc=False)
         if not s.args and not s.has_wildcard_args:
           sub_context = DynamicEvaluationContext(
               where=self._where, per_thread=self._per_thread)
@@ -464,7 +464,7 @@ class DynamicEvaluationContext:
     get_current_decision = self._decision_getter
     def _apply_child(c):
       if isinstance(c, types.LambdaType):
-        s = pg_typing.get_signature(c)
+        s = pg_typing.signature(c, auto_typing=False, auto_doc=False)
         if not s.args and not s.has_wildcard_args:
           return c()
       return c

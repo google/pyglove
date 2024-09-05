@@ -73,8 +73,16 @@ class SymbolizeFunctionsTest(unittest.TestCase):
     self.assertEqual(
         f.__signature__.args,
         [
-            (pg_typing.Argument('x', pg_typing.Int())),
-            (pg_typing.Argument('y', pg_typing.Str())),
+            pg_typing.Argument(
+                'x',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Int()
+            ),
+            pg_typing.Argument(
+                'y',
+                pg_typing.Argument.Kind.POSITIONAL_OR_KEYWORD,
+                pg_typing.Str()
+            ),
         ],
     )
     self.assertEqual(f.__signature__.return_value, pg_typing.Int())

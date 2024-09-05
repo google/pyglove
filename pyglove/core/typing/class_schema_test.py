@@ -67,10 +67,10 @@ class ForwardRefTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError, '.* is not a class'):
       _ = class_schema.ForwardRef(self._module, 'unittest').cls
 
-  def test_format(self):
+  def test_repr(self):
     self.assertEqual(
-        str(class_schema.ForwardRef(self._module, 'FieldTest')),
-        f'ForwardRef(module={self._module.__name__}, name=FieldTest)',
+        repr(class_schema.ForwardRef(self._module, 'FieldTest')),
+        f'ForwardRef(module=\'{self._module.__name__}\', name=\'FieldTest\')',
     )
 
   def test_eq_ne(self):
@@ -187,42 +187,20 @@ class FieldTest(unittest.TestCase):
           'b': 1,
       }, allow_partial=False)
 
-  def test_format(self):
+  def test_repr(self):
     self.assertEqual(
-        Field('a', vs.Dict([
-            ('b', vs.Int())
-        ]), 'this is a very long field.', {
-            'm1': 1,
-            'm2': 2,
-            'm3': 3,
-            'm4': 4,
-            'm5': 5
-        }).format(compact=True, verbose=False),
-        'Field(key=a, value=Dict({b=Int()}), '
-        'description=\'this is a very long ...\', '
-        'metadata={...})')
-
-    self.assertEqual(
-        Field('a', vs.Dict([
-            ('b', vs.Int())
-        ]), 'this is a very long field.', {
-            'm1': 1,
-            'm2': 2,
-            'm3': 3,
-            'm4': 4,
-            'm5': 5
-        }).format(compact=True, verbose=True),
-        'Field(key=a, value=Dict({b=Int()}), '
-        'description=\'this is a very long field.\', '
-        'metadata={\'m1\': 1, \'m2\': 2, \'m3\': 3, \'m4\': 4, \'m5\': 5})')
-
-    self.assertEqual(
-        Field('a', vs.Dict([
-            ('b', vs.Int())
-        ]), 'field a').format(compact=False, verbose=False),
-        'Field(key=a, value=Dict({\n'
-        '    b = Int()\n'
-        '  }), description=\'field a\')')
+        repr(
+            Field(
+                'a', vs.Dict([('b', vs.Int())]), 'this is a very long field.',
+                {'m1': 1, 'm2': 2, 'm3': 3, 'm4': 4, 'm5': 5}
+            )
+        ),
+        (
+            'Field(key=a, value=Dict(fields=[Field(key=b, '
+            'value=Int())]), description=\'this is a very long field.\', '
+            'metadata={\'m1\': 1, \'m2\': 2, \'m3\': 3, \'m4\': 4, \'m5\': 5})'
+        )
+    )
 
   def test_json_conversion(self):
     def assert_json_conversion(f):
@@ -342,58 +320,95 @@ class SchemaTest(unittest.TestCase):
   def test_eq(self):
     self.assertEqual(self._create_test_schema(), self._create_test_schema())
 
-  def test_format(self):
+  def test_repr(self):
     """Tests for Schema.format."""
     self.assertEqual(
-        self._create_test_schema().format(compact=True),
-        'Schema(a=Int(default=1), b=Bool(default=None, noneable=True), '
-        'c=Dict({d=List('
-        'Enum(default=0, values=[0, 1, None]), default=[0, 1]), '
-        'e=List('
-        'Dict({StrKey(regex=\'foo.*\')=Str()})), '
-        'f=Object(SimpleObject)}, noneable=True))')
+        repr(self._create_test_schema()),
+        (
+            "Schema(fields=[Field(key=a, value=Int(default=1), description="
+            "'Field a.'), Field(key=b, value=Bool(default=None, noneable="
+            "True), description='Field b.'), Field(key=c, value=Dict("
+            "fields=[Field(key=d, value=List(Enum(default=0, values=[0, 1, "
+            "None]), default=[0, 1]), description='Field d.'), Field(key=e, "
+            "value=List(Dict(fields=[Field(key=StrKey(regex='foo.*'), "
+            "value=Str(), description='Mapped values.')])), description='Field"
+            " e.'), Field(key=f, value=Object(SimpleObject), description="
+            "'Field f.')], noneable=True), description='Field c.')], "
+            "allow_nonconst_keys=False, metadata={'init_arg_list': []})"
+        )
+    )
 
+  def test_str(self):
+    self.maxDiff = None
     self.assertEqual(
-        inspect.cleandoc(self._create_test_schema().format(
-            compact=False, verbose=False)),
-        inspect.cleandoc("""Schema(
-          a = Int(default=1),
-          b = Bool(default=None, noneable=True),
-          c = Dict({
-            d = List(Enum(default=0, values=[0, 1, None]), default=[0, 1]),
-            e = List(Dict({
-              StrKey(regex=\'foo.*\') = Str()
-            })),
-            f = Object(SimpleObject)
-          }, noneable=True)
-        )"""))
-
-    self.assertEqual(
-        inspect.cleandoc(
-            # Equal to schema.format(compact=False, verbose=True)
-            str(self._create_test_schema())),
-        inspect.cleandoc("""Schema(
-            # Field a.
-            a = Int(default=1),
-
-            # Field b.
-            b = Bool(default=None, noneable=True),
-
-            # Field c.
-            c = Dict({
-              # Field d.
-              d = List(Enum(default=0, values=[0, 1, None]), default=[0, 1]),
-
-              # Field e.
-              e = List(Dict({
-                # Mapped values.
-                StrKey(regex=\'foo.*\') = Str()
-              })),
-
-              # Field f.
-              f = Object(SimpleObject)
-            }, noneable=True)
-          )"""))
+        str(self._create_test_schema()),
+        inspect.cleandoc("""
+        Schema(
+          fields=[
+            Field(
+              key=a,
+              value=Int(
+                default=1
+              ),
+              description='Field a.'
+            ),
+            Field(
+              key=b,
+              value=Bool(
+                default=None,
+                noneable=True
+              ),
+              description='Field b.'
+            ),
+            Field(
+              key=c,
+              value=Dict(
+                fields=[
+                  Field(
+                    key=d,
+                    value=List(
+                      Enum(
+                        default=0,
+                        values=[0, 1, None]
+                      ),
+                      default=[0, 1]
+                    ),
+                    description='Field d.'
+                  ),
+                  Field(
+                    key=e,
+                    value=List(
+                      Dict(
+                        fields=[
+                          Field(
+                            key=StrKey(regex='foo.*'),
+                            value=Str(),
+                            description='Mapped values.'
+                          )
+                        ]
+                      )
+                    ),
+                    description='Field e.'
+                  ),
+                  Field(
+                    key=f,
+                    value=Object(
+                      SimpleObject
+                    ),
+                    description='Field f.'
+                  )
+                ],
+                noneable=True
+              ),
+              description='Field c.'
+            )
+          ],
+          allow_nonconst_keys=False,
+          metadata={
+            'init_arg_list': []
+          }
+        )""")
+    )
 
   def test_merge(self):
     """Tests for Schema.merge."""
@@ -577,7 +592,7 @@ class SchemaTest(unittest.TestCase):
     ], base_schema_list=[s], allow_nonconst_keys=True)
     self.assertEqual(s.dynamic_field, Field(ks.StrKey(), vs.Str()))
 
-  def test_Validate(self):
+  def test_validate(self):
     # Validate fully specified fields.
     self._create_test_schema().validate({
         'a': 1,
@@ -891,6 +906,11 @@ class CreateSchemaTest(unittest.TestCase):
         TypeError, 'Metadata of schema should be a dict.'
     ):
       class_schema.create_schema([], metadata=1)
+
+    with self.assertRaisesRegex(
+        TypeError, 'Schema definition should be a dict.*a list.'
+    ):
+      class_schema.create_schema(1, metadata=1)
 
     with self.assertRaisesRegex(
         TypeError, 'Field definition should be tuples with 2 to 4 elements.'

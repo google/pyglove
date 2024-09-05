@@ -150,13 +150,13 @@ class CustomDecisionPoint(DecisionPoint):
     if not compact:
       return super().format(compact, verbose, root_indent, **kwargs)
     if show_id:
-      kvlist = [('id', object_utils.quote_if_str(str(self.id)), '\'\'')]
+      kvlist = [('id', str(self.id), '\'\'')]
     else:
       kvlist = []
     details = object_utils.kvlist_str(kvlist + [
-        ('hyper_type', object_utils.quote_if_str(self.hyper_type), None),
-        ('name', object_utils.quote_if_str(self.name), None),
-        ('hints', object_utils.quote_if_str(self.hints), None),
+        ('hyper_type', self.hyper_type, None),
+        ('name', self.name, None),
+        ('hints', self.hints, None),
     ])
     return f'{self.__class__.__name__}({details})'
 

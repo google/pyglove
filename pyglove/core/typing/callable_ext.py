@@ -31,8 +31,9 @@ class CallableWithOptionalKeywordArgs:
   def __init__(self,
                func: Callable[..., Any],
                optional_keywords: List[str]):
-    sig = callable_signature.get_signature(func)
-    absent_keywords = None
+    sig = callable_signature.signature(
+        func, auto_typing=False, auto_doc=False
+    )
 
     # Check for variable keyword arguments.
     if sig.has_varkw:

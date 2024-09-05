@@ -14,6 +14,7 @@
 """Tests for pyglove.core.typing.value_specs."""
 
 import contextlib
+import inspect
 import sys
 import typing
 import unittest
@@ -23,10 +24,13 @@ from pyglove.core.typing import annotation_conversion   # pylint: disable=unused
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import custom_typing
-from pyglove.core.typing import inspect as pg_inspect
-from pyglove.core.typing import typed_missing
 from pyglove.core.typing import key_specs as ks
+from pyglove.core.typing import typed_missing
 from pyglove.core.typing import value_specs as vs
+
+
+Argument = callable_signature.Argument
+Signature = callable_signature.Signature
 
 
 class ValueSpecTest(unittest.TestCase):
@@ -60,15 +64,15 @@ class BoolTest(ValueSpecTest):
     self.assertFalse(vs.Bool().is_noneable)
     self.assertTrue(vs.Bool().noneable().is_noneable)
 
-  def test_str(self):
-    self.assertEqual(str(vs.Bool()), 'Bool()')
-    self.assertEqual(str(vs.Bool(True)), 'Bool(default=True)')
-    self.assertEqual(str(vs.Bool(True).freeze()),
+  def test_repr(self):
+    self.assertEqual(repr(vs.Bool()), 'Bool()')
+    self.assertEqual(repr(vs.Bool(True)), 'Bool(default=True)')
+    self.assertEqual(repr(vs.Bool(True).freeze()),
                      'Bool(default=True, frozen=True)')
     self.assertEqual(
-        str(vs.Bool().noneable()), 'Bool(default=None, noneable=True)')
+        repr(vs.Bool().noneable()), 'Bool(default=None, noneable=True)')
     self.assertEqual(
-        str(vs.Bool(True).noneable()), 'Bool(default=True, noneable=True)')
+        repr(vs.Bool(True).noneable()), 'Bool(default=True, noneable=True)')
 
   def test_annotation(self):
     self.assertEqual(vs.Bool().annotation, bool)
@@ -193,14 +197,14 @@ class StrTest(ValueSpecTest):
     self.assertFalse(vs.Str().is_noneable)
     self.assertTrue(vs.Str().noneable().is_noneable)
 
-  def test_str(self):
-    self.assertEqual(str(vs.Str()), 'Str()')
+  def test_repr(self):
+    self.assertEqual(repr(vs.Str()), 'Str()')
     self.assertEqual(
-        str(vs.Str().noneable()), 'Str(default=None, noneable=True)')
-    self.assertEqual(str(vs.Str('a')), 'Str(default=\'a\')')
-    self.assertEqual(str(vs.Str('a').freeze()),
+        repr(vs.Str().noneable()), 'Str(default=None, noneable=True)')
+    self.assertEqual(repr(vs.Str('a')), 'Str(default=\'a\')')
+    self.assertEqual(repr(vs.Str('a').freeze()),
                      'Str(default=\'a\', frozen=True)')
-    self.assertEqual(str(vs.Str(regex='.*')), 'Str(regex=\'.*\')')
+    self.assertEqual(repr(vs.Str(regex='.*')), 'Str(regex=\'.*\')')
 
   def test_annotation(self):
     self.assertEqual(vs.Str().annotation, str)
@@ -334,17 +338,17 @@ class IntTest(ValueSpecTest):
     self.assertFalse(vs.Int().is_noneable)
     self.assertTrue(vs.Int().noneable().is_noneable)
 
-  def test_str(self):
-    self.assertEqual(str(vs.Int()), 'Int()')
-    self.assertEqual(str(vs.Int(1)), 'Int(default=1)')
-    self.assertEqual(str(vs.Int(1).freeze()),
+  def test_repr(self):
+    self.assertEqual(repr(vs.Int()), 'Int()')
+    self.assertEqual(repr(vs.Int(1)), 'Int(default=1)')
+    self.assertEqual(repr(vs.Int(1).freeze()),
                      'Int(default=1, frozen=True)')
     self.assertEqual(
-        str(vs.Int().noneable()), 'Int(default=None, noneable=True)')
+        repr(vs.Int().noneable()), 'Int(default=None, noneable=True)')
     self.assertEqual(
-        str(vs.Int(1).noneable()), 'Int(default=1, noneable=True)')
+        repr(vs.Int(1).noneable()), 'Int(default=1, noneable=True)')
     self.assertEqual(
-        str(vs.Int(min_value=0, max_value=1)), 'Int(min=0, max=1)')
+        repr(vs.Int(min_value=0, max_value=1)), 'Int(min=0, max=1)')
 
   def test_annotation(self):
     self.assertEqual(vs.Int().annotation, int)
@@ -526,16 +530,16 @@ class FloatTest(ValueSpecTest):
     self.assertFalse(vs.Float().is_noneable)
     self.assertTrue(vs.Float().noneable().is_noneable)
 
-  def test_str(self):
+  def test_repr(self):
     self.assertEqual(str(vs.Float()), 'Float()')
     self.assertEqual(
-        str(vs.Float().noneable()), 'Float(default=None, noneable=True)')
+        repr(vs.Float().noneable()), 'Float(default=None, noneable=True)')
     self.assertEqual(
-        str(vs.Float(1.0).freeze()), 'Float(default=1.0, frozen=True)')
+        repr(vs.Float(1.0).freeze()), 'Float(default=1.0, frozen=True)')
     self.assertEqual(
-        str(vs.Float(1.0).noneable()), 'Float(default=1.0, noneable=True)')
+        repr(vs.Float(1.0).noneable()), 'Float(default=1.0, noneable=True)')
     self.assertEqual(
-        str(vs.Float(default=1., min_value=0., max_value=1.).noneable()),
+        repr(vs.Float(default=1., min_value=0., max_value=1.).noneable()),
         'Float(default=1.0, min=0.0, max=1.0, noneable=True)')
 
   def test_annotation(self):
@@ -730,13 +734,13 @@ class EnumTest(ValueSpecTest):
         vs.Enum('a', ['a', 'b']).noneable(),
         vs.Enum('a', ['a', 'b', None]))
 
-  def test_str(self):
+  def test_repr(self):
     self.assertEqual(
-        str(vs.Enum('a', ['a', 'b', 'c'])),
+        repr(vs.Enum('a', ['a', 'b', 'c'])),
         'Enum(default=\'a\', values=[\'a\', \'b\', \'c\'])')
 
     self.assertEqual(
-        str(vs.Enum('a', ['a', 'b', 'c']).freeze()),
+        repr(vs.Enum('a', ['a', 'b', 'c']).freeze()),
         'Enum(default=\'a\', values=[\'a\', \'b\', \'c\'], frozen=True)')
 
   def test_annotation(self):
@@ -1574,6 +1578,9 @@ class DictTest(ValueSpecTest):
         ('z', vs.Int(min_value=0, max_value=None), 'field z.', dict(foo=1))
     ]))
 
+    self.assertEqual(vs.Dict(vs.Int()), vs.Dict([(ks.StrKey(), vs.Int())]))
+    self.assertEqual(vs.Dict(int), vs.Dict([(ks.StrKey(), vs.Int())]))
+
     with self.assertRaisesRegex(
         TypeError,
         '`pg.typing.Dict` accepts 1 dict type argument as the schema'):
@@ -1657,7 +1664,12 @@ class DictTest(ValueSpecTest):
                 ('b', 1, 'field 1'),
                 ('a', vs.Str(), 'field 2'),
             ]).noneable()),
-        'Dict({b=Int(default=1), a=Str()}, noneable=True)')
+        (
+            'Dict(fields=[Field(key=b, value=Int(default=1), '
+            'description=\'field 1\'), Field(key=a, value=Str(), '
+            'description=\'field 2\')], noneable=True)'
+        )
+    )
 
     self.assertEqual(
         repr(
@@ -1665,7 +1677,42 @@ class DictTest(ValueSpecTest):
                 ('b', 1, 'field 1'),
                 ('a', vs.Str('abc'), 'field 2'),
             ]).freeze()),
-        'Dict({b=Int(default=1), a=Str(default=\'abc\')}, frozen=True)')
+        (
+            'Dict(fields=[Field(key=b, value=Int(default=1), '
+            'description=\'field 1\'), Field(key=a, '
+            'value=Str(default=\'abc\'), description=\'field 2\')], '
+            'frozen=True)'
+        )
+    )
+
+  def test_str(self):
+    self.assertEqual(str(vs.Dict()), 'Dict()')
+    self.assertEqual(
+        str(
+            vs.Dict([
+                ('b', 1, 'field 1'),
+                ('a', vs.Str(), 'field 2'),
+            ]).noneable()),
+        inspect.cleandoc('''
+        Dict(
+          fields=[
+            Field(
+              key=b,
+              value=Int(
+                default=1
+              ),
+              description='field 1'
+            ),
+            Field(
+              key=a,
+              value=Str(),
+              description='field 2'
+            )
+          ],
+          noneable=True
+        )
+        ''')
+    )
 
   def test_annotation(self):
     self.assertEqual(vs.Dict().annotation, typing.Dict[str, typing.Any])
@@ -1694,11 +1741,6 @@ class DictTest(ValueSpecTest):
     self.assertEqual(
         vs.Dict(class_schema.create_schema([('a', vs.Int())])),
         vs.Dict([('a', vs.Int())]))
-
-    with self.assertRaisesRegex(
-        TypeError,
-        'Schema definition should be a dict .* a list .*'):
-      vs.Dict(int)
 
     with self.assertRaisesRegex(
         TypeError, 'The 1st element of field definition should be of '
@@ -2012,14 +2054,14 @@ class ObjectTest(ValueSpecTest):
     self.assertTrue(vs.Object(self.A).noneable().is_noneable)
     self.assertTrue(vs.Object('Foo').noneable().is_noneable)
 
-  def test_str(self):
-    self.assertEqual(str(vs.Object(self.A)), 'Object(A)')
-    self.assertEqual(str(vs.Object('Foo')), 'Object(Foo)')
+  def test_repr(self):
+    self.assertEqual(repr(vs.Object(self.A)), 'Object(A)')
+    self.assertEqual(repr(vs.Object('Foo')), 'Object(Foo)')
     self.assertEqual(
-        str(vs.Object(self.A).noneable()),
+        repr(vs.Object(self.A).noneable()),
         'Object(A, default=None, noneable=True)')
     self.assertEqual(
-        str(vs.Object(self.A).noneable().freeze()),
+        repr(vs.Object(self.A).noneable().freeze()),
         'Object(A, default=None, noneable=True, frozen=True)')
 
   def test_annotation(self):
@@ -2268,10 +2310,10 @@ class CallableTest(ValueSpecTest):
     self.assertFalse(vs.Callable().is_noneable)
     self.assertTrue(vs.Callable().noneable().is_noneable)
 
-  def test_str(self):
-    self.assertEqual(str(vs.Callable()), 'Callable()')
+  def test_repr(self):
+    self.assertEqual(repr(vs.Callable()), 'Callable()')
     self.assertEqual(
-        str(
+        repr(
             vs.Callable(
                 args=[vs.Int(), vs.Int()],
                 kw=[('a', vs.Str().noneable())],
@@ -2279,7 +2321,7 @@ class CallableTest(ValueSpecTest):
         'Callable(args=[Int(), Int()], kw=[(\'a\', '
         'Str(default=None, noneable=True))], returns=Int())')
     self.assertEqual(
-        str(
+        repr(
             vs.Callable(
                 args=[vs.Int(), vs.Int()],
                 kw=[('a', vs.Str().noneable())],
@@ -2432,13 +2474,13 @@ class CallableTest(ValueSpecTest):
 
     class FunctorWithRegularArgs(object_utils.Functor):
 
-      __signature__ = callable_signature.Signature(
+      __signature__ = Signature(
           callable_type=callable_signature.CallableType.FUNCTION,
           name='foo',
           module_name='__main__',
           args=[
-              callable_signature.Argument('a', vs.Int()),
-              callable_signature.Argument('b', vs.Str())
+              Argument('a', Argument.Kind.POSITIONAL_OR_KEYWORD, vs.Int()),
+              Argument('b', Argument.Kind.POSITIONAL_OR_KEYWORD, vs.Str()),
           ])
 
       def __init__(self, value):
@@ -2478,16 +2520,26 @@ class CallableTest(ValueSpecTest):
 
     class FunctorWithVarArgs(object_utils.Functor):
 
-      __signature__ = callable_signature.Signature(
+      __signature__ = Signature(
           callable_type=callable_signature.CallableType.FUNCTION,
           name='foo',
           module_name='__main__',
           args=[
-              callable_signature.Argument('a', vs.Int()),
-              callable_signature.Argument('b', vs.Str())
+              Argument(
+                  'a', Argument.Kind.POSITIONAL_OR_KEYWORD, vs.Int()
+              ),
+              Argument(
+                  'b', Argument.Kind.POSITIONAL_OR_KEYWORD, vs.Str()
+              )
           ],
-          varargs=callable_signature.Argument('args', vs.Int()),
-          varkw=callable_signature.Argument('kwargs', vs.Int()),
+          varargs=Argument(
+              'args', Argument.Kind.VAR_POSITIONAL, vs.List(vs.Int())
+          ),
+          varkw=Argument(
+              'kwargs',
+              Argument.Kind.VAR_KEYWORD,
+              vs.Dict([(ks.StrKey(), vs.Int())])
+          ),
           return_value=vs.Object(ValueError))
 
       def __init__(self, value):
@@ -2699,14 +2751,16 @@ class TypeTest(ValueSpecTest):
     self.assertFalse(vs.Type(Exception).is_noneable)
     self.assertTrue(vs.Type(Exception).noneable().is_noneable)
 
-  def test_str(self):
-    self.assertEqual(str(vs.Type(Exception)), 'Type(<class \'Exception\'>)')
+  def test_repr(self):
+    self.assertEqual(repr(vs.Type(Exception)), 'Type(<class \'Exception\'>)')
     self.assertEqual(
-        str(vs.Type(Exception).noneable()),
-        'Type(<class \'Exception\'>, default=None, noneable=True)')
+        repr(vs.Type(Exception).noneable()),
+        'Type(<class \'Exception\'>, default=None, noneable=True)'
+    )
     self.assertEqual(
-        str(vs.Type(Exception).noneable().freeze()),
-        'Type(<class \'Exception\'>, default=None, noneable=True, frozen=True)')
+        repr(vs.Type(Exception).noneable().freeze()),
+        'Type(<class \'Exception\'>, default=None, noneable=True, frozen=True)'
+    )
 
   def test_annotation(self):
     self.assertEqual(vs.Type(Exception).annotation, typing.Type[Exception])
@@ -3249,10 +3303,17 @@ class AnyTest(ValueSpecTest):
   def test_noneable(self):
     self.assertTrue(vs.Any().is_noneable)
 
+  def test_repr(self):
+    self.assertEqual(repr(vs.Any()), 'Any()')
+    self.assertEqual(repr(vs.Any(1)), 'Any(default=1)')
+    self.assertEqual(repr(vs.Any(1).freeze()), 'Any(default=1, frozen=True)')
+
   def test_str(self):
     self.assertEqual(str(vs.Any()), 'Any()')
-    self.assertEqual(str(vs.Any(1)), 'Any(default=1)')
-    self.assertEqual(str(vs.Any(1).freeze()), 'Any(default=1, frozen=True)')
+    self.assertEqual(str(vs.Any(1)), 'Any(\n  default=1\n)')
+    self.assertEqual(
+        str(vs.Any(1).freeze()), 'Any(\n  default=1,\n  frozen=True\n)'
+    )
 
   def test_annotation(self):
     self.assertEqual(vs.Any().annotation, typed_missing.MISSING_VALUE)
@@ -3385,6 +3446,45 @@ def simulate_forward_declaration(*module_level_symbols):
 
 def forward_ref(name):
   return class_schema.ForwardRef(sys.modules[__name__], name)
+
+
+class EnsureValueSpecTest(unittest.TestCase):
+  """Tests for `ensure_value_spec`."""
+
+  def test_basics(self):
+    self.assertEqual(
+        vs.ensure_value_spec(
+            vs.Int(min_value=1), vs.Int()),
+        vs.Int(min_value=1)
+    )
+
+    self.assertEqual(
+        vs.ensure_value_spec(
+            vs.Int(min_value=1), vs.Number(int)
+        ),
+        vs.Int(min_value=1)
+    )
+
+    with self.assertRaisesRegex(
+        TypeError, 'Source spec .* is not compatible with destination spec'):
+      vs.ensure_value_spec(vs.Int(min_value=1), vs.Bool())
+
+  def test_union(self):
+    self.assertEqual(
+        vs.ensure_value_spec(
+            vs.Union([vs.Int(), vs.Str(regex='a.*')]),
+            vs.Str()), vs.Str(regex='a.*')
+    )
+
+    with self.assertRaisesRegex(
+        TypeError, 'Source spec .* is not compatible with destination spec'):
+      vs.ensure_value_spec(
+          vs.Union([vs.Int(), vs.Str()]),
+          vs.Bool()
+      )
+
+  def test_any(self):
+    self.assertIsNone(vs.ensure_value_spec(vs.Any(), vs.Int()))
 
 
 if __name__ == '__main__':

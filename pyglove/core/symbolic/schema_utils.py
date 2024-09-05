@@ -13,8 +13,7 @@
 # limitations under the License.
 """Utilities for handling schema for symbolic classes."""
 
-import types
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
@@ -23,12 +22,12 @@ from pyglove.core.symbolic import flags
 
 
 def augment_schema(
-    schema: pg_typing.Schema,
+    schema: pg_typing.Schema,  # pylint: disable=redefined-outer-name
     fields: List[
         Union[
             pg_typing.Field,
-            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any],
+            List[pg_typing.FieldDef],
+            Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
         ]
     ],
     extend: bool = True,
@@ -90,8 +89,8 @@ def update_schema(
     fields: List[
         Union[
             pg_typing.Field,
-            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-            Tuple[Union[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any],
+            List[pg_typing.FieldDef],
+            Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
         ]
     ],
     extend: bool = True,
@@ -177,65 +176,47 @@ def update_schema(
     cls.register_for_deserialization(serialization_key, additional_keys)
 
 
-def callable_schema(
-    func: types.FunctionType,
-    args: Optional[
-        List[
-            Union[
-                Tuple[Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str],
-                Tuple[
-                    Tuple[str, pg_typing.KeySpec], pg_typing.ValueSpec, str, Any
-                ],
-            ]
-        ]
-    ] = None,  # pylint: disable=bad-continuation
+def schema(
+    cls_or_fn: Callable[..., Any],
+    args: Union[
+        List[Union[pg_typing.Field, pg_typing.FieldDef]],
+        Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
+        None
+    ] = None,
     returns: Optional[pg_typing.ValueSpec] = None,
     *,
     auto_typing: bool = True,
     auto_doc: bool = True,
-    remove_self: bool = False,
+    remove_self: bool = True,
+    include_return: bool = False,
 ) -> pg_typing.Schema:
-  """Returns the schema from the signature of a callable."""
-  args_docstr = None
-  description = None
-  if auto_doc:
-    docstr = object_utils.docstr(func)
-    if docstr:
-      args_docstr = docstr.args
-      description = schema_description_from_docstr(docstr)
+  """Returns the schema from the signature of a class or a function.
 
-  signature = pg_typing.get_signature(func, auto_typing=auto_typing)
-  arg_fields = pg_typing.get_arg_fields(signature, args, args_docstr)
+  Args:
+    cls_or_fn: A class or a function.
+    args: (Optional) additional annotations for arguments.
+    returns: (Optional) additional annotation for return value.
+    auto_typing: If True, enable type inference from annotations.
+    auto_doc: If True, extract schema/field description form docstrs.
+    remove_self: If True, remove the first `self` argument if it appears in the
+      signature.
+    include_return: If True, include the return value spec in the schema with
+      key 'return_value'.
 
-  if returns is not None and pg_typing.MISSING_VALUE != returns.default:
-    raise ValueError('return value spec should not have default value.')
-  returns = returns or signature.return_value
-
-  if remove_self and arg_fields and arg_fields[0].key == 'self':
-    arg_fields.pop(0)
-
-  # Generate init_arg_list from signature.
-  init_arg_list = [arg.name for arg in signature.args]
-  if signature.varargs:
-    init_arg_list.append(f'*{signature.varargs.name}')
-
-  # Decide schema name.
-  module_name = getattr(func, '__module__', None)
-  func_name = func.__qualname__
-  schema_name = f'{module_name}.{func_name}' if module_name else func_name
-
+  Returns:
+    A pg.typing.Schema object.
+  """
+  s = getattr(cls_or_fn, '__schema__', None)
+  if isinstance(s, pg_typing.Schema):
+    return s
   return formalize_schema(
-      pg_typing.create_schema(
-          fields=arg_fields,
-          name=schema_name,
-          metadata={
-              'init_arg_list': init_arg_list,
-              'varargs_name': getattr(signature.varargs, 'name', None),
-              'varkw_name': getattr(signature.varkw, 'name', None),
-              'returns': returns,
-          },
-          description=description,
-          allow_nonconst_keys=True,
+      pg_typing.signature(
+          cls_or_fn, auto_typing=auto_typing, auto_doc=auto_doc
+      ).annotate(
+          args, return_value=returns
+      ).to_schema(
+          remove_self=remove_self,
+          include_return=include_return,
       )
   )
 
@@ -265,7 +246,7 @@ def auto_init_arg_list(cls):
   # This allows to bypass interface-only bases.
   init_arg_list = None
   for base_cls in cls.__bases__:
-    schema = getattr(base_cls, '__schema__', None)
+    schema = getattr(base_cls, '__schema__', None)  # pylint: disable=redefined-outer-name
     if isinstance(schema, pg_typing.Schema):
       if ([(k, f.frozen) for k, f in schema.fields.items()]
           == [(k, f.frozen) for k, f in cls.__schema__.fields.items()]):

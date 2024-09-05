@@ -67,31 +67,23 @@ class FieldUpdate(object_utils.Formattable):
       verbose: bool = True,
       root_indent: int = 0,
       *,
-      python_format: bool = False,
       markdown: bool = False,
-      hide_default_values: bool = False,
-      hide_missing_values: bool = False,
       **kwargs,
   ) -> str:
     """Formats this object."""
-    kwargs.update({
-        'python_format': python_format,
-        'hide_default_values': hide_default_values,
-        'hide_missing_values': hide_missing_values,
-    })
-    details = object_utils.kvlist_str([
-        ('parent_path', self.target.sym_path, None),
-        ('path', self.path.path, None),
-        ('old_value', object_utils.format(
-            self.old_value, compact, verbose, root_indent + 1, **kwargs),
-         object_utils.MISSING_VALUE),
-        ('new_value',
-         object_utils.format(
-             self.new_value, compact, verbose, root_indent + 1, **kwargs),
-         object_utils.MISSING_VALUE),
-    ])
-    return object_utils.maybe_markdown_quote(
-        f'{self.__class__.__name__}({details})', markdown
+    return object_utils.kvlist_str(
+        [
+            ('parent_path', self.target.sym_path, None),
+            ('path', self.path, None),
+            ('old_value', self.old_value, object_utils.MISSING_VALUE),
+            ('new_value', self.new_value, object_utils.MISSING_VALUE),
+        ],
+        label=self.__class__.__name__,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent,
+        markdown=markdown,
+        **kwargs
     )
 
   def __eq__(self, other: Any) -> bool:
@@ -1291,7 +1283,9 @@ def get_rebind_dict(
   Returns:
     An ordered dict of key path string to updated value.
   """
-  signature = pg_typing.get_signature(rebinder)
+  signature = pg_typing.signature(
+      rebinder, auto_typing=False, auto_doc=False
+  )
   if len(signature.args) == 2:
     select_fn = lambda k, v, p: rebinder(k, v)
   elif len(signature.args) == 3:
@@ -1496,7 +1490,9 @@ def query(
     if path_regex is not None or where is not None:
       raise ValueError('\'path_regex\' and \'where\' must be None when '
                        '\'custom_selector\' is provided.')
-    signature = pg_typing.get_signature(custom_selector)
+    signature = pg_typing.signature(
+        custom_selector, auto_typing=False, auto_doc=False
+    )
     if len(signature.args) == 2:
       select_fn = lambda k, v, p: custom_selector(k, v)  # pytype: disable=wrong-arg-count
     elif len(signature.args) == 3:
@@ -1507,7 +1503,7 @@ def query(
           f'(key_path, value, [parent]). Encountered: {signature.args}')
   else:
     if where is not None:
-      signature = pg_typing.get_signature(where)
+      signature = pg_typing.signature(where)
       if len(signature.args) == 1:
         where_fn = lambda v, p: where(v)  # pytype: disable=wrong-arg-count
       elif len(signature.args) == 2:

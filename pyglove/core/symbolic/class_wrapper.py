@@ -23,7 +23,7 @@ import abc
 import functools
 import inspect
 import types
-from typing import Any, Callable, Dict, List, Optional, Sequence, Text, Tuple, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 from pyglove.core import detouring
 from pyglove.core import object_utils
@@ -38,7 +38,7 @@ from pyglove.core.symbolic import schema_utils
 class ClassWrapperMeta(pg_object.ObjectMeta):
   """Metaclass for class wrapper."""
 
-  def __repr__(self) -> Text:
+  def __repr__(self) -> str:
     wrapped_cls = getattr(self, 'sym_wrapped_cls', None)
     if wrapped_cls is None:
       return f'<class {self.__type_name__!r}>'
@@ -228,8 +228,8 @@ def _subclassed_wrapper(
     use_auto_doc: bool,
     use_auto_typing: bool,
     reset_state_fn: Optional[Callable[[Any], None]],
-    class_name: Optional[Text] = None,
-    module_name: Optional[Text] = None):
+    class_name: Optional[str] = None,
+    module_name: Optional[str] = None):
   """Class wrapper implementation by regular multi-inheritance."""
   # NOTE(daiyip): The user class may have a user-defined metaclass, which
   # conflicts with the metaclass of the symbolic base. Therefore, we detect
@@ -312,10 +312,11 @@ def _subclassed_wrapper(
 
 def wrap(
     cls,
-    init_args: Optional[List[Union[
-        Tuple[Union[Text, pg_typing.KeySpec], pg_typing.ValueSpec, Text],
-        Tuple[Union[Text, pg_typing.KeySpec], pg_typing.ValueSpec, Text, Any]
-    ]]] = None,
+    init_args: Union[
+        List[Union[pg_typing.Field, pg_typing.FieldDef]],
+        Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
+        None
+    ] = None,
     *,
     reset_state_fn: Optional[Callable[[Any], None]] = None,
     repr: bool = True,    # pylint: disable=redefined-builtin
@@ -448,7 +449,7 @@ def wrap(
 
 def wrap_module(
     module,
-    names: Optional[Sequence[Text]] = None,
+    names: Optional[Sequence[str]] = None,
     where: Optional[Callable[[Type['ClassWrapper']], bool]] = None,
     export_to: Optional[types.ModuleType] = None,
     **kwargs):
@@ -547,14 +548,15 @@ def _extract_init_signature(
     cls,
     arg_specs=None,
     auto_doc: bool = False,
-    auto_typing: bool = False):
+    auto_typing: bool = False
+) -> Tuple[Optional[str], List[str], List[pg_typing.Field]]:
   """Extract argument fields from class __init__ method."""
   init_method = getattr(cls, '__orig_init__', cls.__init__)
-
   description = None
-  args_docstr = dict()
+  docstr = None
   if auto_doc:
     # Read args docstr from both class doc string and __init__ doc string.
+    args_docstr = dict()
     if cls.__doc__:
       cls_docstr = object_utils.DocStr.parse(cls.__doc__)
       description = schema_utils.schema_description_from_docstr(
@@ -563,7 +565,16 @@ def _extract_init_signature(
     if init_method.__doc__:
       init_docstr = object_utils.DocStr.parse(init_method.__doc__)
       args_docstr.update(init_docstr.args)
-
+    docstr = object_utils.DocStr(
+        object_utils.DocStrStyle.GOOGLE,
+        short_description=None,
+        long_description=None,
+        examples=[],
+        args=args_docstr,
+        returns=None,
+        raises=[],
+        blank_after_short_description=True,
+    )
   if init_method is object.__init__:
     if arg_specs:
       raise ValueError(
@@ -572,12 +583,20 @@ def _extract_init_signature(
     init_arg_list = []
     arg_fields = []
   else:
-    signature = pg_typing.get_signature(init_method, auto_typing=auto_typing)
+    signature = pg_typing.Signature.from_signature(
+        inspect.signature(init_method),
+        name=cls.__name__,
+        callable_type=pg_typing.CallableType.METHOD,
+        module_name=cls.__module__,
+        qualname=cls.__qualname__,
+        auto_typing=auto_typing,
+        docstr=docstr,
+    ).annotate(arg_specs)
     if not signature.args or signature.args[0].name != 'self':
       raise ValueError(
           f'{cls.__name__}.__init__ must have `self` as the first argument.')
     # Remove field for 'self'.
-    arg_fields = pg_typing.get_arg_fields(signature, arg_specs, args_docstr)[1:]
+    arg_fields = signature.fields(remove_self=True)
     init_arg_list = [arg.name for arg in signature.args[1:]]
     if signature.varargs is not None:
       init_arg_list.append(f'*{signature.varargs.name}')
