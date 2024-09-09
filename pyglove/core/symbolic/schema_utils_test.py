@@ -17,10 +17,10 @@ import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
-from pyglove.core.symbolic import functor as pg_functor
 from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic import schema_utils
+from pyglove.core.symbolic.functor import functor  # pylint: disable=g-importing-member
 
 
 class GetSchemaTest(unittest.TestCase):
@@ -70,7 +70,7 @@ class GetSchemaTest(unittest.TestCase):
 
     self.assertIs(schema_utils.schema(A), A.__schema__)
 
-    @pg_functor.functor(auto_typing=True)
+    @functor(auto_typing=True)
     def foo(x: int, y: str):
       del x, y
 
