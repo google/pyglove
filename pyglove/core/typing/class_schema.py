@@ -541,10 +541,12 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
   def from_annotation(
       cls,
       annotation: Any,
-      auto_typing=False,
-      accept_value_as_annotation=False) -> 'ValueSpec':
+      auto_typing: bool = False,
+      accept_value_as_annotation: bool = False,
+      parent_module: Optional[types.ModuleType] = None
+      ) -> 'ValueSpec':
     """Gets a concrete ValueSpec from annotation."""
-    del annotation, auto_typing, accept_value_as_annotation
+    del annotation, auto_typing, accept_value_as_annotation, parent_module
     assert False, 'Overridden in `annotation_conversion.py`.'
 
 
@@ -1330,7 +1332,8 @@ FieldValueDef = Union[
 def create_field(
     field_or_def: Union[Field, FieldDef],
     auto_typing: bool = True,
-    accept_value_as_annotation: bool = True
+    accept_value_as_annotation: bool = True,
+    parent_module: Optional[types.ModuleType] = None
 ) -> Field:
   """Creates ``Field`` from its equivalence.
 
@@ -1348,6 +1351,8 @@ def create_field(
       ``pg.typing.Any()`` will be used.
     accept_value_as_annotation: If True, allow default values to be used as
       annotations when creating the value spec.
+    parent_module: (Optional) parent module for defining this field, which will
+      be used for forward reference lookup.
 
   Returns:
     A ``Field`` object.
@@ -1385,7 +1390,8 @@ def create_field(
   value = ValueSpec.from_annotation(
       maybe_value_spec,
       auto_typing=auto_typing,
-      accept_value_as_annotation=accept_value_as_annotation
+      accept_value_as_annotation=accept_value_as_annotation,
+      parent_module=parent_module,
   )
 
   if (description is not None and
@@ -1409,6 +1415,7 @@ def create_schema(
     allow_nonconst_keys: bool = False,
     metadata: Optional[Dict[str, Any]] = None,
     description: Optional[str] = None,
+    parent_module: Optional[types.ModuleType] = None
 ) -> Schema:
   """Creates ``Schema`` from a list of ``Field``s or equivalences.
 
@@ -1449,6 +1456,8 @@ def create_schema(
     allow_nonconst_keys: Whether to allow non const keys in schema.
     metadata: Optional dict of user objects as schema-level metadata.
     description: Optional description of the schema.
+    parent_module: (Optional) parent module for defining this schema, which will
+      be used for forward reference lookup.
 
   Returns:
     Schema object.
@@ -1463,7 +1472,8 @@ def create_schema(
                     f'Encountered: {metadata}.')
 
   return Schema(
-      fields=[create_field(field_or_def) for field_or_def in fields],
+      fields=[create_field(field_or_def, parent_module=parent_module)
+              for field_or_def in fields],
       name=name,
       base_schema_list=base_schema_list,
       allow_nonconst_keys=allow_nonconst_keys,

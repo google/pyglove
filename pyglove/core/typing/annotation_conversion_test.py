@@ -14,6 +14,7 @@
 """Tests for pyglove.core.typing.annotation_conversion."""
 
 import inspect
+import sys
 import typing
 import unittest
 
@@ -22,6 +23,7 @@ from pyglove.core.typing import annotation_conversion
 from pyglove.core.typing import key_specs as ks
 from pyglove.core.typing import value_specs as vs
 from pyglove.core.typing.class_schema import Field
+from pyglove.core.typing.class_schema import ForwardRef
 from pyglove.core.typing.class_schema import ValueSpec
 
 
@@ -73,6 +75,14 @@ class FieldFromAnnotationTest(unittest.TestCase):
     self.assertEqual(
         Field.from_annotation('x', str, 'A str', dict(x=1), auto_typing=True),
         Field('x', vs.Str(), 'A str', dict(x=1)))
+
+  def test_with_parent_module(self):
+    self.assertEqual(
+        Field.from_annotation(
+            'x', 'ValueSpecBase', auto_typing=True, parent_module=vs
+        ),
+        Field('x', vs.Object(vs.ValueSpecBase))
+    )
 
 
 class ValueSpecFromAnnotationTest(unittest.TestCase):
@@ -248,6 +258,11 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
     self.assertEqual(
         ValueSpec.from_annotation(
             typing.ForwardRef('Foo'), True), vs.Object(Foo))
+    self.assertEqual(
+        ValueSpec.from_annotation(
+            ForwardRef(sys.modules[__name__], 'Foo'),
+            True
+        ), vs.Object(Foo))
 
   def test_generic_class(self):
     X = typing.TypeVar('X')

@@ -19,6 +19,7 @@ import inspect
 from typing import List
 import unittest
 
+from pyglove.core import object_utils
 from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
@@ -625,6 +626,10 @@ class FromCallableTest(unittest.TestCase):
     self.assertEqual(signature.qualname, bytes.__qualname__)
     self.assertIsNotNone(signature.varargs)
     self.assertIsNotNone(signature.varkw)
+
+  def test_signature_with_forward_declarations(self):
+    signature = callable_signature.signature(object_utils.KeyPath)
+    self.assertIs(signature.get_value_spec('parent').cls, object_utils.KeyPath)
 
 
 class FromSchemaTest(unittest.TestCase):

@@ -2043,6 +2043,8 @@ class ObjectTest(ValueSpecTest):
   def test_forward_refs(self):
     self.assertEqual(vs.Object(self.A).forward_refs, set())
     self.assertEqual(vs.Object('Foo').forward_refs, set([forward_ref('Foo')]))
+    self.assertEqual(
+        vs.Object(forward_ref('Foo')).forward_refs, set([forward_ref('Foo')]))
 
   def test_default(self):
     self.assertEqual(vs.Object(self.A).default, typed_missing.MISSING_VALUE)

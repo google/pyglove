@@ -1793,7 +1793,11 @@ class Object(Generic, ValueSpecBase):
 
   def __init__(
       self,
-      t: typing.Union[typing.Type[typing.Any], str],
+      t: typing.Union[
+          typing.Type[typing.Any],
+          class_schema.ForwardRef,
+          str
+      ],
       default: typing.Any = MISSING_VALUE,
       transform: typing.Optional[
           typing.Callable[[typing.Any], typing.Any]
@@ -1817,7 +1821,9 @@ class Object(Generic, ValueSpecBase):
 
     forward_ref = None
     type_args = []
-    if isinstance(t, str):
+    if isinstance(t, class_schema.ForwardRef):
+      forward_ref = t
+    elif isinstance(t, str):
       forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), t)
     elif isinstance(t, type):
       if t is object:

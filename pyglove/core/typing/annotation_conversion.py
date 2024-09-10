@@ -40,7 +40,8 @@ def _field_from_annotation(
     annotation: typing.Any,
     description: typing.Optional[str] = None,
     metadata: typing.Optional[typing.Dict[str, typing.Any]] = None,
-    auto_typing=True,
+    auto_typing: bool = True,
+    parent_module: typing.Optional[types.ModuleType] = None
 ) -> class_schema.Field:
   """Creates a field from Python annotation."""
   if isinstance(annotation, annotated.Annotated):
@@ -55,7 +56,9 @@ def _field_from_annotation(
   return class_schema.create_field(
       field_spec,
       auto_typing=auto_typing,
-      accept_value_as_annotation=False)
+      accept_value_as_annotation=False,
+      parent_module=parent_module
+  )
 
 
 def _value_spec_from_default_value(
@@ -84,7 +87,9 @@ def _value_spec_from_default_value(
 
 def _value_spec_from_type_annotation(
     annotation: typing.Any,
-    accept_value_as_annotation: bool) -> class_schema.ValueSpec:
+    accept_value_as_annotation: bool,
+    parent_module: typing.Optional[types.ModuleType] = None
+) -> class_schema.ValueSpec:
   """Creates a value spec from type annotation."""
   if annotation is bool:
     return vs.Bool()
@@ -100,11 +105,15 @@ def _value_spec_from_type_annotation(
   origin = typing.get_origin(annotation) or annotation
   args = list(typing.get_args(annotation))
 
+  def _sub_value_spec_from_annotation(
+      annotation: typing.Any) -> class_schema.ValueSpec:
+    return _value_spec_from_type_annotation(
+        annotation, accept_value_as_annotation, parent_module)
+
   # Handling list.
   if origin in (list, typing.List):
     return vs.List(
-        _value_spec_from_annotation(
-            args[0], True)) if args else vs.List(vs.Any())
+        _sub_value_spec_from_annotation(args[0])) if args else vs.List(vs.Any())
   # Handling tuple.
   elif origin in (tuple, typing.Tuple):
     if not args:
@@ -115,12 +124,11 @@ def _value_spec_from_type_annotation(
           raise TypeError(
               f'Tuple with ellipsis should have exact 2 type arguments. '
               f'Encountered: {annotation}.')
-        return vs.Tuple(_value_spec_from_type_annotation(args[0], False))
-      return vs.Tuple([_value_spec_from_type_annotation(arg, False)
-                       for arg in args])
+        return vs.Tuple(_sub_value_spec_from_annotation(args[0]))
+      return vs.Tuple([_sub_value_spec_from_annotation(arg) for arg in args])
   # Handling sequence.
   elif origin in (collections.abc.Sequence,):
-    elem = _value_spec_from_annotation(args[0], True) if args else vs.Any()
+    elem = _sub_value_spec_from_annotation(args[0]) if args else vs.Any()
     return vs.Union([vs.List(elem), vs.Tuple(elem)])
   # Handling literals.
   elif origin is typing.Literal:
@@ -133,8 +141,7 @@ def _value_spec_from_type_annotation(
     if args[0] not in (str, typing.Text):
       raise TypeError(
           'Dict type field with non-string key is not supported.')
-    elem_value_spec = _value_spec_from_type_annotation(
-        args[1], accept_value_as_annotation=False)
+    elem_value_spec = _sub_value_spec_from_annotation(args[1])
     return vs.Dict([(ks.StrKey(), elem_value_spec)])
   elif origin is collections.abc.Callable:
     arg_specs = []
@@ -149,13 +156,8 @@ def _value_spec_from_type_annotation(
       #   Callable[int, Any] => Callable[[int], Any]
       #   Callable[(int, int), Any] => Callable[[int, int], Any]
       if isinstance(args[0], list):
-        arg_specs = [
-            _value_spec_from_type_annotation(
-                arg, accept_value_as_annotation=False)
-            for arg in args[0]
-        ]
-      return_spec = _value_spec_from_type_annotation(
-          args[1], accept_value_as_annotation=False)
+        arg_specs = [_sub_value_spec_from_annotation(arg) for arg in args[0]]
+      return_spec = _sub_value_spec_from_annotation(args[1])
     return vs.Callable(arg_specs, returns=return_spec)
   # Handling type
   elif origin is type or (annotation in (typing.Type, type)):
@@ -169,20 +171,27 @@ def _value_spec_from_type_annotation(
     if optional:
       args.remove(_NoneType)
     if len(args) == 1:
-      spec = _value_spec_from_annotation(args[0], True)
+      spec = _sub_value_spec_from_annotation(args[0])
     else:
-      spec = vs.Union([_value_spec_from_annotation(x, True) for x in args])
+      spec = vs.Union([_sub_value_spec_from_annotation(x) for x in args])
     if optional:
       spec = spec.noneable()
     return spec
   elif isinstance(annotation, typing.ForwardRef):
-    return vs.Object(annotation.__forward_arg__)
+    annotation = annotation.__forward_arg__
+    if parent_module is not None:
+      annotation = class_schema.ForwardRef(parent_module, annotation)
+    return vs.Object(annotation)
+  elif isinstance(annotation, class_schema.ForwardRef):
+    return vs.Object(annotation)
   # Handling class.
   elif (
       inspect.isclass(annotation)
       or pg_inspect.is_generic(annotation)
       or (isinstance(annotation, str) and not accept_value_as_annotation)
   ):
+    if isinstance(annotation, str) and parent_module is not None:
+      annotation = class_schema.ForwardRef(parent_module, annotation)
     return vs.Object(annotation)
 
   if accept_value_as_annotation:
@@ -204,8 +213,9 @@ def _any_spec_with_annotation(annotation: typing.Any) -> vs.Any:
 
 def _value_spec_from_annotation(
     annotation: typing.Any,
-    auto_typing=False,
-    accept_value_as_annotation=False
+    auto_typing: bool = False,
+    accept_value_as_annotation: bool = False,
+    parent_module: typing.Optional[types.ModuleType] = None
     ) -> class_schema.ValueSpec:
   """Creates a value spec from annotation."""
   if isinstance(annotation, class_schema.ValueSpec):
@@ -220,7 +230,8 @@ def _value_spec_from_annotation(
 
   if auto_typing:
     return _value_spec_from_type_annotation(
-        annotation, accept_value_as_annotation)
+        annotation, accept_value_as_annotation, parent_module
+    )
   else:
     value_spec = None
     if accept_value_as_annotation:

@@ -16,6 +16,8 @@
 import dataclasses
 import enum
 import inspect
+import sys
+import types
 import typing
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -77,13 +79,14 @@ class Argument:
       name: str,
       kind: Kind,
       annotation: Any = inspect.Parameter.empty,
-      auto_typing: bool = False) -> 'Argument':
+      auto_typing: bool = False,
+      parent_module: Optional[types.ModuleType] = None) -> 'Argument':
     """Creates an argument from annotation."""
     return cls(
         name,
         kind,
         class_schema.ValueSpec.from_annotation(
-            annotation, auto_typing=auto_typing
+            annotation, auto_typing=auto_typing, parent_module=parent_module
         )
     )
 
@@ -93,10 +96,12 @@ class Argument:
       param: inspect.Parameter,
       description: Optional[str] = None,
       auto_typing: bool = True,
+      parent_module: Optional[types.ModuleType] = None,
   ) -> 'Argument':
     """Creates an argument from inspect.Parameter."""
     value_spec = class_schema.ValueSpec.from_annotation(
-        param.annotation, auto_typing=auto_typing)
+        param.annotation, auto_typing=auto_typing, parent_module=parent_module
+    )
     if param.default != inspect.Parameter.empty:
       value_spec.set_default(param.default)
 
@@ -593,14 +598,16 @@ class Signature(object_utils.Formattable):
         docstr = object_utils.docstr(func)
       sig = inspect.signature(func)
 
+    module_name = getattr(func, '__module__', None)
     return cls.from_signature(
         sig=sig,
         name=func.__name__,
         qualname=func.__qualname__,
         callable_type=callable_type,
-        module_name=getattr(func, '__module__', 'wrapper'),
+        module_name=module_name or 'wrapper',
         auto_typing=auto_typing,
         docstr=docstr,
+        parent_module=sys.modules[module_name] if module_name else None
     )
 
   @classmethod
@@ -613,6 +620,7 @@ class Signature(object_utils.Formattable):
       qualname: Optional[str] = None,
       auto_typing: bool = False,
       docstr: Union[str, object_utils.DocStr, None] = None,
+      parent_module: Optional[types.ModuleType] = None,
   ) -> 'Signature':
     """Returns PyGlove signature from Python signature.
 
@@ -626,6 +634,9 @@ class Signature(object_utils.Formattable):
         to PyGlove ValueSpec objects. Otherwise use pg.typing.Any()
         with annotations.
       docstr: (Optional) DocStr for this entity.
+      parent_module: (Optional) Parent module from where the signature is
+        derived. This is useful to infer classes with forward declarations.
+
     Returns:
       A PyGlove Signature object.
     """
@@ -643,7 +654,8 @@ class Signature(object_utils.Formattable):
       return Argument.from_parameter(
           param,
           description=docstr_arg.description if docstr_arg else None,
-          auto_typing=auto_typing
+          auto_typing=auto_typing,
+          parent_module=parent_module,
       )
 
     for param in sig.parameters.values():
@@ -662,7 +674,10 @@ class Signature(object_utils.Formattable):
     return_value = None
     if sig.return_annotation is not inspect.Parameter.empty:
       return_value = class_schema.ValueSpec.from_annotation(
-          sig.return_annotation, auto_typing=auto_typing)
+          sig.return_annotation,
+          auto_typing=auto_typing,
+          parent_module=parent_module
+      )
 
     return cls(
         callable_type=callable_type,
