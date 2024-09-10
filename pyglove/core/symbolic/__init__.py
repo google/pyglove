@@ -95,6 +95,7 @@ from pyglove.core.symbolic.inferred import ValueFromParentChain
 # Reference type.
 from pyglove.core.symbolic.ref import Ref
 from pyglove.core.symbolic.ref import maybe_ref
+from pyglove.core.symbolic.ref import deref
 
 # Symbolic operations.
 from pyglove.core.symbolic.base import traverse

@@ -172,3 +172,28 @@ def maybe_ref(value: Any) -> Optional[Ref]:
     if value.sym_parent is None:
       return value
   return Ref(value)
+
+
+def deref(value: base.Symbolic, recursive: bool = False) -> Any:
+  """Dereferences a symbolic value that may contain pg.Ref.
+
+  Args:
+    value: The input symbolic value.
+    recursive: If True, dereference `pg.Ref` in the entire tree. Otherwise
+      Only dereference the root node.
+
+  Returns:
+    The dereferenced root, or dereferenced tree if recursive is True.
+  """
+  if isinstance(value, Ref):
+    value = value.value
+
+  if recursive:
+    def _deref(k, v, p):
+      del k, p
+      if isinstance(v, Ref):
+        return deref(v.value, recursive=True)
+      return v
+    return value.rebind(_deref, raise_on_no_change=False)
+  return value
+

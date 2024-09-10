@@ -21,6 +21,7 @@ import unittest
 
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import ref
+from pyglove.core.symbolic.base import contains
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.object import Object
 
@@ -125,6 +126,34 @@ class RefTest(unittest.TestCase):
     x = ref.maybe_ref(b.x)
     self.assertIsInstance(x, ref.Ref)
     self.assertIs(x.value, a)
+
+  def test_deref(self):
+    class Foo(Object):
+      x: int
+      y: Any
+
+    # Deref on non-ref value.
+    a = Foo(1, 2)
+    self.assertIs(ref.deref(a), a)
+    self.assertEqual(ref.deref(a), Foo(1, 2))
+
+    # Deref top-level Ref.
+    a = ref.Ref(Foo(1, 2))
+    self.assertIs(ref.deref(a), a.value)
+
+    a = ref.Ref(Foo(1, ref.Ref(Foo(2, ref.Ref(Foo(3, 4))))))
+    self.assertTrue(contains(a, type=ref.Ref))
+    a_prime = ref.deref(a)
+    self.assertIs(a_prime, a.value)
+    self.assertIsInstance(a_prime.sym_getattr('y'), ref.Ref)
+    self.assertIsInstance(a_prime.y.sym_getattr('y'), ref.Ref)
+
+    # Deref entire tree.
+    a = ref.Ref(Foo(1, ref.Ref(Foo(2, ref.Ref(Foo(3, 4))))))
+    self.assertTrue(contains(a, type=ref.Ref))
+    a_prime = ref.deref(a, recursive=True)
+    self.assertIs(a_prime, a.value)
+    self.assertFalse(contains(a_prime, type=ref.Ref))
 
 
 if __name__ == '__main__':
