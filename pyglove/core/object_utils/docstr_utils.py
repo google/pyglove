@@ -75,6 +75,18 @@ class DocStr:
   raises: List[DocStrRaises]
   blank_after_short_description: bool = True
 
+  @property
+  def description(self) -> Optional[str]:
+    """Returns short_description + long_description."""
+    if self.short_description is None and self.long_description is None:
+      return None
+    description = self.short_description or ''
+    if self.blank_after_short_description:
+      description += '\n'
+    if self.long_description:
+      description += '\n' + self.long_description
+    return description.rstrip('\n')
+
   def parameter(self, param: inspect.Parameter) -> Optional[DocStrArgument]:
     """Returns doc str for an inspected parameter."""
     if param.kind == inspect.Parameter.VAR_POSITIONAL:

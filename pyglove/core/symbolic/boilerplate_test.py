@@ -70,7 +70,7 @@ class BoilerplateClassTest(unittest.TestCase):
       pg_boilerplate_class('A', template_object, init_arg_list=['x', 'y'])
 
   def test_init_arg_list(self):
-    self.assertEqual(B.init_arg_list, ['a', 'b', 'c'])
+    self.assertEqual(B.init_arg_list, ['a'])
     self.assertEqual(C.init_arg_list, ['a', 'c', 'b'])
 
   def test_schema(self):

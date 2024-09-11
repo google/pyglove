@@ -32,7 +32,6 @@ from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import dict as pg_dict  # pylint: disable=unused-import
 from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
 from pyglove.core.symbolic import object as pg_object
-from pyglove.core.symbolic import schema_utils
 
 
 class ClassWrapperMeta(pg_object.ObjectMeta):
@@ -131,7 +130,7 @@ class _SubclassedWrapperBase(ClassWrapper):
       # In both cases, we need to generate an __init__ wrapper for
       # calling the symbolic initialization.
       setattr(cls, '__orig_init__', cls.__init__)
-      description, init_arg_list, arg_fields = _extract_init_signature(
+      init_arg_list, arg_fields = _extract_init_signature(
           cls, auto_doc=cls.auto_doc, auto_typing=cls.auto_typing)
 
       @object_utils.explicit_method_override
@@ -152,9 +151,7 @@ class _SubclassedWrapperBase(ClassWrapper):
 
       # We do not extend existing schema which is inherited from the base
       # class.
-      schema_utils.update_schema(
-          cls, arg_fields, init_arg_list=init_arg_list,
-          extend=False, description=description)
+      cls.update_schema(arg_fields, init_arg_list=init_arg_list, extend=False)
     else:
       assert hasattr(cls, '__orig_init__')
 
@@ -430,16 +427,10 @@ def wrap(
   if issubclass(cls, ClassWrapper):
     # Update init argument specifications according to user specified specs.
     # Replace schema instead of extending it.
-    description, init_arg_list, arg_fields = _extract_init_signature(
+    init_arg_list, arg_fields = _extract_init_signature(
         cls, init_args, auto_doc=auto_doc, auto_typing=auto_typing)
-    schema_utils.update_schema(
-        cls,
-        arg_fields,
-        init_arg_list=init_arg_list,
-        extend=False,
-        description=description,
-        serialization_key=serialization_key,
-        additional_keys=additional_keys)
+    cls.update_schema(arg_fields, init_arg_list=init_arg_list, extend=False)
+    cls.register_for_deserialization(serialization_key, additional_keys)
 
   if override:
     for k, v in override.items():
@@ -549,18 +540,15 @@ def _extract_init_signature(
     arg_specs=None,
     auto_doc: bool = False,
     auto_typing: bool = False
-) -> Tuple[Optional[str], List[str], List[pg_typing.Field]]:
+) -> Tuple[List[str], List[pg_typing.Field]]:
   """Extract argument fields from class __init__ method."""
   init_method = getattr(cls, '__orig_init__', cls.__init__)
-  description = None
   docstr = None
   if auto_doc:
     # Read args docstr from both class doc string and __init__ doc string.
     args_docstr = dict()
     if cls.__doc__:
       cls_docstr = object_utils.DocStr.parse(cls.__doc__)
-      description = schema_utils.schema_description_from_docstr(
-          cls_docstr, include_long_description=True)
       args_docstr = cls_docstr.args
     if init_method.__doc__:
       init_docstr = object_utils.DocStr.parse(init_method.__doc__)
@@ -600,4 +588,4 @@ def _extract_init_signature(
     init_arg_list = [arg.name for arg in signature.args[1:]]
     if signature.varargs is not None:
       init_arg_list.append(f'*{signature.varargs.name}')
-  return (description, init_arg_list, arg_fields)
+  return (init_arg_list, arg_fields)

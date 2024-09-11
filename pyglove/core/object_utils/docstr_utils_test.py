@@ -59,6 +59,14 @@ class DocStrTest(unittest.TestCase):
       return x + y
 
     docstr = docstr_utils.docstr(my_sum)
+    self.assertEqual(
+        docstr.description,
+        inspect.cleandoc('''
+        Returns the sum of two integers.
+
+        This function will return the sum of two integers.
+        ''')
+    )
     self.assertEqual(docstr, docstr_utils.DocStr(
         style=docstr_utils.DocStrStyle.GOOGLE,
         short_description='Returns the sum of two integers.',
@@ -106,6 +114,25 @@ class DocStrTest(unittest.TestCase):
 
     self.assertIsNone(docstr_utils.docstr(Foo))
     self.assertIsNone(docstr_utils.docstr(None))
+
+    class Bar:
+      """bar."""
+
+    self.assertEqual(docstr_utils.docstr(Bar).description, 'bar.')
+
+    # pylint: disable=g-classes-have-attributes
+    # pylint: disable=g-short-docstring-punctuation
+    # pylint: disable=g-space-before-docstring-summary
+    # pylint: disable=g-no-space-after-docstring-summary
+    class Baz:
+      """
+      Args:
+        x: int
+      """
+    # pylint: enable=g-space-before-docstring-summary
+    # pylint: enable=g-short-docstring-punctuation
+    # pylint: enable=g-classes-have-attributes
+    self.assertIsNone(docstr_utils.docstr(Baz).description)
 
 
 if __name__ == '__main__':

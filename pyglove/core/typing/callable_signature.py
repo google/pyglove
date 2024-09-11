@@ -297,7 +297,7 @@ class Signature(object_utils.Formattable):
     if not args:
       return self
 
-    schema = class_schema.create_schema(args, allow_nonconst_keys=True)
+    schema = class_schema.create_schema(args, allow_nonconst_keys=True)  # pylint: disable=redefined-outer-name
 
     arg_fields: Dict[str, class_schema.Field] = dict()
     varargs_field = None
@@ -450,7 +450,7 @@ class Signature(object_utils.Formattable):
   @classmethod
   def from_schema(
       cls,
-      schema: class_schema.Schema,
+      schema: class_schema.Schema,    # pylint: disable=redefined-outer-name
       module_name: str,
       name: str,
       qualname: Optional[str] = None,
@@ -777,3 +777,46 @@ def signature(
 ) -> Signature:  # pylint:disable=g-bare-generic
   """Gets signature from a python callable."""
   return Signature.from_callable(func, auto_typing, auto_doc)
+
+
+def schema(
+    cls_or_fn: Callable[..., Any],
+    args: Union[
+        List[Union[class_schema.Field, class_schema.FieldDef]],
+        Dict[class_schema.FieldKeyDef, class_schema.FieldValueDef],
+        None
+    ] = None,
+    returns: Optional[class_schema.ValueSpec] = None,
+    *,
+    auto_typing: bool = True,
+    auto_doc: bool = True,
+    remove_self: bool = True,
+    include_return: bool = False,
+) -> class_schema.Schema:
+  """Returns the schema from the signature of a class or a function.
+
+  Args:
+    cls_or_fn: A class or a function.
+    args: (Optional) additional annotations for arguments.
+    returns: (Optional) additional annotation for return value.
+    auto_typing: If True, enable type inference from annotations.
+    auto_doc: If True, extract schema/field description form docstrs.
+    remove_self: If True, remove the first `self` argument if it appears in the
+      signature.
+    include_return: If True, include the return value spec in the schema with
+      key 'return_value'.
+
+  Returns:
+    A pg.typing.Schema object.
+  """
+  s = getattr(cls_or_fn, '__schema__', None)
+  if isinstance(s, class_schema.Schema):
+    return s
+  return signature(
+      cls_or_fn, auto_typing=auto_typing, auto_doc=auto_doc
+  ).annotate(
+      args, return_value=returns
+  ).to_schema(
+      remove_self=remove_self,
+      include_return=include_return,
+  )

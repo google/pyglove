@@ -1851,8 +1851,17 @@ def clone(
   """
   if isinstance(x, Symbolic):
     return x.sym_clone(deep, memo, override)
+  elif isinstance(x, list):
+    assert not override, override
+    return [clone(v, deep, memo) for v in x]
+  elif isinstance(x, tuple):
+    assert not override, override
+    return tuple([clone(v, deep, memo) for v in x])
+  elif isinstance(x, dict):
+    assert not override, override
+    return {k: clone(v, deep, memo) for k, v in x.items()}
   else:
-    assert not override
+    assert not override, override
     return copy.deepcopy(x, memo) if deep else copy.copy(x)
 
 

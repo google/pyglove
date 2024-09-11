@@ -27,7 +27,6 @@ from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
-from pyglove.core.symbolic import schema_utils
 
 
 class Functor(pg_object.Object, object_utils.Functor):
@@ -686,7 +685,7 @@ def functor_class(
 
   # Apply function schema.
   cls.apply_schema(
-      schema_utils.schema(
+      pg_typing.schema(
           func, args, returns, auto_doc=auto_doc, auto_typing=auto_typing
       )
   )

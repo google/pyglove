@@ -25,7 +25,6 @@ from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import dict as pg_dict
 from pyglove.core.symbolic import flags
-from pyglove.core.symbolic import schema_utils
 
 
 class ObjectMeta(abc.ABCMeta):
@@ -70,23 +69,50 @@ class ObjectMeta(abc.ABCMeta):
     """Gets __init__ positional argument list."""
     return typing.cast(List[str], cls.__schema__.metadata['init_arg_list'])
 
-  def apply_schema(cls, schema: pg_typing.Schema) -> None:
+  def apply_schema(cls, schema: Optional[pg_typing.Schema] = None) -> None:
     """Applies a schema to a symbolic class.
 
     Args:
       schema: The schema that will be applied to class. If `cls` was attached
-        with an existing schema. The old schema will be dropped.
+        with an existing schema. The old schema will be dropped. If None, the
+        cls will update its signature and getters according to the (maybe
+        updated) old schema.
     """
-    setattr(cls, '__schema__', schema)
-    setattr(cls, '__sym_fields', pg_typing.Dict(schema))
+    # Formalize schema first.
+    if schema is not None:
+      schema = cls._normalize_schema(schema)
+      setattr(cls, '__schema__', schema)
+      setattr(cls, '__sym_fields', pg_typing.Dict(schema))
 
-    # Update `init_arg_list`` based on the updated schema.
-    init_arg_list = schema.metadata.get('init_arg_list', None)
-    if init_arg_list is None:
-      init_arg_list = schema_utils.auto_init_arg_list(cls)
-      cls.__schema__.metadata['init_arg_list'] = init_arg_list
-    schema_utils.validate_init_arg_list(init_arg_list, cls.__schema__)
     cls._on_schema_update()  # pytype: disable=attribute-error
+
+  def update_schema(
+      cls,
+      fields: List[
+          Union[
+              pg_typing.Field,
+              List[pg_typing.FieldDef],
+              Dict[pg_typing.FieldKeyDef, pg_typing.FieldValueDef],
+          ]
+      ],
+      extend: bool = True,
+      *,
+      init_arg_list: Optional[Sequence[str]] = None,
+      metadata: Optional[Dict[str, Any]] = None,
+  ) -> None:
+    """Updates the schema of the class."""
+    metadata = metadata or {}
+    if init_arg_list is None:
+      init_arg_list = metadata.pop('init_arg_list', None)
+
+    metadata['init_arg_list'] = init_arg_list
+    schema = pg_typing.create_schema(
+        fields=fields,
+        base_schema_list=[cls.__schema__] if extend else [],
+        allow_nonconst_keys=True,
+        metadata=metadata,
+    )
+    cls.apply_schema(schema)
 
   def register_for_deserialization(
       cls,
@@ -316,15 +342,13 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
           base_schema_list.append(base_schema)
 
       new_fields = user_cls._infer_fields_from_annotations()
-      cls_schema = schema_utils.formalize_schema(
-          pg_typing.create_schema(
-              new_fields,
-              name=user_cls.__type_name__,
-              base_schema_list=base_schema_list,
-              allow_nonconst_keys=True,
-              metadata={},
-          )
+      cls_schema = pg_typing.create_schema(
+          new_fields,
+          base_schema_list=base_schema_list,
+          allow_nonconst_keys=True,
+          metadata={},
       )
+
       # Freeze callable symbolic attributes if they are provided as methods.
       user_cls._update_default_values_from_class_attributes(cls_schema)
 
@@ -339,8 +363,97 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       user_cls.apply_schema(cls_schema)
 
   @classmethod
+  def _normalize_schema(cls, schema: pg_typing.Schema) -> pg_typing.Schema:
+    """Normalizes the schema before applying it."""
+
+    schema.set_name(cls.__type_name__)
+    docstr = object_utils.docstr(cls)
+    if docstr:
+      schema.set_description(docstr.description)
+
+    def _formalize_field(path: object_utils.KeyPath, node: Any) -> bool:
+      """Formalize field."""
+      if isinstance(node, pg_typing.Field):
+        field = node
+        if (not flags.is_empty_field_description_allowed()
+            and not field.description):
+          raise ValueError(
+              f'Field description must not be empty (path={path}).')
+
+        field.value.set_default(
+            field.apply(
+                field.default_value,
+                allow_partial=True,
+                transform_fn=base.symbolic_transform_fn(allow_partial=True)),
+            use_default_apply=False)
+        if isinstance(field.value, pg_typing.Dict):
+          if field.value.schema is not None:
+            field.value.schema.set_name(f'{schema.name}.{path.path}')
+            object_utils.traverse(field.value.schema.fields, _formalize_field,
+                                  None, path)
+        elif isinstance(field.value, pg_typing.List):
+          _formalize_field(object_utils.KeyPath(0, path), field.value.element)
+        elif isinstance(field.value, pg_typing.Tuple):
+          for i, elem in enumerate(field.value.elements):
+            _formalize_field(object_utils.KeyPath(i, path), elem)
+        elif isinstance(field.value, pg_typing.Union):
+          for i, c in enumerate(field.value.candidates):
+            _formalize_field(
+                object_utils.KeyPath(i, path),
+                pg_typing.Field(field.key, c, 'Union sub-type.'))
+      return True
+
+    object_utils.traverse(schema.fields, _formalize_field)
+    return schema
+
+  @classmethod
+  def _finalize_init_arg_list(cls) -> List[str]:
+    """Finalizes init_arg_list based on schema."""
+     # Update `init_arg_list`` based on the updated schema.
+    init_arg_list = cls.__schema__.metadata.get('init_arg_list', None)
+    if init_arg_list is None:
+      # Inherit from the first non-empty base if they have the same signature.
+      # This allows to bypass interface-only bases.
+      for base_cls in cls.__bases__:
+        schema = getattr(base_cls, '__schema__', None)  # pylint: disable=redefined-outer-name
+        if isinstance(schema, pg_typing.Schema):
+          if ([(k, f.frozen) for k, f in schema.fields.items()]
+              == [(k, f.frozen) for k, f in cls.__schema__.fields.items()]):
+            init_arg_list = base_cls.init_arg_list
+          else:
+            break
+      if init_arg_list is None:
+        # Automatically generate from the field definitions in their
+        # declaration order from base classes to subclasses.
+        init_arg_list = [
+            str(key)
+            for key, field in cls.__schema__.fields.items()
+            if isinstance(key, pg_typing.ConstStrKey) and not field.frozen
+        ]
+      cls.__schema__.metadata['init_arg_list'] = init_arg_list
+    else:
+      for i, arg in enumerate(init_arg_list):
+        is_vararg = False
+        if i == len(init_arg_list) - 1 and arg.startswith('*'):
+          arg = arg[1:]
+          is_vararg = True
+        field = cls.__schema__.get_field(arg)
+        if field is None:
+          raise TypeError(
+              f'Argument {arg!r} from `init_arg_list` is not defined as a '
+              f'symbolic field. init_arg_list={init_arg_list!r}.')
+        if is_vararg and not isinstance(field.value, pg_typing.List):
+          raise TypeError(
+              f'Variable positional argument {arg!r} should be declared with '
+              f'`pg.typing.List(...)`. Encountered {field.value!r}.')
+    return init_arg_list
+
+  @classmethod
   def _on_schema_update(cls):
     """Customizable trait: handling schema change."""
+    # Finalize init_arg_list baesd on schema.
+    cls._finalize_init_arg_list()
+
     # Update all schema-based signatures.
     cls._update_signatures_based_on_schema()
 
@@ -890,7 +1003,9 @@ def members(
     ],
     metadata: Optional[Dict[str, Any]] = None,
     init_arg_list: Optional[Sequence[str]] = None,
-    **kwargs
+    serialization_key: Optional[str] = None,
+    additional_keys: Optional[List[str]] = None,
+    add_to_registry: bool = True,
 ) -> pg_typing.Decorator:
   """Function/Decorator for declaring symbolic fields for ``pg.Object``.
 
@@ -950,16 +1065,17 @@ def members(
       provided, the `init_arg_list` will be automatically generated from
       symbolic attributes defined from ``pg.members`` in their declaration
       order, from the base classes to the subclass.
-    **kwargs: Keyword arguments for infrequently used options. Acceptable
-      keywords are:  * `serialization_key`: An optional string to be used as the
+    serialization_key: An optional string to be used as the
       serialization key for the class during `sym_jsonify`. If None,
       `cls.__type_name__` will be used. This is introduced for scenarios when we
       want to relocate a class, before the downstream can recognize the new
-      location, we need the class to serialize it using previous key. *
-      `additional_keys`: An optional list of strings as additional keys to
+      location, we need the class to serialize it using previous key.
+    additional_keys: An optional list of strings as additional keys to
       deserialize an object of the registered class. This can be useful when we
       need to relocate or rename the registered class while being able to load
       existing serialized JSON values.
+    add_to_registry: If True, register serialization keys and additional keys
+      with the class.
 
   Returns:
     a decorator function that register the class or function with schema
@@ -971,22 +1087,16 @@ def members(
     KeyError: If type has already been registered in the registry.
     ValueError: schema cannot be created from fields.
   """
-  serialization_key = kwargs.pop('serialization_key', None)
-  additional_keys = kwargs.pop('additional_keys', None)
-  if kwargs:
-    raise TypeError(f'Unsupported keyword arguments: {list(kwargs.keys())!r}.')
-
   def _decorator(cls):
     """Decorator function that registers schema with an Object class."""
-    schema_utils.update_schema(
-        cls,
+    cls.update_schema(
         fields,
         extend=True,
         init_arg_list=init_arg_list,
         metadata=metadata,
-        serialization_key=serialization_key,
-        additional_keys=additional_keys,
     )
+    if add_to_registry:
+      cls.register_for_deserialization(serialization_key, additional_keys)
     return cls
   return typing.cast(pg_typing.Decorator, _decorator)
 
@@ -1018,8 +1128,6 @@ def use_init_args(init_arg_list: Sequence[str]) -> pg_typing.Decorator:
     a decorator function that updates the `__init__` signature.
   """
   def _decorator(cls):
-    schema_utils.update_schema(
-        cls, [], extend=True, init_arg_list=init_arg_list
-    )
+    cls.update_schema([], extend=True, init_arg_list=init_arg_list)
     return cls
   return typing.cast(pg_typing.Decorator, _decorator)

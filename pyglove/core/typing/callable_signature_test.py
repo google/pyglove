@@ -741,5 +741,93 @@ class FromSchemaTest(unittest.TestCase):
       Signature.from_callable(Foo())
 
 
+class GetSchemaTest(unittest.TestCase):
+  """Tests for `schema`."""
+
+  def test_function_schema(self):
+    def foo(x: int, *args, y: str, **kwargs) -> float:
+      """A function.
+
+      Args:
+        x: Input 1.
+        *args: Variable positional args.
+        y: Input 2.
+        **kwargs: Variable keyword args.
+
+      Returns:
+        The result.
+      """
+      del x, y, args, kwargs
+
+    schema = callable_signature.schema(foo, auto_typing=True, auto_doc=True)
+    self.assertEqual(schema.name, f'{foo.__module__}.{foo.__qualname__}')
+    self.assertEqual(schema.description, 'A function.')
+    self.assertEqual(
+        list(schema.fields.values()),
+        [
+            class_schema.Field('x', vs.Int(), description='Input 1.'),
+            class_schema.Field(
+                'args',
+                vs.List(vs.Any(), default=[]),
+                description='Variable positional args.',
+            ),
+            class_schema.Field('y', vs.Str(), description='Input 2.'),
+            class_schema.Field(
+                ks.StrKey(),
+                vs.Any(),
+                description='Variable keyword args.',
+            ),
+        ],
+    )
+
+  def test_schema_on_symbolic_classes(self):
+
+    class A:
+      pass
+
+    setattr(A, '__schema__', class_schema.create_schema([]))
+    self.assertIs(callable_signature.schema(A), A.__schema__)
+
+  def test_class_init_schema(self):
+    class A:
+
+      def __init__(self, x: int, *args, y: str, **kwargs) -> float:
+        """Constructor.
+
+        Args:
+          x: Input 1.
+          *args: Variable positional args.
+          y: Input 2.
+          **kwargs: Variable keyword args.
+
+        Returns:
+          The result.
+        """
+        del x, y, args, kwargs
+
+    schema = callable_signature.schema(
+        A.__init__, auto_typing=True, auto_doc=True, remove_self=True
+    )
+    self.assertEqual(schema.name, f'{A.__module__}.{A.__init__.__qualname__}')
+    self.assertEqual(schema.description, 'Constructor.')
+    self.assertEqual(
+        list(schema.fields.values()),
+        [
+            class_schema.Field('x', vs.Int(), description='Input 1.'),
+            class_schema.Field(
+                'args',
+                vs.List(vs.Any(), default=[]),
+                description='Variable positional args.',
+            ),
+            class_schema.Field('y', vs.Str(), description='Input 2.'),
+            class_schema.Field(
+                ks.StrKey(),
+                vs.Any(),
+                description='Variable keyword args.',
+            ),
+        ],
+    )
+
+
 if __name__ == '__main__':
   unittest.main()

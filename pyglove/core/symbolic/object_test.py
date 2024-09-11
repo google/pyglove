@@ -323,6 +323,73 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(e.x, 1)
     self.assertEqual(e.y, 3)
 
+  def test_init_arg_list(self):
+
+    def _update_init_arg_list(cls, init_arg_list):
+      cls.__schema__.metadata['init_arg_list'] = init_arg_list
+      cls.apply_schema()
+
+    def _assert_init_arg_list(
+        cls,
+        updated_init_arg_list: typing.Optional[typing.List[str]],
+        arg_names: typing.List[str],
+        kwonly_names: typing.List[str],
+        vararg_name: typing.Optional[str] = None
+    ):
+      _update_init_arg_list(cls, updated_init_arg_list)
+      signature = pg_typing.signature(cls)
+      self.assertEqual(
+          [v.name for v in signature.args],
+          arg_names
+      )
+      self.assertEqual(
+          [v.name for v in signature.kwonlyargs],
+          kwonly_names
+      )
+      self.assertEqual(getattr(signature.varargs, 'name', None), vararg_name)
+
+    class A(Object):
+      x: int
+      y: str
+
+    _update_init_arg_list(A, ['x'])
+
+    class B(A):
+      pass
+
+    _update_init_arg_list(B, None)
+    self.assertEqual(B.init_arg_list, ['x'])
+
+    # Case 2: base has init_arg_list, child adds new fields.
+    class C(A):
+      z: str
+
+    _update_init_arg_list(C, None)
+    self.assertEqual(C.init_arg_list, ['x', 'y', 'z'])
+
+    # Case 3: base has no init_arg_list, child automatically figured it out.
+    class D(Object):
+      x: int
+      y: str
+
+    _update_init_arg_list(D, None)
+
+    class E(D):
+      pass
+
+    _update_init_arg_list(E, None)
+    self.assertEqual(E.init_arg_list, ['x', 'y'])
+
+    class F(Object):
+      x: int
+      y: typing.List[int]
+
+    _assert_init_arg_list(F, [], [], ['x', 'y'])
+    _assert_init_arg_list(F, ['x'], ['x'], ['y'])
+    _assert_init_arg_list(F, ['x', 'y'], ['x', 'y'], [])
+    _assert_init_arg_list(F, ['y', 'x'], ['y', 'x'], [])
+    _assert_init_arg_list(F, ['x', '*y'], ['x'], [], 'y')
+
   def test_forward_reference(self):
     self.assertIs(Foo.schema.get_field('p').value.cls, Foo)
 
@@ -485,6 +552,28 @@ class ObjectTest(unittest.TestCase):
     s = io.StringIO()
     a.inspect(where=lambda v: v == 1, file=s)
     self.assertEqual(s.getvalue(), '{\n  \'x[0].x\': 1\n}\n')
+
+  def test_clone(self):
+    class X:
+      pass
+
+    @pg_members([
+        ('x', pg_typing.Any()),
+    ])
+    class A(Object):
+      pass
+
+    a = [dict(y=A([dict(), A(X())]))]
+    a2 = base.clone(a)
+    self.assertEqual(a, a2)
+
+    # Containers and symbolic objects are deeply copied.
+    self.assertIsNot(a, a2)
+    self.assertIsNot(a[0], a2[0])
+    self.assertIsNot(a[0]['y'].x[0], a2[0]['y'].x[0])
+    self.assertIsNot(a[0]['y'].x[1], a2[0]['y'].x[1])
+    # Regualr objects are shallowly copied.
+    self.assertIs(a[0]['y'].x[1].x, a2[0]['y'].x[1].x)
 
   def test_copy(self):
 
@@ -1015,8 +1104,6 @@ class ObjectTest(unittest.TestCase):
 
     # Origin is not tracked by default.
     a = builder_of_builder(1)
-    a1 = a()       # a1 is a `builder`.
-    a2 = a()       # a2 is an `A`.
     a3 = a.clone()
     a4 = a3.clone(deep=True)
     self.assertIsNone(a4.sym_origin)
@@ -1745,14 +1832,6 @@ class MembersTest(unittest.TestCase):
     for key in additional_deserialization_keys:
       json_dict['_type'] = key
       self.assertEqual(base.from_json(json_dict), A(1))
-
-  def test_bad_cases(self):
-
-    with self.assertRaisesRegex(TypeError, 'Unsupported keyword arguments'):
-
-      @pg_members([], unsupported_arg=1)
-      class A(Object):  # pylint: disable=unused-variable
-        pass
 
 
 class InheritanceTest(unittest.TestCase):

@@ -20,7 +20,6 @@ import types
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 from pyglove.core import object_utils
-from pyglove.core.symbolic import schema_utils
 from pyglove.core.symbolic.base import Symbolic
 from pyglove.core.symbolic.object import Object
 import pyglove.core.typing as pg_typing
@@ -122,7 +121,7 @@ def compound_class(
   if not inspect.isfunction(factory_fn):
     raise TypeError('Decorator `compound` is only applicable to functions.')
 
-  schema = schema_utils.schema(
+  schema = pg_typing.schema(
       factory_fn,
       args=args,
       returns=pg_typing.Object(base_class) if base_class else None,

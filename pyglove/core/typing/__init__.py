@@ -379,6 +379,7 @@ from pyglove.core.typing.callable_signature import Argument
 from pyglove.core.typing.callable_signature import CallableType
 from pyglove.core.typing.callable_signature import Signature
 from pyglove.core.typing.callable_signature import signature
+from pyglove.core.typing.callable_signature import schema
 
 # For backward compatibility.
 get_signature = signature
