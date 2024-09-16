@@ -16,13 +16,14 @@
 import abc
 import base64
 import collections
+import contextlib
 import importlib
 import inspect
 import marshal
 import pickle
 import types
 import typing
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, ContextManager, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type, TypeVar, Union
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -57,6 +58,7 @@ class _TypeRegistry:
     # registered for a user class.
     self._type_to_cls_map = dict()
     self._prefix_mapping = dict()
+    self._ondemand_registry_stack = []
 
   def register(
       self, type_name: str, cls: Type[Any], override_existing: bool = False
@@ -89,9 +91,33 @@ class _TypeRegistry:
     """Returns whether a type name is registered."""
     return type_name in self._type_to_cls_map
 
+  @contextlib.contextmanager
+  def load_types_for_deserialization(
+      self,
+      *types_to_deserialize: Type[Any],
+  ) -> Iterator[Dict[str, Type[Any]]]:
+    """Context manager for loading unregistered types for deserialization."""
+    if self._ondemand_registry_stack:
+      stack_top = dict(self._ondemand_registry_stack[-1])
+    else:
+      stack_top = {}
+    stack_top.update({t.__name__: t for t in types_to_deserialize})
+    try:
+      self._ondemand_registry_stack.append(stack_top)
+      yield stack_top
+    finally:
+      self._ondemand_registry_stack.pop()
+
   def class_from_typename(
       self, type_name: str) -> Optional[Type[Any]]:
     """Get class from type name."""
+    if self._ondemand_registry_stack:
+      top_registry = self._ondemand_registry_stack[-1]
+      class_name = type_name.split('.')[-1]
+      print('class_name', class_name)
+      if class_name in top_registry:
+        return top_registry[class_name]
+
     cls = self._type_to_cls_map.get(type_name, None)
     if cls is None:
       # Modules could be renamed, to load legacy serialized objects, we
@@ -250,6 +276,36 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     return cls._TYPE_REGISTRY.iteritems()
 
   @classmethod
+  def load_types_for_deserialization(
+      cls,
+      *types_to_deserialize: Type[Any]
+      ) -> ContextManager[Dict[str, Type[Any]]]:
+    """Context manager for loading unregistered types for deserialization.
+
+    Example::
+
+      class A(pg.Object):
+        auto_register = False
+        x: int
+
+      class B(A):
+        y: str
+      with pg.JSONConvertile.load_types_for_deserialization(A, B):
+          pg.from_json_str(A(1).to_json_str())
+          pg.from_json_str(B(1, 'hi').to_json_str())
+
+    Args:
+      *types_to_deserialize: A list of types to be loaded for deserialization.
+
+    Returns:
+      A context manager within which the objects of the requested types
+        could be deserialized.
+    """
+    return cls._TYPE_REGISTRY.load_types_for_deserialization(
+        *types_to_deserialize
+    )
+
+  @classmethod
   def to_json_dict(
       cls,
       fields: Dict[str, Union[Tuple[Any, Any], Any]],
@@ -395,10 +451,11 @@ def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
   return v
 
 
-def from_json(json_value: JSONValueType,
-              *,
-              force_dict: bool = False,
-              **kwargs) -> Any:
+def from_json(
+    json_value: JSONValueType,
+    *,
+    force_dict: bool = False,
+    **kwargs) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
 
   Args:

@@ -96,7 +96,7 @@ class JSONConvertibleTest(unittest.TestCase):
         self.x = x
 
       def to_json(self):
-        return A.to_json_dict({
+        return self.__class__.to_json_dict({
             'x': self.x
         })
 
@@ -129,6 +129,28 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assertIn(
         (typename(B), C),
         list(json_conversion.JSONConvertible.registered_types()))
+
+    # Test load_types_for_deserialization.
+    class D(C):
+      auto_register = False
+
+    with self.assertRaisesRegex(
+        TypeError, 'Type name .* is not registered'):
+      json_conversion.from_json(D(1).to_json())
+
+    self.assertEqual(
+        json_conversion.JSONConvertible._TYPE_REGISTRY._ondemand_registry_stack,
+        []
+    )
+    with json_conversion.JSONConvertible.load_types_for_deserialization(A):
+      with json_conversion.JSONConvertible.load_types_for_deserialization(
+          D) as ondemand_registry:
+        self.assertEqual(ondemand_registry, {'A': A, 'D': D})
+        self.assertIsNotNone(json_conversion.from_json(D(1).to_json()))
+    self.assertEqual(
+        json_conversion.JSONConvertible._TYPE_REGISTRY._ondemand_registry_stack,
+        []
+    )
 
   def test_json_conversion(self):
 

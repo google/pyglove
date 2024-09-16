@@ -2064,9 +2064,9 @@ def from_json(json_value: Any,
                 f'Tuple should have at least one element '
                 f'besides \'{object_utils.JSONConvertible.TUPLE_MARKER}\'. '
                 f'Encountered: {json_value}', root_path))
+      kwargs.pop('root_path')
       return tuple([
-          from_json(v, allow_partial=allow_partial,
-                    root_path=object_utils.KeyPath(i, root_path))
+          from_json(v, root_path=object_utils.KeyPath(i, root_path), **kwargs)
           for i, v in enumerate(json_value[1:])
       ])
     return Symbolic.ListType(json_value, **kwargs)  # pytype: disable=not-callable   # pylint: disable=not-callable
