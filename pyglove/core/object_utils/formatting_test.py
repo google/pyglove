@@ -31,6 +31,34 @@ class StringHelperTest(unittest.TestCase):
     self.assertNotEqual(raw, formatting.RawText('abcd'))
     self.assertNotEqual(raw, 'abcd')
 
+  def test_special_format_support(self):
+
+    class NewLine:
+      def _repr_html_(self):
+        return '<hr>'
+
+      def __str__(self):
+        return 'NewLine()'
+
+      def __repr__(self):
+        return 'NewLine()'
+
+    v = NewLine()
+    self.assertEqual(formatting.str_ext(v), 'NewLine()')
+    self.assertEqual(
+        formatting.str_ext(v, custom_format='_repr_html_'), '<hr>'
+    )
+    self.assertEqual(
+        formatting.str_ext(v, custom_format='_repr_xml_'), 'NewLine()'
+    )
+    self.assertEqual(formatting.repr_ext(v), 'NewLine()')
+    self.assertEqual(
+        formatting.repr_ext(v, custom_format='_repr_html_'), '<hr>'
+    )
+    self.assertEqual(
+        formatting.repr_ext(v, custom_format='_repr_xml_'), 'NewLine()'
+    )
+
   def test_kvlist_str(self):
     self.assertEqual(
         formatting.kvlist_str([
@@ -97,6 +125,32 @@ class StringHelperTest(unittest.TestCase):
             ('', 'foo', 'foo')
         ], label='Foo', compact=False),
         'Foo()'
+    )
+
+    class Foo:
+      def _repr_xml_(self):
+        return '<foo/>'
+
+      def __str__(self):
+        return 'Foo()'
+
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', Foo(), None)
+        ], compact=False),
+        'Foo()'
+    )
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', Foo(), None)
+        ], compact=False, custom_format='_repr_xml_'),
+        '<foo/>'
+    )
+    self.assertEqual(
+        formatting.kvlist_str([
+            ('', (Foo(), 1), None)
+        ], compact=True, custom_format='_repr_xml_'),
+        '(<foo/>, 1)'
     )
 
   def test_quote_if_str(self):
@@ -269,6 +323,41 @@ class FormatTest(unittest.TestCase):
             'd': [1, 2, 3]
           }
         }"""))
+
+  def test_custom_format(self):
+
+    class A:
+
+      def _repr_xml_(self):
+        return '<a/>'
+
+      def __repr__(self):
+        return 'A()'
+
+      def __str__(self):
+        return 'AA()'
+
+    self.assertEqual(formatting.format(A), str(A))
+    self.assertEqual(formatting.format(A()), 'AA()')
+    self.assertEqual(formatting.format(A(), custom_format='_repr_xml_'), '<a/>')
+    self.assertEqual(formatting.format(A(), compact=True), 'A()')
+    self.assertEqual(
+        formatting.format(A(), compact=True, custom_format='_repr_xml_'), '<a/>'
+    )
+    self.assertEqual(
+        formatting.format([A()], compact=True, custom_format='_repr_xml_'),
+        '[<a/>]'
+    )
+    self.assertEqual(
+        formatting.format((A(), 1), compact=True, custom_format='_repr_xml_'),
+        '(<a/>, 1)'
+    )
+    self.assertEqual(
+        formatting.format(
+            dict(x=A()), compact=True, custom_format='_repr_xml_'
+        ),
+        '{\'x\': <a/>}'
+    )
 
   def test_markdown(self):
     self.assertEqual(

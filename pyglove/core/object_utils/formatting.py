@@ -16,7 +16,7 @@
 import enum
 import io
 import sys
-from typing import Any, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, List, Optional, Sequence, Set, Tuple
 from pyglove.core.object_utils import common_traits
 from pyglove.core.object_utils.value_location import KeyPath
 
@@ -74,6 +74,7 @@ def kvlist_str(
     label: Optional[str] = None,
     bracket_type: BracketType = BracketType.ROUND,
     markdown: bool = False,
+    custom_format: Optional[str] = None,
     **kwargs,
 ) -> str:
   """Formats a list key/value pairs into a comma delimited string.
@@ -89,6 +90,9 @@ def kvlist_str(
     bracket_type: Bracket type used for embracing the kv pairs. Applicable only
       when `name` is not None.
     markdown: If True, use markdown notion to quote the formatted object.
+    custom_format: A string as the name of custom format method. It's effective
+      only on value that has the method, for those who do not have the method,
+      they will be formatted using `format`, `str` or `repr` method.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
   Returns:
@@ -117,14 +121,15 @@ def kvlist_str(
           v, compact=compact,
           verbose=verbose,
           root_indent=child_indent,
+          custom_format=custom_format,
           **kwargs
       )
       if not compact:
         body.write(_indent('', child_indent))
       if k:
-        body.write(f'{k}={v}')
+        body.write(f'{k}={str_ext(v, custom_format)}')
       else:
-        body.write(str(v))
+        body.write(str_ext(v, custom_format))
       is_first = False
 
   if label and not is_first and not compact:
@@ -187,6 +192,8 @@ def format(   # pylint: disable=redefined-builtin
     markdown: bool = False,
     max_str_len: Optional[int] = None,
     max_bytes_len: Optional[int] = None,
+    *,
+    custom_format: Optional[str] = None,
     **kwargs,
 ) -> str:
   """Formats a (maybe) hierarchical value with flags.
@@ -210,6 +217,9 @@ def format(   # pylint: disable=redefined-builtin
       longer than this length, it will be truncated.
     max_bytes_len: The max length of the bytes to be formatted. If the bytes is
       longer than this length, it will be truncated.
+    custom_format: A string as the name of custom format method. It's effective
+      only on value that has the method, for those who do not have the method,
+      they will be formatted using `format`, `str` or `repr` method.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
 
@@ -231,6 +241,7 @@ def format(   # pylint: disable=redefined-builtin
                   strip_object_id=strip_object_id,
                   max_str_len=max_str_len,
                   max_bytes_len=max_bytes_len,
+                  custom_format=custom_format,
                   **kwargs)
 
   if isinstance(value, common_traits.Formattable):
@@ -280,16 +291,39 @@ def format(   # pylint: disable=redefined-builtin
     if isinstance(value, str):
       if max_str_len is not None and len(value) > max_str_len:
         value = value[:max_str_len] + '...'
-      s = [repr(value)]
+      s = [repr_ext(value, custom_format)]
     elif isinstance(value, bytes):
       if max_bytes_len is not None and len(value) > max_bytes_len:
         value = value[:max_bytes_len] + b'...'
-      s = [repr(value)]
+      s = [repr_ext(value, custom_format)]
     else:
-      s = [repr(value) if compact else str(value)]
+      s = [repr_ext(value, custom_format)
+           if compact else str_ext(value, custom_format)]
       if strip_object_id and 'object at 0x' in s[-1]:
         s = [f'{value.__class__.__name__}(...)']
   return maybe_markdown_quote(''.join(s), markdown)
+
+
+def _maybe_custom_format(
+    v: Any,
+    default_fn: Callable[[Any], str],
+    custom_format: Optional[str] = None) -> str:
+  if custom_format is None:
+    return default_fn(v)
+  x = getattr(v, custom_format, None)
+  if callable(x):
+    return x()
+  return default_fn(v)
+
+
+def str_ext(v: Any, custom_format: Optional[str] = None) -> str:
+  """"str operator with special format support."""
+  return _maybe_custom_format(v, str, custom_format)
+
+
+def repr_ext(v: Any, custom_format: Optional[str] = None) -> str:
+  """repr operator with special format support."""
+  return _maybe_custom_format(v, repr, custom_format)
 
 
 def maybe_markdown_quote(s: str, markdown: bool = True) -> str:
