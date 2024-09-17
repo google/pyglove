@@ -981,8 +981,12 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
              compact: bool = False,
              verbose: bool = False,
              root_indent: int = 0,
+             *,
+             custom_format: Optional[str] = None,
              **kwargs) -> str:
     """Formats this object."""
+    if custom_format and hasattr(self, custom_format):
+      return getattr(self, custom_format)()
     return self._sym_attributes.format(
         compact,
         verbose,
@@ -990,6 +994,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         cls_name=self.__class__.__name__,
         key_as_attribute=True,
         bracket_type=object_utils.BracketType.ROUND,
+        custom_format=custom_format,
         **kwargs)
 
 

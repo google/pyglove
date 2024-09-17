@@ -254,6 +254,7 @@ def format(   # pylint: disable=redefined-builtin
                         exclude_keys=exclude_keys,
                         max_str_len=max_str_len,
                         max_bytes_len=max_bytes_len,
+                        custom_format=custom_format,
                         **kwargs)
   elif isinstance(value, (list, tuple)):
     # Always try compact representation if length is not too long.

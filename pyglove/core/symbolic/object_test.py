@@ -3463,6 +3463,25 @@ class FormatTest(unittest.TestCase):
           ]
         )"""))
 
+  def test_custom_format(self):
+
+    class Foo(Object):  # pylint: disable=redefined-outer-name]
+
+      def _repr_html_(self):
+        return '<foo/>'
+
+    class Bar(Object):
+      foo: Foo
+
+      def _repr_xml_(self):
+        return f'<bar>{self.foo}</bar>'
+
+    with object_utils.str_format(custom_format='_repr_xml_'):
+      self.assertEqual(str(Bar(Foo())), '<bar>Foo()</bar>')
+
+    with object_utils.str_format(custom_format='_repr_html_'):
+      self.assertEqual(str(Bar(Foo())), 'Bar(\n  foo = <foo/>\n)')
+
 
 class Foo(Object):
   x: typing.List[typing.Dict[str, int]] = [dict(x=1)]
