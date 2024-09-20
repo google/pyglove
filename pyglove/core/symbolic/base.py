@@ -2010,7 +2010,8 @@ def from_json(json_value: Any,
               *,
               allow_partial: bool = False,
               root_path: Optional[object_utils.KeyPath] = None,
-              force_dict: bool = False,
+              auto_import: bool = True,
+              auto_dict: bool = False,
               **kwargs) -> Any:
   """Deserializes a (maybe) symbolic value from JSON value.
 
@@ -2031,8 +2032,12 @@ def from_json(json_value: Any,
     json_value: Input JSON value.
     allow_partial: Whether to allow elements of the list to be partial.
     root_path: KeyPath of loaded object in its object tree.
-    force_dict: If True, "_type" keys will be stripped before loading. As a
-      result, JSONConvertible objects will be returned as dict.
+    auto_import: If True, when a '_type' is not registered, PyGlove will
+      identify its parent module and automatically import it. For example,
+      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
+      find the class 'A' within the imported module.
+    auto_dict: If True, dict with '_type' that cannot be loaded will remain
+      as dict, with '_type' renamed to 'type_name'.
     **kwargs: Allow passing through keyword arguments to from_json of specific
       types.
 
@@ -2047,9 +2052,11 @@ def from_json(json_value: Any,
   if isinstance(json_value, Symbolic):
     return json_value
 
-  if force_dict:
-    json_value = object_utils.json_conversion.replace_type_with_type_names(
-        json_value)
+  typename_resolved = kwargs.pop('_typename_resolved', False)
+  if not typename_resolved:
+    json_value = object_utils.json_conversion.resolve_typenames(
+        json_value, auto_import=auto_import, auto_dict=auto_dict
+    )
 
   kwargs.update({
       'allow_partial': allow_partial,
@@ -2066,14 +2073,19 @@ def from_json(json_value: Any,
                 f'Encountered: {json_value}', root_path))
       kwargs.pop('root_path')
       return tuple([
-          from_json(v, root_path=object_utils.KeyPath(i, root_path), **kwargs)
+          from_json(
+              v,
+              root_path=object_utils.KeyPath(i, root_path),
+              _typename_resolved=True,
+              **kwargs
+          )
           for i, v in enumerate(json_value[1:])
       ])
     return Symbolic.ListType(json_value, **kwargs)  # pytype: disable=not-callable   # pylint: disable=not-callable
   elif isinstance(json_value, dict):
     if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
       return Symbolic.DictType.from_json(json_value, **kwargs)
-    return object_utils.from_json(json_value, **kwargs)
+    return object_utils.from_json(json_value, _typename_resolved=True, **kwargs)
   return json_value
 
 
@@ -2081,7 +2093,8 @@ def from_json_str(json_str: str,
                   *,
                   allow_partial: bool = False,
                   root_path: Optional[object_utils.KeyPath] = None,
-                  force_dict: bool = False,
+                  auto_import: bool = True,
+                  auto_dict: bool = False,
                   **kwargs) -> Any:
   """Deserialize (maybe) symbolic object from JSON string.
 
@@ -2103,8 +2116,12 @@ def from_json_str(json_str: str,
     allow_partial: If True, allow a partial symbolic object to be created.
       Otherwise error will be raised on partial value.
     root_path: The symbolic path used for the deserialized root object.
-    force_dict: If True, "_type" keys will be stripped before loading. As a
-      result, JSONConvertible objects will be returned as dict.
+    auto_import: If True, when a '_type' is not registered, PyGlove will
+      identify its parent module and automatically import it. For example,
+      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
+      find the class 'A' within the imported module.
+    auto_dict: If True, dict with '_type' that cannot be loaded will remain
+      as dict, with '_type' renamed to 'type_name'.
     **kwargs: Additional keyword arguments that will be passed to
       ``pg.from_json``.
 
@@ -2115,11 +2132,13 @@ def from_json_str(json_str: str,
       json.loads(json_str),
       allow_partial=allow_partial,
       root_path=root_path,
-      force_dict=force_dict,
-      **kwargs)
+      auto_import=auto_import,
+      auto_dict=auto_dict,
+      **kwargs
+  )
 
 
-def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
+def to_json(value: Any, **kwargs) -> Any:
   """Serializes a (maybe) symbolic value into a plain Python object.
 
   Example::
@@ -2144,8 +2163,6 @@ def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
       * Tuple types;
       * Dict types.
 
-    force_dict: If True, "_type" keys will be renamed to "type_name".
-      As a result, JSONConvertible objects will be returned as dict.
     **kwargs: Keyword arguments to pass to value.to_json if value is
       JSONConvertible.
 
@@ -2155,11 +2172,8 @@ def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
   # NOTE(daiyip): special handling `sym_jsonify` since symbolized
   # classes may have conflicting `to_json` method in their existing classes.
   if isinstance(value, Symbolic):
-    v = value.sym_jsonify(**kwargs)
-    if force_dict:
-      v = object_utils.json_conversion.replace_type_with_type_names(v)
-    return v
-  return object_utils.to_json(value, force_dict=force_dict, **kwargs)
+    return value.sym_jsonify(**kwargs)
+  return object_utils.to_json(value, **kwargs)
 
 
 def to_json_str(value: Any,

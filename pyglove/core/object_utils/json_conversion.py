@@ -114,7 +114,6 @@ class _TypeRegistry:
     if self._ondemand_registry_stack:
       top_registry = self._ondemand_registry_stack[-1]
       class_name = type_name.split('.')[-1]
-      print('class_name', class_name)
       if class_name in top_registry:
         return top_registry[class_name]
 
@@ -392,7 +391,7 @@ def registered_types() -> Iterable[Tuple[str, Type[JSONConvertible]]]:
   return JSONConvertible.registered_types()
 
 
-def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
+def to_json(value: Any, **kwargs) -> Any:
   """Serializes a (maybe) JSONConvertible value into a plain Python object.
 
   Args:
@@ -404,8 +403,6 @@ def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
       * Tuple types;
       * Dict types.
 
-    force_dict: If True, "_type" keys will be renamed to "type_name".
-      As a result, JSONConvertible objects will be returned as dict.
     **kwargs: Keyword arguments to pass to value.to_json if value is
       JSONConvertible.
 
@@ -445,30 +442,36 @@ def to_json(value: Any, *, force_dict: bool = False, **kwargs) -> Any:
         converted = True
     if not converted:
       v = _OpaqueObject(value).to_json(**kwargs)
-
-  if force_dict:
-    v = replace_type_with_type_names(v)
   return v
 
 
 def from_json(
     json_value: JSONValueType,
     *,
-    force_dict: bool = False,
+    auto_import: bool = True,
+    auto_dict: bool = False,
     **kwargs) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
 
   Args:
     json_value: Input JSON value.
-    force_dict: If True, "_type" keys will be renamed to "type_name" before
-      loading. As a result, JSONConvertible objects will be returned as dict.
+    auto_import: If True, when a '_type' is not registered, PyGlove will
+      identify its parent module and automatically import it. For example,
+      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
+      find the class 'A' within the imported module.
+    auto_dict: If True, dict with '_type' that cannot be loaded will remain
+      as dict, with '_type' renamed to 'type_name'.
     **kwargs: Keyword arguments that will be passed to JSONConvertible.__init__.
 
   Returns:
     Deserialized value.
   """
-  if force_dict:
-    json_value = replace_type_with_type_names(json_value)
+  typename_resolved = kwargs.pop('_typename_resolved', False)
+  if not typename_resolved:
+    json_value = resolve_typenames(json_value, auto_import, auto_dict)
+
+  def child_from(v):
+    return from_json(v, _typename_resolved=True, **kwargs)
 
   if isinstance(json_value, list):
     if json_value and json_value[0] == JSONConvertible.TUPLE_MARKER:
@@ -477,41 +480,89 @@ def from_json(
             f'Tuple should have at least one element '
             f'besides \'{JSONConvertible.TUPLE_MARKER}\'. '
             f'Encountered: {json_value}.')
-      return tuple([from_json(v, **kwargs) for v in json_value[1:]])
-    return [from_json(v, **kwargs) for v in json_value]
+      return tuple([child_from(v) for v in json_value[1:]])
+    return [child_from(v) for v in json_value]
   elif isinstance(json_value, dict):
     if JSONConvertible.TYPE_NAME_KEY not in json_value:
-      return {k: from_json(v, **kwargs) for k, v in json_value.items()}
-    type_name = json_value.pop(JSONConvertible.TYPE_NAME_KEY)
-    if type_name == 'type':
-      return _type_from_json(json_value)
-    elif type_name == 'function':
-      return _function_from_json(json_value)
-    elif type_name == 'method':
-      return _method_from_json(json_value)
-    else:
-      cls = JSONConvertible.class_from_typename(type_name)
-      if cls is None:
-        raise TypeError(
-            f'Type name \'{type_name}\' is not registered '
-            f'with a `pg.JSONConvertible` subclass.')
-      return cls.from_json(json_value, **kwargs)
+      return {k: child_from(v) for k, v in json_value.items()}
+    factory_fn = json_value.pop(JSONConvertible.TYPE_NAME_KEY)
+    assert factory_fn is not None
+    return factory_fn(json_value, **kwargs)
   return json_value
 
 
-def replace_type_with_type_names(json_value: JSONValueType) -> JSONValueType:
-  """Inplace strips the "_type" key from a JSON tree."""
-  def _replace_type(v) -> None:
+def resolve_typenames(
+    json_value: JSONValueType,
+    auto_import: bool = True,
+    auto_dict: bool = False
+) -> JSONValueType:
+  """Inplace resolves the "_type" keys with their factories in a JSON tree."""
+
+  def _resolve_typename(v: Dict[str, Any]) -> bool:
+    """Returns True if the subtree is resolved for the first time."""
+    if JSONConvertible.TYPE_NAME_KEY not in v:
+      return True
+    if not isinstance(v[JSONConvertible.TYPE_NAME_KEY], str):
+      return False
+    type_name = v[JSONConvertible.TYPE_NAME_KEY]
+    if type_name == 'type':
+      factory_fn = _type_from_json
+    elif type_name == 'function':
+      factory_fn = _function_from_json
+    elif type_name == 'method':
+      factory_fn = _method_from_json
+    else:
+      cls = JSONConvertible.class_from_typename(type_name)
+      if cls is None:
+        if auto_import:
+          try:
+            cls = _load_symbol(type_name)
+            assert inspect.isclass(cls), cls
+          except (ModuleNotFoundError, AttributeError) as e:
+            if not auto_dict:
+              raise TypeError(
+                  f'Cannot load class {type_name!r}.\n'
+                  'Try pass `auto_dict=True` to load the object into a dict '
+                  'without depending on the type.'
+              ) from e
+        elif not auto_dict:
+          raise TypeError(
+              f'Type name \'{type_name}\' is not registered '
+              'with a `pg.JSONConvertible` subclass.\n'
+              'Try pass `auto_import=True` to load the type from its module, '
+              'or pass `auto_dict=True` to load the object into a dict '
+              'without depending on the type.'
+          )
+
+      factory_fn = getattr(cls, 'from_json', None)
+      if cls is not None and factory_fn is None and not auto_dict:
+        raise TypeError(
+            f'{cls} is not a `pg.JSONConvertible` subclass.'
+            'Try pass `auto_dict=True` to load the object into a dict '
+            'without depending on the type.'
+        )
+
+      if factory_fn is None and auto_dict:
+        v['type_name'] = type_name
+        v.pop(JSONConvertible.TYPE_NAME_KEY)
+        return True
+      assert factory_fn is not None
+
+    v[JSONConvertible.TYPE_NAME_KEY] = factory_fn
+    return True
+
+  def _visit(v) -> None:
     if isinstance(v, (tuple, list)):
       for x in v:
-        _replace_type(x)
+        _visit(x)
     elif isinstance(v, dict):
-      if JSONConvertible.TYPE_NAME_KEY in v:
-        v['type_name'] = v.pop(JSONConvertible.TYPE_NAME_KEY)
-      for x in v.values():
-        _replace_type(x)
+      if _resolve_typename(v):
+        # Only resolve children when _types in this tree is not resolved
+        # previously
+        for x in v.values():
+          _visit(x)
 
-  _replace_type(json_value)
+  _visit(json_value)
   return json_value
 
 
@@ -676,6 +727,9 @@ def _load_symbol(type_name: str) -> Any:
     module_name = '.'.join(maybe_modules[:module_end_pos])
     parent_symbols = maybe_modules[module_end_pos:]
 
+  if not module_name:
+    raise ModuleNotFoundError(f'Cannot load symbol {type_name!r}.')
+
   # Import module and lookup parent symbols.
   module = importlib.import_module(module_name)
   parent = module
@@ -688,21 +742,26 @@ def _load_symbol(type_name: str) -> Any:
   return symbol
 
 
-def _type_from_json(json_value: Dict[str, str]) -> Type[Any]:
+def _type_from_json(json_value: Dict[str, str], **kwargs) -> Type[Any]:
   """Loads a type from a JSON dict."""
+  del kwargs
   t = _load_symbol(json_value['name'])
   if 'args' in json_value:
-    return _bind_type_args(t, from_json(json_value['args']))
+    return _bind_type_args(
+        t, from_json(json_value['args'], _typename_resolved=True)
+    )
   return t
 
 
-def _function_from_json(json_value: Dict[str, str]) -> types.FunctionType:
+def _function_from_json(
+    json_value: Dict[str, str], **kwargs) -> types.FunctionType:
   """Loads a function from a JSON dict."""
+  del kwargs
   function_name = json_value['name']
   if 'code' in json_value:
     code = marshal.loads(
         base64.decodebytes(json_value['code'].encode('utf-8')))
-    defaults = from_json(json_value['defaults'])
+    defaults = from_json(json_value['defaults'], _typename_resolved=True)
     return types.FunctionType(
         code=code,
         globals=globals(),
@@ -712,8 +771,9 @@ def _function_from_json(json_value: Dict[str, str]) -> types.FunctionType:
     return _load_symbol(function_name)
 
 
-def _method_from_json(json_value: Dict[str, str]) -> types.MethodType:
+def _method_from_json(json_value: Dict[str, str], **kwargs) -> types.MethodType:
   """Loads a class method from a JSON dict."""
+  del kwargs
   return _load_symbol(json_value['name'])
 
 

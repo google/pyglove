@@ -3077,28 +3077,30 @@ class SerializationTest(unittest.TestCase):
             Q.partial(P.partial()).to_json_str(), allow_partial=True),
         Q.partial(P.partial()))
 
-  def test_serialization_with_force_dict(self):
+  def test_serialization_with_auto_dict(self):
 
     class P(Object):
+      auto_register = False
       x: int
 
     class Q(Object):
+      auto_register = False
       p: P
       y: str
 
     self.assertEqual(
-        Q(P(1), y='foo').to_json(force_dict=True),
+        Q(P(1), y='foo').to_json(),
         {
             'p': {
-                'type_name': P.__type_name__,
+                '_type': P.__type_name__,
                 'x': 1
             },
             'y': 'foo',
-            'type_name': Q.__type_name__,
+            '_type': Q.__type_name__,
         }
     )
     self.assertEqual(
-        base.from_json_str(Q(P(1), y='foo').to_json_str(), force_dict=True),
+        base.from_json_str(Q(P(1), y='foo').to_json_str(), auto_dict=True),
         {
             'p': {
                 'type_name': P.__type_name__,
@@ -3146,9 +3148,7 @@ class SerializationTest(unittest.TestCase):
         ValueError, 'Cannot encode opaque object .* with pickle'):
       base.to_json(self._A(w=Z(), y=True))
 
-    with self.assertRaisesRegex(
-        TypeError,
-        'Type name \'.*\' is not registered with a .* subclass'):
+    with self.assertRaisesRegex(TypeError, 'Cannot load class .*'):
       base.from_json_str('{"_type": "pyglove.core.symbolic.object_test.NotExisted", "a": 1}')
 
   def test_default_load_save_handler(self):

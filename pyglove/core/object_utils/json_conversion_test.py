@@ -134,8 +134,7 @@ class JSONConvertibleTest(unittest.TestCase):
     class D(C):
       auto_register = False
 
-    with self.assertRaisesRegex(
-        TypeError, 'Type name .* is not registered'):
+    with self.assertRaisesRegex(TypeError, 'Cannot load class .*'):
       json_conversion.from_json(D(1).to_json())
 
     self.assertEqual(
@@ -193,20 +192,40 @@ class JSONConvertibleTest(unittest.TestCase):
         T()
     )
 
-    # Test bad cases.
-    with self.assertRaisesRegex(
-        ValueError, 'Tuple should have at least one element besides .*'):
-      json_conversion.from_json(['__tuple__'])
-
-    with self.assertRaisesRegex(
-        TypeError, 'Type name .* is not registered'):
-      json_conversion.from_json({'_type': '__main__.ABC'})
-
   def assert_conversion_is(self, v):
     self.assertIs(json_conversion.from_json(json_conversion.to_json(v)), v)
 
   def assert_conversion_equal(self, v):
     self.assertEqual(json_conversion.from_json(json_conversion.to_json(v)), v)
+
+  class CustomJsonConvertible(json_conversion.JSONConvertible):
+    auto_register = False
+
+    def __init__(self, x=None):
+      self.x = x
+
+    def to_json(self):
+      return self.to_json_dict(
+          dict(x=(self.x, None)), exclude_default=True
+      )
+
+    def __eq__(self, other):
+      return isinstance(other, self.__class__) and self.x == other.x
+
+    def __ne__(self, other):
+      return not self.__eq__(other)
+
+  def test_json_conversion_with_auto_import(self):
+    json_dict = json_conversion.to_json(self.CustomJsonConvertible(1))
+
+    with self.assertRaisesRegex(
+        TypeError, 'Type name .* is not registered'):
+      json_conversion.from_json(json_dict, auto_import=False)
+
+    self.assertEqual(
+        json_conversion.from_json(json_dict),
+        self.CustomJsonConvertible(1)
+    )
 
   def test_json_conversion_for_types(self):
     # Built-in types.
@@ -319,11 +338,8 @@ class JSONConvertibleTest(unittest.TestCase):
         ValueError, 'Cannot decode opaque object with pickle.'):
       json_conversion.from_json(json_dict)
 
-  def test_json_conversion_force_dict(self):
-    self.assertEqual(
-        json_conversion.to_json([int], force_dict=True),
-        [{'name': 'builtins.int', 'type_name': 'type'}]
-    )
+  def test_json_conversion_auto_dict(self):
+    # Does not exist.
     self.assertEqual(
         json_conversion.from_json([
             '__tuple__',
@@ -332,16 +348,52 @@ class JSONConvertibleTest(unittest.TestCase):
                 '_type': 'Unknown type',
                 'x': [{
                     '_type': 'Unknown type',
+                }, {
+                    '_type': 'function',
+                    'name': 'builtins.print'
                 }]
             }
-        ], force_dict=True),
+        ], auto_dict=True),
         (1, {
             'type_name': 'Unknown type',
             'x': [{
                 'type_name': 'Unknown type',
-            }]
+            }, print]
         })
     )
+
+  def test_json_conversion_with_bad_types(self):
+    # Bad tuple.
+    with self.assertRaisesRegex(
+        ValueError, 'Tuple should have at least one element besides .*'):
+      json_conversion.from_json(['__tuple__'])
+
+    # Unregistered type without auto_import.
+    with self.assertRaisesRegex(
+        TypeError, 'Type name .* is not registered with'
+    ):
+      json_conversion.from_json(
+          {
+              '_type': 'Unknown type',
+              'x': [{
+                  '_type': 'Unknown type',
+              }]
+          }, auto_import=False
+      )
+
+    # Type does not exist.
+    with self.assertRaisesRegex(
+        TypeError, 'Cannot load class .*'):
+      json_conversion.from_json({'_type': '__main__.ABC'})
+
+    # Type exist but not a JSONConvertible subclass.
+    class A:
+      pass
+
+    json_conversion.JSONConvertible.register('__main__.A', A)
+    with self.assertRaisesRegex(
+        TypeError, '.* is not a `pg.JSONConvertible` subclass'):
+      json_conversion.from_json({'_type': '__main__.A'})
 
 
 if __name__ == '__main__':
