@@ -173,15 +173,15 @@ class SamplingTest(unittest.TestCase):
     _, f = next(sample)
     with self.assertRaisesRegex(
         ValueError, 'bcd'):
-      with f.skip_on_exceptions(((Exception, '.*a'),)):
+      with f.skip_on_exceptions(((Exception, 'abc'),)):
         # should skip.
         raise ValueError('bcd')
     self.assertEqual(algo.num_proposals, 7)
     self.assertEqual(algo.num_feedbacks, 1)
 
     _, f = next(sample)
-    with f.skip_on_exceptions(((ValueError, '.*a'),
-                               (ValueError, '.*b'),
+    with f.skip_on_exceptions(((ValueError, 'abc'),
+                               (ValueError, 'cd'),
                                KeyError)):
       # should skip.
       raise ValueError('bcd')

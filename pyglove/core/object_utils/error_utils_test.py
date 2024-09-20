@@ -36,11 +36,13 @@ class CatchErrorsTest(unittest.TestCase):
 
     self.assert_caught_error(foo, ValueError)
     self.assert_caught_error(foo, (ValueError,))
+    self.assert_caught_error(foo, (Exception, 'ValueError'))
     self.assert_caught_error(foo, (KeyError, ValueError))
-    self.assert_caught_error(foo, (ValueError, '.* an error'))
-    self.assert_caught_error(foo, (KeyError, (ValueError, '.* an error'),))
+    self.assert_caught_error(foo, (ValueError, 'an error'))
+    self.assert_caught_error(foo, (KeyError, (ValueError, 'an error'),))
 
     self.assert_propagate_error(foo, KeyError)
+    self.assert_propagate_error(foo, (ValueError, '^an error'))
     self.assert_propagate_error(foo, (ValueError, 'something else'))
 
   def test_catch_errors_with_error_handler(self):

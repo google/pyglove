@@ -93,7 +93,7 @@ def catch_errors(
   try:
     yield context
   except tuple(error_mapping.keys()) as e:
-    error_message = str(e)
+    error_message = e.__class__.__name__ + ': ' + str(e)
     found_match = False
     for error_type, error_regexes in error_mapping.items():
       if isinstance(e, error_type):
@@ -101,6 +101,9 @@ def catch_errors(
           found_match = True
         else:
           for regex in error_regexes:
+            assert regex is not None
+            if not regex.startswith(('^', '.*')):
+              regex = '.*' + regex
             if re.match(regex, error_message):
               found_match = True
               break
