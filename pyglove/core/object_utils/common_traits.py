@@ -14,75 +14,11 @@
 """Common traits for Python objects.
 
 This file defines interfaces for describing the common traits of a Python
-object, for example, partiality (MaybePartial), formatting (Formattable),
-functor (Functor).
+object, for example, partiality (MaybePartial), functor (Functor).
 """
 
 import abc
-from typing import Any, ContextManager, Dict, Optional
-from pyglove.core.object_utils import thread_local
-
-
-_TLS_STR_FORMAT_KWARGS = '_str_format_kwargs'
-_TLS_REPR_FORMAT_KWARGS = '_repr_format_kwargs'
-
-
-def str_format(**kwargs) -> ContextManager[Dict[str, Any]]:
-  """Context manager for setting the default format kwargs for __str__."""
-  return thread_local.thread_local_arg_scope(_TLS_STR_FORMAT_KWARGS, **kwargs)
-
-
-def repr_format(**kwargs) -> ContextManager[Dict[str, Any]]:
-  """Context manager for setting the default format kwargs for __repr__."""
-  return thread_local.thread_local_arg_scope(_TLS_REPR_FORMAT_KWARGS, **kwargs)
-
-
-class Formattable(metaclass=abc.ABCMeta):
-  """Interface for classes whose instances can be pretty-formatted.
-
-  This interface overrides the default ``__repr__`` and ``__str__`` method, thus
-  all ``Formattable`` objects can be printed nicely.
-
-  All symbolic types implement this interface.
-  """
-
-  # Additional format keyword arguments for `__str__`.
-  __str_format_kwargs__ = dict(compact=False, verbose=True)
-
-  # Additional format keyword arguments for `__repr__`.
-  __repr_format_kwargs__ = dict(compact=True)
-
-  @abc.abstractmethod
-  def format(self,
-             compact: bool = False,
-             verbose: bool = True,
-             root_indent: int = 0,
-             **kwargs) -> str:
-    """Formats this object into a string representation.
-
-    Args:
-      compact: If True, this object will be formatted into a single line.
-      verbose: If True, this object will be formatted with verbosity.
-        Subclasses should define `verbosity` on their own.
-      root_indent: The start indent level for this object if the output is a
-        multi-line string.
-      **kwargs: Subclass specific keyword arguments.
-
-    Returns:
-      A string of formatted object.
-    """
-
-  def __str__(self) -> str:
-    """Returns the full (maybe multi-line) representation of this object."""
-    kwargs = dict(self.__str_format_kwargs__)
-    kwargs.update(thread_local.thread_local_kwargs(_TLS_STR_FORMAT_KWARGS))
-    return self.format(**kwargs)
-
-  def __repr__(self) -> str:
-    """Returns a single-line representation of this object."""
-    kwargs = dict(self.__repr_format_kwargs__)
-    kwargs.update(thread_local.thread_local_kwargs(_TLS_REPR_FORMAT_KWARGS))
-    return self.format(**kwargs)
+from typing import Any, Dict, Optional
 
 
 class MaybePartial(metaclass=abc.ABCMeta):

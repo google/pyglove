@@ -1716,7 +1716,9 @@ class FormatTest(unittest.TestCase):
 
   def test_compact_python_format(self):
     self.assertEqual(
-        self._list.format(compact=True, python_format=True, markdown=True),
+        object_utils.format(
+            self._list, compact=True, python_format=True, markdown=True
+        ),
         "`[{'a1': 1, 'a2': {'b1': {'c1': [{'d1': MISSING_VALUE, "
         "'d2': True, 'd3': A(x=2, y=MISSING_VALUE, z={'p': [None, True], "
         "'q': 'foo', 't': 'foo'})}]}}}]`",
@@ -1724,8 +1726,9 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_python_format(self):
     self.assertEqual(
-        self._list.format(
-            compact=False, verbose=False, python_format=True, markdown=True
+        object_utils.format(
+            self._list, compact=False, verbose=False,
+            python_format=True, markdown=True
         ),
         inspect.cleandoc("""
           ```

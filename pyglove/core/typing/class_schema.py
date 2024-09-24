@@ -144,8 +144,6 @@ class ForwardRef(object_utils.Formattable):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs
   ) -> str:
     """Format this object."""
@@ -158,7 +156,6 @@ class ForwardRef(object_utils.Formattable):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs,
     )
 
@@ -731,8 +728,6 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this field into a string."""
@@ -747,7 +742,6 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -1258,7 +1252,6 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
       verbose: bool = True,
       root_indent: int = 0,
       *,
-      markdown: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.ROUND,
       fields_only: bool = False,
@@ -1278,7 +1271,6 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs,
     )
 

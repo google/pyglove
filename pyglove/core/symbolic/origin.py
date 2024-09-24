@@ -152,8 +152,6 @@ class Origin(object_utils.Formattable):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Formats this object."""
@@ -176,7 +174,6 @@ class Origin(object_utils.Formattable):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown
     )
 
   def __eq__(self, other: Any) -> bool:

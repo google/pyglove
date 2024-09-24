@@ -3265,7 +3265,9 @@ class FormatTest(unittest.TestCase):
 
   def test_compact_python_format(self):
     self.assertEqual(
-        self._a.format(compact=True, python_format=True, markdown=True),
+        object_utils.format(
+            self._a, compact=True, python_format=True, markdown=True
+        ),
         "`A(x=[A(x=1, y=None), A(x='foo', y={'a': A(x=True, y=1.0)})], "
         'y=MISSING_VALUE)`',
     )
@@ -3310,8 +3312,9 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_python_format(self):
     self.assertEqual(
-        self._a.format(
-            compact=False, verbose=False, python_format=True, markdown=True
+        object_utils.format(
+            self._a, compact=False, verbose=False, python_format=True,
+            markdown=True
         ),
         inspect.cleandoc("""
             ```
@@ -3476,10 +3479,17 @@ class FormatTest(unittest.TestCase):
       def _repr_xml_(self):
         return f'<bar>{self.foo}</bar>'
 
-    with object_utils.str_format(custom_format='_repr_xml_'):
+    def _method(attr_name):
+      def fn(v, root_indent):
+        del root_indent
+        f = getattr(v, attr_name, None)
+        return f() if f is not None else None
+      return fn
+
+    with object_utils.str_format(custom_format=_method('_repr_xml_')):
       self.assertEqual(str(Bar(Foo())), '<bar>Foo()</bar>')
 
-    with object_utils.str_format(custom_format='_repr_html_'):
+    with object_utils.str_format(custom_format=_method('_repr_html_')):
       self.assertEqual(str(Bar(Foo())), 'Bar(\n  foo = <foo/>\n)')
 
 

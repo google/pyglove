@@ -1599,7 +1599,6 @@ class DNA(symbolic.Object):
       verbose: bool = True,
       root_indent: int = 0,
       *,
-      markdown: bool = False,
       list_wrap_threshold: int = 80,
       as_dict: bool = False,
       **kwargs,
@@ -1613,7 +1612,6 @@ class DNA(symbolic.Object):
           root_indent,
           **kwargs)
       s = f'DNA({details})'
-      compact = False
     else:
       if 'list_wrap_threshold' not in kwargs:
         kwargs['list_wrap_threshold'] = list_wrap_threshold
@@ -1636,7 +1634,7 @@ class DNA(symbolic.Object):
           s = f'DNA{rep}'
         else:
           s = f'DNA({rep})'
-    return object_utils.maybe_markdown_quote(s, markdown)
+    return s
 
   def parameters(
       self, use_literal_values: bool = False) -> Dict[str, str]:

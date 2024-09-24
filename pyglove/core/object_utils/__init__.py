@@ -72,7 +72,7 @@ modules with the following features:
 # pylint: disable=g-bad-import-order
 # pylint: disable=g-importing-member
 
-# Common traits.
+# Handling JSON conversion.
 from pyglove.core.object_utils.json_conversion import Nestable
 from pyglove.core.object_utils.json_conversion import JSONValueType
 
@@ -81,16 +81,27 @@ from pyglove.core.object_utils.json_conversion import from_json
 from pyglove.core.object_utils.json_conversion import to_json
 from pyglove.core.object_utils.json_conversion import registered_types
 
-from pyglove.core.object_utils.common_traits import Formattable
-from pyglove.core.object_utils.common_traits import MaybePartial
-from pyglove.core.object_utils.common_traits import Functor
+# Handling formatting.
+from pyglove.core.object_utils.formatting import Formattable
+from pyglove.core.object_utils.formatting import format            # pylint: disable=redefined-builtin
+from pyglove.core.object_utils.formatting import printv as print   # pylint: disable=redefined-builtin
+from pyglove.core.object_utils.formatting import kvlist_str
+from pyglove.core.object_utils.formatting import quote_if_str
+from pyglove.core.object_utils.formatting import maybe_markdown_quote
+from pyglove.core.object_utils.formatting import comma_delimited_str
+from pyglove.core.object_utils.formatting import auto_plural
+from pyglove.core.object_utils.formatting import BracketType
+from pyglove.core.object_utils.formatting import bracket_chars
+from pyglove.core.object_utils.formatting import RawText
 
-from pyglove.core.object_utils.common_traits import explicit_method_override
-from pyglove.core.object_utils.common_traits import ensure_explicit_method_override
+# Context managers for defining the default format for __str__ and __repr__.
+from pyglove.core.object_utils.formatting import str_format
+from pyglove.core.object_utils.formatting import repr_format
 
 # Value location.
 from pyglove.core.object_utils.value_location import KeyPath
 from pyglove.core.object_utils.value_location import StrKey
+from pyglove.core.object_utils.value_location import message_on_path
 
 # Value markers.
 from pyglove.core.object_utils.missing import MissingValue
@@ -106,22 +117,12 @@ from pyglove.core.object_utils.hierarchical import merge_tree
 from pyglove.core.object_utils.hierarchical import is_partial
 from pyglove.core.object_utils.hierarchical import try_listify_dict_with_int_keys
 
-# Handling formatting.
-from pyglove.core.object_utils.formatting import format            # pylint: disable=redefined-builtin
-from pyglove.core.object_utils.formatting import printv as print   # pylint: disable=redefined-builtin
-from pyglove.core.object_utils.formatting import kvlist_str
-from pyglove.core.object_utils.formatting import quote_if_str
-from pyglove.core.object_utils.formatting import maybe_markdown_quote
-from pyglove.core.object_utils.formatting import comma_delimited_str
-from pyglove.core.object_utils.formatting import auto_plural
-from pyglove.core.object_utils.formatting import message_on_path
-from pyglove.core.object_utils.formatting import BracketType
-from pyglove.core.object_utils.formatting import bracket_chars
-from pyglove.core.object_utils.formatting import RawText
+# Common traits.
+from pyglove.core.object_utils.common_traits import MaybePartial
+from pyglove.core.object_utils.common_traits import Functor
 
-# Context managers for defining the default format for __str__ and __repr__.
-from pyglove.core.object_utils.common_traits import str_format
-from pyglove.core.object_utils.common_traits import repr_format
+from pyglove.core.object_utils.common_traits import explicit_method_override
+from pyglove.core.object_utils.common_traits import ensure_explicit_method_override
 
 # Handling code generation.
 from pyglove.core.object_utils.codegen import make_function

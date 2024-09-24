@@ -33,6 +33,10 @@ class KeySpecBase(KeySpec):
     """Operator !=."""
     return not self.__eq__(other)
 
+  def __str_kwargs__(self) -> Dict[str, Any]:
+    """Returns the string representation of this key spec."""
+    return {}
+
 
 class ConstStrKey(KeySpecBase, object_utils.StrKey):
   """Class that represents a constant string key.

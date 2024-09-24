@@ -884,7 +884,6 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       root_indent: int = 0,
       *,
       python_format: bool = False,
-      markdown: bool = False,
       hide_frozen: bool = True,
       hide_default_values: bool = False,
       hide_missing_values: bool = False,
@@ -936,9 +935,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     open_bracket, close_bracket = object_utils.bracket_chars(bracket_type)
     if not field_list:
-      return object_utils.maybe_markdown_quote(
-          f'{cls_name}{open_bracket}{close_bracket}', markdown
-      )
+      return f'{cls_name}{open_bracket}{close_bracket}'
 
     if compact:
       s = [f'{cls_name}{open_bracket}']
@@ -998,7 +995,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           s.append(_indent(f'\'{k}\': {v_str}', root_indent + 1))
       s.append('\n')
       s.append(_indent(close_bracket, root_indent))
-    return object_utils.maybe_markdown_quote(''.join(s), markdown)
+    return ''.join(s)
 
   def __repr__(self) -> str:
     """Operator repr()."""

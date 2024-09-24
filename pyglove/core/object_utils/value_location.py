@@ -17,10 +17,10 @@ import abc
 import copy
 import operator
 from typing import Any, Callable, List, Optional, Union
-from pyglove.core.object_utils import common_traits
+from pyglove.core.object_utils import formatting
 
 
-class KeyPath(common_traits.Formattable):
+class KeyPath(formatting.Formattable):
   """Represents a path of keys from the root to a node in a tree.
 
   ``KeyPath`` is an important concept in PyGlove, which is used for representing
@@ -437,6 +437,14 @@ class KeyPath(common_traits.Formattable):
     """Use depth as length of current path."""
     return self.depth
 
+  # Use path for both string/repr, which will not be controlled by
+  # `pg.str_format` and `pg.repr_format`.
+  def __str__(self) -> str:
+    return self.path
+
+  def __repr__(self) -> str:
+    return self.path
+
   def format(self, *args, **kwargs):
     """Format current path."""
     return self.path
@@ -572,3 +580,11 @@ class StrKey(metaclass=abc.ABCMeta):
     path = pg.KeyPath(['a', MyKey('b')])
     print(str(path))   # Should print "a.__b__"
   """
+
+
+def message_on_path(
+    message: str, path: KeyPath) -> str:
+  """Formats a message that is associated with a `KeyPath`."""
+  if path is None:
+    return message
+  return f'{message} (path={path})'

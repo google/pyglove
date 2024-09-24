@@ -35,8 +35,10 @@ class ConstStrKeyTest(KeySpecTest):
     self.assertEqual(key.text, 'a')
     self.assertNotEqual(key, 'b')
     self.assertIn(key, {'a': 1})
-    self.assertEqual(str(key), 'a')
-    self.assertEqual(repr(key), 'a')
+    with object_utils.str_format(markdown=True):
+      self.assertEqual(str(key), 'a')
+    with object_utils.str_format(markdown=True):
+      self.assertEqual(repr(key), 'a')
     self.assertTrue(key.match('a'))
     self.assertFalse(key.match('b'))
 

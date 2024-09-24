@@ -14,6 +14,7 @@
 """Tests for pyglove.object_utils.value_location."""
 
 import unittest
+from pyglove.core.object_utils import formatting
 from pyglove.core.object_utils import value_location
 
 
@@ -51,7 +52,10 @@ class KeyPathTest(unittest.TestCase):
     a2 = value_location.KeyPath(0)
     self.assertFalse(a2.is_root)
     self.assertEqual(a2.key, 0)
-    self.assertEqual(str(a2), '[0]')
+    with formatting.str_format(markdown=True):
+      self.assertEqual(str(a2), '[0]')
+    with formatting.repr_format(markdown=True):
+      self.assertEqual(repr(a2), '[0]')
     self.assertEqual(a2.path, '[0]')
     self.assertEqual(a2, '[0]')
     self.assertNotEqual(a2, '')
@@ -379,6 +383,15 @@ class KeyPathTest(unittest.TestCase):
     assert_exists('a[1].d[1]', src, True)
     assert_exists('c', src, False)
     assert_exists('b.c', src, False)
+
+  def test_message_on_path(self):
+    self.assertEqual(value_location.message_on_path('hi.', None), 'hi.')
+    self.assertEqual(
+        value_location.message_on_path('hi.', value_location.KeyPath()),
+        'hi. (path=)')
+    self.assertEqual(
+        value_location.message_on_path('hi.', value_location.KeyPath(['a'])),
+        'hi. (path=a)')
 
 
 if __name__ == '__main__':

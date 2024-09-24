@@ -376,8 +376,6 @@ class ValueSpecBase(ValueSpec):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs
   ) -> str:
     """Format this object."""
@@ -391,7 +389,6 @@ class ValueSpecBase(ValueSpec):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -566,8 +563,6 @@ class Str(Generic, PrimitiveType):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs
   ) -> str:
     """Format this object."""
@@ -583,7 +578,6 @@ class Str(Generic, PrimitiveType):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -701,8 +695,6 @@ class Number(Generic, PrimitiveType):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs
   ) -> str:
     """Format this object."""
@@ -718,7 +710,6 @@ class Number(Generic, PrimitiveType):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -961,8 +952,6 @@ class Enum(Generic, PrimitiveType):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs
   ) -> str:
     """Format this object."""
@@ -976,7 +965,6 @@ class Enum(Generic, PrimitiveType):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -1166,8 +1154,6 @@ class List(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -1184,7 +1170,6 @@ class List(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -1481,8 +1466,6 @@ class Tuple(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -1505,7 +1488,6 @@ class Tuple(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -1716,8 +1698,6 @@ class Dict(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -1733,7 +1713,6 @@ class Dict(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs,
     )
 
@@ -1911,8 +1890,6 @@ class Object(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -1931,7 +1908,6 @@ class Object(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -2219,8 +2195,6 @@ class Callable(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this spec."""
@@ -2237,7 +2211,6 @@ class Callable(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs,
     )
 
@@ -2430,8 +2403,6 @@ class Type(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -2446,7 +2417,6 @@ class Type(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 
@@ -2721,8 +2691,6 @@ class Union(Generic, ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -2737,7 +2705,6 @@ class Union(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         list_wrap_threshold=kwargs.pop('list_wrap_threshold', 20),
         **kwargs
     )
@@ -2880,8 +2847,6 @@ class Any(ValueSpecBase):
       compact: bool = False,
       verbose: bool = True,
       root_indent: int = 0,
-      *,
-      markdown: bool = False,
       **kwargs,
   ) -> str:
     """Format this object."""
@@ -2895,7 +2860,6 @@ class Any(ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        markdown=markdown,
         **kwargs
     )
 

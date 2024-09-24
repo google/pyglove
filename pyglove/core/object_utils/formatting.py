@@ -13,12 +13,119 @@
 # limitations under the License.
 """Utilities for formatting objects."""
 
+import abc
 import enum
 import io
 import sys
-from typing import Any, Callable, List, Optional, Sequence, Set, Tuple
-from pyglove.core.object_utils import common_traits
-from pyglove.core.object_utils.value_location import KeyPath
+from typing import Any, Callable, ContextManager, Dict, List, Optional, Sequence, Set, Tuple
+from pyglove.core.object_utils import thread_local
+
+
+_TLS_STR_FORMAT_KWARGS = '_str_format_kwargs'
+_TLS_REPR_FORMAT_KWARGS = '_repr_format_kwargs'
+
+
+CustomFormatFn = Callable[
+    [
+        Any,    # Value to format.
+        int,    # Root indent.
+    ],
+    # Returns a string or None. If None, the default `pg.format` will be used.
+    Optional[str]
+]
+
+
+def str_format(**kwargs) -> ContextManager[Dict[str, Any]]:
+  """Context manager for setting the default format kwargs for __str__."""
+  return thread_local.thread_local_arg_scope(_TLS_STR_FORMAT_KWARGS, **kwargs)
+
+
+def repr_format(**kwargs) -> ContextManager[Dict[str, Any]]:
+  """Context manager for setting the default format kwargs for __repr__."""
+  return thread_local.thread_local_arg_scope(_TLS_REPR_FORMAT_KWARGS, **kwargs)
+
+
+class Formattable(metaclass=abc.ABCMeta):
+  """Interface for classes whose instances can be pretty-formatted.
+
+  This interface overrides the default ``__repr__`` and ``__str__`` method, thus
+  all ``Formattable`` objects can be printed nicely.
+
+  All symbolic types implement this interface.
+  """
+
+  # Additional format keyword arguments for `__str__`.
+  __str_format_kwargs__ = dict(compact=False, verbose=True)
+
+  # Additional format keyword arguments for `__repr__`.
+  __repr_format_kwargs__ = dict(compact=True)
+
+  @abc.abstractmethod
+  def format(self,
+             compact: bool = False,
+             verbose: bool = True,
+             root_indent: int = 0,
+             **kwargs) -> str:
+    """Formats this object into a string representation.
+
+    Args:
+      compact: If True, this object will be formatted into a single line.
+      verbose: If True, this object will be formatted with verbosity.
+        Subclasses should define `verbosity` on their own.
+      root_indent: The start indent level for this object if the output is a
+        multi-line string.
+      **kwargs: Subclass specific keyword arguments.
+
+    Returns:
+      A string of formatted object.
+    """
+
+  def __str__(self) -> str:
+    """Returns the full (maybe multi-line) representation of this object."""
+    # NOTE(daiyip): we delegate the formatting logic to `pg.format` instead of
+    # `Formattable.format` as `pg.format` could add common functionalities such
+    # as `markdown` support.
+    return format(self, **self.__str_kwargs__())
+
+  def __str_kwargs__(self) -> Dict[str, Any]:
+    """Returns the default format kwargs for __str__."""
+    kwargs = dict(self.__str_format_kwargs__)
+    kwargs.update(thread_local.thread_local_kwargs(_TLS_STR_FORMAT_KWARGS))
+    return kwargs
+
+  def __repr__(self) -> str:
+    """Returns a single-line representation of this object."""
+    # NOTE(daiyip): we delegate the formatting logic to `pg.format` instead of
+    # `Formattable.format` as `pg.format` could add common functionalities such
+    # as `markdown` support.
+    return format(self, **self.__repr_kwargs__())
+
+  def __repr_kwargs__(self) -> Dict[str, Any]:
+    """Returns the default format kwargs for __repr__."""
+    kwargs = dict(self.__repr_format_kwargs__)
+    kwargs.update(thread_local.thread_local_kwargs(_TLS_REPR_FORMAT_KWARGS))
+    return kwargs
+
+
+class RawText(Formattable):
+  """Raw text."""
+
+  def __init__(self, text: str):
+    self.text = text
+
+  def format(self, *args, **kwargs):
+    del args, kwargs
+    return self.text
+
+  def __eq__(self, other: Any) -> bool:
+    if isinstance(other, RawText):
+      return self.text == other.text
+    elif isinstance(other, str):
+      return self.text == other
+    return False
+
+  def __ne__(self, other: Any) -> bool:
+    return not self.__eq__(other)
 
 
 class BracketType(enum.IntEnum):
@@ -45,26 +152,6 @@ def bracket_chars(bracket_type: BracketType) -> Tuple[str, str]:
   return _BRACKET_CHARS[int(bracket_type)]
 
 
-class RawText(common_traits.Formattable):
-  """Raw text."""
-
-  def __init__(self, text: str):
-    self.text = text
-
-  def format(self, *args, **kwargs):
-    return self.text
-
-  def __eq__(self, other: Any) -> bool:
-    if isinstance(other, RawText):
-      return self.text == other.text
-    elif isinstance(other, str):
-      return self.text == other
-    return False
-
-  def __ne__(self, other: Any) -> bool:
-    return not self.__eq__(other)
-
-
 def kvlist_str(
     kvlist: List[Tuple[str, Any, Any]],
     compact: bool = True,
@@ -73,8 +160,7 @@ def kvlist_str(
     *,
     label: Optional[str] = None,
     bracket_type: BracketType = BracketType.ROUND,
-    markdown: bool = False,
-    custom_format: Optional[str] = None,
+    custom_format: Optional[CustomFormatFn] = None,
     **kwargs,
 ) -> str:
   """Formats a list key/value pairs into a comma delimited string.
@@ -89,10 +175,9 @@ def kvlist_str(
     label: (Optional) If not None, add label to brace all kv pairs.
     bracket_type: Bracket type used for embracing the kv pairs. Applicable only
       when `name` is not None.
-    markdown: If True, use markdown notion to quote the formatted object.
-    custom_format: A string as the name of custom format method. It's effective
-      only on value that has the method, for those who do not have the method,
-      they will be formatted using `format`, `str` or `repr` method.
+    custom_format: An optional custom format function, which will be applied to
+      each value (and child values) in kvlist. If the function returns None, it
+      will fall back to the default `pg.format`.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
   Returns:
@@ -104,6 +189,7 @@ def kvlist_str(
 
   child_indent = (root_indent + 1) if label else root_indent
   body = io.StringIO()
+
   for k, v, d in kvlist:
     if isinstance(d, tuple):
       include_pair = True
@@ -127,9 +213,9 @@ def kvlist_str(
       if not compact:
         body.write(_indent('', child_indent))
       if k:
-        body.write(f'{k}={str_ext(v, custom_format)}')
+        body.write(f'{k}={str_ext(v, custom_format, child_indent)}')
       else:
-        body.write(str_ext(v, custom_format))
+        body.write(str_ext(v, custom_format, child_indent))
       is_first = False
 
   if label and not is_first and not compact:
@@ -137,7 +223,7 @@ def kvlist_str(
 
   body = body.getvalue()
   if label is None:
-    s = body
+    return body
   else:
     s.write(label)
     s.write(bracket_start)
@@ -148,8 +234,7 @@ def kvlist_str(
       if not compact:
         s.write(_indent('', root_indent))
     s.write(bracket_end)
-    s = s.getvalue()
-  return maybe_markdown_quote(s, markdown)
+    return s.getvalue()
 
 
 def quote_if_str(value: Any) -> Any:
@@ -172,14 +257,6 @@ def auto_plural(
   return singular if number == 1 else plural
 
 
-def message_on_path(
-    message: str, path: KeyPath) -> str:
-  """Formats a message that is associated with a `KeyPath`."""
-  if path is None:
-    return message
-  return f'{message} (path={path})'
-
-
 def format(   # pylint: disable=redefined-builtin
     value: Any,
     compact: bool = False,
@@ -193,7 +270,7 @@ def format(   # pylint: disable=redefined-builtin
     max_str_len: Optional[int] = None,
     max_bytes_len: Optional[int] = None,
     *,
-    custom_format: Optional[str] = None,
+    custom_format: Optional[CustomFormatFn] = None,
     **kwargs,
 ) -> str:
   """Formats a (maybe) hierarchical value with flags.
@@ -217,15 +294,20 @@ def format(   # pylint: disable=redefined-builtin
       longer than this length, it will be truncated.
     max_bytes_len: The max length of the bytes to be formatted. If the bytes is
       longer than this length, it will be truncated.
-    custom_format: A string as the name of custom format method. It's effective
-      only on value that has the method, for those who do not have the method,
-      they will be formatted using `format`, `str` or `repr` method.
+    custom_format: An optional custom format function, which will be applied to
+      each value (and child values) in kvlist. If the function returns None, it
+      will fall back to the default `pg.format`.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
 
   Returns:
     A string representation for `value`.
   """
+  # We allow custom_format to intercept the entire value if it's present.
+  if custom_format is not None:
+    result = custom_format(value, root_indent)
+    if result is not None:
+      return maybe_markdown_quote(result, markdown)
 
   exclude_keys = exclude_keys or set()
 
@@ -235,96 +317,115 @@ def format(   # pylint: disable=redefined-builtin
     return key not in exclude_keys
 
   def _format_child(v):
-    return format(v, compact=compact, verbose=verbose,
-                  root_indent=root_indent + 1,
-                  list_wrap_threshold=list_wrap_threshold,
-                  strip_object_id=strip_object_id,
-                  max_str_len=max_str_len,
-                  max_bytes_len=max_bytes_len,
-                  custom_format=custom_format,
-                  **kwargs)
+    return format(
+        v,
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent + 1,
+        list_wrap_threshold=list_wrap_threshold,
+        strip_object_id=strip_object_id,
+        max_str_len=max_str_len,
+        max_bytes_len=max_bytes_len,
+        custom_format=custom_format,
+        **kwargs
+    )
 
-  if isinstance(value, common_traits.Formattable):
-    return value.format(compact=compact,
-                        verbose=verbose,
-                        root_indent=root_indent,
-                        list_wrap_threshold=list_wrap_threshold,
-                        strip_object_id=strip_object_id,
-                        include_keys=include_keys,
-                        exclude_keys=exclude_keys,
-                        max_str_len=max_str_len,
-                        max_bytes_len=max_bytes_len,
-                        custom_format=custom_format,
-                        **kwargs)
-  elif isinstance(value, (list, tuple)):
-    # Always try compact representation if length is not too long.
-    open_bracket, close_bracket = bracket_chars(
-        BracketType.SQUARE if isinstance(value, list) else BracketType.ROUND)
-    s = [open_bracket]
-    s.append(', '.join([_format_child(elem) for elem in value]))
-    s.append(close_bracket)
-    s = [''.join(s)]
-    if not compact and len(s[-1]) > list_wrap_threshold:
-      s = [f'{open_bracket}\n']
-      s.append(',\n'.join([
-          _indent(_format_child(elem), root_indent + 1)
-          for elem in value
-      ]))
-      s.append('\n')
-      s.append(_indent(close_bracket, root_indent))
-  elif isinstance(value, dict):
-    if compact or not value:
-      s = ['{']
-      s.append(', '.join([
-          f'{k!r}: {_format_child(v)}'
-          for k, v in value.items() if _should_include_key(k)
-      ]))
-      s.append('}')
+  # `markdown` is only applied at the outter most level,
+  # so we disable markdown format in the sub-tree for `str` and `repr`.
+  with str_format(markdown=False), repr_format(markdown=False):
+    if isinstance(value, Formattable):
+      s = value.format(
+          compact=compact,
+          verbose=verbose,
+          root_indent=root_indent,
+          list_wrap_threshold=list_wrap_threshold,
+          strip_object_id=strip_object_id,
+          include_keys=include_keys,
+          exclude_keys=exclude_keys,
+          max_str_len=max_str_len,
+          max_bytes_len=max_bytes_len,
+          custom_format=custom_format,
+          **kwargs
+      )
+    elif isinstance(value, (list, tuple)):
+      # Always try compact representation if length is not too long.
+      open_bracket, close_bracket = bracket_chars(
+          BracketType.SQUARE if isinstance(value, list) else BracketType.ROUND)
+      s = [open_bracket]
+      s.append(', '.join([_format_child(elem) for elem in value]))
+      s.append(close_bracket)
+      s = [''.join(s)]
+      if not compact and len(s[-1]) > list_wrap_threshold:
+        s = [f'{open_bracket}\n']
+        s.append(',\n'.join([
+            _indent(_format_child(elem), root_indent + 1)
+            for elem in value
+        ]))
+        s.append('\n')
+        s.append(_indent(close_bracket, root_indent))
+    elif isinstance(value, dict):
+      if compact or not value:
+        s = ['{']
+        s.append(', '.join([
+            f'{k!r}: {_format_child(v)}'
+            for k, v in value.items() if _should_include_key(k)
+        ]))
+        s.append('}')
+      else:
+        s = ['{\n']
+        s.append(',\n'.join([
+            _indent(f'{k!r}: {_format_child(v)}', root_indent + 1)
+            for k, v in value.items() if _should_include_key(k)
+        ]))
+        s.append('\n')
+        s.append(_indent('}', root_indent))
     else:
-      s = ['{\n']
-      s.append(',\n'.join([
-          _indent(f'{k!r}: {_format_child(v)}', root_indent + 1)
-          for k, v in value.items() if _should_include_key(k)
-      ]))
-      s.append('\n')
-      s.append(_indent('}', root_indent))
-  else:
-    if isinstance(value, str):
-      if max_str_len is not None and len(value) > max_str_len:
-        value = value[:max_str_len] + '...'
-      s = [repr_ext(value, custom_format)]
-    elif isinstance(value, bytes):
-      if max_bytes_len is not None and len(value) > max_bytes_len:
-        value = value[:max_bytes_len] + b'...'
-      s = [repr_ext(value, custom_format)]
-    else:
-      s = [repr_ext(value, custom_format)
-           if compact else str_ext(value, custom_format)]
-      if strip_object_id and 'object at 0x' in s[-1]:
-        s = [f'{value.__class__.__name__}(...)']
+      if isinstance(value, str):
+        if max_str_len is not None and len(value) > max_str_len:
+          value = value[:max_str_len] + '...'
+        s = [repr_ext(value, custom_format, root_indent)]
+      elif isinstance(value, bytes):
+        if max_bytes_len is not None and len(value) > max_bytes_len:
+          value = value[:max_bytes_len] + b'...'
+        s = [repr_ext(value, custom_format, root_indent)]
+      else:
+        s = [repr_ext(value, custom_format, root_indent)
+             if compact else str_ext(value, custom_format, root_indent)]
+        if strip_object_id and 'object at 0x' in s[-1]:
+          s = [f'{value.__class__.__name__}(...)']
   return maybe_markdown_quote(''.join(s), markdown)
 
 
 def _maybe_custom_format(
     v: Any,
     default_fn: Callable[[Any], str],
-    custom_format: Optional[str] = None) -> str:
+    custom_format: Optional[CustomFormatFn],
+    root_indent: int,
+) -> str:
   if custom_format is None:
     return default_fn(v)
-  x = getattr(v, custom_format, None)
-  if callable(x):
-    return x()
-  return default_fn(v)
+  x = custom_format(v, root_indent)
+  if x is None:
+    return default_fn(v)
+  return x
 
 
-def str_ext(v: Any, custom_format: Optional[str] = None) -> str:
+def str_ext(
+    v: Any,
+    custom_format: Optional[CustomFormatFn] = None,
+    root_indent: int = 0,
+) -> str:
   """"str operator with special format support."""
-  return _maybe_custom_format(v, str, custom_format)
+  return _maybe_custom_format(v, str, custom_format, root_indent)
 
 
-def repr_ext(v: Any, custom_format: Optional[str] = None) -> str:
+def repr_ext(
+    v: Any,
+    custom_format: Optional[CustomFormatFn] = None,
+    root_indent: int = 0,
+) -> str:
   """repr operator with special format support."""
-  return _maybe_custom_format(v, repr, custom_format)
+  return _maybe_custom_format(v, repr, custom_format, root_indent)
 
 
 def maybe_markdown_quote(s: str, markdown: bool = True) -> str:

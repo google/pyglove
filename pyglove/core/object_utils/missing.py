@@ -14,11 +14,11 @@
 """Representing missing value for a field."""
 
 from typing import Any, Dict
-from pyglove.core.object_utils import common_traits
+from pyglove.core.object_utils import formatting
 from pyglove.core.object_utils import json_conversion
 
 
-class MissingValue(common_traits.Formattable, json_conversion.JSONConvertible):
+class MissingValue(formatting.Formattable, json_conversion.JSONConvertible):
   """Value placeholder for an unassigned attribute."""
 
   def format(self, *args, **kwargs):  # pytype: disable=signature-mismatch

@@ -15,8 +15,51 @@
 import inspect
 import unittest
 
-from pyglove.core.object_utils import common_traits
 from pyglove.core.object_utils import formatting
+
+
+class Foo(formatting.Formattable):
+
+  def format(
+      self, compact: bool = False, verbose: bool = True, **kwargs):
+    return f'{self.__class__.__name__}(compact={compact}, verbose={verbose})'
+
+
+class Bar(formatting.Formattable):
+
+  def __init__(self, foo: Foo):
+    self._foo = foo
+
+  def format(
+      self, compact: bool = False, verbose: bool = True,
+      root_indent: int = 0, **kwargs):
+    foo_str = self._foo.format(
+        compact=compact, verbose=verbose, root_indent=root_indent + 1)
+    return f'{self.__class__.__name__}(foo={foo_str})'
+
+
+class FormattableTest(unittest.TestCase):
+
+  def test_formattable(self):
+    foo = Foo()
+    self.assertEqual(repr(foo), 'Foo(compact=True, verbose=True)')
+    self.assertEqual(str(foo), 'Foo(compact=False, verbose=True)')
+
+  def test_formattable_with_custom_format(self):
+    class Baz(Foo):
+      __str_format_kwargs__ = {'compact': False, 'verbose': False}
+      __repr_format_kwargs__ = {'compact': True, 'verbose': False}
+
+    bar = Baz()
+    self.assertEqual(repr(bar), 'Baz(compact=True, verbose=False)')
+    self.assertEqual(str(bar), 'Baz(compact=False, verbose=False)')
+
+  def test_formattable_with_context_managers(self):
+    foo = Foo()
+    with formatting.str_format(verbose=False):
+      with formatting.repr_format(compact=False):
+        self.assertEqual(repr(foo), 'Foo(compact=False, verbose=True)')
+        self.assertEqual(str(foo), 'Foo(compact=False, verbose=False)')
 
 
 class StringHelperTest(unittest.TestCase):
@@ -45,18 +88,29 @@ class StringHelperTest(unittest.TestCase):
 
     v = NewLine()
     self.assertEqual(formatting.str_ext(v), 'NewLine()')
+    def _method(attr_name: str):
+      def fn(v, root_indent):
+        del root_indent
+        f = getattr(v, attr_name, None)
+        return f() if f is not None else None
+      return fn
+
     self.assertEqual(
-        formatting.str_ext(v, custom_format='_repr_html_'), '<hr>'
+        formatting.str_ext(v, custom_format=_method('_repr_html_')),
+        '<hr>'
     )
     self.assertEqual(
-        formatting.str_ext(v, custom_format='_repr_xml_'), 'NewLine()'
+        formatting.str_ext(v, custom_format=_method('_repr_xml_')),
+        'NewLine()'
     )
     self.assertEqual(formatting.repr_ext(v), 'NewLine()')
     self.assertEqual(
-        formatting.repr_ext(v, custom_format='_repr_html_'), '<hr>'
+        formatting.repr_ext(v, custom_format=_method('_repr_html_')),
+        '<hr>'
     )
     self.assertEqual(
-        formatting.repr_ext(v, custom_format='_repr_xml_'), 'NewLine()'
+        formatting.repr_ext(v, custom_format=_method('_repr_xml_')),
+        'NewLine()'
     )
 
   def test_kvlist_str(self):
@@ -68,16 +122,6 @@ class StringHelperTest(unittest.TestCase):
             ('c', [1, 2, 3], False),
         ], label='Foo'),
         'Foo(\'foo\', a=1, c=[1, 2, 3])'
-    )
-
-    self.assertEqual(
-        formatting.kvlist_str([
-            ('', formatting.RawText('foo'), None),
-            ('a', 1, None),
-            ('b', 'str', (None, 'str')),
-            ('c', True, False),
-        ], label='Foo', markdown=True),
-        '`Foo(foo, a=1, c=True)`'
     )
 
     self.assertEqual(
@@ -106,16 +150,6 @@ class StringHelperTest(unittest.TestCase):
             ('a', 1, None),
             ('b', 'str', (None, 'str')),
             ('c', dict(x=1), False),
-        ], label='Foo', markdown=True, compact=False),
-        '```\nFoo(\n  \'foo\',\n  a=1,\n  c={\n    \'x\': 1\n  }\n)\n```'
-    )
-
-    self.assertEqual(
-        formatting.kvlist_str([
-            ('', 'foo', None),
-            ('a', 1, None),
-            ('b', 'str', (None, 'str')),
-            ('c', dict(x=1), False),
         ], compact=False),
         '\'foo\',\na=1,\nc={\n  \'x\': 1\n}'
     )
@@ -127,7 +161,7 @@ class StringHelperTest(unittest.TestCase):
         'Foo()'
     )
 
-    class Foo:
+    class Foo:    # pylint: disable=redefined-outer-name
       def _repr_xml_(self):
         return '<foo/>'
 
@@ -140,16 +174,21 @@ class StringHelperTest(unittest.TestCase):
         ], compact=False),
         'Foo()'
     )
+    def _custom_format(v, root_indent):
+      del root_indent
+      f = getattr(v, '_repr_xml_', None)
+      return f() if f is not None else None
+
     self.assertEqual(
         formatting.kvlist_str([
             ('', Foo(), None)
-        ], compact=False, custom_format='_repr_xml_'),
+        ], compact=False, custom_format=_custom_format),
         '<foo/>'
     )
     self.assertEqual(
         formatting.kvlist_str([
             ('', (Foo(), 1), None)
-        ], compact=True, custom_format='_repr_xml_'),
+        ], compact=True, custom_format=_custom_format),
         '(<foo/>, 1)'
     )
 
@@ -157,15 +196,6 @@ class StringHelperTest(unittest.TestCase):
     self.assertEqual(formatting.quote_if_str(1), 1)
     self.assertEqual(formatting.quote_if_str('foo'), '\'foo\'')
     self.assertEqual(formatting.quote_if_str('foo\'s\na'), '"foo\'s\\na"')
-
-  def test_message_on_path(self):
-    self.assertEqual(formatting.message_on_path('hi.', None), 'hi.')
-    self.assertEqual(
-        formatting.message_on_path('hi.', formatting.KeyPath()),
-        'hi. (path=)')
-    self.assertEqual(
-        formatting.message_on_path('hi.', formatting.KeyPath(['a'])),
-        'hi. (path=a)')
 
   def test_comma_delimited_str(self):
     self.assertEqual(
@@ -181,7 +211,7 @@ class FormatTest(unittest.TestCase):
 
   def test_formattable(self):
 
-    class A(common_traits.Formattable):
+    class A(formatting.Formattable):
 
       def format(self, compact=True, **kwargs):
         if compact:
@@ -226,7 +256,7 @@ class FormatTest(unittest.TestCase):
 
   def test_complex_types(self):
 
-    class CustomFormattable(common_traits.Formattable):
+    class CustomFormattable(formatting.Formattable):
       """Custom formattable."""
 
       def format(self, custom_param=None, **kwargs):
@@ -281,7 +311,7 @@ class FormatTest(unittest.TestCase):
     class A:
       pass
 
-    class B(common_traits.Formattable):
+    class B(formatting.Formattable):
       """Custom formattable."""
 
       def format(
@@ -339,30 +369,54 @@ class FormatTest(unittest.TestCase):
 
     self.assertEqual(formatting.format(A), str(A))
     self.assertEqual(formatting.format(A()), 'AA()')
-    self.assertEqual(formatting.format(A(), custom_format='_repr_xml_'), '<a/>')
-    self.assertEqual(formatting.format(A(), compact=True), 'A()')
+    def _custom_format(v, root_indent):
+      del root_indent
+      f = getattr(v, '_repr_xml_', None)
+      return f() if f else None
+
     self.assertEqual(
-        formatting.format(A(), compact=True, custom_format='_repr_xml_'), '<a/>'
+        formatting.format(A(), custom_format=_custom_format), '<a/>'
     )
     self.assertEqual(
-        formatting.format([A()], compact=True, custom_format='_repr_xml_'),
+        formatting.format(A(), compact=True),
+        'A()'
+    )
+    self.assertEqual(
+        formatting.format(A(), compact=True, custom_format=_custom_format),
+        '<a/>'
+    )
+    self.assertEqual(
+        formatting.format([A()], compact=True, custom_format=_custom_format),
         '[<a/>]'
     )
     self.assertEqual(
-        formatting.format((A(), 1), compact=True, custom_format='_repr_xml_'),
+        formatting.format((A(), 1), compact=True, custom_format=_custom_format),
         '(<a/>, 1)'
     )
     self.assertEqual(
         formatting.format(
-            dict(x=A()), compact=True, custom_format='_repr_xml_'
+            dict(x=A()), compact=True, custom_format=_custom_format
         ),
         '{\'x\': <a/>}'
     )
 
   def test_markdown(self):
-    self.assertEqual(
-        formatting.format([1], compact=True, markdown=True), '`[1]`'
-    )
+
+    class A(formatting.Formattable):
+      def __init__(self, x):
+        self.x = x
+
+      def format(self, *args, **kwargs):
+        del args, kwargs
+        return 'A(' + formatting.format(self.x) + ')'
+
+    with formatting.str_format(markdown=True):
+      self.assertEqual(str(A(1)), '`A(1)`')
+      self.assertEqual(str(A([A(1)])), '`A([A(1)])`')
+      self.assertEqual(
+          formatting.format([1], compact=True, markdown=True), '`[1]`'
+      )
+
     self.assertEqual(
         formatting.format(
             [1, 2, 3], list_wrap_threshold=5, compact=False, markdown=True
