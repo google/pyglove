@@ -295,6 +295,7 @@ format = object_utils.format   # pylint: disable=redefined-builtin
 print = object_utils.print    # pylint: disable=redefined-builtin
 docstr = object_utils.docstr
 catch_errors = object_utils.catch_errors
+timeit = object_utils.timeit
 
 #
 # Symbols from `io` sub-module.

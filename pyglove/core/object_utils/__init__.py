@@ -152,5 +152,9 @@ from pyglove.core.object_utils.docstr_utils import docstr
 from pyglove.core.object_utils.error_utils import catch_errors
 from pyglove.core.object_utils.error_utils import CatchErrorsContext
 
+# Profiling
+from pyglove.core.object_utils.profiling import timeit
+from pyglove.core.object_utils.profiling import TimeIt
+
 # pylint: enable=g-importing-member
 # pylint: enable=g-bad-import-order
