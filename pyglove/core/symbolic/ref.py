@@ -162,6 +162,30 @@ class Ref(Object, base.Inferential):
           + ')'
       )
 
+  def _html_content(
+      self,
+      *,
+      view: object_utils.HtmlView,
+      **kwargs: Any) -> object_utils.Html:
+    """Overrides `_html_content` to render the referenced value."""
+    kwargs.pop('prefer_user_override', None)
+    return view.render_content(
+        self._value, prefer_user_override=True, **kwargs
+    )
+
+  def _html_summary(
+      self,
+      *,
+      view: object_utils.HtmlView,
+      **kwargs: Any) -> Optional[object_utils.Html]:
+    """Overrides `_html_content` to render the referenced value."""
+    return view.render_summary(
+        self,
+        title=f'{type(self._value).__name__}(...)',
+        title_class=None,
+        **kwargs
+    )
+
 
 def maybe_ref(value: Any) -> Optional[Ref]:
   """Returns a reference if a value is not symbolic or already has a parent."""

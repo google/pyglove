@@ -287,6 +287,13 @@ MaybePartial = object_utils.MaybePartial
 JSONConvertible = object_utils.JSONConvertible
 DocStr = object_utils.DocStr
 
+Html = object_utils.Html
+HtmlComponent = object_utils.HtmlComponent
+HtmlView = object_utils.HtmlView
+HtmlFormattable = object_utils.HtmlFormattable
+to_html = object_utils.to_html
+to_html_str = object_utils.to_html_str
+
 registered_types = object_utils.registered_types
 explicit_method_override = object_utils.explicit_method_override
 

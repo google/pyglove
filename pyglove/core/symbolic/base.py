@@ -171,9 +171,10 @@ RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
 
 class Symbolic(
     TopologyAware,
+    object_utils.Formattable,
+    object_utils.HtmlFormattable,
     object_utils.JSONConvertible,
     object_utils.MaybePartial,
-    object_utils.Formattable,
 ):
   """Base for all symbolic types.
 
@@ -946,6 +947,36 @@ class Symbolic(
   def to_json_str(self, json_indent: Optional[int] = None, **kwargs) -> str:
     """Serializes current object into a JSON string."""
     return to_json_str(self, json_indent=json_indent, **kwargs)
+
+  def _html_content(
+      self,
+      *,
+      name: Optional[str] = None,
+      root_path: object_utils.KeyPath,
+      setting: object_utils.HtmlView.ViewSetting,
+      view: object_utils.HtmlView,
+      **kwargs
+  ) -> object_utils.Html:
+    """Returns the content HTML for a symbolic object.."""
+    kv = {}
+    vsetting = setting.content.child_value
+    for k, v in self.sym_items():
+      # Apply frozen filter.
+      field = self.sym_attr_field(k)
+      if vsetting.hide_frozen and field and field.frozen:
+        continue
+
+      # Apply inferred value.
+      if vsetting.use_inferred and isinstance(v, Inferential):
+        v = self.sym_inferred(k, default=v)
+
+      # Apply default value filter.
+      if field and vsetting.hide_default_values and eq(v, field.default_value):
+        continue
+      kv[k] = v
+    return view.render_content(
+        kv, name=name, root_path=root_path, setting=setting, **kwargs
+    )
 
   @classmethod
   def load(cls, *args, **kwargs) -> Any:

@@ -400,6 +400,16 @@ class KeyPath(formatting.Formattable):
     except KeyError:
       return False
 
+  def is_relative_to(self, other: Union[int, str, 'KeyPath']) -> bool:
+    """Returns whether current path is relative to another path."""
+    other = KeyPath.from_value(other)
+    if len(self) < len(other):
+      return False
+    for i in range(len(other)):
+      if self.keys[i] != other.keys[i]:
+        return False
+    return True
+
   @property
   def path(self) -> str:
     """JSONPath representation of current path."""

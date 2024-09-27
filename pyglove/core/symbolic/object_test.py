@@ -3469,15 +3469,10 @@ class FormatTest(unittest.TestCase):
   def test_custom_format(self):
 
     class Foo(Object):  # pylint: disable=redefined-outer-name]
-
-      def _repr_html_(self):
-        return '<foo/>'
+      pass
 
     class Bar(Object):
       foo: Foo
-
-      def _repr_xml_(self):
-        return f'<bar>{self.foo}</bar>'
 
     def _method(attr_name):
       def fn(v, root_indent):
@@ -3487,10 +3482,10 @@ class FormatTest(unittest.TestCase):
       return fn
 
     with object_utils.str_format(custom_format=_method('_repr_xml_')):
-      self.assertEqual(str(Bar(Foo())), '<bar>Foo()</bar>')
+      self.assertEqual(str(Bar(Foo())), 'Bar(\n  foo = Foo()\n)')
 
     with object_utils.str_format(custom_format=_method('_repr_html_')):
-      self.assertEqual(str(Bar(Foo())), 'Bar(\n  foo = <foo/>\n)')
+      self.assertIn('<html>', str(Bar(Foo())))
 
 
 class Foo(Object):

@@ -1,1 +1,5 @@
+# For `pg.object_utils.docstr`.
 docstring-parser>=0.12
+
+# For `pg.HtmlComponent`.
+jinja2>=3.1.2

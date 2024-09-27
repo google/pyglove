@@ -13,6 +13,8 @@
 # limitations under the License.
 """Tests for pyglove.diff."""
 
+import inspect
+from typing import Any
 import unittest
 
 from pyglove.core import typing as pg_typing
@@ -337,6 +339,195 @@ class DiffTest(unittest.TestCase):
             '_type': Diff(B, C),
         })
 
+  def test_to_html(self):
+
+    class Foo(Object):
+      x: Any
+      y: Any
+
+    def assert_html(actual, expected):
+      expected = inspect.cleandoc(expected).strip()
+      actual = actual.strip()
+      if actual != expected:
+        print(actual)
+      self.assertEqual(actual.strip(), expected)
+
+    # No diff.
+    assert_html(
+        pg_diff(1, 1).to_html_str(),
+        """
+        <html>
+        <head>
+        <style>
+        details.pyglove {
+          border: 1px solid #aaa;
+          border-radius: 4px;
+          padding: 0.5em 0.5em 0;
+          margin: 0.5em 0;
+        }
+        details.pyglove[open] {
+          padding: 0.5em 0.5em 0.5em;
+        }
+        details.pyglove summary {
+          font-weight: bold;
+          margin: -0.5em -0.5em 0;
+          padding: 0.5em;
+        }
+        .summary_name {
+          display: inline;
+          padding: 0 5px;
+        }
+        .summary_title {
+          display: inline;
+        }
+        .summary_name + div.summary_title {
+          display: inline;
+          color: #aaa;
+        }
+        .summary_title.t_Ref::before {
+          content: 'ref: ';
+          color: #aaa;
+        }
+        .summary_title:hover + span.tooltip {
+          visibility: visible;
+        }
+        .t_str {
+          color: darkred;
+          font-style: italic;
+        }
+        .empty_container::before {
+            content: '(empty)';
+            font-style: italic;
+            margin-left: 0.5em;
+            color: #aaa;
+        }
+        span.tooltip {
+          visibility: hidden;
+          white-space: pre-wrap;
+          font-weight: normal;
+          background-color: #808080;
+          color: #fff;
+          padding: 6px;
+          border-radius: 6px;
+          position: absolute;
+          z-index: 1;
+        }
+        </style>
+        <script>
+        </script>
+        </head>
+        <body>
+        <details class="pyglove Diff" open>
+        <summary>
+        <div class="summary_title t_Diff t_empty">Diff</div>
+        <span class="tooltip">No diff</span>
+        </summary>
+        <span class="empty_container"></span>
+        </details>
+
+        </body>
+        </html>
+        """
+    )
+
+    # Complex structure with uncollapsing.
+    assert_html(
+        pg_diff(
+            [1, 2, None, Foo(x=1, y=Foo(2, 3)), [dict(x=1, y=2)]],
+            [1, dict(x=1), [1, 2], Foo(x=2, y=Foo(2, 4)), [dict(x=3)]],
+            mode='both'
+        ).to_html(
+            enable_tooltip=False, uncollapse=['[1].right.x', '[3].y']
+        ).body_content,
+        """
+        <details class="pyglove Diff" open>
+        <summary>
+        <div class="summary_title t_Diff">List</div>
+
+        </summary>
+        <table class="diff_table"><tr><td><div class="no_diff_key"><span class="object_key k_int v_Diff">0</span>
+        </div></td><td><div class="left right"><span class="simple_value v_int">1</span>
+        </div>
+        </td></tr><tr><td><span class="object_key k_int v_Diff">1</span>
+        </td><td><div class="diff_value"><div class="left"><span class="simple_value v_int">2</span>
+        </div><div class="right"><details class="pyglove Dict" open>
+        <summary>
+        <div class="summary_title t_Dict">Dict(...)</div>
+
+        </summary>
+        <div><table><tr><td><span class="object_key k_str v_int">x</span>
+        </td><td><span class="simple_value v_int">1</span>
+        </td></tr></table></div>
+        </details>
+        </div></div>
+        </td></tr><tr><td><span class="object_key k_int v_Diff">2</span>
+        </td><td><div class="diff_value"><div class="left"><span class="simple_value v_NoneType">None</span>
+        </div><div class="right"><details class="pyglove List">
+        <summary>
+        <div class="summary_title t_List">List(...)</div>
+
+        </summary>
+        <div><table><tr><td><span class="object_key k_int v_int">0</span>
+        </td><td><span class="simple_value v_int">1</span>
+        </td></tr><tr><td><span class="object_key k_int v_int">1</span>
+        </td><td><span class="simple_value v_int">2</span>
+        </td></tr></table></div>
+        </details>
+        </div></div>
+        </td></tr><tr><td><span class="object_key k_int v_Diff">3</span>
+        </td><td><details class="pyglove Diff" open>
+        <summary>
+        <div class="summary_title t_Diff">Foo</div>
+
+        </summary>
+        <table class="diff_table"><tr><td><span class="object_key k_str v_Diff">x</span>
+        </td><td><div class="diff_value"><div class="left"><span class="simple_value v_int">1</span>
+        </div><div class="right"><span class="simple_value v_int">2</span>
+        </div></div>
+        </td></tr><tr><td><span class="object_key k_str v_Diff">y</span>
+        </td><td><details class="pyglove Diff" open>
+        <summary>
+        <div class="summary_title t_Diff">Foo</div>
+
+        </summary>
+        <table class="diff_table"><tr><td><div class="no_diff_key"><span class="object_key k_str v_Diff">x</span>
+        </div></td><td><div class="left right"><span class="simple_value v_int">2</span>
+        </div>
+        </td></tr><tr><td><span class="object_key k_str v_Diff">y</span>
+        </td><td><div class="diff_value"><div class="left"><span class="simple_value v_int">3</span>
+        </div><div class="right"><span class="simple_value v_int">4</span>
+        </div></div>
+        </td></tr></table>
+        </details>
+        </td></tr></table>
+        </details>
+        </td></tr><tr><td><span class="object_key k_int v_Diff">4</span>
+        </td><td><details class="pyglove Diff">
+        <summary>
+        <div class="summary_title t_Diff">List</div>
+
+        </summary>
+        <table class="diff_table"><tr><td><span class="object_key k_int v_Diff">0</span>
+        </td><td><details class="pyglove Diff">
+        <summary>
+        <div class="summary_title t_Diff">dict</div>
+
+        </summary>
+        <table class="diff_table"><tr><td><span class="object_key k_str v_Diff">x</span>
+        </td><td><div class="diff_value"><div class="left"><span class="simple_value v_int">1</span>
+        </div><div class="right"><span class="simple_value v_int">3</span>
+        </div></div>
+        </td></tr><tr><td><span class="object_key k_str v_Diff">y</span>
+        </td><td><div class="diff_value"><div class="left"><span class="simple_value v_int">2</span>
+        </div></div>
+        </td></tr></table>
+        </details>
+        </td></tr></table>
+        </details>
+        </td></tr></table>
+        </details>
+        """
+    )
 
 if __name__ == '__main__':
   unittest.main()
