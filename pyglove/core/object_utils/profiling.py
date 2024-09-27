@@ -88,12 +88,12 @@ class TimeIt:
     return self._end_time is not None
 
   @property
-  def start_time(self) -> float | None:
+  def start_time(self) -> Optional[float]:
     """Returns start time."""
     return self._start_time
 
   @property
-  def end_time(self) -> float | None:
+  def end_time(self) -> Optional[float]:
     """Returns end time."""
     return self._end_time
 

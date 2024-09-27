@@ -23,16 +23,16 @@ from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 @dataclasses.dataclass()
 class CatchErrorsContext:
   """Context for pg.catch_errors."""
-  error: Optional[Exception] = None
+  error: Optional[BaseException] = None
 
 
 @contextlib.contextmanager
 def catch_errors(
     errors: Union[
-        Union[Type[Exception], Tuple[Type[Exception], str]],
-        Sequence[Union[Type[Exception], Tuple[Type[Exception], str]]],
+        Union[Type[BaseException], Tuple[Type[BaseException], str]],
+        Sequence[Union[Type[BaseException], Tuple[Type[BaseException], str]]],
     ],
-    error_handler: Optional[Callable[[Exception], None]] = None
+    error_handler: Optional[Callable[[BaseException], None]] = None
 ):
   """Context manager for catching user-specified exceptions.
 
@@ -71,7 +71,7 @@ def catch_errors(
   ):
     errors = [errors]
 
-  error_mapping: Dict[Type[Exception], List[str]] = {}
+  error_mapping: Dict[Type[BaseException], List[str]] = {}
   for error_type in errors:
     regex = None
     if isinstance(error_type, tuple):
@@ -82,7 +82,9 @@ def catch_errors(
             f'to match. Encountered: {error_type!r}.'
         )
       error_type, regex = error_type
-    if not (inspect.isclass(error_type) and issubclass(error_type, Exception)):
+    if not (
+        inspect.isclass(error_type) and issubclass(error_type, BaseException)
+    ):
       raise TypeError(f'Exception contains non-except types: {error_type!r}.')
     if error_type not in error_mapping:
       error_mapping[error_type] = []
