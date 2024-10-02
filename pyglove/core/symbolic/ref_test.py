@@ -155,6 +155,66 @@ class RefTest(unittest.TestCase):
     self.assertIs(a_prime, a.value)
     self.assertFalse(contains(a_prime, type=ref.Ref))
 
+  def test_to_html(self):
+
+    def assert_html(actual, expected):
+      expected = inspect.cleandoc(expected).strip()
+      actual = actual.strip()
+      if actual != expected:
+        print(actual)
+      self.assertEqual(actual.strip(), expected)
+
+    class Foo(Object):
+      x: Any
+
+    assert_html(
+        Foo(ref.Ref(Foo(1))).to_html(
+            use_inferred=False, enable_tooltip=False
+        ).body_content,
+        """
+        <details class="pyglove Foo" open>
+        <summary>
+        <div class="summary_title t_Foo">Foo(...)</div>
+
+        </summary>
+        <div><table><tr><td><span class="object_key k_str v_Ref">x</span>
+        </td><td><details class="pyglove Ref">
+        <summary>
+        <div class="summary_title t_Ref">Foo(...)</div>
+
+        </summary>
+        <div><table><tr><td><span class="object_key k_str v_int">x</span>
+        </td><td><span class="simple_value v_int">1</span>
+        </td></tr></table></div>
+        </details>
+        </td></tr></table></div>
+        </details>
+        """
+    )
+    assert_html(
+        Foo(ref.Ref(Foo(1))).to_html(
+            enable_tooltip=False
+        ).body_content,
+        """
+        <details class="pyglove Foo" open>
+        <summary>
+        <div class="summary_title t_Foo">Foo(...)</div>
+
+        </summary>
+        <div><table><tr><td><span class="object_key k_str v_Foo">x</span>
+        </td><td><details class="pyglove Foo">
+        <summary>
+        <div class="summary_title t_Foo">Foo(...)</div>
+
+        </summary>
+        <div><table><tr><td><span class="object_key k_str v_int">x</span>
+        </td><td><span class="simple_value v_int">1</span>
+        </td></tr></table></div>
+        </details>
+        </td></tr></table></div>
+        </details>
+        """
+    )
 
 if __name__ == '__main__':
   unittest.main()

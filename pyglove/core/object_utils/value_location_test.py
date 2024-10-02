@@ -226,6 +226,28 @@ class KeyPathTest(unittest.TestCase):
     with self.assertRaisesRegex(TypeError, 'Cannot subtract KeyPath'):
       _ = value_location.KeyPath.parse('a.b') - 1.0
 
+  def test_is_relative_to(self):
+    self.assertTrue(
+        value_location.KeyPath.parse('a.b.c').is_relative_to(
+            value_location.KeyPath())
+    )
+    self.assertTrue(
+        value_location.KeyPath.parse('a.b.c').is_relative_to(
+            value_location.KeyPath.parse('a.b'))
+    )
+    self.assertTrue(
+        value_location.KeyPath.parse('a.b.c').is_relative_to(
+            value_location.KeyPath.parse('a.b.c'))
+    )
+    self.assertFalse(
+        value_location.KeyPath.parse('a.b').is_relative_to(
+            value_location.KeyPath.parse('a.b.c'))
+    )
+    self.assertFalse(
+        value_location.KeyPath.parse('a.b.d').is_relative_to(
+            value_location.KeyPath.parse('a.b.c'))
+    )
+
   def test_hash(self):
     self.assertIn(value_location.KeyPath.parse('a.b.c'), {'a.b.c': 1})
     self.assertNotIn(value_location.KeyPath.parse('a.b.c'), {'a.b': 1})

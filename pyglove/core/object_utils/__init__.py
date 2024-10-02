@@ -94,6 +94,14 @@ from pyglove.core.object_utils.formatting import BracketType
 from pyglove.core.object_utils.formatting import bracket_chars
 from pyglove.core.object_utils.formatting import RawText
 
+# Handling HTML formatting.
+from pyglove.core.object_utils.html_formatting import Html
+from pyglove.core.object_utils.html_formatting import HtmlComponent
+from pyglove.core.object_utils.html_formatting import HtmlView
+from pyglove.core.object_utils.html_formatting import HtmlFormattable
+from pyglove.core.object_utils.html_formatting import to_html
+from pyglove.core.object_utils.html_formatting import to_html_str
+
 # Context managers for defining the default format for __str__ and __repr__.
 from pyglove.core.object_utils.formatting import str_format
 from pyglove.core.object_utils.formatting import repr_format

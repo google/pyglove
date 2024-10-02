@@ -13,7 +13,7 @@
 # limitations under the License.
 """Symbolic differences."""
 
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Tuple, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
@@ -143,6 +143,174 @@ class Diff(PureSymbolic, pg_object.Object):
           bracket_type=object_utils.BracketType.ROUND,
           **kwargs,
       )
+
+  def _html_summary(
+      self,
+      *,
+      setting: object_utils.HtmlView.SummarySetting,
+      view: object_utils.HtmlView,
+      **kwargs
+  ) -> Optional[object_utils.Html]:
+    if not bool(self):
+      v = self.value
+      if (isinstance(v, (int, float, bool, type(None)))
+          or (isinstance(v, str) and len(v) <= setting.max_str_len)):
+        return None
+
+      if v == Diff.MISSING:
+        return view.render_summary(
+            self,
+            title='Diff',
+            title_class='t_Diff t_empty',
+            setting=setting, **kwargs
+        )
+      return view.render_summary(
+          self.value,
+          setting=setting,
+          prefer_user_override=True,
+          **kwargs
+      )
+    elif self.is_leaf:
+      return None
+    else:
+      assert isinstance(self.left, type), self.left
+      assert isinstance(self.right, type), self.right
+      if self.left is self.right:
+        content = self.left.__name__
+      else:
+        content = f'{self.left.__name__} | {self.right.__name__}'
+      return view.render_summary(
+          self,
+          title=content,
+          title_class='t_Diff',
+          setting=setting, **kwargs
+      )
+
+  def _html_content(
+      self,
+      *,
+      root_path: object_utils.KeyPath,
+      view: object_utils.HtmlView,
+      setting: object_utils.HtmlView.ViewSetting,
+      **kwargs
+  ) -> object_utils.Html:
+    s = object_utils.Html()
+    s.add_style(
+        """
+        .t_Diff::after {
+          content: ' (diff)';
+          color: #aaa;
+        }
+        .t_Diff {
+          background-color: yellow;
+        }
+        .diff_table td {
+          padding: 4px;
+        }
+        .diff_value {
+          display: inline-block;
+          align-items: center;
+        }
+        .no_diff_key {
+          opacity: 0.4;
+        }
+        .left.right::after {
+          content: '(no diff)';
+          color: #aaa;
+          font-style: italic;
+        }
+        .diff_value .left::before {
+          content: '🇱';
+        }
+        .diff_value .left {
+          background-color: #ffcccc;
+        }
+        .diff_value .right::before {
+          content: '🇷';
+        }
+        .diff_value .right {
+          background-color: #ccffcc;
+        }
+        """
+    )
+    if not bool(self):
+      if self.value == Diff.MISSING:
+        return object_utils.Html('<span class="empty_container"></span>')
+      # When there is no diff, but the same value needs to be displayed
+      # we simply return the value.
+      s.add('<div class="left right">')
+      s.add(
+          view.render(
+              self.value, root_path=root_path, setting=setting, **kwargs
+          )
+      )
+      s.add('</div>')
+    elif self.is_leaf:
+      s.add('<div class="diff_value">')
+      if self.left != Diff.MISSING:
+        s.add(
+            '<div class="left">',
+            view.render(
+                self.left, root_path=root_path + 'left',
+                setting=setting,
+                **kwargs
+            ),
+            '</div>',
+        )
+      if self.right != Diff.MISSING:
+        s.add(
+            '<div class="right">',
+            view.render(
+                self.right,
+                root_path=root_path + 'right',
+                setting=setting,
+                **kwargs
+            ),
+            '</div>'
+        )
+      s.add('</div>')
+    else:
+      assert isinstance(self.left, type)
+      assert isinstance(self.right, type)
+
+      if issubclass(self.left, list):
+        key_fn = int
+      else:
+        key_fn = lambda k: k
+
+      s.add('<table class="diff_table">')
+      for k, v in self.children.items():
+        k = key_fn(k)
+        child_path = root_path + k
+
+        s.add('<tr><td>')
+        # Print Key.
+        if not bool(v):
+          s.add(
+              '<div class="no_diff_key">',
+              view.render_key(
+                  k, value=v, root_path=child_path,
+                  setting=setting.content.child_key.setting,
+                  **kwargs
+              ),
+              '</div>',
+          )
+        else:
+          s.add(
+              view.render_key(
+                  k, value=v, root_path=child_path,
+                  setting=setting.content.child_key.setting,
+                  **kwargs),
+          )
+
+        # Print Value.
+        s.add(
+            '</td><td>',
+            view.render(v, root_path=child_path, setting=setting, **kwargs),
+            '</td></tr>'
+        )
+      s.add('</table>')
+    return s
 
 
 # NOTE(daiyip): we add the symbolic attribute to Diff after its declaration
