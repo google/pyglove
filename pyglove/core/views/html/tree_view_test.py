@@ -317,7 +317,8 @@ class ContentTest(TestCase):
             '<hello><world> \nto everyone.', max_summary_len_for_str=10
         ),
         """ 
-        <span class="simple_value str">&#x27;&lt;hello&gt;&lt;world&gt; \\nto everyone.&#x27;</span>
+        <span class="simple_value str">&lt;hello&gt;&lt;world&gt; 
+        to everyone.</span>
         """
     )
 

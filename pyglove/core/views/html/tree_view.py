@@ -765,11 +765,13 @@ class HtmlTreeView(HtmlView):
       if isinstance(value, str):
         if len(value) < max_summary_len_for_str:
           return repr(value)
+        else:
+          return value
       return object_utils.format(
           value,
           compact=False, verbose=False, hide_default_values=True,
           python_format=True, use_inferred=True,
-          max_bytes_len=64, max_str_len=256,
+          max_bytes_len=64,
       )
     return Html.element(
         'span',
