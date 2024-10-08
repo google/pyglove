@@ -13,7 +13,7 @@
 # limitations under the License.
 """Symbolic differences."""
 
-from typing import Any, Callable, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
@@ -21,6 +21,7 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import list as pg_list
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
+from pyglove.core.views import html
 
 
 class Diff(PureSymbolic, pg_object.Object):
@@ -143,6 +144,194 @@ class Diff(PureSymbolic, pg_object.Object):
           bracket_type=object_utils.BracketType.ROUND,
           **kwargs,
       )
+
+  # pytype: disable=annotation-type-mismatch
+  def _html_tree_view_summary(
+      self,
+      *,
+      view: html.HtmlTreeView,
+      title: Optional[str] = None,
+      max_summary_len_for_str: int = html.HtmlView.PresetArgValue(40),
+      **kwargs,
+    ) -> Optional[html.Html]:
+  # pytype: enable=annotation-type-mismatch
+    if not bool(self):
+      v = self.value
+      if (isinstance(v, (int, float, bool, type(None)))
+          or (isinstance(v, str) and len(v) <= max_summary_len_for_str)):
+        return None
+
+      if v == Diff.MISSING:
+        return view.summary(
+            self,
+            title=title or 'Diff',
+            max_summary_len_for_str=max_summary_len_for_str,
+            **kwargs
+        )
+      return view.summary(
+          self.value,
+          title=title,
+          max_summary_len_for_str=max_summary_len_for_str,
+          **kwargs
+      )
+    elif self.is_leaf:
+      return None
+    else:
+      assert isinstance(self.left, type), self.left
+      assert isinstance(self.right, type), self.right
+      if self.left is self.right:
+        diff_title = self.left.__name__
+      else:
+        diff_title = f'{self.left.__name__} | {self.right.__name__}'
+      return view.summary(
+          self,
+          title=title or diff_title,
+          max_summary_len_for_str=max_summary_len_for_str,
+          **kwargs
+      )
+
+  def _html_tree_view_content(
+      self,
+      *,
+      view: html.HtmlTreeView,
+      parent: Any,
+      root_path: object_utils.KeyPath,
+      css_class: Optional[Sequence[str]] = None,
+      **kwargs
+  ) -> html.Html:
+    del parent
+    user_specified_css_class = css_class or []
+    if not bool(self):
+      if self.value == Diff.MISSING:
+        root = html.Html.element(
+            'span',
+            # CSS class already defined in HtmlTreeView.
+            css_class=['diff_empty'] + user_specified_css_class,
+        )
+      else:
+        # When there is no diff, but the same value needs to be displayed
+        # we simply return the value.
+        root = view.content(
+            self.value,
+            css_class=['diff_left', 'diff_right'] + user_specified_css_class,
+            root_path=root_path, **kwargs
+        )
+    elif self.is_leaf:
+      root = html.Html.element(
+          'div',
+          [
+              # Render left value.
+              lambda: html.Html.element(  # pylint: disable=g-long-ternary
+                  'div',
+                  [
+                      view.render(
+                          self.left, root_path=root_path + 'left', **kwargs
+                      )
+                  ],
+                  css_class=['diff_left'],
+              ) if self.left != Diff.MISSING else None,
+              # Render right value.
+              lambda: html.Html.element(  # pylint: disable=g-long-ternary
+                  'div',
+                  [
+                      view.render(
+                          self.right, root_path=root_path + 'right', **kwargs
+                      )
+                  ],
+                  css_class=['diff_right'],
+              )  if self.right != Diff.MISSING else None,
+          ],
+          css_class=['diff_value'] + user_specified_css_class,
+      )
+    else:
+      assert isinstance(self.left, type)
+      assert isinstance(self.right, type)
+
+      if issubclass(self.left, list):
+        key_fn = int
+      else:
+        key_fn = lambda k: k
+
+      s = html.Html()
+      for k, v in self.children.items():
+        k = key_fn(k)
+        child_path = root_path + k
+
+        s.write('<tr><td>')
+        # Print Key.
+        s.write(
+            view.object_key(
+                k, parent=v, root_path=child_path,
+                css_class=None if bool(v) else ['no_diff_key'],
+                **kwargs
+            ),
+        )
+        # Print Value.
+        s.write(
+            '</td><td>',
+            view.render(v, root_path=child_path, **kwargs),
+            '</td></tr>'
+        )
+      root = html.Html.element(
+          'div',
+          [
+              '<table>', s, '</table>'
+          ],
+          css_class=[
+              'complex_value', view.css_class_name(self.left)
+          ] + user_specified_css_class,
+      )
+    return root.add_style(
+        """
+        .diff .summary_title::after {
+          content: ' (diff)';
+          color: #aaa;
+        }
+        .diff .summary_title {
+          background-color: yellow;
+        }
+        .diff table td {
+          padding: 4px;
+        }
+        .diff_value {
+          display: inline-block;
+          align-items: center;
+        }
+        .no_diff_key {
+          opacity: 0.4;
+        }
+        .diff_left.diff_right::after {
+          content: '(no diff)';
+          margin-left: 0.5em;
+          color: #aaa;
+          font-style: italic;
+        }
+        .diff_empty::before {
+            content: '(empty)';
+            font-style: italic;
+            margin-left: 0.5em;
+            color: #aaa;
+        }
+        .diff_value .diff_left::before {
+          content: '🇱';
+        }
+        .diff_value .diff_left > .simple_value {
+          background-color: #ffcccc;
+        }
+        .diff_value .diff_left > details {
+          background-color: #ffcccc;
+        }
+        .diff_value .diff_right::before {
+          content: '🇷';
+        }
+        .diff_value .diff_right > .simple_value {
+          background-color: #ccffcc;
+        }
+        .diff_value .diff_right > details {
+          background-color: #ccffcc;
+        }
+        """
+    )
 
 
 # NOTE(daiyip): we add the symbolic attribute to Diff after its declaration

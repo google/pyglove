@@ -137,6 +137,7 @@ from pyglove.core.object_utils.thread_local import thread_local_increment
 from pyglove.core.object_utils.thread_local import thread_local_decrement
 from pyglove.core.object_utils.thread_local import thread_local_push
 from pyglove.core.object_utils.thread_local import thread_local_pop
+from pyglove.core.object_utils.thread_local import thread_local_peek
 
 # Handling docstrings.
 from pyglove.core.object_utils.docstr_utils import DocStr

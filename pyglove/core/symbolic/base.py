@@ -31,6 +31,7 @@ from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
+from pyglove.core.views import html
 
 
 class WritePermissionError(Exception):
@@ -171,9 +172,10 @@ RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
 
 class Symbolic(
     TopologyAware,
+    object_utils.Formattable,
     object_utils.JSONConvertible,
     object_utils.MaybePartial,
-    object_utils.Formattable,
+    html.HtmlTreeView.Extension
 ):
   """Base for all symbolic types.
 
@@ -525,7 +527,7 @@ class Symbolic(
   def sym_contains(
       self,
       value: Any = None,
-      type: Union[None, Type[Any], Tuple[Type[Any]]] = None   # pylint: disable=redefined-builtin
+      type: Union[None, Type[Any], Tuple[Type[Any], ...]] = None   # pylint: disable=redefined-builtin
       ) -> bool:
     """Returns True if the object contains sub-nodes of given value or type."""
     return contains(self, value, type)
@@ -946,6 +948,42 @@ class Symbolic(
   def to_json_str(self, json_indent: Optional[int] = None, **kwargs) -> str:
     """Serializes current object into a JSON string."""
     return to_json_str(self, json_indent=json_indent, **kwargs)
+
+  # pytype: disable=annotation-type-mismatch
+  def _html_tree_view_content(
+      self,
+      *,
+      view: html.HtmlTreeView,
+      name: Optional[str],
+      parent: Any,
+      root_path: object_utils.KeyPath,
+      hide_frozen: bool = html.HtmlView.PresetArgValue(True),
+      hide_default_values: bool = html.HtmlView.PresetArgValue(False),
+      use_inferred: bool = html.HtmlView.PresetArgValue(True),
+      **kwargs,
+  ) -> html.Html:
+  # pytype: enable=annotation-type-mismatch
+    """Returns the content HTML for a symbolic object.."""
+    kv = {}
+    for k, v in self.sym_items():
+      # Apply frozen filter.
+      field = self.sym_attr_field(k)
+      if hide_frozen and field and field.frozen:
+        continue
+
+      # Apply inferred value.
+      if use_inferred and isinstance(v, Inferential):
+        v = self.sym_inferred(k, default=v)
+
+      # Apply default value filter.
+      if field and hide_default_values and eq(v, field.default_value):
+        continue
+      kv[k] = v
+    return view.complex_value(
+        kv, name=name, parent=self, root_path=root_path,
+        hide_frozen=hide_frozen, hide_default_values=hide_default_values,
+        use_inferred=use_inferred, **kwargs
+    )
 
   @classmethod
   def load(cls, *args, **kwargs) -> Any:

@@ -61,6 +61,7 @@ MODULES_TO_DOCUMENT = frozenset({
     'patching',
     'object_utils',
     'symbolic',
+    'views',
     'tuning',
     'typing',
 

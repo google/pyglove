@@ -19,6 +19,7 @@ from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic.object import Object
+from pyglove.core.views import html
 
 
 class Ref(Object, base.Inferential):
@@ -161,6 +162,34 @@ class Ref(Object, base.Inferential):
           + '  ' * root_indent
           + ')'
       )
+
+  def _html_tree_view_content(
+      self,
+      *,
+      view: html.HtmlTreeView,
+      **kwargs: Any) -> html.Html:
+    """Overrides `_html_content` to render the referenced value."""
+    return view.content(self._value, **kwargs)
+
+  def _html_tree_view_summary(
+      self,
+      *,
+      view: html.HtmlTreeView,
+      title: Optional[str] = None,
+      **kwargs: Any) -> Optional[html.Html]:
+    """Overrides `_html_content` to render the referenced value."""
+    return view.summary(
+        self,
+        title=title or f'{type(self._value).__name__}(...)',
+        **kwargs
+    ).add_style(
+        """
+        details.ref .summary_title::before {
+          content: 'ref: ';
+          color: #aaa;
+        }
+        """
+    )
 
 
 def maybe_ref(value: Any) -> Optional[Ref]:

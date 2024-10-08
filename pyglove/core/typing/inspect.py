@@ -14,6 +14,7 @@
 """Utility module for inspecting generics types."""
 
 import inspect
+import sys
 import typing
 from typing import Any, Callable, Optional, Tuple, Type, Union
 
@@ -114,6 +115,68 @@ def get_type_args(
       if get_type(orig_base) is base:
         return typing.get_args(orig_base)
     return ()
+
+
+def get_outer_class(
+    cls: Type[Any],
+    base_cls: Union[Type[Any], Tuple[Type[Any], ...], None] = None,
+    immediate: bool = False,
+) -> Optional[Type[Any]]:
+  """Returns the outer class.
+
+  Example::
+
+    class A:
+      pass
+
+    class A1:
+      class B:
+        class C:
+          ...
+
+    pg.typing.outer_class(B) is A1
+    pg.typing.outer_class(C) is B
+    pg.typing.outer_class(C, base_cls=A) is None
+    pg.typing.outer_class(C, base_cls=A1) is None
+
+  Args:
+    cls: The class to get the outer class for.
+    base_cls: The base class of the outer class. If provided, an outer class
+      that is not a subclass of `base_cls` will be returned as None.
+    immediate: Whether to return the immediate outer class or a class in the
+      nesting hierarchy that is a subclass of `base_cls`. Applicable when
+      `base_cls` is not None.
+
+  Returns:
+    The outer class of `cls`. None if cannot find one or the outer class is
+      not a subclass of `base_cls`.
+  """
+  if '<locals>' in cls.__qualname__:
+    raise ValueError(
+        'Cannot find the outer class for locally defined class '
+        f'{cls.__qualname__!r}'
+    )
+
+  names = cls.__qualname__.split('.')
+  if len(names) < 2:
+    return None
+
+  parent = sys.modules[cls.__module__]
+  symbols = []
+  for name in names[:-1]:
+    symbol = getattr(parent, name, None)
+    if symbol is None:
+      return None
+    assert inspect.isclass(symbol), symbol
+    symbols.append(symbol)
+    parent = symbol
+
+  for symbol in reversed(symbols):
+    if immediate:
+      return symbol if not base_cls or issubclass(symbol, base_cls) else None
+    if not base_cls or issubclass(symbol, base_cls):
+      return symbol
+  return None
 
 
 def callable_eq(

@@ -16,7 +16,9 @@
 from typing import Any, Generic, TypeVar
 import unittest
 
+from pyglove.core.typing import callable_signature
 from pyglove.core.typing import inspect
+
 
 XType = TypeVar('XType')
 YType = TypeVar('YType')
@@ -48,6 +50,16 @@ class C(A[str, int], B[Str]):
 
 class D(C):
   pass
+
+
+class AA:
+  pass
+
+
+class AA1(AA):
+  class BB1:
+    class CC1:
+      pass
 
 
 class InspectTest(unittest.TestCase):
@@ -140,6 +152,33 @@ class InspectTest(unittest.TestCase):
     self.assertEqual(inspect.get_type_args(C), ())
     self.assertEqual(inspect.get_type_args(C, A), (str, int))
     self.assertEqual(inspect.get_type_args(C, B), (Str,))
+
+  def test_outer_class(self):
+    class Foo:
+      pass
+
+    with self.assertRaisesRegex(ValueError, '.* locally defined class'):
+      inspect.get_outer_class(Foo)
+
+    self.assertIsNone(inspect.get_outer_class(AA))
+    self.assertIs(inspect.get_outer_class(AA1.BB1), AA1)
+    self.assertIs(inspect.get_outer_class(AA1.BB1, AA), AA1)
+    self.assertIs(inspect.get_outer_class(AA1.BB1, A), None)
+    self.assertIs(inspect.get_outer_class(AA1.BB1.CC1), AA1.BB1)
+    self.assertIsNone(
+        inspect.get_outer_class(AA1.BB1.CC1, base_cls=AA, immediate=True)
+    )
+    self.assertIs(inspect.get_outer_class(AA1.BB1.CC1, AA), AA1)
+    self.assertIs(
+        inspect.get_outer_class(callable_signature.Argument.Kind),
+        callable_signature.Argument
+    )
+
+    class Bar:
+      pass
+
+    Bar.__qualname__ = 'NonExist.Bar'
+    self.assertIsNone(inspect.get_outer_class(Bar))
 
   def test_callable_eq(self):
     def foo(unused_x):

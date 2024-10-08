@@ -14,12 +14,16 @@
 """Tests for pyglove.symbolic.base."""
 
 import copy
+import inspect
+from typing import Any
 import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic.dict import Dict
+from pyglove.core.symbolic.inferred import ValueFromParentChain
+from pyglove.core.symbolic.object import Object
 
 
 class FieldUpdateTest(unittest.TestCase):
@@ -82,6 +86,69 @@ class FieldUpdateTest(unittest.TestCase):
 
     self.assertNotEqual(
         base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2), Dict()
+    )
+
+
+class HtmlFormattableTest(unittest.TestCase):
+
+  def assert_content(self, html, expected):
+    expected = inspect.cleandoc(expected).strip()
+    actual = html.content.strip()
+    if actual != expected:
+      print(actual)
+    self.assertEqual(actual.strip(), expected)
+
+  def test_to_html(self):
+
+    class Foo(Object):
+      x: int
+      y: Any = 'foo'
+      z: pg_typing.Int().freeze(1)
+
+    # Disable tooltip.
+    self.assert_content(
+        Foo(x=1, y='foo').to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False
+        ),
+        """
+        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value str">&#x27;foo&#x27;</span></td></tr></table></div></details>
+        """
+    )
+    # Hide frozen and default values.
+    self.assert_content(
+        Foo(x=1, y='foo').to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            collapse_level=0,
+            hide_frozen=True,
+            hide_default_values=True
+        ),
+        """
+        <details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr></table></div></details>
+        """
+    )
+    # Use inferred values.
+    x = Dict(x=Dict(y=ValueFromParentChain()), y=2)
+    self.assert_content(
+        x.x.to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            use_inferred=False
+        ),
+        """
+        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">y</span></td><td><details class="pyglove value-from-parent-chain"><summary><div class="summary_title">ValueFromParentChain(...)</div></summary><div class="complex_value value-from-parent-chain"><span class="empty_container"></span></div></details></td></tr></table></div></details>
+        """
+    )
+    self.assert_content(
+        x.x.to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            use_inferred=True
+        ),
+        """
+        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details>
+        """
     )
 
 

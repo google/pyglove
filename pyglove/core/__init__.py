@@ -297,6 +297,15 @@ docstr = object_utils.docstr
 catch_errors = object_utils.catch_errors
 timeit = object_utils.timeit
 
+# Symbols from 'views' sub-module.
+
+from pyglove.core import views
+view = views.view
+View = views.View
+Html = views.Html
+to_html = views.to_html
+to_html_str = views.to_html_str
+
 #
 # Symbols from `io` sub-module.
 #

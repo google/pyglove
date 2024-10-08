@@ -362,6 +362,7 @@ from pyglove.core.typing.type_conversion import get_json_value_converter
 # Inspect helpers.
 from pyglove.core.typing.inspect import is_subclass
 from pyglove.core.typing.inspect import is_instance
+from pyglove.core.typing.inspect import get_outer_class
 from pyglove.core.typing.inspect import get_type
 from pyglove.core.typing.inspect import get_type_args
 from pyglove.core.typing.inspect import is_generic
@@ -385,6 +386,9 @@ from pyglove.core.typing.callable_signature import schema
 get_signature = signature
 
 # Callable extensions.
+from pyglove.core.typing.callable_ext import PresetArgValue
+from pyglove.core.typing.callable_ext import enable_preset_args
+from pyglove.core.typing.callable_ext import preset_args
 from pyglove.core.typing.callable_ext import CallableWithOptionalKeywordArgs
 
 # PyType support.

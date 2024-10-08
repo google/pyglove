@@ -13,6 +13,8 @@
 # limitations under the License.
 """Tests for pyglove.diff."""
 
+import inspect
+from typing import Any
 import unittest
 
 from pyglove.core import typing as pg_typing
@@ -336,6 +338,294 @@ class DiffTest(unittest.TestCase):
             'y': Diff(2, 3),
             '_type': Diff(B, C),
         })
+
+  def test_to_html(self):
+
+    class Foo(Object):
+      x: Any
+      y: Any
+
+    class Bar(Foo):
+      pass
+
+    def assert_style(html, expected):
+      expected = inspect.cleandoc(expected).strip()
+      actual = html.style_section.strip()
+      if actual != expected:
+        print(actual)
+      self.assertEqual(actual.strip(), expected)
+
+    def assert_content(html, expected):
+      expected = inspect.cleandoc(expected).strip()
+      actual = html.content.strip()
+      if actual != expected:
+        print(actual)
+      self.assertEqual(actual.strip(), expected)
+
+    assert_style(
+        pg_diff(1, 1).to_html(),
+        """
+        <style>
+        /* Tooltip styles. */
+        span.tooltip {
+          visibility: hidden;
+          white-space: pre-wrap;
+          font-weight: normal;
+          background-color: #484848;
+          color: #fff;
+          padding: 10px;
+          border-radius: 6px;
+          position: absolute;
+          z-index: 1;
+        }
+        /* Summary styles. */
+        details.pyglove summary {
+          font-weight: bold;
+          margin: -0.5em -0.5em 0;
+          padding: 0.5em;
+        }
+        .summary_name {
+          display: inline;
+          padding: 0 5px;
+        }
+        .summary_title {
+          display: inline;
+        }
+        .summary_name + div.summary_title {
+          display: inline;
+          color: #aaa;
+        }
+        .summary_title:hover + span.tooltip {
+          visibility: visible;
+        }
+        /* Type-specific styles. */
+        .pyglove.str .summary_title {
+          color: darkred;
+          font-style: italic;
+        }
+        .diff .summary_title::after {
+          content: ' (diff)';
+          color: #aaa;
+        }
+        .diff .summary_title {
+          background-color: yellow;
+        }
+        .diff table td {
+          padding: 4px;
+        }
+        .diff_value {
+          display: inline-block;
+          align-items: center;
+        }
+        .no_diff_key {
+          opacity: 0.4;
+        }
+        .diff_left.diff_right::after {
+          content: '(no diff)';
+          margin-left: 0.5em;
+          color: #aaa;
+          font-style: italic;
+        }
+        .diff_empty::before {
+            content: '(empty)';
+            font-style: italic;
+            margin-left: 0.5em;
+            color: #aaa;
+        }
+        .diff_value .diff_left::before {
+          content: '🇱';
+        }
+        .diff_value .diff_left > .simple_value {
+          background-color: #ffcccc;
+        }
+        .diff_value .diff_left > details {
+          background-color: #ffcccc;
+        }
+        .diff_value .diff_right::before {
+          content: '🇷';
+        }
+        .diff_value .diff_right > .simple_value {
+          background-color: #ccffcc;
+        }
+        .diff_value .diff_right > details {
+          background-color: #ccffcc;
+        }
+        /* Value details styles. */
+        details.pyglove {
+          border: 1px solid #aaa;
+          border-radius: 4px;
+          padding: 0.5em 0.5em 0;
+          margin: 0.1em 0;
+        }
+        details.pyglove.special_value {
+          margin-bottom: 0.75em;
+        }
+        details.pyglove[open] {
+          padding: 0.5em 0.5em 0.5em;
+        }
+        .highlight {
+          background-color: Mark;
+        }
+        .lowlight {
+          opacity: 0.2;
+        }
+        </style>
+        """
+    )
+
+    # No diff leaf value (diff only)
+    assert_content(
+        pg_diff(1, 1).to_html(),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">Diff</div><span class="tooltip">No diff</span></summary><span class="diff_empty"></span></details>
+        """
+    )
+
+    # No diff leaf value (keep both)
+    assert_content(
+        pg_diff(1, 1, mode='both').to_html(),
+        """
+        <span class="simple_value int diff_left diff_right">1</span>
+        """
+    )
+    # No diff complex value (diff only)
+    assert_content(
+        pg_diff(
+            Foo(x=1, y=[Foo(x=2, y=3)]),
+            Foo(x=1, y=[Foo(x=2, y=3)])
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">Diff</div></summary><span class="diff_empty"></span></details>
+        """
+    )
+    # No diff complex value.
+    assert_content(
+        pg_diff(
+            Foo(x=1, y=[Foo(x=2, y=3)]),
+            Foo(x=1, y=[Foo(x=2, y=3)]), mode='both'
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo diff_left diff_right"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">3</span></td></tr></table></div></details></td></tr></table></div></details></td></tr></table></div></details>
+        """
+    )
+
+    # Diff on simple value.
+    assert_content(
+        pg_diff(1, 2).to_html(),
+        """
+        <div class="diff_value"><div class="diff_left"><span class="simple_value int">1</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div>
+        """
+    )
+
+    # Diff on list.
+    assert_content(
+        pg_diff([0, 1, 2], [0, 2], mode='both').to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">List</div></summary><div class="complex_value list"><table><tr><td><span class="object_key no_diff_key">0</span><span class="tooltip">[0]</span></td><td><span class="simple_value int diff_left diff_right">0</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">1</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div></td></tr><tr><td><span class="object_key">2</span><span class="tooltip">[2]</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div></div></td></tr></table></div></details>
+        """
+    )
+
+    # Diff on dict.
+    assert_content(
+        pg_diff(dict(x=1, y=2, z=3), dict(x=1, y=3, w=4), mode='both').to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">dict</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key no_diff_key">x</span><span class="tooltip">x</span></td><td><span class="simple_value int diff_left diff_right">1</span></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">y</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div><div class="diff_right"><span class="simple_value int">3</span></div></div></td></tr><tr><td><span class="object_key">z</span><span class="tooltip">z</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">3</span></div></div></td></tr><tr><td><span class="object_key">w</span><span class="tooltip">w</span></td><td><div class="diff_value"><div class="diff_right"><span class="simple_value int">4</span></div></div></td></tr></table></div></details>
+        """
+    )
+
+    # Diff on symbolic objects of the same type.
+    assert_content(
+        pg_diff(
+            Foo(x=2, y=Foo(x=3, y=3)),
+            Foo(x=1, y=Foo(x=2, y=3)),
+            mode='both',
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">Foo</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span><span class="tooltip">x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div><div class="diff_right"><span class="simple_value int">1</span></div></div></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">y</span></td><td><details class="pyglove diff"><summary><div class="summary_title">Foo</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span><span class="tooltip">y.x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">3</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div></td></tr><tr><td><span class="object_key no_diff_key">y</span><span class="tooltip">y.y</span></td><td><span class="simple_value int diff_left diff_right">3</span></td></tr></table></div></details></td></tr></table></div></details>
+        """
+    )
+
+    # Diff on symbolic objects of different types.
+    assert_content(
+        pg_diff(
+            Foo(x=2, y=Foo(x=3, y=3)),
+            Bar(x=2, y=Foo(x=3, y=3)),
+            mode='both',
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <div class="diff_value"><div class="diff_left"><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">y</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">3</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">3</span></td></tr></table></div></details></td></tr></table></div></details></div><div class="diff_right"><details class="pyglove bar"><summary><div class="summary_title">Bar(...)</div></summary><div class="complex_value bar"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">y</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">3</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">3</span></td></tr></table></div></details></td></tr></table></div></details></div></div>
+        """
+    )
+
+    # Different types but same values, with value collapsing.
+    assert_content(
+        pg_diff(
+            Foo(x=2, y=Foo(x=3, y=3)),
+            Bar(x=2, y=Bar(x=3, y=3)),
+            mode='both', collapse=True,
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key no_diff_key">x</span><span class="tooltip">x</span></td><td><span class="simple_value int diff_left diff_right">2</span></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">y</span></td><td><details class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key no_diff_key">x</span><span class="tooltip">y.x</span></td><td><span class="simple_value int diff_left diff_right">3</span></td></tr><tr><td><span class="object_key no_diff_key">y</span><span class="tooltip">y.y</span></td><td><span class="simple_value int diff_left diff_right">3</span></td></tr></table></div></details></td></tr></table></div></details>
+        """
+    )
+
+    # Different types and different values, with value collapsing.
+    assert_content(
+        pg_diff(
+            Foo(x=2, y=Foo(x=3, y=3)),
+            Bar(x=3, y=Bar(x=2, y=3)),
+            mode='both', collapse=True,
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span><span class="tooltip">x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div><div class="diff_right"><span class="simple_value int">3</span></div></div></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">y</span></td><td><details class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span><span class="tooltip">y.x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">3</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div></td></tr><tr><td><span class="object_key no_diff_key">y</span><span class="tooltip">y.y</span></td><td><span class="simple_value int diff_left diff_right">3</span></td></tr></table></div></details></td></tr></table></div></details>
+        """
+    )
+
+    # Diff with uncollapsing UI.
+    assert_content(
+        pg_diff(
+            [
+                Foo(1, 2), Foo(1, 2), None,
+                Foo(x=1, y=Foo(2, 3)), [dict(x=1, y=2)]
+            ],
+            [
+                Foo(1, 2), Bar(1, 2), dict(x=1),
+                [1, 2], Foo(x=2, y=Foo(2, 4)), [dict(x=3)]
+            ],
+            mode='both'
+        ).to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            uncollapse=['[0]', '[1].right', '[3].left.y'],
+        ),
+        """
+        <details open class="pyglove diff"><summary><div class="summary_title">List</div></summary><div class="complex_value list"><table><tr><td><span class="object_key no_diff_key">0</span><span class="tooltip">[0]</span></td><td><details open class="pyglove diff"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo diff_left diff_right"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><div class="diff_value"><div class="diff_left"><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></div><div class="diff_right"><details open class="pyglove bar"><summary><div class="summary_title">Bar(...)</div></summary><div class="complex_value bar"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key">2</span><span class="tooltip">[2]</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value none-type">None</span></div><div class="diff_right"><details class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key">3</span><span class="tooltip">[3]</span></td><td><div class="diff_value"><div class="diff_left"><details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">3</span></td></tr></table></div></details></td></tr></table></div></details></div><div class="diff_right"><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key">4</span><span class="tooltip">[4]</span></td><td><div class="diff_value"><div class="diff_left"><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr></table></div></details></div><div class="diff_right"><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">y</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">4</span></td></tr></table></div></details></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key">5</span><span class="tooltip">[5]</span></td><td><div class="diff_value"><div class="diff_right"><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">3</span></td></tr></table></div></details></td></tr></table></div></details></div></div></td></tr></table></div></details>
+        """
+    )
 
 
 if __name__ == '__main__':

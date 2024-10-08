@@ -155,6 +155,149 @@ class RefTest(unittest.TestCase):
     self.assertIs(a_prime, a.value)
     self.assertFalse(contains(a_prime, type=ref.Ref))
 
+  def test_to_html(self):
+
+    def assert_style(html, expected):
+      expected = inspect.cleandoc(expected).strip()
+      actual = html.style_section.strip()
+      if actual != expected:
+        print(actual)
+      self.assertEqual(actual.strip(), expected)
+
+    def assert_content(html, expected):
+      expected = inspect.cleandoc(expected).strip()
+      actual = html.content.strip()
+      if actual != expected:
+        print(actual)
+      self.assertEqual(actual.strip(), expected)
+
+    class Foo(Object):
+      x: Any
+
+    assert_style(
+        Foo(ref.Ref(Foo(1))).to_html(),
+        """
+        <style>
+        /* Tooltip styles. */
+        span.tooltip {
+          visibility: hidden;
+          white-space: pre-wrap;
+          font-weight: normal;
+          background-color: #484848;
+          color: #fff;
+          padding: 10px;
+          border-radius: 6px;
+          position: absolute;
+          z-index: 1;
+        }
+        /* Summary styles. */
+        details.pyglove summary {
+          font-weight: bold;
+          margin: -0.5em -0.5em 0;
+          padding: 0.5em;
+        }
+        .summary_name {
+          display: inline;
+          padding: 0 5px;
+        }
+        .summary_title {
+          display: inline;
+        }
+        .summary_name + div.summary_title {
+          display: inline;
+          color: #aaa;
+        }
+        .summary_title:hover + span.tooltip {
+          visibility: visible;
+        }
+        /* Type-specific styles. */
+        .pyglove.str .summary_title {
+          color: darkred;
+          font-style: italic;
+        }
+        /* Object key styles. */
+        .object_key {
+          margin-right: 0.25em;
+        }
+        .object_key:hover + .tooltip {
+          visibility: visible;
+          background-color: darkblue;
+        }
+        .complex_value .object_key{
+          color: gray;
+          border: 1px solid lightgray;
+          background-color: ButtonFace;
+          border-radius: 0.2em;
+          padding: 0.3em;
+        }
+        .complex_value.list .object_key{
+          border: 0;
+          color: lightgray;
+          background-color: transparent;
+          border-radius: 0;
+          padding: 0;
+        }
+        .complex_value.list .object_key::before{
+          content: '[';
+        }
+        .complex_value.list .object_key::after{
+          content: ']';
+        }
+        /* Simple value styles. */
+        .simple_value {
+          color: blue;
+          display: inline-block;
+          white-space: pre-wrap;
+          padding: 0.2em;
+          margin-top: 0.15em;
+        }
+        .simple_value.str {
+          color: darkred;
+          font-style: italic;
+        }
+        .simple_value.int, .simple_value.float {
+          color: darkblue;
+        }
+        /* Complex value styles. */
+        span.empty_container::before {
+            content: '(empty)';
+            font-style: italic;
+            margin-left: 0.5em;
+            color: #aaa;
+        }
+        /* Value details styles. */
+        details.pyglove {
+          border: 1px solid #aaa;
+          border-radius: 4px;
+          padding: 0.5em 0.5em 0;
+          margin: 0.1em 0;
+        }
+        details.pyglove.special_value {
+          margin-bottom: 0.75em;
+        }
+        details.pyglove[open] {
+          padding: 0.5em 0.5em 0.5em;
+        }
+        .highlight {
+          background-color: Mark;
+        }
+        .lowlight {
+          opacity: 0.2;
+        }
+        </style>
+        """
+    )
+    assert_content(
+        Foo(ref.Ref(Foo(1))).to_html(
+            use_inferred=False,
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+        ),
+        """
+        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><details class="pyglove ref"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr></table></div></details></td></tr></table></div></details>
+        """
+    )
+
 
 if __name__ == '__main__':
   unittest.main()
