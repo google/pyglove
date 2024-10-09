@@ -15,13 +15,14 @@
 
 import inspect
 import re
-from typing import Any, Dict, Iterable, Optional, Sequence, Set, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from pyglove.core import object_utils
 from pyglove.core.views.html import base
 
 
 KeyPath = object_utils.KeyPath
+KeyPathSet = object_utils.KeyPathSet
 Html = base.Html
 HtmlView = base.HtmlView
 
@@ -37,6 +38,34 @@ class HtmlTreeView(HtmlView):
   class Extension(HtmlView.Extension):
     """The base class for extensions for HtmlTreeView."""
 
+    #
+    # Default extension-level rendering options overrides.
+    #
+
+    def _html_tree_view_special_keys(self) -> Sequence[str]:
+      """Returns the special keys to display (at the immediate child level)."""
+      return []
+
+    def _html_tree_view_include_keys(self) -> Optional[Sequence[str]]:
+      """Returns the keys to include (at the immediate child level)."""
+      return None
+
+    def _html_tree_view_exclude_keys(self) -> Sequence[str]:
+      """Returns the keys to include (at the immediate child level)."""
+      return []
+
+    def _html_tree_view_collapse_level(self) -> int:
+      """Returns the level to collapse the tree (relative to this node)."""
+      return 0
+
+    def _html_tree_view_uncollapse(self) -> KeyPathSet:
+      """Returns the node paths (relative to current node) to uncollapse."""
+      return KeyPathSet()
+
+    #
+    # Default behavior overrides.
+    #
+
     def _html_tree_view_render(
         self,
         *,
@@ -48,6 +77,8 @@ class HtmlTreeView(HtmlView):
         special_keys: Optional[Sequence[Union[int, str]]] = None,
         include_keys: Optional[Iterable[Union[int, str]]] = None,
         exclude_keys: Optional[Iterable[Union[int, str]]] = None,
+        collapse_level: Optional[int] = 1,
+        uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
         filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
         highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
         lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -55,10 +86,6 @@ class HtmlTreeView(HtmlView):
         max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
         enable_summary_tooltip: bool = HtmlView.PresetArgValue(True),
         enable_key_tooltip: bool = HtmlView.PresetArgValue(True),
-        collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
-        uncollapse: Union[
-            Iterable[Union[KeyPath, str]], base.NodeFilter, None
-        ] = HtmlView.PresetArgValue(None),
         **kwargs,
     ) -> Html:
       """Returns the topmost HTML representation of the object.
@@ -73,6 +100,10 @@ class HtmlTreeView(HtmlView):
           level).
         include_keys: The keys to include (at the immediate child level).
         exclude_keys: The keys to exclude (at the immediate child level).
+        collapse_level: The level to collapse the tree (relative to this node).
+        uncollapse: A key path set (relative to root_path) for the nodes to
+          uncollapse. or a function with signature (path, value, parent) -> bool
+          to filter nodes to uncollapse.
         filter: A function with signature (path, value, parent) -> include
           to determine whether to include a field (at all levels).
         highlight: A function with signature (path, value, parent) -> bool
@@ -85,10 +116,6 @@ class HtmlTreeView(HtmlView):
         max_summary_len_for_str: The maximum length of the string to display.
         enable_summary_tooltip: Whether to enable the tooltip for the summary.
         enable_key_tooltip: Whether to enable the tooltip for the key.
-        collapse_level: The level to collapse the tree
-        uncollapse: A set of key paths for the nodes to uncollapse. or a
-          function with signature (path, value, parent) -> bool to determine
-          whether to uncollapse a node.
         **kwargs: Additional keyword arguments passed from `pg.to_html`.
 
       Returns:
@@ -122,7 +149,6 @@ class HtmlTreeView(HtmlView):
         name: Optional[str],
         parent: Any,
         root_path: KeyPath,
-        css_class: Optional[Sequence[str]] = None,
         title: Union[str, Html, None] = None,
         enable_summary: Optional[bool] = HtmlView.PresetArgValue(None),
         max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
@@ -136,7 +162,6 @@ class HtmlTreeView(HtmlView):
         name: The name of the object.
         parent: The parent of the object.
         root_path: The key path of the object relative to the root.
-        css_class: The CSS classes to add to the root element
         title: The title of the summary.
         enable_summary: Whether to enable the summary. If None, summary will
           be enabled for complex types or when string exceeds
@@ -156,7 +181,6 @@ class HtmlTreeView(HtmlView):
           name=name,
           parent=parent,
           root_path=root_path,
-          css_class=css_class,
           title=title,
           enable_summary=enable_summary,
           max_summary_len_for_str=max_summary_len_for_str,
@@ -174,16 +198,14 @@ class HtmlTreeView(HtmlView):
         special_keys: Optional[Sequence[Union[int, str]]] = None,
         include_keys: Optional[Iterable[Union[int, str]]] = None,
         exclude_keys: Optional[Iterable[Union[int, str]]] = None,
+        collapse_level: Optional[int] = 1,
+        uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
         filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
         highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
         lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
         max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
         enable_summary_tooltip: bool = HtmlView.PresetArgValue(True),
         enable_key_tooltip: bool = HtmlView.PresetArgValue(True),
-        collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
-        uncollapse: Union[
-            Iterable[Union[KeyPath, str]], base.NodeFilter, None
-        ] = HtmlView.PresetArgValue(None),
         **kwargs,
         ) -> Html:
       """Returns the main content for the object.
@@ -197,6 +219,10 @@ class HtmlTreeView(HtmlView):
           level).
         include_keys: The keys to include (at the immediate child level).
         exclude_keys: The keys to exclude (at the immediate child level).
+        collapse_level: The level to collapse the tree (relative to this node).
+        uncollapse: A key path set (relative to root_path) for the nodes to
+          uncollapse. or a function with signature (path, value, parent) -> bool
+          to filter nodes to uncollapse.
         filter: A function with signature (path, value, parent) -> include
           to determine whether to include a field (at all levels).
         highlight: A function with signature (path, value, parent) -> bool
@@ -206,8 +232,6 @@ class HtmlTreeView(HtmlView):
         max_summary_len_for_str: The maximum length of the string to display.
         enable_summary_tooltip: Whether to enable the tooltip for the summary.
         enable_key_tooltip: Whether to enable the key tooltip.
-        collapse_level: The level to collapse the tree
-        uncollapse: The paths to uncollapse.
         **kwargs: Additional keyword arguments passed from `pg.to_html`. These
           arguments may be handled by the user logic but not the general
           HtmlTreeView.
@@ -273,11 +297,12 @@ class HtmlTreeView(HtmlView):
       name: Optional[str] = None,
       parent: Any = None,
       root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
       title: Union[str, Html, None] = None,
       special_keys: Optional[Sequence[Union[int, str]]] = None,
       include_keys: Optional[Iterable[Union[int, str]]] = None,
       exclude_keys: Optional[Iterable[Union[int, str]]] = None,
+      collapse_level: Optional[int] = 1,
+      uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
       filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
       highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -285,10 +310,6 @@ class HtmlTreeView(HtmlView):
       max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
       enable_summary_tooltip: bool = HtmlView.PresetArgValue(True),
       enable_key_tooltip: bool = HtmlView.PresetArgValue(True),
-      collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
-      uncollapse: Union[
-          Iterable[Union[KeyPath, str]], base.NodeFilter, None
-      ] = HtmlView.PresetArgValue(None),
       **kwargs
   ) -> Html:
     """Renders the entire HTML tree view for the value.
@@ -298,11 +319,14 @@ class HtmlTreeView(HtmlView):
       name: The name of the value.
       parent: The parent of the value.
       root_path: The root path of the value.
-      css_class: The CSS classes to add to the root element
       title: The title of the summary.
       special_keys: The special keys to display (at the immediate child level).
       include_keys: The keys to include (at the immediate child level).
       exclude_keys: The keys to exclude (at the immediate child level).
+      collapse_level: The level to collapse the tree (relative to this node).
+      uncollapse: A key path set (relative to root_path) for the nodes to
+        uncollapse. or a function with signature (path, value, parent) -> bool
+        to filter nodes to uncollapse.
       filter: A function with signature (path, value, parent) -> include
         to determine whether to include a field (at all levels).
       highlight: A function with signature (path, value, parent) -> bool
@@ -315,15 +339,31 @@ class HtmlTreeView(HtmlView):
       max_summary_len_for_str: The maximum length of the string to display.
       enable_summary_tooltip: Whether to enable the tooltip for the summary.
       enable_key_tooltip: Whether to enable the key tooltip.
-      collapse_level: The level to collapse the tree.
-      uncollapse: The paths to uncollapse.
       **kwargs: Additional keyword arguments passed from `pg.to_html`.
 
     Returns:
       The rendered HTML.
     """
     root_path = root_path or KeyPath()
-    uncollapse = self.normalize_uncollapse(uncollapse)
+    uncollapse = self.init_uncollapse(uncollapse)
+
+    if isinstance(value, HtmlTreeView.Extension):
+      extension_collapse_level = value._html_tree_view_collapse_level()    # pylint: disable=protected-access
+
+      # If the extension has child levels to uncollapse, honor them above the
+      # collapse level passed from the root. However, we can see the
+      # uncollapsed extension subtree only when the extension's parent node is
+      # uncollapsed.
+      if (extension_collapse_level > 0
+          and root_path.depth + extension_collapse_level > collapse_level):
+        collapse_level = root_path.depth + extension_collapse_level
+
+      if not callable(uncollapse):
+        extension_uncollapse = value._html_tree_view_uncollapse().copy()  # pylint: disable=protected-access
+        if extension_uncollapse:
+          extension_uncollapse.rebase(root_path)
+          uncollapse = uncollapse.union(extension_uncollapse)
+
     summary = self.summary(
         value,
         name=name,
@@ -340,21 +380,25 @@ class HtmlTreeView(HtmlView):
         name=name,
         parent=parent,
         root_path=root_path,
-        css_class=css_class if summary is None else None,
         filter=filter,
         special_keys=special_keys,
         include_keys=include_keys,
         exclude_keys=exclude_keys,
+        collapse_level=collapse_level,
+        uncollapse=uncollapse,
         max_summary_len_for_str=max_summary_len_for_str,
         enable_summary_tooltip=enable_summary_tooltip,
         enable_key_tooltip=enable_key_tooltip,
-        collapse_level=collapse_level,
-        uncollapse=uncollapse,
         **kwargs,
     )
+    extension_style = (
+        value._html_style() if isinstance(value, HtmlView.Extension) else []  # pylint: disable=protected-access
+    )
+
     if summary is None:
       content = Html.from_value(content)
       assert content is not None
+      content.add_style(*extension_style)
       return content
 
     collapse_view = self.should_collapse(
@@ -371,7 +415,7 @@ class HtmlTreeView(HtmlView):
         css_class=[
             'pyglove',
             self.css_class_name(value),
-        ] + (css_class or []),
+        ],
     ).add_style(
         """
         /* Value details styles. */
@@ -393,29 +437,23 @@ class HtmlTreeView(HtmlView):
         .lowlight {
           opacity: 0.2;
         }
-        """
+        """,
+        *extension_style,
     )
 
-  def normalize_uncollapse(
+  def init_uncollapse(
       self,
       uncollapse: Union[
           Iterable[Union[KeyPath, str]], base.NodeFilter, None
       ] = HtmlView.PresetArgValue(None),
-  ) -> Union[None, Set[KeyPath], base.NodeFilter]:
+  ) -> Union[KeyPathSet, base.NodeFilter]:
     """Normalize the uncollapse argument."""
     if uncollapse is None:
-      return None
-    elif isinstance(uncollapse, set) or callable(uncollapse):
+      return KeyPathSet()
+    elif callable(uncollapse):
       return uncollapse
     else:
-      expanded = set()
-      for path in uncollapse:
-        path = object_utils.KeyPath.from_value(path)
-        expanded.add(path)
-        while path:
-          expanded.add(path.parent)
-          path = path.parent
-      return expanded
+      return KeyPathSet.from_value(uncollapse, include_intermediate=True)
 
   def should_collapse(
       self,
@@ -423,16 +461,12 @@ class HtmlTreeView(HtmlView):
       root_path: KeyPath,
       parent: Any,
       collapse_level: Optional[int] = 0,
-      uncollapse: Union[
-          Set[Union[KeyPath, str]], base.NodeFilter, None
-      ] = None,
+      uncollapse: Union[KeyPathSet, base.NodeFilter] = None,
   ) -> bool:
     """Returns whether the object should be collapsed."""
     if collapse_level is None or root_path.depth < collapse_level:
       return False
-    if uncollapse is None:
-      return True
-    elif callable(uncollapse):
+    if callable(uncollapse):
       return not uncollapse(root_path, value, parent)
     else:
       return root_path not in uncollapse
@@ -468,7 +502,6 @@ class HtmlTreeView(HtmlView):
       name: Optional[str] = None,
       parent: Any = None,
       root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
       title: Union[str, Html, None] = None,
       enable_summary: Optional[bool] = HtmlView.PresetArgValue(None),
       enable_summary_tooltip: bool = HtmlView.PresetArgValue(True),
@@ -482,7 +515,6 @@ class HtmlTreeView(HtmlView):
       name: The name of the value.
       parent: The parent of the value.
       root_path: The root path of the value.
-      css_class: The CSS classes to add to the root element
       title: The title of the summary.
       enable_summary: Whether to enable the summary. If None, summary will
         be enabled for complex types or when string exceeds
@@ -542,7 +574,6 @@ class HtmlTreeView(HtmlView):
                 **kwargs,
             ) if enable_summary_tooltip else None,
         ],
-        css_class=css_class,
     ).add_style(
         """
         /* Summary styles. */
@@ -583,7 +614,7 @@ class HtmlTreeView(HtmlView):
       name: Optional[str] = None,
       parent: Any,
       root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
+      css_class: Union[str, Sequence[str], None] = None,
       key_color: Optional[str] = None,
       enable_tooltip: bool = HtmlView.PresetArgValue(True),
       **kwargs
@@ -595,7 +626,7 @@ class HtmlTreeView(HtmlView):
       name: The name of the value.
       parent: The parent value of the key.
       root_path: The root path of the value.
-      css_class: The CSS classes to add to the root element.
+      css_class: Additional CSS classes to add to the HTML element.
       key_color: The color of the key.
       enable_tooltip: Whether to enable the tooltip.
       **kwargs: Additional keyword arguments passed from `pg.to_html`.
@@ -610,7 +641,11 @@ class HtmlTreeView(HtmlView):
             [
                 str(key),
             ],
-            css_class=['object_key'] + (css_class or []),
+            css_class=[
+                'object_key',
+                type(key).__name__,
+                css_class,
+            ],
             style=dict(
                 color=key_color,
             )
@@ -634,25 +669,25 @@ class HtmlTreeView(HtmlView):
           visibility: visible;
           background-color: darkblue;
         }
-        .complex_value .object_key{
+        .object_key.str {
           color: gray;
           border: 1px solid lightgray;
           background-color: ButtonFace;
           border-radius: 0.2em;
           padding: 0.3em;
         }
-        .complex_value.list .object_key{
+        .object_key.int::before{
+          content: '[';
+        }
+        .object_key.int::after{
+          content: ']';
+        }
+        .object_key.int{
           border: 0;
           color: lightgray;
           background-color: transparent;
           border-radius: 0;
           padding: 0;
-        }
-        .complex_value.list .object_key::before{
-          content: '[';
-        }
-        .complex_value.list .object_key::after{
-          content: ']';
         }
         """
     )
@@ -665,20 +700,17 @@ class HtmlTreeView(HtmlView):
       name: Optional[str] = None,
       parent: Any = None,
       root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
       special_keys: Optional[Sequence[Union[int, str]]] = None,
       include_keys: Optional[Iterable[Union[int, str]]] = None,
       exclude_keys: Optional[Iterable[Union[int, str]]] = None,
+      collapse_level: Optional[int] = 1,
+      uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
       filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
       highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
       enable_summary_tooltip: bool = HtmlView.PresetArgValue(True),
       enable_key_tooltip: bool = HtmlView.PresetArgValue(True),
-      collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
-      uncollapse: Union[
-          Iterable[Union[KeyPath, str]], base.NodeFilter, None
-      ] = HtmlView.PresetArgValue(None),
       **kwargs
   ) -> Html:
     """Renders the main content for the value.
@@ -688,10 +720,13 @@ class HtmlTreeView(HtmlView):
       name: The name of the value.
       parent: The parent of the value.
       root_path: The root path of the value.
-      css_class: Additional CSS classes for root element.
       special_keys: The special keys to display (at the immediate child level).
       include_keys: The keys to include (at the immediate child level).
       exclude_keys: The keys to exclude (at the immediate child level).
+      collapse_level: The level to collapse the tree (relative to this node).
+      uncollapse: A key path set (relative to root_path) for the nodes to
+        uncollapse. or a function with signature (path, value, parent) -> bool
+        to filter nodes to uncollapse.
       filter: A function with signature (path, value, parent) -> include
         to determine whether to include a field (at all levels).
       highlight: A function with signature (path, value, parent) -> bool
@@ -701,8 +736,6 @@ class HtmlTreeView(HtmlView):
       max_summary_len_for_str: The maximum length of the string to display.
       enable_summary_tooltip: Whether to enable the summary tooltip.
       enable_key_tooltip: Whether to enable the key tooltip.
-      collapse_level: The level of the tree to collapse.
-      uncollapse: The keys to uncollapse.
       **kwargs: Additional keyword arguments passed from `pg.to_html`.
 
     Returns:
@@ -715,25 +748,24 @@ class HtmlTreeView(HtmlView):
     else:
       return self.simple_value(
           value, name=name, parent=parent, root_path=root_path,
-          css_class=css_class, max_summary_len_for_str=max_summary_len_for_str
+          max_summary_len_for_str=max_summary_len_for_str
       )
     return self.complex_value(
         items,
         name=name,
         parent=value,
         root_path=root_path or KeyPath(),
-        css_class=css_class,
         special_keys=special_keys,
         include_keys=include_keys,
         exclude_keys=exclude_keys,
+        collapse_level=collapse_level,
+        uncollapse=uncollapse,
         filter=filter,
         highlight=highlight,
         lowlight=lowlight,
         max_summary_len_for_str=max_summary_len_for_str,
         enable_summary_tooltip=enable_summary_tooltip,
         enable_key_tooltip=enable_key_tooltip,
-        collapse_level=collapse_level,
-        uncollapse=uncollapse,
         **kwargs,
     )
 
@@ -744,7 +776,7 @@ class HtmlTreeView(HtmlView):
       name: Optional[str] = None,
       parent: Any = None,
       root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
+      css_class: Union[str, Sequence[str], None] = None,
       max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
   ) -> Html:
     """Renders a simple value.
@@ -754,7 +786,7 @@ class HtmlTreeView(HtmlView):
       name: The name of the value.
       parent: The parent of the value.
       root_path: The root path of the value.
-      css_class: Additional CSS classes for root span.
+      css_class: Additional CSS classes to add to the HTML element.
       max_summary_len_for_str: The maximum length of the string to display.
 
     Returns:
@@ -778,9 +810,11 @@ class HtmlTreeView(HtmlView):
         [
             Html.escape(value_repr),
         ],
-        css_class=['simple_value', self.css_class_name(value)] + (
-            css_class or []
-        ),
+        css_class=[
+            'simple_value',
+            self.css_class_name(value),
+            css_class,
+        ],
     ).add_style(
         """
         /* Simple value styles. */
@@ -805,36 +839,46 @@ class HtmlTreeView(HtmlView):
       self,
       kv: Dict[Union[int, str], Any],
       *,
+      parent: Any,
+      root_path: KeyPath,
       name: Optional[str] = None,
-      parent: Any = None,
-      root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
+      css_class: Union[str, Sequence[str], None] = None,
+      render_key_fn: Optional[Callable[..., Html]] = None,
+      render_value_fn: Optional[Callable[..., Html]] = None,
       special_keys: Optional[Sequence[Union[int, str]]] = None,
       include_keys: Optional[Iterable[Union[int, str]]] = None,
       exclude_keys: Optional[Iterable[Union[int, str]]] = None,
+      collapse_level: Optional[int] = 1,
+      uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
       filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
       highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       max_summary_len_for_str: int = HtmlView.PresetArgValue(40),
       enable_summary_tooltip: bool = HtmlView.PresetArgValue(True),
       enable_key_tooltip: bool = HtmlView.PresetArgValue(True),
-      collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
-      uncollapse: Union[
-          Iterable[Union[KeyPath, str]], base.NodeFilter, None
-      ] = HtmlView.PresetArgValue(None),
       **kwargs,
   ) -> Html:
     """Renders a list of key-value pairs.
 
     Args:
       kv: The key-value pairs to render.
-      name: The name of the value.
       parent: The parent value of the key-value pairs.
       root_path: The root path of the value.
-      css_class: Additional CSS classes for root div.
+      name: The name of the value.
+      css_class: Additional CSS classes to add to the HTML element.
+      render_key_fn: A function to render the key. The function has the
+        same signature as `HtmlTreeView.object_key`.
+        If None, `HtmlTreeView.object_key` will be used to render the key.
+      render_value_fn: A function to render the value. The function has the
+        same signature as `HtmlTreeView.render`.
+        If None, `HtmlTreeView.render` will be used to render child value.
       special_keys: The special keys to display (at the immediate child level).
       include_keys: The keys to include (at the immediate child level).
       exclude_keys: The keys to exclude (at the immediate child level).
+      collapse_level: The level to collapse the tree (relative to this node).
+      uncollapse: A key path set (relative to root_path) for the nodes to
+        uncollapse. or a function with signature (path, value, parent) -> bool
+        to filter nodes to uncollapse.
       filter: A function with signature (path, value, parent) -> include
         to determine whether to include.
       highlight: A function with signature (path, value, parent) -> bool
@@ -844,18 +888,26 @@ class HtmlTreeView(HtmlView):
       max_summary_len_for_str: The maximum length of the string to display.
       enable_summary_tooltip: Whether to enable the summary tooltip.
       enable_key_tooltip: Whether to enable the key tooltip.
-      collapse_level: The level of the tree to collapse.
-      uncollapse: The keys to uncollapse.
       **kwargs: Additional keyword arguments passed from `pg.to_html`.
 
     Returns:
       The rendered HTML as the key-value pairs.
     """
     del name
+    root_path = root_path or KeyPath()
+    uncollapse = self.init_uncollapse(uncollapse)
+
+    if isinstance(parent, HtmlTreeView.Extension):
+      special_keys = special_keys or parent._html_tree_view_special_keys()  # pylint: disable=protected-access
+      include_keys = include_keys or parent._html_tree_view_include_keys()  # pylint: disable=protected-access
+      exclude_keys = exclude_keys or parent._html_tree_view_exclude_keys()  # pylint: disable=protected-access
+
     special_keys = special_keys or []
     include_keys = set(include_keys or [])
     exclude_keys = set(exclude_keys or [])
-    uncollapse = self.normalize_uncollapse(uncollapse)
+
+    render_key_fn = render_key_fn or self.object_key
+    render_value_fn = render_value_fn or self.render
 
     s = Html()
     if kv:
@@ -873,37 +925,40 @@ class HtmlTreeView(HtmlView):
           if k in include_keys and k in kv:
             child_path = root_path + k
             v = kv[k]
-
-            child_css_class = [
-                'special_value',
-                (
-                    'highlight' if highlight
-                    and highlight(child_path, v, parent) else None
-                ),
-                (
-                    'lowlight' if lowlight
-                    and lowlight(child_path, v, parent) else None
-                )
-            ]
             s.write(
-                self.render(
-                    value=v,
-                    name=k,
-                    parent=v,
-                    root_path=child_path,
-                    css_class=child_css_class,
-                    filter=filter,
-                    special_keys=None,
-                    include_keys=None,
-                    exclude_keys=None,
-                    highlight=highlight,
-                    lowlight=lowlight,
-                    max_summary_len_for_str=max_summary_len_for_str,
-                    enable_summary_tooltip=enable_summary_tooltip,
-                    enable_key_tooltip=enable_key_tooltip,
-                    collapse_level=collapse_level,
-                    uncollapse=uncollapse,
-                    **kwargs
+                Html.element(
+                    'div',
+                    [
+                        render_value_fn(
+                            value=v,
+                            name=k,
+                            parent=parent,
+                            root_path=child_path,
+                            filter=filter,
+                            special_keys=None,
+                            include_keys=None,
+                            exclude_keys=None,
+                            collapse_level=collapse_level,
+                            uncollapse=uncollapse,
+                            highlight=highlight,
+                            lowlight=lowlight,
+                            max_summary_len_for_str=max_summary_len_for_str,
+                            enable_summary_tooltip=enable_summary_tooltip,
+                            enable_key_tooltip=enable_key_tooltip,
+                            **kwargs
+                        )
+                    ],
+                    css_class=[
+                        'special_value',
+                        (
+                            'highlight' if highlight
+                            and highlight(child_path, v, parent) else None
+                        ),
+                        (
+                            'lowlight' if lowlight
+                            and lowlight(child_path, v, parent) else None
+                        )
+                    ],
                 )
             )
             include_keys.remove(k)
@@ -914,45 +969,51 @@ class HtmlTreeView(HtmlView):
           if k not in include_keys:
             continue
           child_path = root_path + k
-          key = self.object_key(
-              key=k, parent=v, root_path=child_path,
+          key_cell = render_key_fn(
+              key=k,
+              parent=parent,
+              root_path=child_path,
               enable_tooltip=enable_key_tooltip,
           )
-          child_css_class = [
-              (
-                  'highlight' if highlight and highlight(child_path, v, parent)
-                  else None
-              ),
-              (
-                  'lowlight' if lowlight and lowlight(child_path, v, parent)
-                  else None
-              )
-          ]
-          value = self.render(
-              value=v,
-              name=None,
-              parent=v,
-              root_path=child_path,
-              css_class=child_css_class,
-              special_keys=None,
-              include_keys=None,
-              exclude_keys=None,
-              filter=filter,
-              highlight=highlight,
-              lowlight=lowlight,
-              max_summary_len_for_str=max_summary_len_for_str,
-              enable_summary_tooltip=enable_summary_tooltip,
-              enable_key_tooltip=enable_key_tooltip,
-              collapse_level=collapse_level,
-              uncollapse=uncollapse,
-              **kwargs,
+          value_cell = Html.element(
+              'div',
+              [
+                  render_value_fn(
+                      value=v,
+                      name=None,
+                      parent=parent,
+                      root_path=child_path,
+                      special_keys=None,
+                      include_keys=None,
+                      exclude_keys=None,
+                      collapse_level=collapse_level,
+                      uncollapse=uncollapse,
+                      filter=filter,
+                      highlight=highlight,
+                      lowlight=lowlight,
+                      max_summary_len_for_str=max_summary_len_for_str,
+                      enable_summary_tooltip=enable_summary_tooltip,
+                      enable_key_tooltip=enable_key_tooltip,
+                      **kwargs,
+                  )
+              ],
+              css_class=[
+                  (
+                      'highlight' if highlight
+                      and highlight(child_path, v, parent) else None
+                  ),
+                  (
+                      'lowlight' if lowlight
+                      and lowlight(child_path, v, parent) else None
+                  )
+              ],
           )
           s.write(
               Html.element(
                   'tr',
                   [
-                      '<td>', key, '</td>',
-                      '<td>', value, '</td>',
+                      '<td>', key_cell, '</td>',
+                      '<td>', value_cell, '</td>',
                   ],
               )
           )
@@ -962,9 +1023,11 @@ class HtmlTreeView(HtmlView):
     return Html.element(
         'div',
         [s],
-        css_class=['complex_value', self.css_class_name(parent)] + (
-            css_class or []
-        ),
+        css_class=[
+            'complex_value',
+            self.css_class_name(parent),
+            css_class,
+        ]
     ).add_style(
         """
         /* Complex value styles. */
@@ -985,7 +1048,6 @@ class HtmlTreeView(HtmlView):
       name: Optional[str] = None,
       parent: Any = None,
       root_path: Optional[KeyPath] = None,
-      css_class: Optional[Sequence[str]] = None,
       content: Union[str, Html, None] = HtmlView.PresetArgValue(None),
       **kwargs
   ) -> Html:
@@ -996,7 +1058,6 @@ class HtmlTreeView(HtmlView):
       name: The name of the value.
       parent: The parent value of the key-value pairs.
       root_path: The root path of the value.
-      css_class: Additional CSS classes for the tooltip span.
       content: The content of the tooltip. If None, the formatted value will be
         used as the content.
       **kwargs: Additional keyword arguments passed from `pg.to_html`.
@@ -1021,7 +1082,7 @@ class HtmlTreeView(HtmlView):
     return Html.element(
         'span',
         [content],
-        css_class=['tooltip'] + (css_class or []),
+        css_class=['tooltip', self.css_class_name(value)],
     ).add_style(
         """
         /* Tooltip styles. */
@@ -1040,11 +1101,12 @@ class HtmlTreeView(HtmlView):
     )
 
   @staticmethod
-  def css_class_name(value: Any) -> str:
+  def css_class_name(value: Any) -> Optional[str]:
     """Returns the CSS class name for the value."""
+    if isinstance(value, HtmlTreeView.Extension):
+      return Html.concate(value._html_element_class())  # pylint: disable=protected-access
     value = value if inspect.isclass(value) else type(value)
-    class_name = value.__name__
-    return _REGEX_CAMEL_TO_SNAKE.sub('-', class_name).lower()
+    return object_utils.camel_to_snake(value.__name__, '-')
 
 
 _REGEX_CAMEL_TO_SNAKE = re.compile(r'(?<!^)(?=[A-Z])')

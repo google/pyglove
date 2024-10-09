@@ -13,7 +13,7 @@
 # limitations under the License.
 """Symbolic differences."""
 
-from typing import Any, Callable, Optional, Sequence, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
@@ -196,25 +196,26 @@ class Diff(PureSymbolic, pg_object.Object):
       view: html.HtmlTreeView,
       parent: Any,
       root_path: object_utils.KeyPath,
-      css_class: Optional[Sequence[str]] = None,
       **kwargs
   ) -> html.Html:
-    del parent
-    user_specified_css_class = css_class or []
     if not bool(self):
       if self.value == Diff.MISSING:
         root = html.Html.element(
             'span',
             # CSS class already defined in HtmlTreeView.
-            css_class=['diff_empty'] + user_specified_css_class,
+            css_class=['diff_empty']
         )
       else:
         # When there is no diff, but the same value needs to be displayed
         # we simply return the value.
-        root = view.content(
-            self.value,
-            css_class=['diff_left', 'diff_right'] + user_specified_css_class,
-            root_path=root_path, **kwargs
+        root = html.Html.element(
+            'div',
+            [
+                view.content(
+                    self.value, parent=parent, root_path=root_path, **kwargs,
+                )
+            ],
+            css_class=['diff_left', 'diff_right']
         )
     elif self.is_leaf:
       root = html.Html.element(
@@ -241,7 +242,7 @@ class Diff(PureSymbolic, pg_object.Object):
                   css_class=['diff_right'],
               )  if self.right != Diff.MISSING else None,
           ],
-          css_class=['diff_value'] + user_specified_css_class,
+          css_class=['diff_value']
       )
     else:
       assert isinstance(self.left, type)
@@ -279,10 +280,14 @@ class Diff(PureSymbolic, pg_object.Object):
           ],
           css_class=[
               'complex_value', view.css_class_name(self.left)
-          ] + user_specified_css_class,
+          ]
       )
-    return root.add_style(
+    return root
+
+  def _html_style(self) -> List[str]:
+    return [
         """
+        /* Diff styles. */
         .diff .summary_title::after {
           content: ' (diff)';
           color: #aaa;
@@ -331,7 +336,7 @@ class Diff(PureSymbolic, pg_object.Object):
           background-color: #ccffcc;
         }
         """
-    )
+    ]
 
 
 # NOTE(daiyip): we add the symbolic attribute to Diff after its declaration

@@ -13,12 +13,15 @@
 # limitations under the License.
 
 import inspect
+from typing import Any, List, Sequence
 import unittest
 
 from pyglove.core.views.html import base
 from pyglove.core.views.html import tree_view
 
 Html = base.Html
+KeyPath = tree_view.KeyPath
+KeyPathSet = tree_view.KeyPathSet
 
 
 class TestCase(unittest.TestCase):
@@ -82,7 +85,7 @@ class TooltipTest(TestCase):
             name='name',
         ),
         """
-        <span class="tooltip">&#x27;This &lt;hello&gt;&lt;world&gt;&lt;/world&gt;&lt;/hello&gt;.&#x27;</span>
+        <span class="tooltip str">&#x27;This &lt;hello&gt;&lt;world&gt;&lt;/world&gt;&lt;/hello&gt;.&#x27;</span>
         """
     )
     self.assert_content(
@@ -92,7 +95,7 @@ class TooltipTest(TestCase):
             name='name',
         ),
         """
-        <span class="tooltip"><div>hello</div></span>
+        <span class="tooltip int"><div>hello</div></span>
         """
     )
 
@@ -158,7 +161,7 @@ class SummaryTest(TestCase):
     self.assert_content(
         self._view.summary('foo', enable_summary=True),
         """
-        <summary><div class="summary_title">&#x27;foo&#x27;</div><span class="tooltip">&#x27;foo&#x27;</span></summary>
+        <summary><div class="summary_title">&#x27;foo&#x27;</div><span class="tooltip str">&#x27;foo&#x27;</span></summary>
         """
     )
     self.assert_content(
@@ -166,7 +169,7 @@ class SummaryTest(TestCase):
             'foo', enable_summary=None, max_summary_len_for_str=1
         ),
         """
-        <summary><div class="summary_title">&#x27;f...&#x27;</div><span class="tooltip">&#x27;foo&#x27;</span></summary>
+        <summary><div class="summary_title">&#x27;f...&#x27;</div><span class="tooltip str">&#x27;foo&#x27;</span></summary>
         """
     )
 
@@ -177,7 +180,7 @@ class SummaryTest(TestCase):
             max_summary_len_for_str=5
         ),
         """
-        <summary><div class="summary_title">&#x27;abcde...&#x27;</div><span class="tooltip">&#x27;abcdefg&#x27;</span></summary>
+        <summary><div class="summary_title">&#x27;abcde...&#x27;</div><span class="tooltip str">&#x27;abcdefg&#x27;</span></summary>
         """
     )
 
@@ -185,7 +188,7 @@ class SummaryTest(TestCase):
     self.assert_content(
         self._view.summary('foo', name='x'),
         """
-        <summary><div class="summary_name">x</div><div class="summary_title">&#x27;foo&#x27;</div><span class="tooltip">&#x27;foo&#x27;</span></summary>
+        <summary><div class="summary_name">x</div><div class="summary_title">&#x27;foo&#x27;</div><span class="tooltip str">&#x27;foo&#x27;</span></summary>
         """
     )
 
@@ -195,7 +198,7 @@ class SummaryTest(TestCase):
             'foo', enable_summary=True, enable_summary_tooltip=True
         ),
         """
-        <summary><div class="summary_title">&#x27;foo&#x27;</div><span class="tooltip">&#x27;foo&#x27;</span></summary>
+        <summary><div class="summary_title">&#x27;foo&#x27;</div><span class="tooltip str">&#x27;foo&#x27;</span></summary>
         """
     )
     self.assert_content(
@@ -235,25 +238,25 @@ class ContentTest(TestCase):
           visibility: visible;
           background-color: darkblue;
         }
-        .complex_value .object_key{
+        .object_key.str {
           color: gray;
           border: 1px solid lightgray;
           background-color: ButtonFace;
           border-radius: 0.2em;
           padding: 0.3em;
         }
-        .complex_value.list .object_key{
+        .object_key.int::before{
+          content: '[';
+        }
+        .object_key.int::after{
+          content: ']';
+        }
+        .object_key.int{
           border: 0;
           color: lightgray;
           background-color: transparent;
           border-radius: 0;
           padding: 0;
-        }
-        .complex_value.list .object_key::before{
-          content: '[';
-        }
-        .complex_value.list .object_key::after{
-          content: ']';
         }
         /* Simple value styles. */
         .simple_value {
@@ -308,7 +311,7 @@ class ContentTest(TestCase):
     )
     self.assert_content(
         self._view.content('<foo>'),
-        """ 
+        """
         <span class="simple_value str">&#x27;&lt;foo&gt;&#x27;</span>
         """
     )
@@ -316,7 +319,7 @@ class ContentTest(TestCase):
         self._view.content(
             '<hello><world> \nto everyone.', max_summary_len_for_str=10
         ),
-        """ 
+        """
         <span class="simple_value str">&lt;hello&gt;&lt;world&gt; 
         to everyone.</span>
         """
@@ -326,7 +329,7 @@ class ContentTest(TestCase):
     self.assert_content(
         self._view.content([1, 2, 'abc']),
         """
-        <div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">2</span><span class="tooltip">[2]</span></td><td><span class="simple_value str">&#x27;abc&#x27;</span></td></tr></table></div>
+        <div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key int">2</span><span class="tooltip key-path">[2]</span></td><td><div><span class="simple_value str">&#x27;abc&#x27;</span></div></td></tr></table></div>
         """
     )
     self.assert_content(
@@ -340,7 +343,7 @@ class ContentTest(TestCase):
     self.assert_content(
         self._view.content((1, True)),
         """
-        <div class="complex_value tuple"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><span class="simple_value bool">True</span></td></tr></table></div>
+        <div class="complex_value tuple"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div><span class="simple_value bool">True</span></div></td></tr></table></div>
         """
     )
     self.assert_content(
@@ -354,7 +357,7 @@ class ContentTest(TestCase):
     self.assert_content(
         self._view.content(dict(x=1, y='foo')),
         """
-        <div class="complex_value dict"><table><tr><td><span class="object_key">x</span><span class="tooltip">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">y</span></td><td><span class="simple_value str">&#x27;foo&#x27;</span></td></tr></table></div>
+        <div class="complex_value dict"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">y</span></td><td><div><span class="simple_value str">&#x27;foo&#x27;</span></div></td></tr></table></div>
         """
     )
     self.assert_content(
@@ -377,6 +380,28 @@ class ContentTest(TestCase):
         """
     )
 
+  def test_custom_key_value_render(self):
+    def render_key(key, **kwargs):
+      del kwargs
+      return Html.element('span', [f'custom {key}'])
+
+    def render_value(value, **kwargs):
+      del kwargs
+      return Html.element('span', [f'custom {value}'])
+
+    self.assert_content(
+        self._view.complex_value(
+            dict(x=1, y='foo'),
+            parent=None,
+            root_path=KeyPath(),
+            render_key_fn=render_key,
+            render_value_fn=render_value,
+        ),
+        """
+        <div class="complex_value none-type"><table><tr><td><span>custom x</span></td><td><div><span>custom 1</span></div></td></tr><tr><td><span>custom y</span></td><td><div><span>custom foo</span></div></td></tr></table></div>
+        """
+    )
+
   def test_nesting(self):
 
     class Foo:
@@ -395,16 +420,16 @@ class ContentTest(TestCase):
             ]
         ),
         """
-        <div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0]</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip">{
+        <div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0]</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip dict">{
           &#x27;x&#x27;: [(1, 2)],
           &#x27;y&#x27;: [&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]
-        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span><span class="tooltip">[0].x</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[(1, 2)]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].x[0]</span></td><td><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div><span class="tooltip">(1, 2)</span></summary><div class="complex_value tuple"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].x[0][0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[0].x[0][1]</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">[0].y</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].y[0]</span></td><td><span class="simple_value str">&#x27;b&#x27;</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[0].y[1]</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div><span class="tooltip">&lt;Foo&gt;&lt;/Foo&gt;</span></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">2</span><span class="tooltip">[2]</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[1, {
+        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">[0].x</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[(1, 2)]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].x[0]</span></td><td><div><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div><span class="tooltip tuple">(1, 2)</span></summary><div class="complex_value tuple"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].x[0][0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[0].x[0][1]</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">[0].y</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].y[0]</span></td><td><div><span class="simple_value str">&#x27;b&#x27;</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[0].y[1]</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div><span class="tooltip foo">&lt;Foo&gt;&lt;/Foo&gt;</span></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">2</span><span class="tooltip key-path">[2]</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[1, {
             &#x27;xx&#x27;: 1,
             &#x27;yy&#x27;: &#x27;a&#x27;
-          }]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[2][0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[2][1]</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip">{
+          }]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[2][0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[2][1]</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip dict">{
           &#x27;xx&#x27;: 1,
           &#x27;yy&#x27;: &#x27;a&#x27;
-        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key">xx</span><span class="tooltip">[2][1].xx</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">yy</span><span class="tooltip">[2][1].yy</span></td><td><span class="simple_value str">&#x27;a&#x27;</span></td></tr></table></div></details></td></tr></table></div></details></td></tr></table></div>
+        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">xx</span><span class="tooltip key-path">[2][1].xx</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">yy</span><span class="tooltip key-path">[2][1].yy</span></td><td><div><span class="simple_value str">&#x27;a&#x27;</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div>
         """
     )
 
@@ -425,22 +450,22 @@ class ContentTest(TestCase):
     self.assert_content(
         self._view.content(value, enable_summary_tooltip=False),
         """
-        <div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0]</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span><span class="tooltip">[0].x</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].x[0]</span></td><td><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div></summary><div class="complex_value tuple"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].x[0][0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[0].x[0][1]</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">[0].y</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].y[0]</span></td><td><span class="simple_value str">&#x27;b&#x27;</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[0].y[1]</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">2</span><span class="tooltip">[2]</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[2][0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[2][1]</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">xx</span><span class="tooltip">[2][1].xx</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">yy</span><span class="tooltip">[2][1].yy</span></td><td><span class="simple_value str">&#x27;a&#x27;</span></td></tr></table></div></details></td></tr></table></div></details></td></tr></table></div>
+        <div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0]</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">[0].x</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].x[0]</span></td><td><div><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div></summary><div class="complex_value tuple"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].x[0][0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[0].x[0][1]</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">[0].y</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].y[0]</span></td><td><div><span class="simple_value str">&#x27;b&#x27;</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[0].y[1]</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">2</span><span class="tooltip key-path">[2]</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[2][0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[2][1]</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">xx</span><span class="tooltip key-path">[2][1].xx</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">yy</span><span class="tooltip key-path">[2][1].yy</span></td><td><div><span class="simple_value str">&#x27;a&#x27;</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div>
         """
     )
     self.assert_content(
         self._view.content(value, enable_key_tooltip=False),
         """
-        <div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip">{
+        <div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip dict">{
           &#x27;x&#x27;: [(1, 2)],
           &#x27;y&#x27;: [&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]
-        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[(1, 2)]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div><span class="tooltip">(1, 2)</span></summary><div class="complex_value tuple"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">y</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value str">&#x27;b&#x27;</span></td></tr><tr><td><span class="object_key">1</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div><span class="tooltip">&lt;Foo&gt;&lt;/Foo&gt;</span></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">1</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">2</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[1, {
+        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[(1, 2)]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div><span class="tooltip tuple">(1, 2)</span></summary><div class="complex_value tuple"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value str">&#x27;b&#x27;</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div><span class="tooltip foo">&lt;Foo&gt;&lt;/Foo&gt;</span></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">2</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[1, {
             &#x27;xx&#x27;: 1,
             &#x27;yy&#x27;: &#x27;a&#x27;
-          }]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip">{
+          }]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip dict">{
           &#x27;xx&#x27;: 1,
           &#x27;yy&#x27;: &#x27;a&#x27;
-        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key">xx</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">yy</span></td><td><span class="simple_value str">&#x27;a&#x27;</span></td></tr></table></div></details></td></tr></table></div></details></td></tr></table></div>
+        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">xx</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">yy</span></td><td><div><span class="simple_value str">&#x27;a&#x27;</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div>
         """
     )
     self.assert_content(
@@ -448,7 +473,7 @@ class ContentTest(TestCase):
             value, enable_summary_tooltip=False, enable_key_tooltip=False
         ),
         """
-        <div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div></summary><div class="complex_value tuple"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">y</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value str">&#x27;b&#x27;</span></td></tr><tr><td><span class="object_key">1</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">1</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">2</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">xx</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">yy</span></td><td><span class="simple_value str">&#x27;a&#x27;</span></td></tr></table></div></details></td></tr></table></div></details></td></tr></table></div>
+        <div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div></summary><div class="complex_value tuple"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value str">&#x27;b&#x27;</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">2</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">xx</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">yy</span></td><td><div><span class="simple_value str">&#x27;a&#x27;</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div>
         """
     )
 
@@ -474,7 +499,7 @@ class ContentTest(TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <div class="complex_value dict"><details class="pyglove str special_value"><summary><div class="summary_name">c</div><div class="summary_title">&#x27;z&#x27;</div></summary><span class="simple_value str">&#x27;z&#x27;</span></details><details class="pyglove dict special_value"><summary><div class="summary_name">b</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">e</span></td><td><span class="simple_value str">&#x27;y&#x27;</span></td></tr></table></div></details><table><tr><td><span class="object_key">a</span></td><td><span class="simple_value str">&#x27;x&#x27;</span></td></tr><tr><td><span class="object_key">d</span></td><td><span class="simple_value str">&#x27;w&#x27;</span></td></tr><tr><td><span class="object_key">e</span></td><td><span class="simple_value str">&#x27;v&#x27;</span></td></tr><tr><td><span class="object_key">f</span></td><td><span class="simple_value str">&#x27;u&#x27;</span></td></tr></table></div>
+        <div class="complex_value dict"><div class="special_value"><details class="pyglove str"><summary><div class="summary_name">c</div><div class="summary_title">&#x27;z&#x27;</div></summary><span class="simple_value str">&#x27;z&#x27;</span></details></div><div class="special_value"><details class="pyglove dict"><summary><div class="summary_name">b</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">e</span></td><td><div><span class="simple_value str">&#x27;y&#x27;</span></div></td></tr></table></div></details></div><table><tr><td><span class="object_key str">a</span></td><td><div><span class="simple_value str">&#x27;x&#x27;</span></div></td></tr><tr><td><span class="object_key str">d</span></td><td><div><span class="simple_value str">&#x27;w&#x27;</span></div></td></tr><tr><td><span class="object_key str">e</span></td><td><div><span class="simple_value str">&#x27;v&#x27;</span></div></td></tr><tr><td><span class="object_key str">f</span></td><td><div><span class="simple_value str">&#x27;u&#x27;</span></div></td></tr></table></div>
         """
     )
     self.assert_count(
@@ -497,7 +522,7 @@ class ContentTest(TestCase):
             filter=(lambda k, v, p: len(k) > 1 or isinstance(v, dict))
         ),
         """
-        <div class="complex_value dict"><table><tr><td><span class="object_key">b</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">e</span></td><td><span class="simple_value str">&#x27;y&#x27;</span></td></tr></table></div></details></td></tr></table></div>
+        <div class="complex_value dict"><table><tr><td><span class="object_key str">b</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">e</span></td><td><div><span class="simple_value str">&#x27;y&#x27;</span></div></td></tr></table></div></details></div></td></tr></table></div>
         """
     )
 
@@ -511,7 +536,7 @@ class ContentTest(TestCase):
             lowlight_keys=(lambda k, v, p: isinstance(v, str)),
         ),
         """
-        <div class="complex_value dict"><table><tr><td><span class="object_key">a</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">b</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">e</span></td><td><span class="simple_value str">&#x27;y&#x27;</span></td></tr></table></div></details></td></tr><tr><td><span class="object_key">c</span></td><td><span class="simple_value int">2</span></td></tr><tr><td><span class="object_key">d</span></td><td><span class="simple_value str">&#x27;w&#x27;</span></td></tr><tr><td><span class="object_key">e</span></td><td><span class="simple_value int">3</span></td></tr><tr><td><span class="object_key">f</span></td><td><span class="simple_value str">&#x27;u&#x27;</span></td></tr></table></div>
+        <div class="complex_value dict"><table><tr><td><span class="object_key str">a</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">b</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">e</span></td><td><div><span class="simple_value str">&#x27;y&#x27;</span></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">c</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">d</span></td><td><div><span class="simple_value str">&#x27;w&#x27;</span></div></td></tr><tr><td><span class="object_key str">e</span></td><td><div><span class="simple_value int">3</span></div></td></tr><tr><td><span class="object_key str">f</span></td><td><div><span class="simple_value str">&#x27;u&#x27;</span></div></td></tr></table></div>
         """
     )
 
@@ -625,7 +650,7 @@ class RenderTest(TestCase):
             ],
         ),
         """
-        <details open class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[
+        <details open class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[
           {
             &#x27;x&#x27;: [(1, 2)],
             &#x27;y&#x27;: [&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]
@@ -635,16 +660,16 @@ class RenderTest(TestCase):
               &#x27;xx&#x27;: 1,
               &#x27;yy&#x27;: &#x27;a&#x27;
             }]
-        ]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0]</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip">{
+        ]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0]</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip dict">{
           &#x27;x&#x27;: [(1, 2)],
           &#x27;y&#x27;: [&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]
-        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key">x</span><span class="tooltip">[0].x</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[(1, 2)]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].x[0]</span></td><td><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div><span class="tooltip">(1, 2)</span></summary><div class="complex_value tuple"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].x[0][0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[0].x[0][1]</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">y</span><span class="tooltip">[0].y</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[0].y[0]</span></td><td><span class="simple_value str">&#x27;b&#x27;</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[0].y[1]</span></td><td><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div><span class="tooltip">&lt;Foo&gt;&lt;/Foo&gt;</span></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></td></tr></table></div></details></td></tr></table></div></details></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[1]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">2</span><span class="tooltip">[2]</span></td><td><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip">[1, {
+        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">[0].x</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[(1, 2)]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].x[0]</span></td><td><div><details class="pyglove tuple"><summary><div class="summary_title">tuple(...)</div><span class="tooltip tuple">(1, 2)</span></summary><div class="complex_value tuple"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].x[0][0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[0].x[0][1]</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">[0].y</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[&#x27;b&#x27;, &lt;Foo&gt;&lt;/Foo&gt;]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[0].y[0]</span></td><td><div><span class="simple_value str">&#x27;b&#x27;</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[0].y[1]</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div><span class="tooltip foo">&lt;Foo&gt;&lt;/Foo&gt;</span></summary><span class="simple_value foo">&lt;Foo&gt;&lt;/Foo&gt;</span></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">2</span><span class="tooltip key-path">[2]</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">list(...)</div><span class="tooltip list">[1, {
             &#x27;xx&#x27;: 1,
             &#x27;yy&#x27;: &#x27;a&#x27;
-          }]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key">0</span><span class="tooltip">[2][0]</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">1</span><span class="tooltip">[2][1]</span></td><td><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip">{
+          }]</span></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span><span class="tooltip key-path">[2][0]</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[2][1]</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div><span class="tooltip dict">{
           &#x27;xx&#x27;: 1,
           &#x27;yy&#x27;: &#x27;a&#x27;
-        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key">xx</span><span class="tooltip">[2][1].xx</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">yy</span><span class="tooltip">[2][1].yy</span></td><td><span class="simple_value str">&#x27;a&#x27;</span></td></tr></table></div></details></td></tr></table></div></details></td></tr></table></div></details>
+        }</span></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">xx</span><span class="tooltip key-path">[2][1].xx</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">yy</span><span class="tooltip key-path">[2][1].yy</span></td><td><div><span class="simple_value str">&#x27;a&#x27;</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details>
         """
     )
 
@@ -666,7 +691,7 @@ class ExtensionTest(TestCase):
             enable_tooltip=True,
         ),
         """
-        <summary><div class="summary_title">Foo(...)</div><span class="tooltip">Foo()</span></summary>
+        <summary><div class="summary_title">Foo(...)</div><span class="tooltip foo">Foo()</span></summary>
         """
     )
     self.assert_content(
@@ -678,7 +703,79 @@ class ExtensionTest(TestCase):
         """
     )
 
-  def test_overrides(self):
+  def test_options_overrides(self):
+
+    class Foo(tree_view.HtmlTreeView.Extension):
+
+      def __str__(self):
+        return 'Foo()'
+
+      def _html_style(self) -> List[str]:
+        return [
+            """
+            /* Foo style */
+            """
+        ]
+
+      def _html_element_class(self) -> List[str]:
+        return ['foo', 'bar']
+
+      def _html_tree_view_special_keys(self) -> Sequence[str]:
+        return ['x']
+
+      def _html_tree_view_include_keys(self) -> Sequence[str]:
+        return ['x', 'y', 'z', 'w']
+
+      def _html_tree_view_exclude_keys(self) -> Sequence[str]:
+        return ['z']
+
+      def _html_tree_view_collapse_level(self) -> int:
+        return 1
+
+      def _html_tree_view_uncollapse(self) -> KeyPathSet:
+        return KeyPathSet(['x.a', 'y.b'], include_intermediate=True)
+
+      def _html_tree_view_content(
+          self,
+          *,
+          view: tree_view.HtmlTreeView,
+          parent: Any,
+          root_path: KeyPath,
+          **kwargs) -> base.Html:
+        return view.complex_value(
+            kv=dict(
+                x=dict(a=dict(foo=2)),
+                y=dict(b=dict(bar=3)),
+                z=dict(c=dict(baz=4)),
+                w=dict(d=dict(qux=5)),
+            ),
+            parent=self,
+            root_path=root_path,
+            **kwargs
+        )
+
+    self.assertIn(
+        '/* Foo style */',
+        self._view.render(
+            Foo(),
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            collapse_level=0,
+        ).styles.content,
+    )
+    self.assert_content(
+        self._view.render(
+            [Foo()],
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            collapse_level=0,
+        ),
+        """
+        <details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details open class="pyglove foo bar"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo bar"><div class="special_value"><details open class="pyglove dict"><summary><div class="summary_name">x</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">a</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">foo</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><table><tr><td><span class="object_key str">y</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">b</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">bar</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">w</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">d</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">qux</span></td><td><div><span class="simple_value int">5</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details>
+        """
+    )
+
+  def test_behavior_overrides(self):
 
     class Foo(tree_view.HtmlTreeView.Extension):
 
@@ -692,7 +789,6 @@ class ExtensionTest(TestCase):
         return view.summary(
             self,
             title='MyFoo',
-            title_class='t_MyFoo',
             **kwargs
         )
 
@@ -720,7 +816,7 @@ class ExtensionTest(TestCase):
             Foo(),
         ),
         """
-        <details open class="pyglove foo"><summary><div class="summary_title">MyFoo</div><span class="tooltip">Tooltip <MyFoo></span></summary>Content of MyFoo</details>
+        <details open class="pyglove foo"><summary><div class="summary_title">MyFoo</div><span class="tooltip foo">Tooltip <MyFoo></span></summary>Content of MyFoo</details>
         """
     )
     self.assert_content(

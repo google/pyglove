@@ -89,6 +89,7 @@ from pyglove.core.object_utils.formatting import kvlist_str
 from pyglove.core.object_utils.formatting import quote_if_str
 from pyglove.core.object_utils.formatting import maybe_markdown_quote
 from pyglove.core.object_utils.formatting import comma_delimited_str
+from pyglove.core.object_utils.formatting import camel_to_snake
 from pyglove.core.object_utils.formatting import auto_plural
 from pyglove.core.object_utils.formatting import BracketType
 from pyglove.core.object_utils.formatting import bracket_chars
@@ -100,6 +101,7 @@ from pyglove.core.object_utils.formatting import repr_format
 
 # Value location.
 from pyglove.core.object_utils.value_location import KeyPath
+from pyglove.core.object_utils.value_location import KeyPathSet
 from pyglove.core.object_utils.value_location import StrKey
 from pyglove.core.object_utils.value_location import message_on_path
 
