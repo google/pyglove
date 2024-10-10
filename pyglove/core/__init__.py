@@ -277,6 +277,7 @@ ObjectFactory = patching.ObjectFactory
 
 from pyglove.core import object_utils
 KeyPath = object_utils.KeyPath
+KeyPathSet = object_utils.KeyPathSet
 MISSING_VALUE = object_utils.MISSING_VALUE
 
 Formattable = object_utils.Formattable

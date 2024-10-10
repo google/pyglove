@@ -89,7 +89,7 @@ class FieldUpdateTest(unittest.TestCase):
     )
 
 
-class HtmlFormattableTest(unittest.TestCase):
+class HtmlTreeViewExtensionTest(unittest.TestCase):
 
   def assert_content(self, html, expected):
     expected = inspect.cleandoc(expected).strip()
@@ -112,7 +112,7 @@ class HtmlFormattableTest(unittest.TestCase):
             enable_key_tooltip=False
         ),
         """
-        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr><tr><td><span class="object_key">y</span></td><td><span class="simple_value str">&#x27;foo&#x27;</span></td></tr></table></div></details>
+        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value str">&#x27;foo&#x27;</span></div></td></tr></table></div></details>
         """
     )
     # Hide frozen and default values.
@@ -125,7 +125,7 @@ class HtmlFormattableTest(unittest.TestCase):
             hide_default_values=True
         ),
         """
-        <details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr></table></div></details>
+        <details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr></table></div></details>
         """
     )
     # Use inferred values.
@@ -137,7 +137,7 @@ class HtmlFormattableTest(unittest.TestCase):
             use_inferred=False
         ),
         """
-        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">y</span></td><td><details class="pyglove value-from-parent-chain"><summary><div class="summary_title">ValueFromParentChain(...)</div></summary><div class="complex_value value-from-parent-chain"><span class="empty_container"></span></div></details></td></tr></table></div></details>
+        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove value-from-parent-chain"><summary><div class="summary_title">ValueFromParentChain(...)</div></summary><div class="complex_value value-from-parent-chain"><span class="empty_container"></span></div></details></div></td></tr></table></div></details>
         """
     )
     self.assert_content(
@@ -147,7 +147,7 @@ class HtmlFormattableTest(unittest.TestCase):
             use_inferred=True
         ),
         """
-        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key">y</span></td><td><span class="simple_value int">2</span></td></tr></table></div></details>
+        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details>
         """
     )
 

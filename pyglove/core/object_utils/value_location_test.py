@@ -18,12 +18,16 @@ from pyglove.core.object_utils import formatting
 from pyglove.core.object_utils import value_location
 
 
+KeyPath = value_location.KeyPath
+KeyPathSet = value_location.KeyPathSet
+
+
 class KeyPathTest(unittest.TestCase):
   """Tests for class KeyPath."""
 
   def test_basics(self):
     # Root element.
-    r = value_location.KeyPath()
+    r = KeyPath()
     self.assertTrue(r.is_root)
     self.assertFalse(r)
     self.assertEqual(r, '')
@@ -39,7 +43,7 @@ class KeyPathTest(unittest.TestCase):
       _ = r.key
 
     # 1-level deep.
-    a = value_location.KeyPath('a')
+    a = KeyPath('a')
     self.assertFalse(a.is_root)
     self.assertEqual(a.key, 'a')
     self.assertEqual(a.path, 'a')
@@ -49,7 +53,7 @@ class KeyPathTest(unittest.TestCase):
     self.assertEqual(len(a), 1)
     self.assertEqual(a.parent, r)
 
-    a2 = value_location.KeyPath(0)
+    a2 = KeyPath(0)
     self.assertFalse(a2.is_root)
     self.assertEqual(a2.key, 0)
     with formatting.str_format(markdown=True):
@@ -63,7 +67,7 @@ class KeyPathTest(unittest.TestCase):
     self.assertEqual(len(a2), 1)
     self.assertEqual(a2.parent, r)
 
-    a3 = value_location.KeyPath('x.y')
+    a3 = KeyPath('x.y')
     self.assertFalse(a3.is_root)
     self.assertEqual(a3.key, 'x.y')
     self.assertEqual(a3.path, '[x.y]')
@@ -75,28 +79,28 @@ class KeyPathTest(unittest.TestCase):
     self.assertEqual(a3.parent, r)
 
     # Multiple levels.
-    b = value_location.KeyPath([1, 'b'])
+    b = KeyPath([1, 'b'])
     self.assertEqual(b, '[1].b')
     self.assertEqual(b.path, '[1].b')
     self.assertNotEqual(a, b)
     self.assertEqual(len(b), 2)
     self.assertEqual(b.parent, '[1]')
 
-    c = value_location.KeyPath('c', b)
+    c = KeyPath('c', b)
     self.assertEqual(c.key, 'c')
     self.assertEqual(c, '[1].b.c')
     self.assertEqual(c.keys, [1, 'b', 'c'])
     self.assertEqual(len(c), 3)
     self.assertEqual(c.parent, b)
 
-    d = value_location.KeyPath(['d', 0], c)
+    d = KeyPath(['d', 0], c)
     self.assertEqual(d.key, 0)
     self.assertEqual(d, '[1].b.c.d[0]')
     self.assertEqual(d.keys, [1, 'b', 'c', 'd', 0])
     self.assertEqual(d.parent, '[1].b.c.d')
     self.assertEqual(len(d), 5)
 
-    d2 = value_location.KeyPath(('d', 0), c)
+    d2 = KeyPath(('d', 0), c)
     self.assertEqual(d, d2)
 
   def test_complex_key_type(self):
@@ -109,11 +113,11 @@ class KeyPathTest(unittest.TestCase):
       def __str__(self):
         return f'A({self._text})'
 
-    p = value_location.KeyPath([A('a'), A('b'), 'c'])
+    p = KeyPath([A('a'), A('b'), 'c'])
     self.assertEqual(p.path, '[A(a)][A(b)].c')
 
     # Key may have '.' in their string form.
-    p = value_location.KeyPath([A('a.*'), A('$b')])
+    p = KeyPath([A('a.*'), A('$b')])
     self.assertEqual(p.path, '[A(a.*)][A($b)]')
 
     # NOTE: We cannot really parse KeyPath with complex types.
@@ -127,145 +131,145 @@ class KeyPathTest(unittest.TestCase):
       def __str__(self):
         return f'B({self._text})'
 
-    p = value_location.KeyPath([B('a'), B('b'), 'c'])
+    p = KeyPath([B('a'), B('b'), 'c'])
     self.assertEqual(p.path, 'B(a).B(b).c')
 
   def test_parse(self):
     """Test KeyPath.parse method."""
-    self.assertEqual(value_location.KeyPath.parse('a').keys, ['a'])
-    self.assertEqual(len(value_location.KeyPath.parse('')), 0)
+    self.assertEqual(KeyPath.parse('a').keys, ['a'])
+    self.assertEqual(len(KeyPath.parse('')), 0)
 
-    self.assertEqual(value_location.KeyPath.parse('a').keys, ['a'])
-    self.assertEqual(value_location.KeyPath.parse('[a ]').keys, ['a '])
-    self.assertEqual(value_location.KeyPath.parse('[0].a').keys, [0, 'a'])
+    self.assertEqual(KeyPath.parse('a').keys, ['a'])
+    self.assertEqual(KeyPath.parse('[a ]').keys, ['a '])
+    self.assertEqual(KeyPath.parse('[0].a').keys, [0, 'a'])
     self.assertEqual(
-        value_location.KeyPath.parse('[0][1].a').keys, [0, 1, 'a'])
+        KeyPath.parse('[0][1].a').keys, [0, 1, 'a'])
     self.assertEqual(
-        value_location.KeyPath.parse('a.b[1].c').keys, ['a', 'b', 1, 'c'])
+        KeyPath.parse('a.b[1].c').keys, ['a', 'b', 1, 'c'])
     self.assertEqual(
-        value_location.KeyPath.parse('a[x[0]].b[y.z].c').keys,
+        KeyPath.parse('a[x[0]].b[y.z].c').keys,
         ['a', 'x[0]', 'b', 'y.z', 'c'])
 
     with self.assertRaisesRegex(
         ValueError, '\'path_str\' must be a string type.'):
-      value_location.KeyPath.parse(0)
+      KeyPath.parse(0)
 
     with self.assertRaisesRegex(
         ValueError,
         'KeyPath parse failed: unmatched open bracket at position 0'):
-      value_location.KeyPath.parse('[0')
+      KeyPath.parse('[0')
 
     with self.assertRaisesRegex(
         ValueError,
         'KeyPath parse failed: unmatched open bracket at position 0'):
-      value_location.KeyPath.parse('[[0]')
+      KeyPath.parse('[[0]')
 
     with self.assertRaisesRegex(
         ValueError,
         'KeyPath parse failed: unmatched close bracket at position 3'):
-      value_location.KeyPath.parse('[0]]')
+      KeyPath.parse('[0]]')
 
   def test_from_value(self):
     """Test KeyPath.from_value."""
     self.assertEqual(
-        value_location.KeyPath.from_value('x.y'),
-        value_location.KeyPath(['x', 'y']))
+        KeyPath.from_value('x.y'),
+        KeyPath(['x', 'y']))
 
     self.assertEqual(
-        value_location.KeyPath.from_value(1),
-        value_location.KeyPath([1]))
+        KeyPath.from_value(1),
+        KeyPath([1]))
 
-    path = value_location.KeyPath(['x'])
+    path = KeyPath(['x'])
     self.assertIs(
-        value_location.KeyPath.from_value(path),
+        KeyPath.from_value(path),
         path)
 
     with self.assertRaisesRegex(
         ValueError, '.* is not a valid KeyPath equivalence'):
-      value_location.KeyPath.from_value(0.1)
+      KeyPath.from_value(0.1)
 
   def test_arithmetics(self):
     """Test KeyPath arithmetics."""
 
     # Test operator +.
-    self.assertEqual(value_location.KeyPath('a') + 'b.c', 'a.b.c')
-    self.assertEqual(value_location.KeyPath('a') + '[0].b', 'a[0].b')
-    self.assertEqual(value_location.KeyPath('a') + None, 'a')
-    self.assertEqual(value_location.KeyPath('a') + 1, 'a[1]')
+    self.assertEqual(KeyPath('a') + 'b.c', 'a.b.c')
+    self.assertEqual(KeyPath('a') + '[0].b', 'a[0].b')
+    self.assertEqual(KeyPath('a') + None, 'a')
+    self.assertEqual(KeyPath('a') + 1, 'a[1]')
     self.assertEqual(
-        value_location.KeyPath('a') + value_location.KeyPath('b'), 'a.b')
-    self.assertEqual(value_location.KeyPath.parse('a.b') + 1.0, 'a.b[1.0]')
+        KeyPath('a') + KeyPath('b'), 'a.b')
+    self.assertEqual(KeyPath.parse('a.b') + 1.0, 'a.b[1.0]')
 
     # Test operator -.
     self.assertEqual(
-        value_location.KeyPath('a') - value_location.KeyPath('a'), '')
-    self.assertEqual(value_location.KeyPath('a') - 'a', '')
-    self.assertEqual(value_location.KeyPath('a') - '', 'a')
-    self.assertEqual(value_location.KeyPath('a') - None, 'a')
+        KeyPath('a') - KeyPath('a'), '')
+    self.assertEqual(KeyPath('a') - 'a', '')
+    self.assertEqual(KeyPath('a') - '', 'a')
+    self.assertEqual(KeyPath('a') - None, 'a')
     self.assertEqual(
-        value_location.KeyPath('a') - value_location.KeyPath(), 'a')
-    self.assertEqual(value_location.KeyPath.parse('a.b.c.d') - 'a.b', 'c.d')
-    self.assertEqual(value_location.KeyPath.parse('[0].a') - 0, 'a')
+        KeyPath('a') - KeyPath(), 'a')
+    self.assertEqual(KeyPath.parse('a.b.c.d') - 'a.b', 'c.d')
+    self.assertEqual(KeyPath.parse('[0].a') - 0, 'a')
 
     with self.assertRaisesRegex(
         ValueError, 'KeyPath subtraction failed: .* are in different subtree.'):
-      _ = value_location.KeyPath('a') - 'b'
+      _ = KeyPath('a') - 'b'
 
     with self.assertRaisesRegex(
         ValueError, 'KeyPath subtraction failed: .* are in different subtree.'):
-      _ = value_location.KeyPath.parse('a.b') - 'a.c'
+      _ = KeyPath.parse('a.b') - 'a.c'
 
     with self.assertRaisesRegex(
         ValueError, 'KeyPath subtraction failed: .* are in different subtree.'):
-      _ = value_location.KeyPath.parse('a[0]') - 'a[1]'
+      _ = KeyPath.parse('a[0]') - 'a[1]'
 
     with self.assertRaisesRegex(
         ValueError, 'KeyPath subtraction failed: .* is an ancestor'):
-      _ = value_location.KeyPath.parse('a.b') - 'a.b.c'
+      _ = KeyPath.parse('a.b') - 'a.b.c'
 
     with self.assertRaisesRegex(TypeError, 'Cannot subtract KeyPath'):
-      _ = value_location.KeyPath.parse('a.b') - 1.0
+      _ = KeyPath.parse('a.b') - 1.0
 
   def test_is_relative_to(self):
     self.assertTrue(
-        value_location.KeyPath.parse('a.b.c').is_relative_to(
-            value_location.KeyPath())
+        KeyPath.parse('a.b.c').is_relative_to(
+            KeyPath())
     )
     self.assertTrue(
-        value_location.KeyPath.parse('a.b.c').is_relative_to(
-            value_location.KeyPath.parse('a.b'))
+        KeyPath.parse('a.b.c').is_relative_to(
+            KeyPath.parse('a.b'))
     )
     self.assertTrue(
-        value_location.KeyPath.parse('a.b.c').is_relative_to(
-            value_location.KeyPath.parse('a.b.c'))
+        KeyPath.parse('a.b.c').is_relative_to(
+            KeyPath.parse('a.b.c'))
     )
     self.assertFalse(
-        value_location.KeyPath.parse('a.b').is_relative_to(
-            value_location.KeyPath.parse('a.b.c'))
+        KeyPath.parse('a.b').is_relative_to(
+            KeyPath.parse('a.b.c'))
     )
     self.assertFalse(
-        value_location.KeyPath.parse('a.b.d').is_relative_to(
-            value_location.KeyPath.parse('a.b.c'))
+        KeyPath.parse('a.b.d').is_relative_to(
+            KeyPath.parse('a.b.c'))
     )
 
   def test_hash(self):
-    self.assertIn(value_location.KeyPath.parse('a.b.c'), {'a.b.c': 1})
-    self.assertNotIn(value_location.KeyPath.parse('a.b.c'), {'a.b': 1})
+    self.assertIn(KeyPath.parse('a.b.c'), {'a.b.c': 1})
+    self.assertNotIn(KeyPath.parse('a.b.c'), {'a.b': 1})
 
   def test_comparison(self):
-    keypath = value_location.KeyPath.parse
+    keypath = KeyPath.parse
     # Equality should only hold true for KeyPaths that are identical.
     self.assertEqual(
-        value_location.KeyPath(), value_location.KeyPath.parse(''))
+        KeyPath(), KeyPath.parse(''))
     self.assertEqual(keypath('a[1][2].b[3][4]'), keypath('a[1][2].b[3][4]'))
     self.assertNotEqual(keypath('a[1][2].b[3][4]'), keypath('a[1][2].a[3][4]'))
     self.assertNotEqual(keypath('a[1][2].b[3][4]'), keypath('a[1][2].b[4][4]'))
     # Earlier keys in the path should be prioritized over later ones.
-    self.assertLess(value_location.KeyPath(), 'a')
-    self.assertLess(value_location.KeyPath(), keypath('a'))
+    self.assertLess(KeyPath(), 'a')
+    self.assertLess(KeyPath(), keypath('a'))
     self.assertLess(keypath('a'), keypath('a.a'))
     self.assertLess(keypath('a.a'), keypath('a.b'))
-    self.assertGreater(keypath('a'), value_location.KeyPath())
+    self.assertGreater(keypath('a'), KeyPath())
     self.assertGreater(keypath('a[1].b'), keypath('a[1].a'))
     self.assertGreater(keypath('a[1].a'), keypath('a[1]'))
     # Numbers should be compared numerically - not lexicographically.
@@ -290,34 +294,34 @@ class KeyPathTest(unittest.TestCase):
         return False
 
     self.assertLess(
-        value_location.KeyPath([CustomKey('a'), 'b']),
-        value_location.KeyPath([CustomKey('b'), 'b']))
+        KeyPath([CustomKey('a'), 'b']),
+        KeyPath([CustomKey('b'), 'b']))
 
     with self.assertRaisesRegex(
         TypeError, 'Comparison is not supported between instances'):
-      _ = value_location.KeyPath() < 1
+      _ = KeyPath() < 1
 
   def test_query(self):
 
     def query_shall_succeed(path_str, obj, expected_value, use_inferred=False):
       self.assertEqual(
-          value_location.KeyPath.parse(path_str).query(obj, use_inferred),
+          KeyPath.parse(path_str).query(obj, use_inferred),
           expected_value)
 
     def query_shall_fail(path_str,
                          obj,
                          error='Cannot query sub-key .* of object .*'):
       with self.assertRaisesRegex(KeyError, error):
-        value_location.KeyPath.parse(path_str).query(obj)
+        KeyPath.parse(path_str).query(obj)
 
     def get_shall_succeed(path_str, obj, default, expected_value):
       self.assertEqual(
-          value_location.KeyPath.parse(path_str).get(obj, default),
+          KeyPath.parse(path_str).get(obj, default),
           expected_value)
 
     def assert_exists(path_str, obj, should_exists):
       self.assertEqual(
-          value_location.KeyPath.parse(path_str).exists(obj), should_exists)
+          KeyPath.parse(path_str).exists(obj), should_exists)
 
     # Query at root level.
     query_shall_succeed('', 1, 1)
@@ -409,12 +413,297 @@ class KeyPathTest(unittest.TestCase):
   def test_message_on_path(self):
     self.assertEqual(value_location.message_on_path('hi.', None), 'hi.')
     self.assertEqual(
-        value_location.message_on_path('hi.', value_location.KeyPath()),
+        value_location.message_on_path('hi.', KeyPath()),
         'hi. (path=)')
     self.assertEqual(
-        value_location.message_on_path('hi.', value_location.KeyPath(['a'])),
+        value_location.message_on_path('hi.', KeyPath(['a'])),
         'hi. (path=a)')
 
+
+class KeyPathSetTest(unittest.TestCase):
+  """Tests for class KeyPathSet."""
+
+  def test_empty_set(self):
+    s1 = KeyPathSet()
+    self.assertFalse(s1)
+    self.assertNotIn('', s1)
+    self.assertNotIn(KeyPath(), s1)
+    self.assertNotIn('abc', s1)
+    self.assertNotIn(1, s1)
+    self.assertEqual(list(s1), [])
+    self.assertIs(s1.subtree(KeyPath()), s1)
+    self.assertFalse(s1.subtree('a.b.c'))
+    self.assertEqual(s1, KeyPathSet())
+    self.assertNotEqual(s1, 1)
+    self.assertNotEqual(s1, KeyPathSet([1]))
+
+  def test_add(self):
+    s1 = KeyPathSet(
+        ['a.b.c', 1, KeyPath([1, 'x']), 'a.b']
+    )
+    self.assertEqual(
+        s1._trie,
+        {
+            1: {
+                'x': {
+                    '$': True,
+                },
+                '$': True
+            },
+            'a': {
+                'b': {
+                    'c': {
+                        '$': True
+                    },
+                    '$': True,
+                },
+            }
+        }
+    )
+    self.assertNotIn('', s1)
+    self.assertNotIn('a', s1)
+    self.assertIn(KeyPath(['a', 'b']), s1)
+    self.assertIn('a.b.c', s1)
+    self.assertIn(1, s1)
+    self.assertIn('[1]', s1)
+    self.assertIn('[1].x', s1)
+    self.assertIn(KeyPath([1, 'x']), s1)
+
+    self.assertTrue(s1.add(''))
+    self.assertIn('', s1)
+    self.assertFalse(s1.add('a.b.c'))
+
+    # Test include_intermediate.
+    s1 = KeyPathSet()
+    self.assertTrue(s1.add('a.b.c', include_intermediate=True))
+    self.assertIn('a', s1)
+    self.assertIn('a.b', s1)
+    self.assertIn('a.b.c', s1)
+
+  def test_remove(self):
+    s1 = KeyPathSet(
+        ['a.b.c', 1, KeyPath([1, 'x']), 'a.b', 'c.d']
+    )
+    self.assertFalse(s1.remove('b'))
+    self.assertFalse(s1.remove('c'))
+    self.assertTrue(s1.remove('a.b.c'))
+    self.assertTrue(s1.remove('a.b'))
+    self.assertTrue(s1.remove(1))
+    self.assertEqual(
+        s1._trie,
+        {
+            1: {
+                'x': {
+                    '$': True,
+                },
+            },
+            'c': {
+                'd': {
+                    '$': True,
+                },
+            },
+        }
+    )
+    self.assertNotIn(1, s1)
+    self.assertTrue(s1.has_prefix(1))
+
+  def test_iter(self):
+    self.assertEqual(
+        list(KeyPathSet(['', 'a.b.c', 1, KeyPath([1, 'x']), 'a.b'])),
+        [
+            KeyPath(), KeyPath.parse('a.b.c'), KeyPath.parse('a.b'),
+            KeyPath([1]), KeyPath([1, 'x'])
+        ]
+    )
+
+  def test_has_prefix(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b'])
+    self.assertTrue(s1.has_prefix('a'))
+    self.assertTrue(s1.has_prefix('a.b'))
+    self.assertTrue(s1.has_prefix('a.b.c'))
+    self.assertTrue(s1.has_prefix(KeyPath(['a'])))
+    self.assertTrue(s1.has_prefix(1))
+    self.assertFalse(s1.has_prefix(2))
+    self.assertFalse(s1.has_prefix('a.b.c.d'))
+
+  def test_subpaths(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b'])
+    self.assertIs(s1.subtree(''), s1)
+    self.assertEqual(
+        s1.subtree('a'), KeyPathSet(['b.c', 'b'])
+    )
+    self.assertEqual(s1.subtree(1), KeyPathSet(['', 'x']))
+    self.assertEqual(
+        s1.subtree(1), KeyPathSet(['', 'x'])
+    )
+
+  def test_clear(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b'])
+    s1.clear()
+    self.assertEqual(s1, KeyPathSet())
+
+  def test_copy(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b'])
+    s2 = s1.copy()
+    self.assertIsNot(s1, s2)
+    self.assertIsNot(s1._trie, s2._trie)
+    self.assertIsNot(s1._trie['a'], s2._trie['a'])
+    self.assertIsNot(s1._trie['a']['b'], s2._trie['a']['b'])
+
+  def test_update(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b'])
+    s1.update(KeyPathSet(['a.b.d', 'a.c', '']))
+    self.assertEqual(
+        s1._trie,
+        {
+            1: {
+                'x': {
+                    '$': True,
+                },
+                '$': True,
+            },
+            'a': {
+                'b': {
+                    'c': {
+                        '$': True
+                    },
+                    'd': {
+                        '$': True
+                    },
+                    '$': True,
+                },
+                'c': {
+                    '$': True
+                },
+            },
+            '$': True,
+        }
+    )
+
+  def test_union(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b'])
+    s2 = s1.union(KeyPathSet(['a.b.d', 'a.c', '']))
+    self.assertEqual(
+        list(s2),
+        [
+            KeyPath.parse('a.b.c'),
+            KeyPath.parse('a.b'),
+            KeyPath.parse('a.b.d'),
+            KeyPath.parse('a.c'),
+            KeyPath([1]),
+            KeyPath([1, 'x']),
+            KeyPath(),
+        ]
+    )
+    self.assertIsNot(s2._trie['a'], s1._trie['a'])
+    self.assertIsNot(s2._trie['a']['b'], s1._trie['a']['b'])
+    self.assertIsNot(
+        s2._trie['a']['b']['c'], s1._trie['a']['b']['c']
+    )
+
+  def test_difference(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b', ''])
+    s2 = s1.difference(
+        KeyPathSet(['a.b', 'a.c.b', '[1].x', ''])
+    )
+    self.assertEqual(
+        s2._trie,
+        {
+            1: {
+                '$': True
+            },
+            'a': {
+                'b': {
+                    'c': {
+                        '$': True
+                    }
+                }
+            }
+        }
+    )
+    self.assertIsNot(s2._trie['a'], s1._trie['a'])
+    self.assertIsNot(s2._trie['a']['b'], s1._trie['a']['b'])
+    self.assertIsNot(s2._trie[1], s1._trie[1])
+
+    s1.difference_update(KeyPathSet(['a.b', 'a.c.b', '[1].x', '']))
+    self.assertEqual(list(s1), ['a.b.c', '[1]'])
+
+  def test_intersection(self):
+    s1 = KeyPathSet(['a.b.c', 1, KeyPath([1, 'x']), 'a.b', 'a.c.d', ''])
+    s2 = s1.intersection(
+        KeyPathSet(['a.b', 'a.b.d', 'a.c.b', '[1].x', ''])
+    )
+    self.assertEqual(
+        s2._trie,
+        {
+            1: {
+                'x': {
+                    '$': True,
+                },
+            },
+            'a': {
+                'b': {
+                    '$': True,
+                },
+            },
+            '$': True,
+        }
+    )
+    self.assertIsNot(s2._trie['a'], s1._trie['a'])
+    self.assertIsNot(s2._trie['a']['b'], s1._trie['a']['b'])
+    self.assertIsNot(s2._trie[1], s1._trie[1])
+
+    s1.intersection_update(
+        KeyPathSet(['a.b', 'a.c.b', '[1].x', ''])
+    )
+    self.assertEqual(list(s1), ['a.b', '[1].x', ''])
+
+  def test_rebase(self):
+    s1 = KeyPathSet(['x.y', 'y', 'y.z.w'])
+    s1.rebase('a.b.')
+    self.assertEqual(
+        list(s1),
+        [
+            KeyPath.parse('a.b.x.y'),
+            KeyPath.parse('a.b.y'),
+            KeyPath.parse('a.b.y.z.w'),
+        ]
+    )
+
+  def test_operator_add(self):
+    self.assertEqual(
+        KeyPathSet(['a.b.c', 'a.b']) + KeyPathSet(['a.b', '[1].a', '']),
+        KeyPathSet(['a.b.c', 'a.b', '[1].a', ''])
+    )
+    self.assertEqual(
+        KeyPath.parse('x[0]') + KeyPathSet(['a.b.c', 'a.b']),
+        KeyPathSet(['x[0].a.b.c', 'x[0].a.b'])
+    )
+
+  def test_format(self):
+    self.assertEqual(
+        KeyPathSet(['a.b.c', 'a.b']).format(),
+        'KeyPathSet([a.b.c, a.b])'
+    )
+
+  def test_from_value(self):
+    """Test KeyPathSet.from_value."""
+    s = KeyPathSet(['a.b.c'])
+    self.assertIs(
+        KeyPathSet.from_value(s), s
+    )
+    self.assertEqual(
+        KeyPathSet.from_value(['a.b']),
+        KeyPathSet(['a.b'])
+    )
+    self.assertEqual(
+        KeyPathSet.from_value(['a.b'], include_intermediate=True),
+        KeyPathSet(['a', 'a.b', ''])
+    )
+    with self.assertRaisesRegex(
+        ValueError, 'Cannot convert .* to KeyPathSet'
+    ):
+      KeyPathSet.from_value(1)
 
 if __name__ == '__main__':
   unittest.main()

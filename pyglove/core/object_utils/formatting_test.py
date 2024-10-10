@@ -74,6 +74,15 @@ class StringHelperTest(unittest.TestCase):
     self.assertNotEqual(raw, formatting.RawText('abcd'))
     self.assertNotEqual(raw, 'abcd')
 
+  def test_camel_to_snake(self):
+    self.assertEqual(formatting.camel_to_snake('foo'), 'foo')
+    self.assertEqual(formatting.camel_to_snake('Foo'), 'foo')
+    self.assertEqual(formatting.camel_to_snake('FooBar'), 'foo_bar')
+    self.assertEqual(formatting.camel_to_snake('AI'), 'ai')
+    self.assertEqual(formatting.camel_to_snake('AIMessage'), 'ai_message')
+    self.assertEqual(formatting.camel_to_snake('ABCMeta'), 'abc_meta')
+    self.assertEqual(formatting.camel_to_snake('ABC123Meta'), 'abc123_meta')
+
   def test_special_format_support(self):
 
     class NewLine:

@@ -223,25 +223,25 @@ class RefTest(unittest.TestCase):
           visibility: visible;
           background-color: darkblue;
         }
-        .complex_value .object_key{
+        .object_key.str {
           color: gray;
           border: 1px solid lightgray;
           background-color: ButtonFace;
           border-radius: 0.2em;
           padding: 0.3em;
         }
-        .complex_value.list .object_key{
+        .object_key.int::before{
+          content: '[';
+        }
+        .object_key.int::after{
+          content: ']';
+        }
+        .object_key.int{
           border: 0;
           color: lightgray;
           background-color: transparent;
           border-radius: 0;
           padding: 0;
-        }
-        .complex_value.list .object_key::before{
-          content: '[';
-        }
-        .complex_value.list .object_key::after{
-          content: ']';
         }
         /* Simple value styles. */
         .simple_value {
@@ -294,7 +294,7 @@ class RefTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><details class="pyglove ref"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key">x</span></td><td><span class="simple_value int">1</span></td></tr></table></div></details></td></tr></table></div></details>
+        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><details class="pyglove ref"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr></table></div></details></div></td></tr></table></div></details>
         """
     )
 

@@ -696,6 +696,15 @@ class HtmlTest(TestCase):
     self.assertEqual(Html.escape(Html('foo"bar')), Html('foo&quot;bar'))
     self.assertEqual(Html.escape(lambda: 'foo"bar'), 'foo&quot;bar')
 
+  def test_concate(self):
+    self.assertIsNone(Html.concate(None))
+    self.assertIsNone(Html.concate([None, [None, [None, None]]]))
+    self.assertEqual(Html.concate('a'), 'a')
+    self.assertEqual(Html.concate(['a']), 'a')
+    self.assertEqual(Html.concate(['a', None, 'b']), 'a b')
+    self.assertEqual(
+        Html.concate(['a', 'b', [None, 'c', [None, 'd']]]), 'a b c d')
+
   def test_element(self):
     # Empty element.
     self.assertEqual(Html.element('div').content, '<div></div>')
