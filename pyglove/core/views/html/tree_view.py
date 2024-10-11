@@ -54,9 +54,15 @@ class HtmlTreeView(HtmlView):
       """Returns the keys to include (at the immediate child level)."""
       return []
 
-    def _html_tree_view_collapse_level(self) -> int:
-      """Returns the level to collapse the tree (relative to this node)."""
-      return 0
+    def _html_tree_view_uncollapse_level(self) -> Optional[int]:
+      """Returns the level of the subtree to uncollapse.
+
+      Returns:
+        The level of subtree to uncollapse. If None, the subtree will be fully
+        expanded. Please note that the uncollapsed subtree will show only when
+        current node is uncollapsed.
+      """
+      return 1
 
     def _html_tree_view_uncollapse(self) -> KeyPathSet:
       """Returns the node paths (relative to current node) to uncollapse."""
@@ -77,8 +83,10 @@ class HtmlTreeView(HtmlView):
         special_keys: Optional[Sequence[Union[int, str]]] = None,
         include_keys: Optional[Iterable[Union[int, str]]] = None,
         exclude_keys: Optional[Iterable[Union[int, str]]] = None,
-        collapse_level: Optional[int] = 1,
-        uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
+        collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
+        uncollapse: Union[
+            KeyPathSet, base.NodeFilter, None
+        ] = HtmlView.PresetArgValue(None),
         filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
         highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
         lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -198,8 +206,10 @@ class HtmlTreeView(HtmlView):
         special_keys: Optional[Sequence[Union[int, str]]] = None,
         include_keys: Optional[Iterable[Union[int, str]]] = None,
         exclude_keys: Optional[Iterable[Union[int, str]]] = None,
-        collapse_level: Optional[int] = 1,
-        uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
+        collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
+        uncollapse: Union[
+            KeyPathSet, base.NodeFilter, None
+        ] = HtmlView.PresetArgValue(None),
         filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
         highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
         lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -301,8 +311,10 @@ class HtmlTreeView(HtmlView):
       special_keys: Optional[Sequence[Union[int, str]]] = None,
       include_keys: Optional[Iterable[Union[int, str]]] = None,
       exclude_keys: Optional[Iterable[Union[int, str]]] = None,
-      collapse_level: Optional[int] = 1,
-      uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
+      collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
+      uncollapse: Union[
+          KeyPathSet, base.NodeFilter, None
+      ] = HtmlView.PresetArgValue(None),
       filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
       highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -347,17 +359,17 @@ class HtmlTreeView(HtmlView):
     root_path = root_path or KeyPath()
     uncollapse = self.init_uncollapse(uncollapse)
 
+    child_collapse_level = collapse_level
     if isinstance(value, HtmlTreeView.Extension):
-      extension_collapse_level = value._html_tree_view_collapse_level()    # pylint: disable=protected-access
+      subtree_uncollapse_level = value._html_tree_view_uncollapse_level()    # pylint: disable=protected-access
 
       # If the extension has child levels to uncollapse, honor them above the
       # collapse level passed from the root. However, we can see the
       # uncollapsed extension subtree only when the extension's parent node is
       # uncollapsed.
-      if (extension_collapse_level > 0
-          and root_path.depth + extension_collapse_level > collapse_level):
-        collapse_level = root_path.depth + extension_collapse_level
-
+      child_collapse_level = self.max_collapse_level(
+          collapse_level, subtree_uncollapse_level, root_path
+      )
       if not callable(uncollapse):
         extension_uncollapse = value._html_tree_view_uncollapse().copy()  # pylint: disable=protected-access
         if extension_uncollapse:
@@ -384,7 +396,7 @@ class HtmlTreeView(HtmlView):
         special_keys=special_keys,
         include_keys=include_keys,
         exclude_keys=exclude_keys,
-        collapse_level=collapse_level,
+        collapse_level=child_collapse_level,
         uncollapse=uncollapse,
         max_summary_len_for_str=max_summary_len_for_str,
         enable_summary_tooltip=enable_summary_tooltip,
@@ -703,8 +715,10 @@ class HtmlTreeView(HtmlView):
       special_keys: Optional[Sequence[Union[int, str]]] = None,
       include_keys: Optional[Iterable[Union[int, str]]] = None,
       exclude_keys: Optional[Iterable[Union[int, str]]] = None,
-      collapse_level: Optional[int] = 1,
-      uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
+      collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
+      uncollapse: Union[
+          KeyPathSet, base.NodeFilter, None
+      ] = HtmlView.PresetArgValue(None),
       filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
       highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -848,8 +862,10 @@ class HtmlTreeView(HtmlView):
       special_keys: Optional[Sequence[Union[int, str]]] = None,
       include_keys: Optional[Iterable[Union[int, str]]] = None,
       exclude_keys: Optional[Iterable[Union[int, str]]] = None,
-      collapse_level: Optional[int] = 1,
-      uncollapse: Union[KeyPathSet, base.NodeFilter, None] = None,
+      collapse_level: Optional[int] = HtmlView.PresetArgValue(1),
+      uncollapse: Union[
+          KeyPathSet, base.NodeFilter, None
+      ] = HtmlView.PresetArgValue(None),
       filter: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),  # pylint: disable=redefined-builtin
       highlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
       lowlight: Optional[base.NodeFilter] = HtmlView.PresetArgValue(None),
@@ -1107,6 +1123,17 @@ class HtmlTreeView(HtmlView):
       return Html.concate(value._html_element_class())  # pylint: disable=protected-access
     value = value if inspect.isclass(value) else type(value)
     return object_utils.camel_to_snake(value.__name__, '-')
+
+  @staticmethod
+  def max_collapse_level(
+      original_level: int | None,
+      subtree_uncollapse_level: int | None,
+      root_path: KeyPath
+  ) -> int | None:
+    """Consolidates the collapse level."""
+    if original_level is None or subtree_uncollapse_level is None:
+      return None
+    return max(original_level, root_path.depth + subtree_uncollapse_level)
 
 
 _REGEX_CAMEL_TO_SNAKE = re.compile(r'(?<!^)(?=[A-Z])')

@@ -14,7 +14,7 @@
 """Symbolic reference."""
 
 import numbers
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
@@ -182,14 +182,17 @@ class Ref(Object, base.Inferential):
         self,
         title=title or f'{type(self._value).__name__}(...)',
         **kwargs
-    ).add_style(
+    )
+
+  def _html_style(self) -> List[str]:
+    return [
         """
         details.ref .summary_title::before {
           content: 'ref: ';
           color: #aaa;
         }
         """
-    )
+    ]
 
 
 def maybe_ref(value: Any) -> Optional[Ref]:

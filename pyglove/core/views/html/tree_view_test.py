@@ -578,16 +578,18 @@ class ContentTest(TestCase):
         'open',
         4
     )
-    self.assert_count(
-        self._view.content(x, collapse_level=4),
-        'open',
-        6
-    )
-    self.assert_count(
-        self._view.content(x, collapse_level=None),
-        'open',
-        8
-    )
+    with base.HtmlView.preset_args(collapse_level=4):
+      self.assert_count(
+          self._view.content(x),
+          'open',
+          6
+      )
+    with base.HtmlView.preset_args(collapse_level=None):
+      self.assert_count(
+          self._view.content(x),
+          'open',
+          8
+      )
 
   def test_uncollapse(self):
     x = dict(
@@ -729,8 +731,8 @@ class ExtensionTest(TestCase):
       def _html_tree_view_exclude_keys(self) -> Sequence[str]:
         return ['z']
 
-      def _html_tree_view_collapse_level(self) -> int:
-        return 1
+      def _html_tree_view_uncollapse_level(self) -> int:
+        return 2
 
       def _html_tree_view_uncollapse(self) -> KeyPathSet:
         return KeyPathSet(['x.a', 'y.b'], include_intermediate=True)
@@ -771,7 +773,29 @@ class ExtensionTest(TestCase):
             collapse_level=0,
         ),
         """
-        <details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details open class="pyglove foo bar"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo bar"><div class="special_value"><details open class="pyglove dict"><summary><div class="summary_name">x</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">a</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">foo</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><table><tr><td><span class="object_key str">y</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">b</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">bar</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">w</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">d</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">qux</span></td><td><div><span class="simple_value int">5</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details>
+        <details class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details open class="pyglove foo bar"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo bar"><div class="special_value"><details open class="pyglove dict"><summary><div class="summary_name">x</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">a</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">foo</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><table><tr><td><span class="object_key str">y</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">b</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">bar</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">w</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">d</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">qux</span></td><td><div><span class="simple_value int">5</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details>
+        """
+    )
+    self.assert_content(
+        self._view.render(
+            [Foo()],
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            collapse_level=1,
+        ),
+        """
+        <details open class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details open class="pyglove foo bar"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo bar"><div class="special_value"><details open class="pyglove dict"><summary><div class="summary_name">x</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">a</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">foo</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><table><tr><td><span class="object_key str">y</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">b</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">bar</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">w</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">d</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">qux</span></td><td><div><span class="simple_value int">5</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details>
+        """
+    )
+    self.assert_content(
+        self._view.render(
+            [Foo()],
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            collapse_level=None,
+        ),
+        """
+        <details open class="pyglove list"><summary><div class="summary_title">list(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details open class="pyglove foo bar"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo bar"><div class="special_value"><details open class="pyglove dict"><summary><div class="summary_name">x</div><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">a</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">foo</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><table><tr><td><span class="object_key str">y</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">b</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">bar</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr><tr><td><span class="object_key str">w</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">d</span></td><td><div><details open class="pyglove dict"><summary><div class="summary_title">dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">qux</span></td><td><div><span class="simple_value int">5</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></details>
         """
     )
 
