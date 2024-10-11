@@ -438,6 +438,22 @@ def maybe_markdown_quote(s: str, markdown: bool = True) -> str:
     return f'```\n{s}\n```'
 
 
+def camel_to_snake(text: str, separator: str = '_') -> str:
+  """Returns the snake case version of a camel case string."""
+  chunks = []
+  chunk_start = 0
+  last_upper = 0
+  length = len(text)
+  for i, c in enumerate(text):
+    if c.isupper():
+      if last_upper < i - 1 or (i < length - 1 and text[i + 1].islower()):
+        chunks.append(text[chunk_start:i])
+        chunk_start = i
+      last_upper = i
+  chunks.append(text[chunk_start:])
+  return (separator.join(c for c in chunks if c)).lower()
+
+
 def printv(v: Any, **kwargs):
   """Prints formatted value."""
   fs = kwargs.pop('file', sys.stdout)

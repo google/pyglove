@@ -14,9 +14,9 @@
 """Handling locations in a hierarchical object."""
 
 import abc
-import copy
+import copy as copy_lib
 import operator
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, Iterable, Iterator, List, Optional, Union
 from pyglove.core.object_utils import formatting
 
 
@@ -187,7 +187,7 @@ class KeyPath(formatting.Formattable):
   @property
   def keys(self) -> List[Any]:
     """A list of keys in this path."""
-    return copy.copy(self._keys)
+    return copy_lib.copy(self._keys)
 
   @property
   def key(self) -> Any:
@@ -287,6 +287,10 @@ class KeyPath(formatting.Formattable):
       return self
     if isinstance(other, str):
       other = KeyPath.parse(other)
+    elif isinstance(other, KeyPathSet):
+      other = other.copy()
+      other.rebase(self)
+      return other
     elif not isinstance(other, KeyPath):
       other = KeyPath(other)
     assert isinstance(other, KeyPath)
@@ -568,6 +572,245 @@ class KeyPath(formatting.Formattable):
         return comparison(str(self.key), str(other.key))
       # One or both is a custom key. Delegate comparison to its magic methods.
       return comparison(self.key, other.key)
+
+
+class KeyPathSet(formatting.Formattable):
+  """A KeyPath set based on trie-like data structure."""
+
+  def __init__(
+      self,
+      paths: Optional[Iterable[KeyPath]] = None,
+      *,
+      include_intermediate: bool = False
+  ):
+    self._trie = {}
+    if paths:
+      for path in paths:
+        self.add(path, include_intermediate=include_intermediate)
+
+  def add(
+      self,
+      path: Union[str, int, KeyPath],
+      include_intermediate: bool = False,
+  ) -> bool:
+    """Adds a path to the set."""
+    path = KeyPath.from_value(path)
+    root = self._trie
+    updated = False
+    for key in path.keys:
+      if key not in root:
+        root[key] = {}
+        if include_intermediate:
+          root['$'] = True
+          updated = True
+      root = root[key]
+
+    assert isinstance(root, dict), root
+    if '$' not in root:
+      root['$'] = True
+      updated = True
+    return updated
+
+  def remove(self, path: Union[str, int, KeyPath]) -> bool:
+    """Removes a path from the set."""
+    path = KeyPath.from_value(path)
+    stack = [self._trie]
+    for key in path.keys:
+      if key not in stack[-1]:
+        return False
+      value = stack[-1][key]
+      assert isinstance(value, dict), value
+      stack.append(value)
+
+    if '$' in stack[-1]:
+      stack[-1].pop('$')
+      stack.pop(-1)
+      assert len(stack) == len(path.keys), (path.keys, stack)
+      for key, parent_node in zip(reversed(path.keys), reversed(stack)):
+        if not parent_node[key]:
+          del parent_node[key]
+      return True
+    return False
+
+  def __contains__(self, path: Union[str, int, KeyPath]) -> bool:
+    """Returns True if the path is in the set."""
+    path = KeyPath.from_value(path)
+    root = self._trie
+    for key in path.keys:
+      if key not in root:
+        return False
+      root = root[key]
+    return '$' in root
+
+  def __bool__(self) -> bool:
+    """Returns True if the set is not empty."""
+    return bool(self._trie)
+
+  def __iter__(self) -> Iterator[KeyPath]:
+    """Iterates all paths in the set."""
+    def _traverse(node, keys):
+      for k, v in node.items():
+        if k == '$':
+          yield KeyPath(keys)
+        else:
+          keys.append(k)
+          for path in _traverse(v, keys):
+            yield path
+          keys.pop(-1)
+    return _traverse(self._trie, [])
+
+  def __eq__(self, other: Any):
+    return isinstance(other, KeyPathSet) and self._trie == other._trie
+
+  def __ne__(self, other: Any) -> bool:
+    return not self.__eq__(other)
+
+  def has_prefix(self, root_path: Union[int, str, KeyPath]) -> bool:
+    """Returns True if the set has a path with the given prefix."""
+    root_path = KeyPath.from_value(root_path)
+    root = self._trie
+    for key in root_path.keys:
+      if key not in root:
+        return False
+      root = root[key]
+    return True
+
+  def __add__(self, other: 'KeyPathSet') -> 'KeyPathSet':
+    return self.union(other, copy=True)
+
+  def rebase(
+      self,
+      root_path: Union[int, str, KeyPath],
+  ) -> None:
+    """Returns a KeyPathSet with the given prefix path added."""
+    root_path = KeyPath.from_value(root_path)
+    root = self._trie
+    for key in reversed(root_path.keys):
+      root = {key: root}
+    self._trie = root
+
+  def clear(self) -> None:
+    """Clears the set."""
+    self._trie.clear()
+
+  def copy(self) -> 'KeyPathSet':
+    """Returns a deep copy of the set."""
+    return copy_lib.deepcopy(self)
+
+  def difference_update(self, other: 'KeyPathSet') -> None:
+    """Removes the paths in the other set from the current set."""
+    def _remove_same(target_dict, src_dict):
+      keys_to_remove = []
+      for key, value in target_dict.items():
+        if key in src_dict:
+          if key == '$' or _remove_same(value, src_dict[key]):
+            keys_to_remove.append(key)
+      for key in keys_to_remove:
+        del target_dict[key]
+      if not target_dict:
+        return True
+      return False
+    _remove_same(self._trie, other._trie)   # pylint: disable=protected-access
+
+  def difference(
+      self, other: 'KeyPathSet',
+  ) -> 'KeyPathSet':
+    """Returns the subset KeyPathSet based on a prefix path."""
+    x = self.copy()
+    x.difference_update(other)
+    return x
+
+  def intersection_update(self, other: 'KeyPathSet') -> None:
+    """Removes the paths in the other set from the current set."""
+    def _remove_diff(target_dict, src_dict):
+      keys_to_remove = []
+      for key, value in target_dict.items():
+        if key not in src_dict:
+          keys_to_remove.append(key)
+        elif key != '$':
+          _remove_diff(value, src_dict[key])
+          if not value:
+            keys_to_remove.append(key)
+      for key in keys_to_remove:
+        del target_dict[key]
+    _remove_diff(self._trie, other._trie)   # pylint: disable=protected-access
+
+  def intersection(self, other: 'KeyPathSet') -> 'KeyPathSet':
+    """Returns the intersection KeyPathSet."""
+    copy = self.copy()
+    copy.intersection_update(other)
+    return copy
+
+  def update(self, other: 'KeyPathSet') -> None:
+    """Updates the current set with the other set."""
+    def _merge(target_dict, src_dict):
+      for key, value in src_dict.items():
+        if key != '$' and key in target_dict:
+          _merge(target_dict[key], value)
+        else:
+          target_dict[key] = copy_lib.deepcopy(value)
+    _merge(self._trie, other._trie)   # pylint: disable=protected-access
+
+  def union(
+      self, other: 'KeyPathSet', copy: bool = False) -> 'KeyPathSet':
+    """Returns the union KeyPathSet."""
+    x = self.copy()
+    x.update(other)
+    return x
+
+  def subtree(
+      self,
+      root_path: Union[int, str, KeyPath],
+  ) -> Optional['KeyPathSet']:
+    """Returns the relative paths of the sub-tree rooted at the given path.
+
+    Args:
+      root_path: A KeyPath for the root of the sub-tree.
+
+    Returns:
+      A KeyPathSet that contains all the child paths of the given root path.
+      Please note that the returned value share the same trie as the current
+      value. So addition/removal of paths in the returned value will also
+      affect the current value. If there is no child path under the given root
+      path, None will be returned.
+    """
+    root_path = KeyPath.from_value(root_path)
+    if not root_path:
+      return self
+    root = self._trie
+    for key in root_path.keys:
+      if key not in root:
+        return None
+      root = root[key]
+    ret = KeyPathSet()
+    ret._trie = root    # pylint: disable=protected-access
+    return ret
+
+  def format(self, *args, **kwargs) -> str:
+    """Formats the set."""
+    return formatting.kvlist_str(
+        [
+            ('', list(self), [])
+        ],
+        label=self.__class__.__name__,
+        **kwargs
+    )
+
+  @classmethod
+  def from_value(
+      cls,
+      value: Union[Iterable[Union[int, str, KeyPath]], 'KeyPathSet'],
+      include_intermediate: bool = False,
+  ):
+    """Returns a KeyPathSet from a compatible value."""
+    if isinstance(value, KeyPathSet):
+      return value
+    if isinstance(value, (list, set, tuple)):
+      return cls(value, include_intermediate=include_intermediate)
+    raise ValueError(
+        f'Cannot convert {value!r} to KeyPathSet. '
+        f'Expected a list, set, tuple, or KeyPathSet.'
+    )
 
 
 class StrKey(metaclass=abc.ABCMeta):

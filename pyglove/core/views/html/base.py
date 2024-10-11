@@ -18,12 +18,17 @@ import functools
 import html as html_lib
 import inspect
 import typing
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.views import base
 
+NestableStr = Union[
+    str,
+    Sequence[Union[str, None, Sequence[Optional[str]]]],
+    None,
+]
 
 NodeFilter = base.NodeFilter
 NodeColor = Callable[
@@ -280,7 +285,7 @@ class Html(base.Content):
       inner_html: Optional[List[WritableTypes]] = None,
       *,
       options: Union[str, Iterable[str], None] = None,
-      css_class: Union[str, Iterable[str], None] = None,
+      css_class: NestableStr = None,
       style: Union[str, Dict[str, Any], None] = None,
       **properties
   ) -> 'Html':
@@ -301,21 +306,12 @@ class Html(base.Content):
     Returns:
       The opening tag of an HTML element.
     """
-    def ws_join(items: Union[str, Iterable[str], None]) -> Optional[str]:
-      if isinstance(items, str):
-        return items
-      elif isinstance(items, list):
-        return ' '.join(s for s in items if s is not None)
-      else:
-        assert items is None, items
-        return None
-
     s = cls()
 
     # Write the open tag.
-    css_class = ws_join(css_class)
+    css_class = cls.concate(css_class)
+    options = cls.concate(options)
     style = cls.style_str(style)
-    options = ws_join(options)
     s.write(
         f'<{tag}',
         f' {options}' if options else None,
@@ -354,8 +350,23 @@ class Html(base.Content):
       )
 
   @classmethod
+  def concate(
+      cls, nestable_str: NestableStr, separator: str = ' '
+  ) -> Optional[str]:
+    """Concates the string nodes in a nestable object."""
+    if isinstance(nestable_str, str):
+      return nestable_str
+    elif isinstance(nestable_str, list):
+      flattened = [cls.concate(s) for s in nestable_str]
+      flattened = [s for s in flattened if s is not None]
+      return separator.join(flattened) if flattened else None
+    else:
+      assert nestable_str is None, nestable_str
+      return None
+
+  @classmethod
   def style_str(
-      cls, style: Union[str, Dict[str, Any], None] = None,
+      cls, style: Union[str, Dict[str, Any], None],
   ) -> Optional[str]:
     """Gets a string representing an inline CSS style.
 
@@ -391,6 +402,24 @@ class HtmlView(base.View):
 
   class Extension(base.View.Extension):
     """Base class for HtmlView extensions."""
+
+    def _html_style(self) -> List[str]:
+      """Returns additional CSS style to add for this extension.
+
+      Subclasses can override this method to add additional CSS style to the
+      rendered HTML.
+      """
+      return []
+
+    def _html_element_class(self) -> List[str]:
+      """Returns the CSS classes for the rendered element for this node.
+
+      Subclasses can override this method to add CSS classes to the
+      rendered element of this object.
+      """
+      return [
+          object_utils.camel_to_snake(self.__class__.__name__, '-')
+      ]
 
     def to_html(
         self,

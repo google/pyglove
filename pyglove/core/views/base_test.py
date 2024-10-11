@@ -209,7 +209,7 @@ class ContentTest(unittest.TestCase):
     self.assertEqual(document.content, 'abcdefghijklmno')
 
   def test_save(self):
-    filename = os.path.join(tempfile.gettempdir(), 'test_doc.txt')
+    filename = os.path.join(tempfile.gettempdir(), '1', 'test_doc.txt')
     Document('abc', ref_links=['https://x/y.css']).save(filename)
     self.assertTrue(pg_io.path_exists(filename))
     self.assertEqual(pg_io.readfile(filename), 'link=https://x/y.css\nabc')

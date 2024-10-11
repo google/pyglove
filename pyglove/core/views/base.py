@@ -131,6 +131,7 @@ import copy as copy_lib
 import functools
 import inspect
 import io
+import os
 import types
 from typing import Any, Callable, ContextManager, Dict, Iterator, Optional, Sequence, Set, Type, Union
 
@@ -330,6 +331,7 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
 
   def save(self, file: str, **kwargs):
     """Save content to a file."""
+    pg_io.mkdirs(os.path.dirname(file), exist_ok=True)
     pg_io.writefile(file, self.to_str(**kwargs))
 
   def __add__(self, other: WritableTypes) -> 'Content':
