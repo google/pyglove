@@ -285,8 +285,8 @@ class Html(base.Content):
       inner_html: Optional[List[WritableTypes]] = None,
       *,
       options: Union[str, Iterable[str], None] = None,
-      css_class: NestableStr = None,
-      style: Union[str, Dict[str, Any], None] = None,
+      css_classes: NestableStr = None,
+      styles: Union[str, Dict[str, Any], None] = None,
       **properties
   ) -> 'Html':
     """Creates an HTML element.
@@ -296,8 +296,8 @@ class Html(base.Content):
       inner_html: The inner HTML of the element.
       options: Positional options that will be added to the element. E.g. 'open'
         for `<details open>`.
-      css_class: The CSS class name or a list of CSS class names.
-      style: A single CSS style string or a dictionary of CSS properties.
+      css_classes: The CSS class name or a list of CSS class names.
+      styles: A single CSS style string or a dictionary of CSS properties.
       **properties: Keyword arguments for HTML properties. For properties with
         underscore in the name, the underscore will be replaced by dash in the
         generated HTML. E.g. `background_color` will be converted to
@@ -309,14 +309,14 @@ class Html(base.Content):
     s = cls()
 
     # Write the open tag.
-    css_class = cls.concate(css_class)
+    css_classes = cls.concate(css_classes)
     options = cls.concate(options)
-    style = cls.style_str(style)
+    styles = cls.style_str(styles)
     s.write(
         f'<{tag}',
         f' {options}' if options else None,
-        f' class="{css_class}"' if css_class else None,
-        f' style="{style}"' if style else None,
+        f' class="{css_classes}"' if css_classes else None,
+        f' style="{styles}"' if styles else None,
     )
     for k, v in properties.items():
       if v is not None:
@@ -351,18 +351,19 @@ class Html(base.Content):
 
   @classmethod
   def concate(
-      cls, nestable_str: NestableStr, separator: str = ' '
+      cls, nestable_str: NestableStr, separator: str = ' ', dedup: bool = True
   ) -> Optional[str]:
     """Concates the string nodes in a nestable object."""
-    if isinstance(nestable_str, str):
-      return nestable_str
-    elif isinstance(nestable_str, list):
-      flattened = [cls.concate(s) for s in nestable_str]
-      flattened = [s for s in flattened if s is not None]
-      return separator.join(flattened) if flattened else None
-    else:
-      assert nestable_str is None, nestable_str
-      return None
+    flattened = object_utils.flatten(nestable_str)
+    if isinstance(flattened, str):
+      return flattened
+    elif isinstance(flattened, dict):
+      str_items = [v for v in flattened.values() if isinstance(v, str)]
+      if dedup:
+        str_items = list(dict.fromkeys(str_items).keys())
+      if str_items:
+        return separator.join(str_items)
+    return None
 
   @classmethod
   def style_str(

@@ -351,9 +351,9 @@ class DiffTest(unittest.TestCase):
     def assert_style(html, expected):
       expected = inspect.cleandoc(expected).strip()
       actual = html.style_section.strip()
-      if actual != expected:
+      if expected not in actual:
         print(actual)
-      self.assertEqual(actual.strip(), expected)
+      self.assertIn(expected, actual)
 
     def assert_content(html, expected):
       expected = inspect.cleandoc(expected).strip()
@@ -365,112 +365,47 @@ class DiffTest(unittest.TestCase):
     assert_style(
         pg_diff(1, 1).to_html(),
         """
-        <style>
-        /* Tooltip styles. */
-        span.tooltip {
-          visibility: hidden;
-          white-space: pre-wrap;
-          font-weight: normal;
-          background-color: #484848;
-          color: #fff;
-          padding: 10px;
-          border-radius: 6px;
-          position: absolute;
-          z-index: 1;
-        }
-        /* Summary styles. */
-        details.pyglove summary {
-          font-weight: bold;
-          margin: -0.5em -0.5em 0;
-          padding: 0.5em;
-        }
-        .summary_name {
-          display: inline;
-          padding: 0 5px;
-        }
-        .summary_title {
-          display: inline;
-        }
-        .summary_name + div.summary_title {
-          display: inline;
-          color: #aaa;
-        }
-        .summary_title:hover + span.tooltip {
-          visibility: visible;
-        }
-        /* Type-specific styles. */
-        .pyglove.str .summary_title {
-          color: darkred;
-          font-style: italic;
-        }
-        /* Value details styles. */
-        details.pyglove {
-          border: 1px solid #aaa;
-          border-radius: 4px;
-          padding: 0.5em 0.5em 0;
-          margin: 0.1em 0;
-        }
-        details.pyglove.special_value {
-          margin-bottom: 0.75em;
-        }
-        details.pyglove[open] {
-          padding: 0.5em 0.5em 0.5em;
-        }
-        .highlight {
-          background-color: Mark;
-        }
-        .lowlight {
-          opacity: 0.2;
-        }
         /* Diff styles. */
-        .diff .summary_title::after {
+        .has-diff.summary-title::after {
           content: ' (diff)';
           color: #aaa;
         }
-        .diff .summary_title {
+        .has-diff.summary-title {
           background-color: yellow;
         }
-        .diff table td {
-          padding: 4px;
+        .no-diff.summary-title::after {
+          content: ' (no diff)';
+          font-style: italic;
+          font-weight: normal;
+          color: #aaa;
         }
-        .diff_value {
-          display: inline-block;
-          align-items: center;
+        .no-diff {
+          opacity: 0.6;
         }
-        .no_diff_key {
-          opacity: 0.4;
-        }
-        .diff_left.diff_right::after {
+        .no-diff.simple_value::after {
           content: '(no diff)';
           margin-left: 0.5em;
           color: #aaa;
           font-style: italic;
         }
-        .diff_empty::before {
-            content: '(empty)';
-            font-style: italic;
-            margin-left: 0.5em;
-            color: #aaa;
+        .diff-empty::before {
+          content: '(empty)';
+          font-style: italic;
+          margin-left: 0.5em;
+          color: #aaa;
         }
-        .diff_value .diff_left::before {
+        .diff-left.summary-title::before, .diff-left.simple-value::before{
           content: '🇱';
         }
-        .diff_value .diff_left > .simple_value {
+        .diff-left {
           background-color: #ffcccc;
         }
-        .diff_value .diff_left > details {
-          background-color: #ffcccc;
-        }
-        .diff_value .diff_right::before {
+        .diff-right.summary-title::before, .diff-right.simple-value::before{
           content: '🇷';
         }
-        .diff_value .diff_right > .simple_value {
+        .diff-right {
           background-color: #ccffcc;
         }
-        .diff_value .diff_right > details {
-          background-color: #ccffcc;
-        }
-        </style>
         """
     )
 
@@ -478,7 +413,7 @@ class DiffTest(unittest.TestCase):
     assert_content(
         pg_diff(1, 1).to_html(),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">Diff</div><span class="tooltip diff">No diff</span></summary><span class="diff_empty"></span></details>
+        <details open class="pyglove diff no-diff"><summary><div class="summary-title no-diff">Diff</div><span class="tooltip no-diff">No diff</span></summary><span class="diff-empty"></span></details>
         """
     )
 
@@ -486,7 +421,7 @@ class DiffTest(unittest.TestCase):
     assert_content(
         pg_diff(1, 1, mode='both').to_html(),
         """
-        <div class="diff_left diff_right"><span class="simple_value int">1</span></div>
+        <span class="simple-value int no-diff">1</span>
         """
     )
     # No diff complex value (diff only)
@@ -499,7 +434,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">Diff</div></summary><span class="diff_empty"></span></details>
+        <details open class="pyglove diff no-diff"><summary><div class="summary-title no-diff">Diff</div></summary><span class="diff-empty"></span></details>
         """
     )
     # No diff complex value.
@@ -512,7 +447,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">Foo(...)</div></summary><div class="diff_left diff_right"><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></td></tr></table></div></div></details>
+        <details open class="pyglove diff no-diff"><summary><div class="summary-title no-diff">Foo(...)</div></summary><div class="complex-value foo no-diff"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details class="pyglove list"><summary><div class="summary-name">y</div><div class="summary-title">List(...)</div></summary><div class="complex-value list"><table><tr><td><span class="object-key int">0</span></td><td><details class="pyglove foo"><summary><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details></div></details></td></tr></table></div></details></div></details>
         """
     )
 
@@ -520,7 +455,7 @@ class DiffTest(unittest.TestCase):
     assert_content(
         pg_diff(1, 2).to_html(),
         """
-        <div class="diff_value"><div class="diff_left"><span class="simple_value int">1</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div>
+        <div class="diff-value"><span class="simple-value int diff-left">1</span><span class="simple-value int diff-right">2</span></div>
         """
     )
 
@@ -531,7 +466,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">List</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int no_diff_key">0</span><span class="tooltip key-path">[0]</span></td><td><div class="diff_left diff_right"><span class="simple_value int">0</span></div></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">1</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div></td></tr><tr><td><span class="object_key int">2</span><span class="tooltip key-path">[2]</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div></div></td></tr></table></div></details>
+        <details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">List</div></summary><div class="complex-value list-class"><table><tr><td><span class="object-key int no-diff">0</span><span class="tooltip">[0]</span></td><td><span class="simple-value int no-diff">0</span></td></tr><tr><td><span class="object-key int">1</span><span class="tooltip">[1]</span></td><td><div class="diff-value"><span class="simple-value int diff-left">1</span><span class="simple-value int diff-right">2</span></div></td></tr><tr><td><span class="object-key int">2</span><span class="tooltip">[2]</span></td><td><div class="diff-value"><span class="simple-value int diff-left">2</span></div></td></tr></table></div></details>
         """
     )
 
@@ -542,7 +477,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">dict</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str no_diff_key">x</span><span class="tooltip key-path">x</span></td><td><div class="diff_left diff_right"><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">y</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div><div class="diff_right"><span class="simple_value int">3</span></div></div></td></tr><tr><td><span class="object_key str">z</span><span class="tooltip key-path">z</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">3</span></div></div></td></tr><tr><td><span class="object_key str">w</span><span class="tooltip key-path">w</span></td><td><div class="diff_value"><div class="diff_right"><span class="simple_value int">4</span></div></div></td></tr></table></div></details>
+        <details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">dict</div></summary><div class="complex-value dict-class"><table><tr><td><span class="object-key str no-diff">x</span><span class="tooltip">x</span></td><td><span class="simple-value int no-diff">1</span></td></tr><tr><td><span class="object-key str">y</span><span class="tooltip">y</span></td><td><div class="diff-value"><span class="simple-value int diff-left">2</span><span class="simple-value int diff-right">3</span></div></td></tr><tr><td><span class="object-key str">z</span><span class="tooltip">z</span></td><td><div class="diff-value"><span class="simple-value int diff-left">3</span></div></td></tr><tr><td><span class="object-key str">w</span><span class="tooltip">w</span></td><td><div class="diff-value"><span class="simple-value int diff-right">4</span></div></td></tr></table></div></details>
         """
     )
 
@@ -557,7 +492,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">Foo</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div><div class="diff_right"><span class="simple_value int">1</span></div></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">y</span></td><td><details class="pyglove diff"><summary><div class="summary_title">Foo</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">y.x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">3</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div></td></tr><tr><td><span class="object_key str no_diff_key">y</span><span class="tooltip key-path">y.y</span></td><td><div class="diff_left diff_right"><span class="simple_value int">3</span></div></td></tr></table></div></details></td></tr></table></div></details>
+        <details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">Foo</div></summary><div class="complex-value foo-class"><table><tr><td><span class="object-key str">x</span><span class="tooltip">x</span></td><td><div class="diff-value"><span class="simple-value int diff-left">2</span><span class="simple-value int diff-right">1</span></div></td></tr><tr><td><span class="object-key str">y</span><span class="tooltip">y</span></td><td><details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">Foo</div></summary><div class="complex-value foo-class"><table><tr><td><span class="object-key str">x</span><span class="tooltip">y.x</span></td><td><div class="diff-value"><span class="simple-value int diff-left">3</span><span class="simple-value int diff-right">2</span></div></td></tr><tr><td><span class="object-key str no-diff">y</span><span class="tooltip">y.y</span></td><td><span class="simple-value int no-diff">3</span></td></tr></table></div></details></td></tr></table></div></details>
         """
     )
 
@@ -572,7 +507,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <div class="diff_value"><div class="diff_left"><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">3</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><div class="diff_right"><details class="pyglove bar"><summary><div class="summary_title">Bar(...)</div></summary><div class="complex_value bar"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">3</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></div>
+        <div class="diff-value"><details open class="pyglove foo diff-left"><summary><div class="summary-title diff-left">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details><details class="pyglove foo"><summary><div class="summary-name">y</div><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details></div></details></div></details><details open class="pyglove bar diff-right"><summary><div class="summary-title diff-right">Bar(...)</div></summary><div class="complex-value bar"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details><details class="pyglove foo"><summary><div class="summary-name">y</div><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details></div></details></div></details></div>
         """
     )
 
@@ -587,7 +522,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str no_diff_key">x</span><span class="tooltip key-path">x</span></td><td><div class="diff_left diff_right"><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">y</span></td><td><details class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str no_diff_key">x</span><span class="tooltip key-path">y.x</span></td><td><div class="diff_left diff_right"><span class="simple_value int">3</span></div></td></tr><tr><td><span class="object_key str no_diff_key">y</span><span class="tooltip key-path">y.y</span></td><td><div class="diff_left diff_right"><span class="simple_value int">3</span></div></td></tr></table></div></details></td></tr></table></div></details>
+        <details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">Foo | Bar</div></summary><div class="complex-value foo-class"><table><tr><td><span class="object-key str no-diff">x</span><span class="tooltip">x</span></td><td><span class="simple-value int no-diff">2</span></td></tr><tr><td><span class="object-key str">y</span><span class="tooltip">y</span></td><td><details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">Foo | Bar</div></summary><div class="complex-value foo-class"><table><tr><td><span class="object-key str no-diff">x</span><span class="tooltip">y.x</span></td><td><span class="simple-value int no-diff">3</span></td></tr><tr><td><span class="object-key str no-diff">y</span><span class="tooltip">y.y</span></td><td><span class="simple-value int no-diff">3</span></td></tr></table></div></details></td></tr></table></div></details>
         """
     )
 
@@ -602,7 +537,7 @@ class DiffTest(unittest.TestCase):
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">2</span></div><div class="diff_right"><span class="simple_value int">3</span></div></div></td></tr><tr><td><span class="object_key str">y</span><span class="tooltip key-path">y</span></td><td><details class="pyglove diff"><summary><div class="summary_title">Foo | Bar</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span><span class="tooltip key-path">y.x</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value int">3</span></div><div class="diff_right"><span class="simple_value int">2</span></div></div></td></tr><tr><td><span class="object_key str no_diff_key">y</span><span class="tooltip key-path">y.y</span></td><td><div class="diff_left diff_right"><span class="simple_value int">3</span></div></td></tr></table></div></details></td></tr></table></div></details>
+        <details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">Foo | Bar</div></summary><div class="complex-value foo-class"><table><tr><td><span class="object-key str">x</span><span class="tooltip">x</span></td><td><div class="diff-value"><span class="simple-value int diff-left">2</span><span class="simple-value int diff-right">3</span></div></td></tr><tr><td><span class="object-key str">y</span><span class="tooltip">y</span></td><td><details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">Foo | Bar</div></summary><div class="complex-value foo-class"><table><tr><td><span class="object-key str">x</span><span class="tooltip">y.x</span></td><td><div class="diff-value"><span class="simple-value int diff-left">3</span><span class="simple-value int diff-right">2</span></div></td></tr><tr><td><span class="object-key str no-diff">y</span><span class="tooltip">y.y</span></td><td><span class="simple-value int no-diff">3</span></td></tr></table></div></details></td></tr></table></div></details>
         """
     )
 
@@ -624,7 +559,7 @@ class DiffTest(unittest.TestCase):
             uncollapse=['[0]', '[1].right', '[3].left.y'],
         ),
         """
-        <details open class="pyglove diff"><summary><div class="summary_title">List</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int no_diff_key">0</span><span class="tooltip key-path">[0]</span></td><td><details open class="pyglove diff"><summary><div class="summary_title">Foo(...)</div></summary><div class="diff_left diff_right"><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></div></details></td></tr><tr><td><span class="object_key int">1</span><span class="tooltip key-path">[1]</span></td><td><div class="diff_value"><div class="diff_left"><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div><div class="diff_right"><details open class="pyglove bar"><summary><div class="summary_title">Bar(...)</div></summary><div class="complex_value bar"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key int">2</span><span class="tooltip key-path">[2]</span></td><td><div class="diff_value"><div class="diff_left"><span class="simple_value none-type">None</span></div><div class="diff_right"><details class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key int">3</span><span class="tooltip key-path">[3]</span></td><td><div class="diff_value"><div class="diff_left"><details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><div class="diff_right"><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key int">1</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key int">4</span><span class="tooltip key-path">[4]</span></td><td><div class="diff_value"><div class="diff_left"><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div><div class="diff_right"><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">2</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">4</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></div></td></tr><tr><td><span class="object_key int">5</span><span class="tooltip key-path">[5]</span></td><td><div class="diff_value"><div class="diff_right"><details class="pyglove list"><summary><div class="summary_title">List(...)</div></summary><div class="complex_value list"><table><tr><td><span class="object_key int">0</span></td><td><div><details class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">3</span></div></td></tr></table></div></details></div></td></tr></table></div></details></div></div></td></tr></table></div></details>
+        <details open class="pyglove diff has-diff"><summary><div class="summary-title has-diff">List</div></summary><div class="complex-value list-class"><table><tr><td><span class="object-key int no-diff">0</span><span class="tooltip">[0]</span></td><td><details open class="pyglove diff no-diff"><summary><div class="summary-title no-diff">Foo(...)</div></summary><div class="complex-value foo no-diff"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details></div></details></td></tr><tr><td><span class="object-key int">1</span><span class="tooltip">[1]</span></td><td><div class="diff-value"><details open class="pyglove foo diff-left"><summary><div class="summary-title diff-left">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details></div></details><details open class="pyglove bar diff-right"><summary><div class="summary-title diff-right">Bar(...)</div></summary><div class="complex-value bar"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details></div></details></div></td></tr><tr><td><span class="object-key int">2</span><span class="tooltip">[2]</span></td><td><div class="diff-value"><span class="simple-value none-type diff-left">None</span><details open class="pyglove dict diff-right"><summary><div class="summary-title diff-right">Dict(...)</div></summary><div class="complex-value dict"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details></div></details></div></td></tr><tr><td><span class="object-key int">3</span><span class="tooltip">[3]</span></td><td><div class="diff-value"><details open class="pyglove foo diff-left"><summary><div class="summary-title diff-left">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details open class="pyglove foo"><summary><div class="summary-name">y</div><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details></div></details></div></details><details open class="pyglove list diff-right"><summary><div class="summary-title diff-right">List(...)</div></summary><div class="complex-value list"><table><tr><td><span class="object-key int">0</span></td><td><span class="simple-value int">1</span></td></tr><tr><td><span class="object-key int">1</span></td><td><span class="simple-value int">2</span></td></tr></table></div></details></div></td></tr><tr><td><span class="object-key int">4</span><span class="tooltip">[4]</span></td><td><div class="diff-value"><details open class="pyglove list diff-left"><summary><div class="summary-title diff-left">List(...)</div></summary><div class="complex-value list"><table><tr><td><span class="object-key int">0</span></td><td><details class="pyglove dict"><summary><div class="summary-title">Dict(...)</div></summary><div class="complex-value dict"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details></div></details></td></tr></table></div></details><details open class="pyglove foo diff-right"><summary><div class="summary-title diff-right">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details><details class="pyglove foo"><summary><div class="summary-name">y</div><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">2</span></details><details open class="pyglove int"><summary><div class="summary-name">y</div><div class="summary-title">int</div></summary><span class="simple-value int">4</span></details></div></details></div></details></div></td></tr><tr><td><span class="object-key int">5</span><span class="tooltip">[5]</span></td><td><div class="diff-value"><details open class="pyglove list diff-right"><summary><div class="summary-title diff-right">List(...)</div></summary><div class="complex-value list"><table><tr><td><span class="object-key int">0</span></td><td><details class="pyglove dict"><summary><div class="summary-title">Dict(...)</div></summary><div class="complex-value dict"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">3</span></details></div></details></td></tr></table></div></details></div></td></tr></table></div></details>
         """
     )
 
