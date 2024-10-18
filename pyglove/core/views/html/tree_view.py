@@ -207,8 +207,8 @@ class HtmlTreeView(HtmlView):
       max_summary_len_for_str: int = 80,
       enable_summary_tooltip: bool = True,
       summary_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = None,
       # Content settings.
       key_style: Union[
@@ -216,8 +216,8 @@ class HtmlTreeView(HtmlView):
           Callable[[KeyPath, Any, Any], Literal['label', 'summary']]
       ] = 'summary',
       key_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = None,
       include_keys: Union[
           Iterable[Union[int, str]],
@@ -531,8 +531,8 @@ class HtmlTreeView(HtmlView):
       enable_summary: Optional[bool] = None,
       enable_summary_tooltip: bool = True,
       summary_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = None,
       max_summary_len_for_str: int = 80,
       enable_summary_for_str: bool = True,
@@ -682,8 +682,8 @@ class HtmlTreeView(HtmlView):
       parent: Any,
       css_classes: Optional[Sequence[str]] = None,
       key_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = None,
       enable_key_tooltip: bool = True,
       key_tooltip_fn: Optional[Callable[..., Html]] = None,
@@ -789,8 +789,8 @@ class HtmlTreeView(HtmlView):
           Callable[[KeyPath, Any, Any], Literal['label', 'summary']]
       ] = 'summary',
       key_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = None,
       include_keys: Union[
           Iterable[Union[int, str]],
@@ -975,8 +975,8 @@ class HtmlTreeView(HtmlView):
           Callable[..., Literal['label', 'summary']]
       ] = 'summary',
       key_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = None,
       include_keys: Union[
           Iterable[Union[int, str]],
@@ -1326,8 +1326,8 @@ class HtmlTreeView(HtmlView):
           Callable[[KeyPath, Any, Any], Literal['label', 'summary']]
       ] = object_utils.MISSING_VALUE,
       key_color: Union[
-          Tuple[str | None, str | None],
-          Callable[[KeyPath, Any, Any], Tuple[str | None, str | None]]
+          Tuple[Optional[str], Optional[str]],
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
       ] = object_utils.MISSING_VALUE,
       include_keys: Union[
           Iterable[Union[int, str]],
@@ -1473,14 +1473,14 @@ class HtmlTreeView(HtmlView):
           Tuple[str, str],
           Callable[
               [KeyPath, Any, Any],
-              Tuple[str | None, str | None]
+              Tuple[Optional[str], Optional[str]]
           ],
           None
       ],
       root_path,
       value,
       parent
-  ) -> Tuple[str | None, str | None]:
+  ) -> Tuple[Optional[str], Optional[str]]:
     if callable(color):
       return color(root_path, value, parent)
     if color is None:
