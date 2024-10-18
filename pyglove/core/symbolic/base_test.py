@@ -20,6 +20,7 @@ import unittest
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import views
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.inferred import ValueFromParentChain
@@ -112,7 +113,7 @@ class HtmlTreeViewExtensionTest(unittest.TestCase):
             enable_key_tooltip=False
         ),
         """
-        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value str">&#x27;foo&#x27;</span></div></td></tr></table></div></details>
+        <details open class="pyglove foo"><summary><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details><details open class="pyglove str"><summary><div class="summary-name">y</div><div class="summary-title">str</div></summary><span class="simple-value str">&#x27;foo&#x27;</span></details></div></details>
         """
     )
     # Hide frozen and default values.
@@ -121,11 +122,28 @@ class HtmlTreeViewExtensionTest(unittest.TestCase):
             enable_summary_tooltip=False,
             enable_key_tooltip=False,
             collapse_level=0,
-            hide_frozen=True,
-            hide_default_values=True
+            key_style='label',
+            extra_flags=dict(
+                hide_frozen=True,
+                hide_default_values=True
+            )
         ),
         """
-        <details class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr></table></div></details>
+        <details class="pyglove foo"><summary><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><table><tr><td><span class="object-key str">x</span></td><td><span class="simple-value int">1</span></td></tr></table></div></details>
+        """
+    )
+    self.assert_content(
+        Foo(x=1, y='foo').to_html(
+            enable_summary_tooltip=False,
+            enable_key_tooltip=False,
+            collapse_level=0,
+            extra_flags=dict(
+                hide_frozen=True,
+                hide_default_values=True
+            )
+        ),
+        """
+        <details class="pyglove foo"><summary><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details></div></details>
         """
     )
     # Use inferred values.
@@ -134,22 +152,43 @@ class HtmlTreeViewExtensionTest(unittest.TestCase):
         x.x.to_html(
             enable_summary_tooltip=False,
             enable_key_tooltip=False,
-            use_inferred=False
+            key_style='label',
+            extra_flags=dict(
+                use_inferred=False
+            )
         ),
         """
-        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">y</span></td><td><div><details class="pyglove value-from-parent-chain"><summary><div class="summary_title">ValueFromParentChain(...)</div></summary><div class="complex_value value-from-parent-chain"><span class="empty_container"></span></div></details></div></td></tr></table></div></details>
+        <details open class="pyglove dict"><summary><div class="summary-title">Dict(...)</div></summary><div class="complex-value dict"><table><tr><td><span class="object-key str">y</span></td><td><details class="pyglove value-from-parent-chain"><summary><div class="summary-title">ValueFromParentChain(...)</div></summary><div class="complex-value value-from-parent-chain"><span class="empty-container"></span></div></details></td></tr></table></div></details>
         """
     )
     self.assert_content(
         x.x.to_html(
             enable_summary_tooltip=False,
             enable_key_tooltip=False,
-            use_inferred=True
+            key_style='label',
+            extra_flags=dict(
+                use_inferred=True
+            )
         ),
         """
-        <details open class="pyglove dict"><summary><div class="summary_title">Dict(...)</div></summary><div class="complex_value dict"><table><tr><td><span class="object_key str">y</span></td><td><div><span class="simple_value int">2</span></div></td></tr></table></div></details>
+        <details open class="pyglove dict"><summary><div class="summary-title">Dict(...)</div></summary><div class="complex-value dict"><table><tr><td><span class="object-key str">y</span></td><td><span class="simple-value int">2</span></td></tr></table></div></details>
         """
     )
+    # Test collapse level.
+    v = Foo(1, Foo(2, Foo(3, Foo(4))))
+    with views.view_options(key_style='label'):
+      self.assertEqual(
+          v.to_html(collapse_level=0).content.count('open'), 0
+      )
+      self.assertEqual(
+          v.to_html(collapse_level=1).content.count('open'), 1
+      )
+      self.assertEqual(
+          v.to_html(collapse_level=2).content.count('open'), 2
+      )
+      self.assertEqual(
+          v.to_html(collapse_level=None).content.count('open'), 4
+      )
 
 
 if __name__ == '__main__':

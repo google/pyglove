@@ -701,6 +701,8 @@ class HtmlTest(TestCase):
     self.assertIsNone(Html.concate([None, [None, [None, None]]]))
     self.assertEqual(Html.concate('a'), 'a')
     self.assertEqual(Html.concate(['a']), 'a')
+    self.assertEqual(Html.concate(['a', 'a']), 'a')
+    self.assertEqual(Html.concate(['a', 'a'], dedup=False), 'a a')
     self.assertEqual(Html.concate(['a', None, 'b']), 'a b')
     self.assertEqual(
         Html.concate(['a', 'b', [None, 'c', [None, 'd']]]), 'a b c d')
@@ -710,11 +712,11 @@ class HtmlTest(TestCase):
     self.assertEqual(Html.element('div').content, '<div></div>')
     # CSS class as list.
     self.assertEqual(
-        Html.element('div', css_class=['a', 'b', None]).content,
+        Html.element('div', css_classes=['a', 'b', None]).content,
         '<div class="a b"></div>',
     )
     self.assertEqual(
-        Html.element('div', css_class=[None, None]).content,
+        Html.element('div', css_classes=[None, None]).content,
         '<div></div>',
     )
     # Style as string.
@@ -726,7 +728,7 @@ class HtmlTest(TestCase):
     self.assertEqual(
         Html.element(
             'div',
-            style=dict(
+            styles=dict(
                 color='red', background_color='blue', width=None,
             )
         ).content,
@@ -735,7 +737,7 @@ class HtmlTest(TestCase):
     self.assertEqual(
         Html.element(
             'div',
-            style=dict(
+            styles=dict(
                 color=None,
             )
         ).content,
@@ -746,7 +748,7 @@ class HtmlTest(TestCase):
         Html.element(
             'details',
             options='open',
-            css_class='my_class',
+            css_classes='my_class',
             id='my_id',
             custom_property='1'
         ).content,
@@ -759,7 +761,7 @@ class HtmlTest(TestCase):
         Html.element(
             'details',
             options=[None],
-            css_class='my_class',
+            css_classes='my_class',
             id='my_id',
             custom_property='1'
         ).content,
@@ -772,7 +774,7 @@ class HtmlTest(TestCase):
     self.assertEqual(
         Html.element(
             'div',
-            css_class='my_class',
+            css_classes='my_class',
             inner_html='<h1>foo</h1>'
         ).content,
         '<div class="my_class"><h1>foo</h1></div>',
@@ -787,7 +789,7 @@ class HtmlTest(TestCase):
                 None,
                 Html.element(
                     'div',
-                    css_class='my_class',
+                    css_classes='my_class',
                 ).add_style('div.my_class { color: red; }')
             ]
         )),

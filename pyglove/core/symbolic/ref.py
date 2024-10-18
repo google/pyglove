@@ -13,6 +13,7 @@
 # limitations under the License.
 """Symbolic reference."""
 
+import functools
 import numbers
 from typing import Any, Callable, List, Optional, Tuple
 from pyglove.core import object_utils
@@ -184,10 +185,23 @@ class Ref(Object, base.Inferential):
         **kwargs
     )
 
-  def _html_style(self) -> List[str]:
-    return [
+  @classmethod
+  @functools.cache
+  def _html_tree_view_config(cls) -> dict[str, Any]:
+    return html.HtmlTreeView.get_kwargs(
+        super()._html_tree_view_config(),
+        dict(
+            css_classes=['ref'],
+        )
+    )
+
+  @classmethod
+  @functools.cache
+  def _html_tree_view_css_styles(cls) -> List[str]:
+    return super()._html_tree_view_css_styles() + [
         """
-        details.ref .summary_title::before {
+        /* Ref styles. */
+        .ref.summary-title::before {
           content: 'ref: ';
           color: #aaa;
         }

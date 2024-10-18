@@ -13,7 +13,7 @@
 # limitations under the License.
 """Symbolic differences."""
 
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
@@ -150,8 +150,9 @@ class Diff(PureSymbolic, pg_object.Object):
       self,
       *,
       view: html.HtmlTreeView,
+      css_classes: Optional[Sequence[str]] = None,
       title: Optional[str] = None,
-      max_summary_len_for_str: int = html.HtmlView.PresetArgValue(40),
+      max_summary_len_for_str: int = 80,
       **kwargs,
     ) -> Optional[html.Html]:
   # pytype: enable=annotation-type-mismatch
@@ -165,12 +166,14 @@ class Diff(PureSymbolic, pg_object.Object):
         return view.summary(
             self,
             title=title or 'Diff',
+            css_classes=css_classes,
             max_summary_len_for_str=max_summary_len_for_str,
             **kwargs
         )
       return view.summary(
           self.value,
           title=title,
+          css_classes=css_classes,
           max_summary_len_for_str=max_summary_len_for_str,
           **kwargs
       )
@@ -186,6 +189,7 @@ class Diff(PureSymbolic, pg_object.Object):
       return view.summary(
           self,
           title=title or diff_title,
+          css_classes=css_classes,
           max_summary_len_for_str=max_summary_len_for_str,
           **kwargs
       )
@@ -196,6 +200,7 @@ class Diff(PureSymbolic, pg_object.Object):
       view: html.HtmlTreeView,
       parent: Any,
       root_path: object_utils.KeyPath,
+      css_classes: Optional[Sequence[str]] = None,
       **kwargs
   ) -> html.Html:
     if not bool(self):
@@ -203,46 +208,30 @@ class Diff(PureSymbolic, pg_object.Object):
         root = html.Html.element(
             'span',
             # CSS class already defined in HtmlTreeView.
-            css_class=['diff_empty']
+            css_classes=['diff-empty']
         )
       else:
         # When there is no diff, but the same value needs to be displayed
         # we simply return the value.
-        root = html.Html.element(
-            'div',
-            [
-                view.content(
-                    self.value, parent=parent, root_path=root_path, **kwargs,
-                )
-            ],
-            css_class=['diff_left', 'diff_right']
+        root = view.content(
+            self.value, parent=parent, root_path=root_path,
+            css_classes=['no-diff', view.css_class_name(self.value)],
+            **kwargs,
         )
     elif self.is_leaf:
       root = html.Html.element(
           'div',
           [
-              # Render left value.
-              lambda: html.Html.element(  # pylint: disable=g-long-ternary
-                  'div',
-                  [
-                      view.render(
-                          self.left, root_path=root_path + 'left', **kwargs
-                      )
-                  ],
-                  css_class=['diff_left'],
+              view.render(   # pylint: disable=g-long-ternary
+                  self.left, root_path=root_path + 'left',
+                  css_classes=['diff-left'], **kwargs
               ) if self.left != Diff.MISSING else None,
-              # Render right value.
-              lambda: html.Html.element(  # pylint: disable=g-long-ternary
-                  'div',
-                  [
-                      view.render(
-                          self.right, root_path=root_path + 'right', **kwargs
-                      )
-                  ],
-                  css_class=['diff_right'],
-              )  if self.right != Diff.MISSING else None,
+              view.render(   # pylint: disable=g-long-ternary
+                  self.right, root_path=root_path + 'right',
+                  css_classes=['diff-right'], **kwargs
+              ) if self.right != Diff.MISSING else None,
           ],
-          css_class=['diff_value']
+          css_classes=['diff-value']
       )
     else:
       assert isinstance(self.left, type)
@@ -257,20 +246,21 @@ class Diff(PureSymbolic, pg_object.Object):
       for k, v in self.children.items():
         k = key_fn(k)
         child_path = root_path + k
-
+        has_diff = bool(v)
         s.write('<tr><td>')
         # Print Key.
         s.write(
             view.object_key(
-                k, parent=v, root_path=child_path,
-                css_class=None if bool(v) else ['no_diff_key'],
-                **kwargs
+                child_path, value=v, parent=self,
+                css_classes=None if has_diff else ['no-diff'],
             ),
         )
         # Print Value.
         s.write(
             '</td><td>',
-            view.render(v, root_path=child_path, **kwargs),
+            view.render(
+                v, root_path=child_path, **kwargs
+            ),
             '</td></tr>'
         )
       root = html.Html.element(
@@ -278,61 +268,65 @@ class Diff(PureSymbolic, pg_object.Object):
           [
               '<table>', s, '</table>'
           ],
-          css_class=[
-              'complex_value', view.css_class_name(self.left)
+          css_classes=[
+              'complex-value', view.css_class_name(self.left), css_classes,
           ]
       )
     return root
 
-  def _html_style(self) -> List[str]:
-    return [
+  def _html_tree_view_config(self) -> dict[str, Any]:
+    return html.HtmlTreeView.get_kwargs(
+        super()._html_tree_view_config(),
+        dict(
+            css_classes=[
+                'has-diff' if bool(self) else 'no-diff'
+            ]
+        )
+    )
+
+  @classmethod
+  def _html_tree_view_css_styles(cls) -> list[str]:
+    return super()._html_tree_view_css_styles() + [
         """
         /* Diff styles. */
-        .diff .summary_title::after {
+        .has-diff.summary-title::after {
           content: ' (diff)';
           color: #aaa;
         }
-        .diff .summary_title {
+        .has-diff.summary-title {
           background-color: yellow;
         }
-        .diff table td {
-          padding: 4px;
+        .no-diff.summary-title::after {
+          content: ' (no diff)';
+          font-style: italic;
+          font-weight: normal;
+          color: #aaa;
         }
-        .diff_value {
-          display: inline-block;
-          align-items: center;
+        .no-diff {
+          opacity: 0.6;
         }
-        .no_diff_key {
-          opacity: 0.4;
-        }
-        .diff_left.diff_right::after {
+        .no-diff.simple_value::after {
           content: '(no diff)';
           margin-left: 0.5em;
           color: #aaa;
           font-style: italic;
         }
-        .diff_empty::before {
-            content: '(empty)';
-            font-style: italic;
-            margin-left: 0.5em;
-            color: #aaa;
+        .diff-empty::before {
+          content: '(empty)';
+          font-style: italic;
+          margin-left: 0.5em;
+          color: #aaa;
         }
-        .diff_value .diff_left::before {
+        .diff-left.summary-title::before, .diff-left.simple-value::before{
           content: '🇱';
         }
-        .diff_value .diff_left > .simple_value {
+        .diff-left {
           background-color: #ffcccc;
         }
-        .diff_value .diff_left > details {
-          background-color: #ffcccc;
-        }
-        .diff_value .diff_right::before {
+        .diff-right.summary-title::before, .diff-right.simple-value::before{
           content: '🇷';
         }
-        .diff_value .diff_right > .simple_value {
-          background-color: #ccffcc;
-        }
-        .diff_value .diff_right > details {
+        .diff-right {
           background-color: #ccffcc;
         }
         """

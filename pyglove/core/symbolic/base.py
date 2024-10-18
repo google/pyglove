@@ -949,21 +949,22 @@ class Symbolic(
     """Serializes current object into a JSON string."""
     return to_json_str(self, json_indent=json_indent, **kwargs)
 
-  # pytype: disable=annotation-type-mismatch
   def _html_tree_view_content(
       self,
       *,
       view: html.HtmlTreeView,
-      name: Optional[str],
-      parent: Any,
-      root_path: object_utils.KeyPath,
-      hide_frozen: bool = html.HtmlView.PresetArgValue(True),
-      hide_default_values: bool = html.HtmlView.PresetArgValue(False),
-      use_inferred: bool = html.HtmlView.PresetArgValue(True),
+      name: Optional[str] = None,
+      parent: Any = None,
+      root_path: Optional[object_utils.KeyPath] = None,
+      extra_flags: Optional[Dict[str, Any]],
       **kwargs,
   ) -> html.Html:
-  # pytype: enable=annotation-type-mismatch
     """Returns the content HTML for a symbolic object.."""
+    extra_flags = extra_flags or {}
+    hide_frozen = extra_flags.get('hide_frozen', True)
+    hide_default_values = extra_flags.get('hide_default_values', False)
+    use_inferred = extra_flags.get('use_inferred', False)
+
     kv = {}
     for k, v in self.sym_items():
       # Apply frozen filter.
@@ -981,8 +982,7 @@ class Symbolic(
       kv[k] = v
     return view.complex_value(
         kv, name=name, parent=self, root_path=root_path,
-        hide_frozen=hide_frozen, hide_default_values=hide_default_values,
-        use_inferred=use_inferred, **kwargs
+        extra_flags=extra_flags, **kwargs
     )
 
   @classmethod

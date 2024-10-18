@@ -18,6 +18,7 @@ from pyglove.core.views import html
 
 View = base.View
 view = base.view
+view_options = base.view_options
 
 # Pytype annotation.
 NodeFilter = base.NodeFilter
