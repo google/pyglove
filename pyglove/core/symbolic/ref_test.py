@@ -160,9 +160,9 @@ class RefTest(unittest.TestCase):
     def assert_style(html, expected):
       expected = inspect.cleandoc(expected).strip()
       actual = html.style_section.strip()
-      if actual != expected:
+      if expected not in actual:
         print(actual)
-      self.assertEqual(actual.strip(), expected)
+      self.assertIn(expected, actual)
 
     def assert_content(html, expected):
       expected = inspect.cleandoc(expected).strip()
@@ -177,124 +177,23 @@ class RefTest(unittest.TestCase):
     assert_style(
         Foo(ref.Ref(Foo(1))).to_html(),
         """
-        <style>
-        /* Tooltip styles. */
-        span.tooltip {
-          visibility: hidden;
-          white-space: pre-wrap;
-          font-weight: normal;
-          background-color: #484848;
-          color: #fff;
-          padding: 10px;
-          border-radius: 6px;
-          position: absolute;
-          z-index: 1;
-        }
-        /* Summary styles. */
-        details.pyglove summary {
-          font-weight: bold;
-          margin: -0.5em -0.5em 0;
-          padding: 0.5em;
-        }
-        .summary_name {
-          display: inline;
-          padding: 0 5px;
-        }
-        .summary_title {
-          display: inline;
-        }
-        .summary_name + div.summary_title {
-          display: inline;
+        /* Ref styles. */
+        .ref.summary-title::before {
+          content: 'ref: ';
           color: #aaa;
         }
-        .summary_title:hover + span.tooltip {
-          visibility: visible;
-        }
-        /* Type-specific styles. */
-        .pyglove.str .summary_title {
-          color: darkred;
-          font-style: italic;
-        }
-        /* Object key styles. */
-        .object_key {
-          margin-right: 0.25em;
-        }
-        .object_key:hover + .tooltip {
-          visibility: visible;
-          background-color: darkblue;
-        }
-        .object_key.str {
-          color: gray;
-          border: 1px solid lightgray;
-          background-color: ButtonFace;
-          border-radius: 0.2em;
-          padding: 0.3em;
-        }
-        .object_key.int::before{
-          content: '[';
-        }
-        .object_key.int::after{
-          content: ']';
-        }
-        .object_key.int{
-          border: 0;
-          color: lightgray;
-          background-color: transparent;
-          border-radius: 0;
-          padding: 0;
-        }
-        /* Simple value styles. */
-        .simple_value {
-          color: blue;
-          display: inline-block;
-          white-space: pre-wrap;
-          padding: 0.2em;
-          margin-top: 0.15em;
-        }
-        .simple_value.str {
-          color: darkred;
-          font-style: italic;
-        }
-        .simple_value.int, .simple_value.float {
-          color: darkblue;
-        }
-        /* Complex value styles. */
-        span.empty_container::before {
-            content: '(empty)';
-            font-style: italic;
-            margin-left: 0.5em;
-            color: #aaa;
-        }
-        /* Value details styles. */
-        details.pyglove {
-          border: 1px solid #aaa;
-          border-radius: 4px;
-          padding: 0.5em 0.5em 0;
-          margin: 0.1em 0;
-        }
-        details.pyglove.special_value {
-          margin-bottom: 0.75em;
-        }
-        details.pyglove[open] {
-          padding: 0.5em 0.5em 0.5em;
-        }
-        .highlight {
-          background-color: Mark;
-        }
-        .lowlight {
-          opacity: 0.2;
-        }
-        </style>
         """
     )
     assert_content(
         Foo(ref.Ref(Foo(1))).to_html(
-            use_inferred=False,
+            extra_flags=dict(
+                use_inferred=False,
+            ),
             enable_summary_tooltip=False,
             enable_key_tooltip=False,
         ),
         """
-        <details open class="pyglove foo"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><details class="pyglove ref"><summary><div class="summary_title">Foo(...)</div></summary><div class="complex_value foo"><table><tr><td><span class="object_key str">x</span></td><td><div><span class="simple_value int">1</span></div></td></tr></table></div></details></div></td></tr></table></div></details>
+        <details open class="pyglove foo"><summary><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details class="pyglove ref"><summary><div class="summary-name ref">x</div><div class="summary-title ref">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details></div></details></div></details>
         """
     )
 

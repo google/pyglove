@@ -302,6 +302,7 @@ timeit = object_utils.timeit
 
 from pyglove.core import views
 view = views.view
+view_options = views.view_options
 View = views.View
 Html = views.Html
 to_html = views.to_html

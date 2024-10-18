@@ -133,7 +133,7 @@ import inspect
 import io
 import os
 import types
-from typing import Any, Callable, ContextManager, Dict, Iterator, Optional, Sequence, Set, Type, Union
+from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Type, Union
 
 from pyglove.core import io as pg_io
 from pyglove.core import object_utils
@@ -149,6 +149,12 @@ NodeFilter = Callable[
     ],
     bool            # Whether to include the value.
 ]
+
+
+_VIEW_ARGS_PRESET_NAME = 'pyglove_view_args'
+_VIEW_REGISTRY = {}
+_TLS_KEY_OPERAND_STACK_BY_METHOD = '__view_operand_stack__'
+_TLS_KEY_VIEW_OPTIONS = '__view_options__'
 
 
 class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
@@ -436,12 +442,37 @@ def view(
   if isinstance(value, Content):
     return value
 
-  view_object = View.create(view_id)
-  with View.preset_args(**kwargs):
+  with view_options(**kwargs) as options:
+    view_object = View.create(view_id)
     return view_object.render(
         value, name=name, root_path=root_path or object_utils.KeyPath(),
-        **kwargs
+        **options
     )
+
+
+@contextlib.contextmanager
+def view_options(**kwargs) -> Iterator[Dict[str, Any]]:
+  """Context manager to inject rendering args to view.
+
+  Example:
+
+    with pg.view_options(enable_summary_tooltip=False):
+      MyObject().to_html()
+
+  Args:
+    **kwargs: Keyword arguments for View.render method.
+
+  Yields:
+    The merged keyword arguments.
+  """
+  parent_options = object_utils.thread_local_peek(_TLS_KEY_VIEW_OPTIONS, {})
+  # Deep merge the two dict.
+  options = object_utils.merge([parent_options, kwargs])
+  object_utils.thread_local_push(_TLS_KEY_VIEW_OPTIONS, options)
+  try:
+    yield options
+  finally:
+    object_utils.thread_local_pop(_TLS_KEY_VIEW_OPTIONS)
 
 
 class View(metaclass=abc.ABCMeta):
@@ -456,60 +487,6 @@ class View(metaclass=abc.ABCMeta):
   # The ID of the view, which will be used as the value for the `view`
   # argument of `pg.view()`. Must be set for non-abstract subclasses.
   VIEW_ID = None
-
-  class PresetArgValue(pg_typing.PresetArgValue):
-    """Argument marker for View and Extension methods to use preset values.
-
-    Methods defined in a ``View`` or ``Extension`` class can be parameterized by
-    keyword arguments from the ``pg.view()`` function. These arguments, referred
-    to as preset arguments, allow the View or Extension method to consume
-    parameters passed during object rendering. For instance, when rendering a
-    user-defined object ``MyObject()`` with a keyword argument
-    ``hide_default=True``, the View or Extension method may use this argument to
-    customize the rendering behavior.
-
-    Since there can be multiple layers of calls between ``View`` and
-    ``Extension`` methods, it is easy to lose track of arguments passed from
-    ``pg.view()``. To simplify this process, users can employ the
-    ``PresetArgValue`` marker to annotate specific arguments. This ensures that
-    View or Extension methods can access preset arguments from the parent call
-    to ``pg.view()``, even when those arguments are not explicitly passed around
-    in subsequent method calls.
-
-    Example usage:
-
-    .. code-block:: python
-
-      class MyView(pg.View):
-        VIEW_TYPE = 'my_view'
-
-        class Extension(pg.View.Extension):
-          def _myview_render(
-              self,
-              *,
-              view,
-              hide_default_value=pg.View.PresetArgValue(default=False),
-              **kwargs
-            ):
-            return view.render(value, **kwargs)
-
-        @pg.View.extension_method('_myview_render')
-        def render(self, value, *, **kwargs):
-          return ...
-
-    In the above example, the ``hide_default_value`` argument is annotated with
-    ``pg.View.PresetArgValue``. This allows it to consume the
-    ``hide_default=True`` keyword argument from the parent call to
-    ``pg.view()``, or fallback to the default value ``False`` if the argument is
-    not provided.
-    """
-
-  @classmethod
-  def preset_args(cls, **kwargs) -> ContextManager[Dict[str, Any]]:
-    """Context manager to provide preset argument values for a specific view."""
-    return pg_typing.preset_args(
-        kwargs, preset_name=_VIEW_ARGS_PRESET_NAME, inherit_preset=True
-    )
 
   class Extension:
     """Extension for the View class.
@@ -562,31 +539,6 @@ class View(metaclass=abc.ABCMeta):
     ``MyView`` and overrides the ``_my_view_title`` and ``_my_view_render``
     methods to provide custom view rendering for the object.
     """
-
-    def __init_subclass__(cls):
-      # Enable preset args for all methods. As a result, function args
-      # with `View.PresetArgValue` will be able to consume the keyword args
-      # from the call to `pg.view`.
-      supported_preset_args = {}
-      for name, method in cls.__dict__.items():
-        if inspect.isfunction(method):
-          used_preset_args = View.PresetArgValue.inspect(method)
-          if used_preset_args:
-            supported_preset_args.update(used_preset_args)
-            setattr(
-                cls, name,
-                pg_typing.enable_preset_args(
-                    include_all_preset_kwargs=True,
-                    preset_name=_VIEW_ARGS_PRESET_NAME,
-                )(method)
-            )
-      setattr(cls, '_SUPPORTED_PRESET_ARGS', supported_preset_args)
-      super().__init_subclass__()
-
-    @classmethod
-    def supported_preset_args(cls) -> Dict[str, Any]:
-      """Returns supported preset args for this view."""
-      return getattr(cls, '_SUPPORTED_PRESET_ARGS', {})
 
     @classmethod
     @functools.cache
@@ -674,6 +626,7 @@ class View(metaclass=abc.ABCMeta):
             sig.args[i].name: arg
             for i, arg in enumerate(args) if i != extension_arg_index
         })
+        kwargs.pop('value', None)
         return kwargs
 
       # We use the original function signature to generate the view method.
@@ -682,14 +635,13 @@ class View(metaclass=abc.ABCMeta):
         # This allows a View method to consume the preset kwargs from the
         # parent call to `pg.view`, yet also customizes the preset kwargs
         # to the calls to other View/Extension methods within this context.
-        with cls.preset_args(**kwargs):
-          return self._maybe_dispatch(   # pylint: disable=protected-access
-              *args, **kwargs,
-              extension=get_extension(args, kwargs),
-              view_method=func,
-              extension_method_name=method_name,
-              arg_map_fn=map_args
-          )
+        return self._maybe_dispatch(   # pylint: disable=protected-access
+            *args, **kwargs,
+            extension=get_extension(args, kwargs),
+            view_method=func,
+            extension_method_name=method_name,
+            arg_map_fn=map_args
+        )
       return _generated_view_fn
     return decorator
 
@@ -709,61 +661,7 @@ class View(metaclass=abc.ABCMeta):
       )
 
     _VIEW_REGISTRY[cls.VIEW_ID] = cls
-
-    # Enable preset args for all view methods. As a result, function args
-    # with `pg.views.View.PresetArgValue` will be able to consume the keyword
-    # args from the parent call to `pg.view`.
-    supported_preset_args = {}
-    for name, method in cls.__dict__.items():
-      if inspect.isfunction(method):
-        used_preset_args = cls.PresetArgValue.inspect(method)
-        if used_preset_args:
-          setattr(
-              cls, name,
-              pg_typing.enable_preset_args(
-                  include_all_preset_kwargs=True,
-                  preset_name=_VIEW_ARGS_PRESET_NAME,
-              )(method)
-          )
-          supported_preset_args.update(used_preset_args)
-
-    setattr(cls, '_SUPPORTED_PRESET_ARGS', supported_preset_args)
     super().__init_subclass__()
-
-  @classmethod
-  def supported_preset_args(
-      cls,
-      view_id: Optional[str] = None,
-      include_all_extensions: bool = True
-  ) -> Dict[Type[Any], Dict[str, Any]]:
-    """Returns all supported preset args for this view.
-
-    Args:
-      view_id: The view ID to get the supported preset args for. If not
-        provided, the default view ID for this class will be used.
-      include_all_extensions: Whether to include the supported preset args from
-        all extensions of this view. If False, only the supported preset args
-        from the base extension class will be included.
-
-    Returns:
-      A dictionary mapping view classes to their supported preset args.
-    """
-    view_id = view_id or cls.VIEW_ID
-    if view_id is None:
-      raise ValueError(
-          'No `VIEW_ID` is set for this View class. Please set `VIEW_ID` '
-          'or provide a `view_id` to `supported_preset_args`.'
-      )
-    supported = {cls: getattr(cls, '_SUPPORTED_PRESET_ARGS', {})}
-    extension_classes = [cls.Extension]
-    if include_all_extensions:
-      extension_classes.extend(cls.Extension.__subclasses__())
-
-    for cls in extension_classes:
-      supported_preset_args = cls.supported_preset_args()
-      if supported_preset_args:
-        supported[cls] = supported_preset_args
-    return supported
 
   @classmethod
   def dir(cls) -> Dict[str, Type['View']]:
@@ -872,8 +770,9 @@ class View(metaclass=abc.ABCMeta):
         return view_method(self, *args, **kwargs)
 
       # Call the extension's method.
+      mapped = arg_map_fn(args, kwargs)
       return getattr(extension, extension_method_name)(
-          view=self, **arg_map_fn(args, kwargs)
+          view=self, **mapped
       )
 
   @contextlib.contextmanager
@@ -901,8 +800,3 @@ class View(metaclass=abc.ABCMeta):
           object_utils.thread_local_del(_TLS_KEY_OPERAND_STACK_BY_METHOD)
       else:
         rendering_stack[view_method] = callsite_value
-
-
-_VIEW_ARGS_PRESET_NAME = 'view_args'
-_VIEW_REGISTRY = {}
-_TLS_KEY_OPERAND_STACK_BY_METHOD = '__view_operand_stack__'

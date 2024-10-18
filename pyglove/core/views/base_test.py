@@ -287,8 +287,8 @@ class TestView(View):
         self,
         *,
         view: 'TestView',
-        use_summary: bool = View.PresetArgValue(False),
-        use_content: bool = View.PresetArgValue(False),
+        use_summary: bool = False,
+        use_content: bool = False,
         **kwargs):
       if use_summary:
         return view.summary(self, **kwargs)
@@ -299,7 +299,7 @@ class TestView(View):
     def _test_view_summary(
         self,
         view: 'TestView',
-        default_behavior: bool = View.PresetArgValue(False),
+        default_behavior: bool = False,
         **kwargs):
       if default_behavior:
         return view.summary(self, **kwargs)
@@ -309,7 +309,7 @@ class TestView(View):
       del kwargs
       return Document(f'[Custom Content] {self}')
 
-    def bar(self, x: int = View.PresetArgValue(2)):
+    def bar(self, x: int = 2):
       return x
 
   @View.extension_method('_test_view_render')
@@ -317,7 +317,7 @@ class TestView(View):
       self,
       value: Any,
       *,
-      greeting: str = View.PresetArgValue('hi'),
+      greeting: str = 'hi',
       **kwargs):
     return Document(f'{greeting} {value}')
 
@@ -325,7 +325,7 @@ class TestView(View):
   def summary(
       self,
       value: Any,
-      title: str = View.PresetArgValue('abc'),
+      title: str = 'abc',
       **kwargs
   ):
     del kwargs
@@ -340,7 +340,7 @@ class TestView(View):
     del kwargs
     return Document(f'[Default Key] {key}: {value}')
 
-  def foo(self, x: int = View.PresetArgValue(1)):
+  def foo(self, x: int = 1):
     return x
 
 
@@ -378,7 +378,7 @@ class MyObject(TestView.Extension, TestView2.Extension):
     self.y = y
 
   def _test_view_content(
-      self, *, text: str = View.PresetArgValue('MyObject'), **kwargs
+      self, *, text: str = 'MyObject', **kwargs
   ):
     return Document(f'[{text}] {self.x} {self.y}')
 
@@ -459,49 +459,14 @@ class ViewTest(unittest.TestCase):
         {TestView, TestView2}
     )
 
-  def test_supported_preset_args(self):
-    self.assertEqual(
-        TestView.supported_preset_args(),
-        {
-            TestView: {
-                'greeting': View.PresetArgValue('hi'),
-                'title': View.PresetArgValue('abc'),
-                'x': View.PresetArgValue(1),
-            },
-            TestView.Extension: {
-                'default_behavior': View.PresetArgValue(default=False),
-                'use_content': View.PresetArgValue(False),
-                'use_summary': View.PresetArgValue(False),
-                'x': View.PresetArgValue(2),
-            },
-            MyObject: {
-                'text': View.PresetArgValue('MyObject'),
-            },
-        }
-    )
-    self.assertEqual(
-        TestView2.supported_preset_args(),
-        {
-            TestView2: {},
-            MyObject: {
-                'text': View.PresetArgValue('MyObject'),
-            },
-        }
-    )
-
-    with self.assertRaisesRegex(ValueError, 'No `VIEW_ID` is set'):
-      View.supported_preset_args()
-
-  def test_view_method_using_preset_args(self):
+  def test_view_options(self):
     view = View.create('test')
     self.assertEqual(view.foo(), 1)
-    with View.preset_args(x=2):
-      self.assertEqual(view.foo(), 2)
-
-  def test_node_method_using_preset_args(self):
-    self.assertEqual(MyObject(1, '').bar(), 2)
-    with View.preset_args(x=3):
-      self.assertEqual(MyObject(1, '').bar(), 3)
+    with base.view_options(text='hello', use_content=True):
+      self.assertEqual(
+          base.view(MyObject(1, 'a'), view_id='test').content,
+          '[hello] 1 a'
+      )
 
   def test_view_default_behavior(self):
     view = View.create('test')
