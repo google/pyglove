@@ -375,7 +375,7 @@ class Functor(pg_object.Object, object_utils.Functor):
     if (
         signature.return_value
         and flags.is_type_check_enabled()
-        and return_value != pg_typing.MISSING_VALUE
+        and pg_typing.MISSING_VALUE != return_value
     ):
       return_value = signature.return_value.apply(
           return_value, root_path=self.sym_path + 'returns'
