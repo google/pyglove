@@ -903,7 +903,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
   def _init_kwargs(self) -> typing.Dict[str, Any]:
     kwargs = super()._init_kwargs()
-    kwargs.update(self._sym_attributes)
+    kwargs.update((k, v) for k, v in self._sym_attributes.sym_items())
     return kwargs
 
   def __getstate__(self) -> Dict[str, Any]:
