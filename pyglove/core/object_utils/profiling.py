@@ -41,6 +41,40 @@ class TimeIt:
       """Returns whether the context has error."""
       return self.error is not None
 
+  @dataclasses.dataclass
+  class StatusSummary:
+    """Aggregated summary for repeated calls for `pg.timeit`."""
+
+    @dataclasses.dataclass
+    class Entry:
+      """Aggregated status from the `pg.timeit` calls of the same name."""
+
+      num_started: int = 0
+      num_ended: int = 0
+      num_failed: int = 0
+      avg_duration: float = 0.0
+
+      def update(self, status: 'TimeIt.Status'):
+        self.avg_duration = (
+            (self.avg_duration * self.num_started + status.elapse)
+            / (self.num_started + 1)
+        )
+        self.num_started += 1
+        if status.has_ended:
+          self.num_ended += 1
+        if status.has_error:
+          self.num_failed += 1
+
+    breakdown: dict[str, 'TimeIt.StatusSummary.Entry'] = (
+        dataclasses.field(default_factory=dict)
+    )
+
+    def aggregate(self, timeit_obj: 'TimeIt'):
+      for k, v in timeit_obj.status().items():
+        if k not in self.breakdown:
+          self.breakdown[k] = TimeIt.StatusSummary.Entry()
+        self.breakdown[k].update(v)
+
   def __init__(self, name: str):
     self._name = name
     self._start_time = None

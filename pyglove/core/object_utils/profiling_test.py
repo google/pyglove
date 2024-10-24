@@ -101,6 +101,38 @@ class TimeItTest(unittest.TestCase):
     self.assertTrue(r['node.child.grandchild'].has_error)
     self.assertTrue(t2.has_error)
 
+  def test_timeit_summary(self):
+    summary = profiling.TimeIt.StatusSummary()
+    for i in range(10):
+      with profiling.timeit('node') as t:
+        time.sleep(0.1)
+        with profiling.timeit('child'):
+          time.sleep(0.1)
+          try:
+            with profiling.timeit('grandchild'):
+              time.sleep(0.1)
+              if i < 2:
+                raise ValueError('error')
+          except ValueError:
+            pass
+      summary.aggregate(t)
+    self.assertEqual(
+        list(summary.breakdown.keys()),
+        ['node', 'node.child', 'node.child.grandchild']
+    )
+    self.assertEqual(
+        [x.num_started for x in summary.breakdown.values()],
+        [10, 10, 10]
+    )
+    self.assertEqual(
+        [x.num_ended for x in summary.breakdown.values()],
+        [10, 10, 10]
+    )
+    self.assertEqual(
+        [x.num_failed for x in summary.breakdown.values()],
+        [0, 0, 2]
+    )
+
 
 if __name__ == '__main__':
   unittest.main()
