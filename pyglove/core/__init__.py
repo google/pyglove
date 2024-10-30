@@ -163,6 +163,7 @@ to_json = symbolic.to_json
 to_json_str = symbolic.to_json_str
 save = symbolic.save
 load = symbolic.load
+open_jsonl = symbolic.open_jsonl
 get_load_handler = symbolic.get_load_handler
 set_load_handler = symbolic.set_load_handler
 get_save_handler = symbolic.get_save_handler

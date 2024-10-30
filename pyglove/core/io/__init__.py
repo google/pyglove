@@ -16,5 +16,6 @@
 # pylint: disable=g-bad-import-order
 
 from pyglove.core.io.file_system import *
+from pyglove.core.io.sequence import *
 
 # pylint: enable=g-bad-import-order

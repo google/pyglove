@@ -120,6 +120,7 @@ from pyglove.core.symbolic.base import to_json
 from pyglove.core.symbolic.base import to_json_str
 from pyglove.core.symbolic.base import load
 from pyglove.core.symbolic.base import save
+from pyglove.core.symbolic.base import open_jsonl
 
 # Interfaces for pure symbolic objects.
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic

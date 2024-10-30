@@ -52,6 +52,10 @@ class File(metaclass=abc.ABCMeta):
     """Returns the current position of the file."""
 
   @abc.abstractmethod
+  def flush(self) -> None:
+    """Flushes the written content to the storage."""
+
+  @abc.abstractmethod
   def close(self) -> None:
     """Closes the file."""
 
@@ -148,6 +152,9 @@ class StdFile(File):
   def tell(self) -> int:
     return self._file_object.tell()
 
+  def flush(self) -> None:
+    self._file_object.flush()
+
   def close(self) -> None:
     self._file_object.close()
 
@@ -219,6 +226,9 @@ class MemoryFile(File):
 
   def tell(self) -> int:
     return self._buffer.tell()
+
+  def flush(self) -> None:
+    pass
 
   def close(self) -> None:
     self.seek(0)

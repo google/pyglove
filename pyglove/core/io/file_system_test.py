@@ -133,6 +133,7 @@ class MemoryFileSystemTest(unittest.TestCase):
     self.assertFalse(fs.exists(file1))
     with fs.open(file1, 'w') as f:
       f.write('hello')
+      f.flush()
     self.assertTrue(fs.exists(file1))
     self.assertFalse(fs.isdir(file1))
 
@@ -224,6 +225,7 @@ class FileIoApiTest(unittest.TestCase):
     with file_system.open(file1, 'w') as f:
       self.assertIsInstance(f, file_system.MemoryFile)
       f.write('foo')
+      f.flush()
     self.assertTrue(file_system.path_exists(file1))
     self.assertEqual(file_system.readfile(file1), 'foo')
     file_system.writefile(file1, 'bar')

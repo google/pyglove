@@ -2310,6 +2310,42 @@ def save(value: Any, path: str, *args, **kwargs) -> Any:
   return save_handler(value, path, *args, **kwargs)
 
 
+def open_jsonl(
+    path: str,
+    mode: str = 'r',
+    **kwargs
+) -> pg_io.Sequence:
+  """Open a JSONL file for reading or writing.
+
+  Example::
+
+    with pg.open_jsonl('my_file.jsonl', 'w') as f:
+      f.add(1)
+      f.add('foo')
+      f.add(dict(x=1))
+
+    with pg.open_jsonl('my_file.jsonl', 'r') as f:
+      for value in f:
+        print(value)
+
+  Args:
+    path: The path to the file.
+    mode: The mode of the file.
+    **kwargs: Additional keyword arguments that will be passed to
+      ``pg_io.open_sequence``.
+
+  Returns:
+    A sequence for PyGlove objects.
+  """
+  return pg_io.open_sequence(
+      path,
+      mode,
+      serializer=to_json_str,
+      deserializer=from_json_str,
+      **kwargs
+  )
+
+
 def default_load_handler(
     path: str,
     file_format: Literal['json', 'txt'] = 'json',
