@@ -30,19 +30,19 @@ class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
   """Serializable error information.
 
   Attributes:
-    type: The type path of the error. For example,
+    tag: A path of the error types in the exception chain. For example,
       `ValueError.ZeroDivisionError` means the error is a `ZeroDivisionError`
       raised at the first place and then reraised as a `ValueError`.
     description: The description of the error.
     stacktrace: The stacktrace of the error.
   """
 
-  type: str
+  tag: str
   description: str
   stacktrace: str
 
   @classmethod
-  def _get_type(cls, error: BaseException):
+  def _compute_tag(cls, error: BaseException):
     error_types = []
     while error is not None:
       error_types.append(error.__class__.__name__)
@@ -53,7 +53,7 @@ class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
   def from_exception(cls, error: BaseException) -> 'ErrorInfo':
     """Creates an error info from an exception."""
     return cls(
-        type=cls._get_type(error),
+        tag=cls._compute_tag(error),
         description=str(error),
         stacktrace=''.join(
             traceback.format_exception(*sys.exc_info())
@@ -63,7 +63,7 @@ class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
   def to_json(self, **kwargs) -> Dict[str, Any]:
     return self.to_json_dict(
         fields=dict(
-            type=(self.type, None),
+            tag=(self.tag, None),
             description=(self.description, None),
             stacktrace=(self.stacktrace, None),
         ),
@@ -74,7 +74,7 @@ class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
   def format(self, *args, **kwargs) -> str:
     return formatting.kvlist_str(
         [
-            ('type', self.type, None),
+            ('tag', self.tag, None),
             ('description', self.description, None),
             ('stacktrace', self.stacktrace, None),
         ],

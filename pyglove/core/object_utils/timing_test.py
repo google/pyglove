@@ -100,8 +100,8 @@ class TimeItTest(unittest.TestCase):
     r = t.status()
     self.assertTrue(r['node'].has_error)
     self.assertTrue(t.has_error)
-    self.assertIsInstance(t.error, ValueError)
-    self.assertIsInstance(r['node'].error, ValueError)
+    self.assertTrue(t.error.tag.startswith('ValueError'))
+    self.assertTrue(r['node'].error.tag.startswith('ValueError'))
     self.assertTrue(r['node.child'].has_error)
     self.assertTrue(t1.has_error)
     self.assertTrue(r['node.child.grandchild'].has_error)
@@ -111,7 +111,7 @@ class TimeItTest(unittest.TestCase):
     summary = timing.TimeIt.StatusSummary()
     self.assertFalse(summary)
     for i in range(10):
-      with timing.timeit('node') as t:
+      with timing.timeit() as t:
         time.sleep(0.1)
         with timing.timeit('child'):
           time.sleep(0.1)
@@ -126,7 +126,7 @@ class TimeItTest(unittest.TestCase):
     self.assertTrue(summary)
     self.assertEqual(
         list(summary.breakdown.keys()),
-        ['node', 'node.child', 'node.child.grandchild']
+        ['', 'child', 'child.grandchild']
     )
     self.assertEqual(
         [x.num_started for x in summary.breakdown.values()],
@@ -139,6 +139,10 @@ class TimeItTest(unittest.TestCase):
     self.assertEqual(
         [x.num_failed for x in summary.breakdown.values()],
         [0, 0, 2]
+    )
+    self.assertEqual(
+        summary.breakdown['child.grandchild'].error_tags,
+        {'ValueError': 2},
     )
     # Test serialization.
     json_dict = summary.to_json()

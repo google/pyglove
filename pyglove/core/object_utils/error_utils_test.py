@@ -36,13 +36,13 @@ class ErrorInfoTest(unittest.TestCase):
     except ValueError as e:
       error_info = error_utils.ErrorInfo.from_exception(e)
     self.assertIsNotNone(error_info)
-    self.assertEqual(error_info.type, 'ValueError.ZeroDivisionError')
+    self.assertEqual(error_info.tag, 'ValueError.ZeroDivisionError')
     self.assertEqual(error_info.description, 'Bad call to `foo`')
     self.assertIn('Traceback (most recent call last)', error_info.stacktrace)
 
   def test_to_json(self):
     error_info = error_utils.ErrorInfo(
-        type='ValueError.ZeroDivisionError',
+        tag='ValueError.ZeroDivisionError',
         description='Bad call to `foo`',
         stacktrace='Traceback (most recent call last)',
     )
@@ -53,7 +53,7 @@ class ErrorInfoTest(unittest.TestCase):
 
   def test_format(self):
     error_info = error_utils.ErrorInfo(
-        type='ValueError.ZeroDivisionError',
+        tag='ValueError.ZeroDivisionError',
         description='Bad call to `foo`',
         stacktrace='Traceback (most recent call last)',
     )
@@ -62,7 +62,7 @@ class ErrorInfoTest(unittest.TestCase):
         inspect.cleandoc(
             """
             ErrorInfo(
-              type='ValueError.ZeroDivisionError',
+              tag='ValueError.ZeroDivisionError',
               description='Bad call to `foo`',
               stacktrace='Traceback (most recent call last)'
             )

@@ -13,10 +13,12 @@
 # limitations under the License.
 """Utilities for timing."""
 
+import collections
 import dataclasses
 import time
 from typing import Any, Dict, List, Optional
 
+from pyglove.core.object_utils import error_utils
 from pyglove.core.object_utils import json_conversion
 from pyglove.core.object_utils import thread_local
 
@@ -30,7 +32,7 @@ class TimeIt:
     name: str
     elapse: float = 0.0
     has_ended: bool = True
-    error: Optional[Exception] = None
+    error: Optional[error_utils.ErrorInfo] = None
 
     @property
     def has_started(self) -> bool:
@@ -66,6 +68,9 @@ class TimeIt:
       num_ended: int = 0
       num_failed: int = 0
       avg_duration: float = 0.0
+      error_tags: Dict[str, int] = dataclasses.field(
+          default_factory=lambda: collections.defaultdict(int)
+      )
 
       def update(self, status: 'TimeIt.Status'):
         self.avg_duration = (
@@ -77,6 +82,8 @@ class TimeIt:
           self.num_ended += 1
         if status.has_error:
           self.num_failed += 1
+          assert status.error is not None
+          self.error_tags[status.error.tag] += 1
 
       def to_json(self, **kwargs) -> Dict[str, Any]:
         return self.to_json_dict(
@@ -85,6 +92,7 @@ class TimeIt:
                 num_ended=(self.num_ended, 0),
                 num_failed=(self.num_failed, 0),
                 avg_duration=(self.avg_duration, 0.0),
+                error_tags=(self.error_tags, {}),
             ),
             exclude_default=True,
             **kwargs,
@@ -113,13 +121,13 @@ class TimeIt:
           **kwargs,
       )
 
-  def __init__(self, name: str):
-    self._name = name
-    self._start_time = None
-    self._end_time = None
-    self._child_contexts = {}
-    self._error = None
-    self._parent = None
+  def __init__(self, name: str = ''):
+    self._name: str = name
+    self._start_time: Optional[float] = None
+    self._end_time: Optional[float] = None
+    self._child_contexts: Dict[str, TimeIt] = {}
+    self._error: Optional[error_utils.ErrorInfo] = None
+    self._parent: Optional[TimeIt] = None
 
   @property
   def name(self) -> str:
@@ -145,7 +153,9 @@ class TimeIt:
     """Ends timing."""
     if not self.has_ended:
       self._end_time = time.time()
-      self._error = error
+      self._error = (
+          None if error is None else error_utils.ErrorInfo.from_exception(error)
+      )
       return True
     return False
 
@@ -170,7 +180,7 @@ class TimeIt:
     return self._end_time
 
   @property
-  def error(self) -> Optional[BaseException]:
+  def error(self) -> Optional[error_utils.ErrorInfo]:
     """Returns error."""
     return self._error
 
@@ -199,7 +209,8 @@ class TimeIt:
     for child in self._child_contexts.values():
       child_result = child.status()
       for k, v in child_result.items():
-        result[f'{self.name}.{k}'] = v
+        key = f'{self.name}.{k}' if self.name else k
+        result[key] = v
     return result
 
   def __enter__(self):
@@ -220,6 +231,6 @@ class TimeIt:
       thread_local.thread_local_set('__timing_context__', self._parent)
 
 
-def timeit(name: str) -> TimeIt:
+def timeit(name: str = '') -> TimeIt:
   """Context manager to time a block of code."""
   return TimeIt(name)
