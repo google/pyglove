@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import pathlib
 import tempfile
 import unittest
 from pyglove.core.io import sequence as sequence_io
@@ -25,7 +24,7 @@ class LineSequenceIOTest(unittest.TestCase):
 
   def test_read_write(self):
     tmp_dir = tempfile.gettempdir()
-    file1 = os.path.join(tmp_dir, 'file1')
+    file1 = os.path.join(tmp_dir, 'abc', 'file1')
     with pg_symbolic.open_jsonl(file1, 'w') as f:
       self.assertIsInstance(f, sequence_io.LineSequence)
       f.add(1)
@@ -73,19 +72,7 @@ class LineSequenceIOTest(unittest.TestCase):
       self.assertEqual(list(iter(f)), ['foo', 'bar'])
 
 
-class MemoryRecordIOIOTest(unittest.TestCase):
-
-  def test_resolve_path(self):
-    self.assertEqual(
-        sequence_io._resolve_path('/file1.mem@123'),
-        '/file1.mem@123'
-    )
-    self.assertEqual(
-        sequence_io._resolve_path(pathlib.Path('/file1.mem@123.txt')),
-        '/file1.mem@123.txt'
-    )
-    with self.assertRaisesRegex(ValueError, 'Unsupported path'):
-      sequence_io._resolve_path(1)
+class MemorySequenceIOTest(unittest.TestCase):
 
   def test_read_write(self):
     with sequence_io.open_sequence('/file1.mem@123', 'w') as f:

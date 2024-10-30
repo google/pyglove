@@ -107,7 +107,7 @@ class _SequenceIORegistry(object):
 
   def get(self, path: Union[str, os.PathLike[str]]) -> SequenceIO:
     """Gets the record IO system for a path."""
-    path = _resolve_path(path)
+    path = file_system.resolve_path(path)
     parts = path.split('.')
     if parts:
       extension = parts[-1].lower()
@@ -126,15 +126,6 @@ def add_sequence_io(extension: str, sequence_io: SequenceIO) -> None:
   _registry.add(extension, sequence_io)
 
 
-def _resolve_path(path: Union[str, os.PathLike[str]]) -> str:
-  if isinstance(path, str):
-    return path
-  elif hasattr(path, '__fspath__'):
-    return path.__fspath__()
-  else:
-    raise ValueError(f'Unsupported path: {path!r}.')
-
-
 def open_sequence(
     path: Union[str, os.PathLike[str]],
     mode: str = 'r',
@@ -145,6 +136,7 @@ def open_sequence(
     deserializer: Optional[
         Callable[[Union[bytes, str]], Any]
     ] = None,
+    make_dirs_if_not_exist: bool = True,
 ) -> Sequence:
   """Open sequence for reading or writing.
 
@@ -155,10 +147,16 @@ def open_sequence(
       object to a string or bytes.
     deserializer: (Optional) A deserializer function for converting a string or
       bytes to a structured object.
+    make_dirs_if_not_exist: (Optional) Whether to create the directories
+      if they do not exist. Applicable when opening in write or append mode.
 
   Returns:
     A sequence for reading or writing.
   """
+  if 'w' in mode or 'a' in mode:
+    parent_dir = os.path.dirname(path)
+    if make_dirs_if_not_exist:
+      file_system.mkdirs(parent_dir, exist_ok=True)
   return _registry.get(path).open(
       path, mode, serializer=serializer, deserializer=deserializer
   )

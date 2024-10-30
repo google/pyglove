@@ -116,7 +116,7 @@ class FileSystem(metaclass=abc.ABCMeta):
     """Removes a directory chain based on a path."""
 
 
-def _resolve_path(path: Union[str, os.PathLike[str]]) -> str:
+def resolve_path(path: Union[str, os.PathLike[str]]) -> str:
   if isinstance(path, str):
     return path
   elif hasattr(path, '__fspath__'):
@@ -243,7 +243,7 @@ class MemoryFileSystem(FileSystem):
     self._prefix = prefix
 
   def _internal_path(self, path: Union[str, os.PathLike[str]]) -> str:
-    return '/' + _resolve_path(path).lstrip(self._prefix)
+    return '/' + resolve_path(path).lstrip(self._prefix)
 
   def _locate(self, path: Union[str, os.PathLike[str]]) -> Any:
     current = self._root
@@ -287,7 +287,7 @@ class MemoryFileSystem(FileSystem):
   def _parent_and_name(
       self, path: Union[str, os.PathLike[str]]
   ) -> tuple[dict[str, Any], str]:
-    path = _resolve_path(path)
+    path = resolve_path(path)
     rpos = path.rfind('/')
     assert rpos >= 0, path
     name = path[rpos + 1:]
@@ -382,7 +382,7 @@ class _FileSystemRegistry:
 
   def get(self, path: Union[str, os.PathLike[str]]) -> FileSystem:
     """Gets the file system for a path."""
-    path = _resolve_path(path)
+    path = resolve_path(path)
     for prefix, fs in self._filesystems:
       if path.startswith(prefix):
         return fs
