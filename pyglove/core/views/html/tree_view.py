@@ -1215,6 +1215,7 @@ class HtmlTreeView(HtmlView):
       parent: Any = None,
       root_path: Optional[KeyPath] = None,
       css_classes: Optional[Sequence[str]] = None,
+      id: Optional[str] = None,  # pylint: disable=redefined-builtin
       content: Union[str, Html, None] = None,
       **kwargs,
   ) -> Html:
@@ -1225,8 +1226,9 @@ class HtmlTreeView(HtmlView):
       parent: The parent of the value.
       root_path: The root path of the value.
       css_classes: CSS classes to add to the HTML element.
+      id: The ID of the tooltip span element. If None, no ID will be added.
       content: The content to render. If None, the value will be rendered.
-      **kwargs: Additional keyword arguments passed from the user that 
+      **kwargs: Additional keyword arguments passed from the user that
         will be ignored.
 
     Returns:
@@ -1248,6 +1250,7 @@ class HtmlTreeView(HtmlView):
     return Html.element(
         'span',
         [content],
+        id=id,
         css_classes=[
             'tooltip',
             css_classes,
@@ -1265,6 +1268,9 @@ class HtmlTreeView(HtmlView):
           border-radius: 6px;
           position: absolute;
           z-index: 1;
+        }
+        span.tooltip:hover {
+          visibility: visible;
         }
         """
     )

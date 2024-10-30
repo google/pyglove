@@ -74,6 +74,9 @@ class TooltipTest(TestCase):
           position: absolute;
           z-index: 1;
         }
+        span.tooltip:hover {
+          visibility: visible;
+        }
         </style>
         """
     )
@@ -121,6 +124,9 @@ class SummaryTest(TestCase):
           border-radius: 6px;
           position: absolute;
           z-index: 1;
+        }
+        span.tooltip:hover {
+          visibility: visible;
         }
         /* Summary styles. */
         details.pyglove summary {
@@ -313,6 +319,9 @@ class ContentTest(TestCase):
           border-radius: 6px;
           position: absolute;
           z-index: 1;
+        }
+        span.tooltip:hover {
+          visibility: visible;
         }
         /* Summary styles. */
         details.pyglove summary {

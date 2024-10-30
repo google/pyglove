@@ -17,7 +17,71 @@ import contextlib
 import dataclasses
 import inspect
 import re
-from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+import sys
+import traceback
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
+
+from pyglove.core.object_utils import formatting
+from pyglove.core.object_utils import json_conversion
+
+
+@dataclasses.dataclass(frozen=True)
+class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
+  """Serializable error information.
+
+  Attributes:
+    type: The type path of the error. For example,
+      `ValueError.ZeroDivisionError` means the error is a `ZeroDivisionError`
+      raised at the first place and then reraised as a `ValueError`.
+    description: The description of the error.
+    stacktrace: The stacktrace of the error.
+  """
+
+  type: str
+  description: str
+  stacktrace: str
+
+  @classmethod
+  def _get_type(cls, error: BaseException):
+    error_types = []
+    while error is not None:
+      error_types.append(error.__class__.__name__)
+      error = getattr(error, 'cause', error.__cause__)
+    return '.'.join(error_types)
+
+  @classmethod
+  def from_exception(cls, error: BaseException) -> 'ErrorInfo':
+    """Creates an error info from an exception."""
+    return cls(
+        type=cls._get_type(error),
+        description=str(error),
+        stacktrace=''.join(
+            traceback.format_exception(*sys.exc_info())
+        )
+    )
+
+  def to_json(self, **kwargs) -> Dict[str, Any]:
+    return self.to_json_dict(
+        fields=dict(
+            type=(self.type, None),
+            description=(self.description, None),
+            stacktrace=(self.stacktrace, None),
+        ),
+        exclude_default=True,
+        **kwargs,
+    )
+
+  def format(self, *args, **kwargs) -> str:
+    return formatting.kvlist_str(
+        [
+            ('type', self.type, None),
+            ('description', self.description, None),
+            ('stacktrace', self.stacktrace, None),
+        ],
+        *args,
+        label=self.__class__.__name__,
+        **kwargs,
+    )
 
 
 @dataclasses.dataclass()

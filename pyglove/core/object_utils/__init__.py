@@ -154,10 +154,11 @@ from pyglove.core.object_utils.docstr_utils import docstr
 # Handling exceptions.
 from pyglove.core.object_utils.error_utils import catch_errors
 from pyglove.core.object_utils.error_utils import CatchErrorsContext
+from pyglove.core.object_utils.error_utils import ErrorInfo
 
-# Profiling
-from pyglove.core.object_utils.profiling import timeit
-from pyglove.core.object_utils.profiling import TimeIt
+# Timing.
+from pyglove.core.object_utils.timing import timeit
+from pyglove.core.object_utils.timing import TimeIt
 
 # pylint: enable=g-importing-member
 # pylint: enable=g-bad-import-order

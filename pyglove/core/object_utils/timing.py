@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Utilities for profiling."""
+"""Utilities for timing."""
 
 import dataclasses
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
+from pyglove.core.object_utils import json_conversion
 from pyglove.core.object_utils import thread_local
 
 
@@ -24,12 +25,12 @@ class TimeIt:
   """Context manager for timing the execution of a code block."""
 
   @dataclasses.dataclass(frozen=True)
-  class Status:
+  class Status(json_conversion.JSONConvertible):
     """Status of a single `pg.timeit`."""
     name: str
-    elapse: float
-    has_ended: bool
-    error: Optional[Exception]
+    elapse: float = 0.0
+    has_ended: bool = True
+    error: Optional[Exception] = None
 
     @property
     def has_started(self) -> bool:
@@ -41,12 +42,24 @@ class TimeIt:
       """Returns whether the context has error."""
       return self.error is not None
 
+    def to_json(self, **kwargs) -> Dict[str, Any]:
+      return self.to_json_dict(
+          fields=dict(
+              name=(self.name, None),
+              elapse=(self.elapse, 0.0),
+              has_ended=(self.has_ended, True),
+              error=(self.error, None),
+          ),
+          exclude_default=True,
+          **kwargs,
+      )
+
   @dataclasses.dataclass
-  class StatusSummary:
+  class StatusSummary(json_conversion.JSONConvertible):
     """Aggregated summary for repeated calls for `pg.timeit`."""
 
     @dataclasses.dataclass
-    class Entry:
+    class Entry(json_conversion.JSONConvertible):
       """Aggregated status from the `pg.timeit` calls of the same name."""
 
       num_started: int = 0
@@ -65,15 +78,40 @@ class TimeIt:
         if status.has_error:
           self.num_failed += 1
 
+      def to_json(self, **kwargs) -> Dict[str, Any]:
+        return self.to_json_dict(
+            fields=dict(
+                num_started=(self.num_started, 0),
+                num_ended=(self.num_ended, 0),
+                num_failed=(self.num_failed, 0),
+                avg_duration=(self.avg_duration, 0.0),
+            ),
+            exclude_default=True,
+            **kwargs,
+        )
+
     breakdown: dict[str, 'TimeIt.StatusSummary.Entry'] = (
         dataclasses.field(default_factory=dict)
     )
 
-    def aggregate(self, timeit_obj: 'TimeIt'):
-      for k, v in timeit_obj.status().items():
+    def __bool__(self) -> bool:
+      """Returns True if the summary is non-empty."""
+      return bool(self.breakdown)
+
+    def aggregate(self, timeit_status: Dict[str, 'TimeIt.Status']):
+      for k, v in timeit_status.items():
         if k not in self.breakdown:
           self.breakdown[k] = TimeIt.StatusSummary.Entry()
         self.breakdown[k].update(v)
+
+    def to_json(self, **kwargs) -> Dict[str, Any]:
+      return self.to_json_dict(
+          fields=dict(
+              breakdown=(self.breakdown, {}),
+          ),
+          exclude_default=True,
+          **kwargs,
+      )
 
   def __init__(self, name: str):
     self._name = name

@@ -15,14 +15,15 @@
 import time
 import unittest
 
-from pyglove.core.object_utils import profiling
+from pyglove.core.object_utils import json_conversion
+from pyglove.core.object_utils import timing
 
 
 class TimeItTest(unittest.TestCase):
   """Tests for `pg.symbolic.thread_local`."""
 
   def test_basics(self):
-    tc = profiling.TimeIt('node')
+    tc = timing.TimeIt('node')
     self.assertFalse(tc.has_started)
     self.assertEqual(tc.elapse, 0)
 
@@ -37,7 +38,7 @@ class TimeItTest(unittest.TestCase):
     self.assertEqual(tc.elapse, elapse1)
 
   def test_timeit(self):
-    with profiling.timeit('node') as t:
+    with timing.timeit('node') as t:
       self.assertEqual(t.name, 'node')
       self.assertIsNotNone(t.start_time)
       self.assertTrue(t.has_started)
@@ -46,9 +47,9 @@ class TimeItTest(unittest.TestCase):
       time.sleep(0.5)
       elapse1 = t.elapse
       self.assertEqual(t.children, [])
-      with profiling.timeit('child') as t1:
+      with timing.timeit('child') as t1:
         time.sleep(0.5)
-        with profiling.timeit('grandchild') as t2:
+        with timing.timeit('grandchild') as t2:
           time.sleep(0.5)
 
         self.assertEqual(t.children, [t1])
@@ -63,7 +64,7 @@ class TimeItTest(unittest.TestCase):
         self.assertTrue(r['node.child.grandchild'].has_ended)
 
         with self.assertRaisesRegex(ValueError, '.* already exists'):
-          with profiling.timeit('grandchild'):
+          with timing.timeit('grandchild'):
             pass
 
     elapse2 = t.elapse
@@ -83,12 +84,17 @@ class TimeItTest(unittest.TestCase):
     )
     self.assertTrue(all(v.has_ended for v in statuss.values()))
     self.assertFalse(any(v.has_error for v in statuss.values()))
+    status = t.status()
+    json_dict = json_conversion.to_json(status)
+    status2 = json_conversion.from_json(json_dict)
+    self.assertIsNot(status2, status)
+    self.assertEqual(status2, status)
 
   def test_timeit_with_error(self):
     with self.assertRaises(ValueError):
-      with profiling.timeit('node') as t:
-        with profiling.timeit('child') as t1:
-          with profiling.timeit('grandchild') as t2:
+      with timing.timeit('node') as t:
+        with timing.timeit('child') as t1:
+          with timing.timeit('grandchild') as t2:
             raise ValueError('error')
 
     r = t.status()
@@ -102,20 +108,22 @@ class TimeItTest(unittest.TestCase):
     self.assertTrue(t2.has_error)
 
   def test_timeit_summary(self):
-    summary = profiling.TimeIt.StatusSummary()
+    summary = timing.TimeIt.StatusSummary()
+    self.assertFalse(summary)
     for i in range(10):
-      with profiling.timeit('node') as t:
+      with timing.timeit('node') as t:
         time.sleep(0.1)
-        with profiling.timeit('child'):
+        with timing.timeit('child'):
           time.sleep(0.1)
           try:
-            with profiling.timeit('grandchild'):
+            with timing.timeit('grandchild'):
               time.sleep(0.1)
               if i < 2:
                 raise ValueError('error')
           except ValueError:
             pass
-      summary.aggregate(t)
+      summary.aggregate(t.status())
+    self.assertTrue(summary)
     self.assertEqual(
         list(summary.breakdown.keys()),
         ['node', 'node.child', 'node.child.grandchild']
@@ -132,6 +140,11 @@ class TimeItTest(unittest.TestCase):
         [x.num_failed for x in summary.breakdown.values()],
         [0, 0, 2]
     )
+    # Test serialization.
+    json_dict = summary.to_json()
+    summary2 = timing.TimeIt.StatusSummary.from_json(json_dict)
+    self.assertIsNot(summary2, summary)
+    self.assertEqual(summary2.breakdown, summary.breakdown)
 
 
 if __name__ == '__main__':

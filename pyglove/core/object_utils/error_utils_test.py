@@ -11,10 +11,64 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.object_utils.error_utils."""
-
+import inspect
 import unittest
 from pyglove.core.object_utils import error_utils
+
+
+class ErrorInfoTest(unittest.TestCase):
+  """Tests for ErrorInfo."""
+
+  def test_from_exception(self):
+
+    def foo():
+      return 1 / 0
+
+    def bar():
+      try:
+        foo()
+      except ZeroDivisionError as e:
+        raise ValueError('Bad call to `foo`') from e
+
+    error_info = None
+    try:
+      bar()
+    except ValueError as e:
+      error_info = error_utils.ErrorInfo.from_exception(e)
+    self.assertIsNotNone(error_info)
+    self.assertEqual(error_info.type, 'ValueError.ZeroDivisionError')
+    self.assertEqual(error_info.description, 'Bad call to `foo`')
+    self.assertIn('Traceback (most recent call last)', error_info.stacktrace)
+
+  def test_to_json(self):
+    error_info = error_utils.ErrorInfo(
+        type='ValueError.ZeroDivisionError',
+        description='Bad call to `foo`',
+        stacktrace='Traceback (most recent call last)',
+    )
+    json_dict = error_info.to_json()
+    error_info2 = error_utils.ErrorInfo.from_json(json_dict)
+    self.assertIsNot(error_info2, error_info)
+    self.assertEqual(error_info2, error_info)
+
+  def test_format(self):
+    error_info = error_utils.ErrorInfo(
+        type='ValueError.ZeroDivisionError',
+        description='Bad call to `foo`',
+        stacktrace='Traceback (most recent call last)',
+    )
+    self.assertEqual(
+        error_info.format(compact=False),
+        inspect.cleandoc(
+            """
+            ErrorInfo(
+              type='ValueError.ZeroDivisionError',
+              description='Bad call to `foo`',
+              stacktrace='Traceback (most recent call last)'
+            )
+            """
+        )
+    )
 
 
 class CatchErrorsTest(unittest.TestCase):

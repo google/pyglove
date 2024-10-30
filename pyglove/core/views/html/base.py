@@ -333,7 +333,11 @@ class Html(base.Content):
     return s
 
   @classmethod
-  def escape(cls, s: WritableTypes) -> WritableTypes:
+  def escape(
+      cls,
+      s: WritableTypes,
+      javascript_str: bool = False
+  ) -> WritableTypes:
     """Escapes an HTML writable object."""
     if s is None:
       return None
@@ -341,11 +345,22 @@ class Html(base.Content):
     if callable(s):
       s = s()
 
-    if isinstance(s, str):
+    def _escape(s: str) -> str:
+      if javascript_str:
+        return (
+            s.replace('\\', '\\\\')
+            .replace('"', '\\"')
+            .replace('\r', '\\r')
+            .replace('\n', '\\n')
+            .replace('\t', '\\t')
+        )
       return html_lib.escape(s)
+
+    if isinstance(s, str):
+      return _escape(s)
     else:
       assert isinstance(s, Html), s
-      return Html(html_lib.escape(s.content)).write(
+      return Html(_escape(s.content)).write(
           s, shared_parts_only=True
       )
 

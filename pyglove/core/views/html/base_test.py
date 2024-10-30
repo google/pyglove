@@ -695,6 +695,8 @@ class HtmlTest(TestCase):
     self.assertEqual(Html.escape('foo"bar'), 'foo&quot;bar')
     self.assertEqual(Html.escape(Html('foo"bar')), Html('foo&quot;bar'))
     self.assertEqual(Html.escape(lambda: 'foo"bar'), 'foo&quot;bar')
+    self.assertEqual(Html.escape('"x=y"', javascript_str=True), '\\"x=y\\"')
+    self.assertEqual(Html.escape('x\n"', javascript_str=True), 'x\\n\\"')
 
   def test_concate(self):
     self.assertIsNone(Html.concate(None))
