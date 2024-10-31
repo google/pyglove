@@ -2041,13 +2041,16 @@ def contains(
   return not traverse(x, _contains)
 
 
-def from_json(json_value: Any,
-              *,
-              allow_partial: bool = False,
-              root_path: Optional[object_utils.KeyPath] = None,
-              auto_import: bool = True,
-              auto_dict: bool = False,
-              **kwargs) -> Any:
+def from_json(
+    json_value: Any,
+    *,
+    allow_partial: bool = False,
+    root_path: Optional[object_utils.KeyPath] = None,
+    auto_import: bool = True,
+    auto_dict: bool = False,
+    value_spec: Optional[pg_typing.ValueSpec] = None,
+    **kwargs
+) -> Any:
   """Deserializes a (maybe) symbolic value from JSON value.
 
   Example::
@@ -2073,6 +2076,7 @@ def from_json(json_value: Any,
       find the class 'A' within the imported module.
     auto_dict: If True, dict with '_type' that cannot be loaded will remain
       as dict, with '_type' renamed to 'type_name'.
+    value_spec: The value spec for the symbolic list or dict.
     **kwargs: Allow passing through keyword arguments to from_json of specific
       types.
 
@@ -2093,10 +2097,15 @@ def from_json(json_value: Any,
         json_value, auto_import=auto_import, auto_dict=auto_dict
     )
 
-  kwargs.update({
-      'allow_partial': allow_partial,
-      'root_path': root_path,
-  })
+  def _load_child(k, v):
+    return from_json(
+        v,
+        root_path=object_utils.KeyPath(k, root_path),
+        _typename_resolved=True,
+        allow_partial=allow_partial,
+        **kwargs
+    )
+
   if isinstance(json_value, list):
     if (json_value
         and json_value[0] == object_utils.JSONConvertible.TUPLE_MARKER):
@@ -2106,21 +2115,25 @@ def from_json(json_value: Any,
                 f'Tuple should have at least one element '
                 f'besides \'{object_utils.JSONConvertible.TUPLE_MARKER}\'. '
                 f'Encountered: {json_value}', root_path))
-      kwargs.pop('root_path')
-      return tuple([
-          from_json(
-              v,
-              root_path=object_utils.KeyPath(i, root_path),
-              _typename_resolved=True,
-              **kwargs
-          )
-          for i, v in enumerate(json_value[1:])
-      ])
-    return Symbolic.ListType(json_value, **kwargs)  # pytype: disable=not-callable   # pylint: disable=not-callable
+      return tuple(_load_child(i, v) for i, v in enumerate(json_value[1:]))
+    return Symbolic.ListType(    # pytype: disable=not-callable   # pylint: disable=not-callable
+        [_load_child(i, v) for i, v in enumerate(json_value)],
+        value_spec=value_spec,
+        root_path=root_path,
+        allow_partial=allow_partial,
+    )
   elif isinstance(json_value, dict):
     if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
-      return Symbolic.DictType.from_json(json_value, **kwargs)
-    return object_utils.from_json(json_value, _typename_resolved=True, **kwargs)
+      return Symbolic.DictType(
+          {k: _load_child(k, v) for k, v in json_value.items()},
+          value_spec=value_spec,
+          root_path=root_path,
+          allow_partial=allow_partial,
+      )
+    return object_utils.from_json(
+        json_value, _typename_resolved=True,
+        root_path=root_path, allow_partial=allow_partial, **kwargs
+    )
   return json_value
 
 

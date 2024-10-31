@@ -202,9 +202,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     Returns:
       An instance of cls.
     """
-    del kwargs
     assert isinstance(json_value, dict)
-    init_args = {k: from_json(v) for k, v in json_value.items()
+    init_args = {k: from_json(v, **kwargs) for k, v in json_value.items()
                  if k != JSONConvertible.TYPE_NAME_KEY}
     return cls(**init_args)
 
