@@ -152,10 +152,19 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         # Not okay:
         d.a.f2.abc = 1
     """
-    return cls(json_value,
-               value_spec=value_spec,
-               allow_partial=allow_partial,
-               root_path=root_path)
+    return cls(
+        {
+            k: base.from_json(
+                v,
+                root_path=object_utils.KeyPath(k, root_path),
+                allow_partial=allow_partial,
+                **kwargs
+            ) for k, v in json_value.items()
+        },
+        value_spec=value_spec,
+        root_path=root_path,
+        allow_partial=allow_partial,
+    )
 
   def __init__(self,
                dict_obj: Union[

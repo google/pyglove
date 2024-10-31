@@ -132,10 +132,19 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     Returns:
       A schema-less symbolic list, but its items maybe symbolic.
     """
-    return cls(json_value,
-               value_spec=value_spec,
-               allow_partial=allow_partial,
-               root_path=root_path)
+    return cls(
+        [
+            base.from_json(
+                v,
+                root_path=object_utils.KeyPath(i, root_path),
+                allow_partial=allow_partial,
+                **kwargs
+            ) for i, v in enumerate(json_value)
+        ],
+        value_spec=value_spec,
+        root_path=root_path,
+        allow_partial=allow_partial,
+    )
 
   def __init__(
       self,

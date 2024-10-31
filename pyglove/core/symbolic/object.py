@@ -543,7 +543,9 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       json_value: Any,
       *,
       allow_partial: bool = False,
-      root_path: Optional[object_utils.KeyPath] = None) -> 'Object':
+      root_path: Optional[object_utils.KeyPath] = None,
+      **kwargs
+  ) -> 'Object':
     """Class method that load an symbolic Object from a JSON value.
 
     Example::
@@ -580,12 +582,13 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       json_value: Input JSON value, only JSON dict is acceptable.
       allow_partial: Whether to allow elements of the list to be partial.
       root_path: KeyPath of loaded object in its object tree.
+      **kwargs: Additional keyword arguments to pass through.
 
     Returns:
       A symbolic Object instance.
     """
     return cls(allow_partial=allow_partial, root_path=root_path, **{
-        k: base.from_json(v, allow_partial=allow_partial)
+        k: base.from_json(v, allow_partial=allow_partial, **kwargs)
         for k, v in json_value.items()
     })
 

@@ -2116,19 +2116,21 @@ def from_json(
                 f'besides \'{object_utils.JSONConvertible.TUPLE_MARKER}\'. '
                 f'Encountered: {json_value}', root_path))
       return tuple(_load_child(i, v) for i, v in enumerate(json_value[1:]))
-    return Symbolic.ListType(    # pytype: disable=not-callable   # pylint: disable=not-callable
-        [_load_child(i, v) for i, v in enumerate(json_value)],
+    return Symbolic.ListType.from_json(    # pytype: disable=attribute-error
+        json_value,
         value_spec=value_spec,
         root_path=root_path,
         allow_partial=allow_partial,
+        **kwargs,
     )
   elif isinstance(json_value, dict):
     if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
-      return Symbolic.DictType(
-          {k: _load_child(k, v) for k, v in json_value.items()},
+      return Symbolic.DictType.from_json(   # pytype: disable=attribute-error
+          json_value,
           value_spec=value_spec,
           root_path=root_path,
           allow_partial=allow_partial,
+          **kwargs,
       )
     return object_utils.from_json(
         json_value, _typename_resolved=True,
