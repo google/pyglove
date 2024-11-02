@@ -11,9 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.core.typing.value_specs."""
-
 import contextlib
+import datetime
 import inspect
 import sys
 import typing
@@ -3141,6 +3140,15 @@ class UnionTest(ValueSpecTest):
       with self.assertRaisesRegex(TypeError, 'Expect .* but encountered .*'):
         _ = v.apply('foo')
 
+    # Union with strong-type and non-strong-type candidates.
+    self.assertEqual(
+        vs.Union([typing.Callable[[int], int], str]).apply('foo'), 'foo'
+    )
+    # Union with type conversion.
+    self.assertIsInstance(
+        vs.Union([int, str]).apply(datetime.datetime.now()), int
+    )
+
     # Bad cases.
     with self.assertRaisesRegex(ValueError, 'Value cannot be None'):
       vs.Union([vs.Int(), vs.Str()]).apply(None)
@@ -3148,6 +3156,11 @@ class UnionTest(ValueSpecTest):
     with self.assertRaisesRegex(
         TypeError, 'Expect \\(.*\\) but encountered <(type|class) \'list\'>.'):
       vs.Union([vs.Int(), vs.Str()]).apply([])
+
+    with self.assertRaisesRegex(
+        TypeError, '1 does not match any candidate of .*'
+    ):
+      vs.Union([typing.Callable[[int], int], str]).apply(1)
 
   def test_is_compatible(self):
     self.assertTrue(

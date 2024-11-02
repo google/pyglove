@@ -2612,35 +2612,53 @@ class Union(Generic, ValueSpecBase):
              ],
              root_path: object_utils.KeyPath) -> typing.Any:
     """Union specific apply."""
+    # Match strong-typed candidates first.
+    if not self.type_resolved:
+      return value
+
     for c in self._candidates:
-      if (c.type_resolved
-          and (c.value_type is None or isinstance(value, c.value_type))):
+      if c.value_type is not None and isinstance(value, c.value_type):
         return c.apply(
             value,
             allow_partial=allow_partial,
             child_transform=child_transform,
-            root_path=root_path)
+            root_path=root_path
+        )
+
+    def _try_candidate(c, value) -> typing.Tuple[typing.Any, bool]:
+      try:
+        return c.apply(
+            value, allow_partial=allow_partial,
+            child_transform=child_transform, root_path=root_path
+        ), True
+      except TypeError:
+        return value, False
+
+    # Match non-strong-typed candidates (e.g. Callable).
+    for c in self._candidates:
+      if c.value_type is None:
+        value, success = _try_candidate(c, value)
+        if success:
+          return value
 
     # NOTE(daiyip): This code is to support consider A as B scenario when there
     # is a converter from A to B (converter may return value that is not B). A
     # use case is that tf.Variable is not a tf.Tensor, but value spec of
     # tf.Tensor should be able to accept tf.Variable.
-    matched_candidate = None
     for c in self._candidates:
-      if c.type_resolved and type_conversion.get_converter(
-          type(value), c.value_type) is not None:
-        matched_candidate = c
-        break
-
-    if self.type_resolved:
-      # `_apply` is entered only when there is a type match or conversion path.
-      assert matched_candidate is not None
-      return matched_candidate.apply(
-          value, allow_partial, child_transform, root_path)
-
-    # Return value directly if the forward declaration of the current union
-    # is unsolved.
-    return value
+      if c.value_type is None:
+        continue
+      converter = type_conversion.get_converter(type(value), c.value_type)
+      if converter is not None:
+        return c.apply(
+            converter(value),
+            allow_partial=allow_partial,
+            child_transform=child_transform,
+            root_path=root_path
+        )
+    raise TypeError(
+        f'{value!r} does not match any candidate of {self!r}.'
+    )
 
   def _extend(self, base: 'Union') -> None:
     """Union specific extension."""
