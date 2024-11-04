@@ -20,10 +20,10 @@ from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic.object import Object
-from pyglove.core.views import html
+from pyglove.core.views.html import tree_view
 
 
-class Ref(Object, base.Inferential):
+class Ref(Object, base.Inferential, tree_view.HtmlTreeView.Extension):
   """Symbolic reference.
 
   When adding a symbolic node to a symbolic tree, it undergoes a copy operation
@@ -167,17 +167,17 @@ class Ref(Object, base.Inferential):
   def _html_tree_view_content(
       self,
       *,
-      view: html.HtmlTreeView,
-      **kwargs: Any) -> html.Html:
+      view: tree_view.HtmlTreeView,
+      **kwargs: Any) -> tree_view.Html:
     """Overrides `_html_content` to render the referenced value."""
     return view.content(self._value, **kwargs)
 
   def _html_tree_view_summary(
       self,
       *,
-      view: html.HtmlTreeView,
+      view: tree_view.HtmlTreeView,
       title: Optional[str] = None,
-      **kwargs: Any) -> Optional[html.Html]:
+      **kwargs: Any) -> Optional[tree_view.Html]:
     """Overrides `_html_content` to render the referenced value."""
     return view.summary(
         self,
@@ -188,7 +188,7 @@ class Ref(Object, base.Inferential):
   @classmethod
   @functools.cache
   def _html_tree_view_config(cls) -> dict[str, Any]:
-    return html.HtmlTreeView.get_kwargs(
+    return tree_view.HtmlTreeView.get_kwargs(
         super()._html_tree_view_config(),
         dict(
             css_classes=['ref'],

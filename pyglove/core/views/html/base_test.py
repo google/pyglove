@@ -422,6 +422,10 @@ class SharedPartTest(TestCase):
 
 class HtmlTest(TestCase):
 
+  class Foo(base.HtmlConvertible):
+    def to_html(self, **kwargs):
+      return base.Html('<h1>foo</h1>')
+
   def test_content_init(self):
     html = Html()
     self.assertEqual(html, Html())
@@ -445,6 +449,9 @@ class HtmlTest(TestCase):
         Html('ghi')
     )
     self.assertEqual(html, Html('abcdefghi'))
+
+    html = Html(HtmlTest.Foo())
+    self.assertEqual(html, Html('<h1>foo</h1>'))
 
   def test_basics(self):
     html = Html(
@@ -583,7 +590,7 @@ class HtmlTest(TestCase):
     html2.write('<div class="c">bar</div>')
     html2.write('\n<script>\nconsole.log("bar");\n</script>')
 
-    html1.write('<div class="a">foo</div>')
+    html1.write(HtmlTest.Foo())
     html1.write('\n<script>\nconsole.log("foo");\n</script>\n')
     html1.write(html2)
 
@@ -603,7 +610,7 @@ class HtmlTest(TestCase):
         </script>
         </head>
         <body>
-        <div class="a">foo</div>
+        <h1>foo</h1>
         <script>
         console.log("foo");
         </script>
@@ -618,7 +625,7 @@ class HtmlTest(TestCase):
     self.assert_html(
         html1.to_str(content_only=True),
         """
-        <div class="a">foo</div>
+        <h1>foo</h1>
         <script>
         console.log("foo");
         </script>
@@ -641,6 +648,8 @@ class HtmlTest(TestCase):
     html2 = Html.from_value(html, copy=True)
     self.assertIsNot(html2, html)
     self.assertEqual(html2, html)
+    html3 = Html.from_value(HtmlTest.Foo())
+    self.assertEqual(html3, Html('<h1>foo</h1>'))
 
     with self.assertRaises(TypeError):
       Html.from_value(1)
@@ -694,9 +703,13 @@ class HtmlTest(TestCase):
     self.assertEqual(Html.escape('foo'), 'foo')
     self.assertEqual(Html.escape('foo"bar'), 'foo&quot;bar')
     self.assertEqual(Html.escape(Html('foo"bar')), Html('foo&quot;bar'))
+    self.assertEqual(Html.escape(HtmlTest.Foo()), Html('&lt;h1&gt;foo&lt;/h1&gt;'))
     self.assertEqual(Html.escape(lambda: 'foo"bar'), 'foo&quot;bar')
     self.assertEqual(Html.escape('"x=y"', javascript_str=True), '\\"x=y\\"')
     self.assertEqual(Html.escape('x\n"', javascript_str=True), 'x\\n\\"')
+    self.assertEqual(
+        Html.escape(HtmlTest.Foo(), javascript_str=True), Html('<h1>foo</h1>')
+    )
 
   def test_concate(self):
     self.assertIsNone(Html.concate(None))

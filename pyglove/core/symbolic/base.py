@@ -31,7 +31,7 @@ from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
-from pyglove.core.views import html
+from pyglove.core.views.html.base import HtmlConvertible
 
 
 class WritePermissionError(Exception):
@@ -175,7 +175,7 @@ class Symbolic(
     object_utils.Formattable,
     object_utils.JSONConvertible,
     object_utils.MaybePartial,
-    html.HtmlTreeView.Extension
+    HtmlConvertible,
 ):
   """Base for all symbolic types.
 
@@ -948,42 +948,6 @@ class Symbolic(
   def to_json_str(self, json_indent: Optional[int] = None, **kwargs) -> str:
     """Serializes current object into a JSON string."""
     return to_json_str(self, json_indent=json_indent, **kwargs)
-
-  def _html_tree_view_content(
-      self,
-      *,
-      view: html.HtmlTreeView,
-      name: Optional[str] = None,
-      parent: Any = None,
-      root_path: Optional[object_utils.KeyPath] = None,
-      extra_flags: Optional[Dict[str, Any]],
-      **kwargs,
-  ) -> html.Html:
-    """Returns the content HTML for a symbolic object.."""
-    extra_flags = extra_flags or {}
-    hide_frozen = extra_flags.get('hide_frozen', True)
-    hide_default_values = extra_flags.get('hide_default_values', False)
-    use_inferred = extra_flags.get('use_inferred', False)
-
-    kv = {}
-    for k, v in self.sym_items():
-      # Apply frozen filter.
-      field = self.sym_attr_field(k)
-      if hide_frozen and field and field.frozen:
-        continue
-
-      # Apply inferred value.
-      if use_inferred and isinstance(v, Inferential):
-        v = self.sym_inferred(k, default=v)
-
-      # Apply default value filter.
-      if field and hide_default_values and eq(v, field.default_value):
-        continue
-      kv[k] = v
-    return view.complex_value(
-        kv, name=name, parent=self, root_path=root_path,
-        extra_flags=extra_flags, **kwargs
-    )
 
   @classmethod
   def load(cls, *args, **kwargs) -> Any:

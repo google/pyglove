@@ -17,6 +17,7 @@ import inspect
 from typing import Any, Callable, Dict, Iterable, Literal, Optional, Sequence, Tuple, Union
 
 from pyglove.core import object_utils
+from pyglove.core.symbolic import base as pg_symbolic
 from pyglove.core.views.html import base
 
 
@@ -192,7 +193,7 @@ class HtmlTreeView(HtmlView):
   # NOTE(daiyip): update `get_kwargs()` and `get_passthrough_kwargs()` when new
   # arguments are added.
   @HtmlView.extension_method('_html_tree_view_render')
-  def render(
+  def _render(
       self,
       value: Any,
       *,
@@ -855,8 +856,27 @@ class HtmlTreeView(HtmlView):
       The rendered HTML as the main content of the value.
     """
     root_path = root_path or KeyPath()
+    if isinstance(value, pg_symbolic.Symbolic):
+      extra_flags = extra_flags or {}
+      hide_frozen = extra_flags.get('hide_frozen', True)
+      hide_default_values = extra_flags.get('hide_default_values', False)
+      use_inferred = extra_flags.get('use_inferred', False)
+      items = {}
+      for k, v in value.sym_items():
+        # Apply frozen filter.
+        field = value.sym_attr_field(k)
+        if hide_frozen and field and field.frozen:
+          continue
 
-    if isinstance(value, (tuple, list)):
+        # Apply inferred value.
+        if use_inferred and isinstance(v, pg_symbolic.Inferential):
+          v = value.sym_inferred(k, default=v)
+
+        # Apply default value filter.
+        if field and hide_default_values and v == field.default_value:
+          continue
+        items[k] = v
+    elif isinstance(value, (tuple, list)):
       items = {i: v for i, v in enumerate(value)}
     elif isinstance(value, dict):
       items = value
@@ -1278,8 +1298,6 @@ class HtmlTreeView(HtmlView):
   @staticmethod
   def css_class_name(value: Any) -> Optional[str]:
     """Returns the CSS class name for the value."""
-    # if isinstance(value, HtmlTreeView.Extension):
-    #   return Html.concate(value._html_element_class())  # pylint: disable=protected-access
     if inspect.isclass(value):
       class_name = f'{value.__name__}-class'
     else:

@@ -21,10 +21,10 @@ from pyglove.core.symbolic import base
 from pyglove.core.symbolic import list as pg_list
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
-from pyglove.core.views import html
+from pyglove.core.views.html import tree_view
 
 
-class Diff(PureSymbolic, pg_object.Object):
+class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
   """A value diff between two objects: a 'left' object and a 'right' object.
 
   If one of them is missing, it may be represented by pg.Diff.MISSING
@@ -149,12 +149,12 @@ class Diff(PureSymbolic, pg_object.Object):
   def _html_tree_view_summary(
       self,
       *,
-      view: html.HtmlTreeView,
+      view: tree_view.HtmlTreeView,
       css_classes: Optional[Sequence[str]] = None,
       title: Optional[str] = None,
       max_summary_len_for_str: int = 80,
       **kwargs,
-    ) -> Optional[html.Html]:
+    ) -> Optional[tree_view.Html]:
   # pytype: enable=annotation-type-mismatch
     if not bool(self):
       v = self.value
@@ -197,15 +197,16 @@ class Diff(PureSymbolic, pg_object.Object):
   def _html_tree_view_content(
       self,
       *,
-      view: html.HtmlTreeView,
-      parent: Any,
-      root_path: object_utils.KeyPath,
+      view: tree_view.HtmlTreeView,
+      parent: Any = None,
+      root_path: Optional[object_utils.KeyPath] = None,
       css_classes: Optional[Sequence[str]] = None,
       **kwargs
-  ) -> html.Html:
+  ) -> tree_view.Html:
+    root_path = root_path or object_utils.KeyPath()
     if not bool(self):
       if self.value == Diff.MISSING:
-        root = html.Html.element(
+        root = tree_view.Html.element(
             'span',
             # CSS class already defined in HtmlTreeView.
             css_classes=['diff-empty']
@@ -219,7 +220,7 @@ class Diff(PureSymbolic, pg_object.Object):
             **kwargs,
         )
     elif self.is_leaf:
-      root = html.Html.element(
+      root = tree_view.Html.element(
           'div',
           [
               view.render(   # pylint: disable=g-long-ternary
@@ -242,7 +243,7 @@ class Diff(PureSymbolic, pg_object.Object):
       else:
         key_fn = lambda k: k
 
-      s = html.Html()
+      s = tree_view.Html()
       for k, v in self.children.items():
         k = key_fn(k)
         child_path = root_path + k
@@ -263,7 +264,7 @@ class Diff(PureSymbolic, pg_object.Object):
             ),
             '</td></tr>'
         )
-      root = html.Html.element(
+      root = tree_view.Html.element(
           'div',
           [
               '<table>', s, '</table>'
@@ -275,7 +276,7 @@ class Diff(PureSymbolic, pg_object.Object):
     return root
 
   def _html_tree_view_config(self) -> dict[str, Any]:
-    return html.HtmlTreeView.get_kwargs(
+    return tree_view.HtmlTreeView.get_kwargs(
         super()._html_tree_view_config(),
         dict(
             css_classes=[

@@ -852,6 +852,12 @@ class ContentTest(TestCase):
 
 class RenderTest(TestCase):
 
+  def test_render_html_convertible(self):
+    class Foo(base.HtmlConvertible):
+      def to_html(self, **kwargs):
+        return base.Html('<span>foo</span>')
+    self.assert_content(base.to_html(Foo()), '<span>foo</span>')
+
   def test_render(self):
     class Foo:
       def __str__(self):

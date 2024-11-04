@@ -17,6 +17,7 @@
 # pylint: disable=g-bad-import-order
 
 from pyglove.core.views.html.base import Html
+from pyglove.core.views.html.base import HtmlConvertible
 from pyglove.core.views.html.base import HtmlView
 from pyglove.core.views.html.base import to_html
 from pyglove.core.views.html.base import to_html_str

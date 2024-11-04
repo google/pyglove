@@ -39,6 +39,7 @@ from pyglove.core.symbolic.object import use_init_args as pg_use_init_args
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
+from pyglove.core.views.html import tree_view  # pylint: disable=unused-import
 
 
 MISSING_VALUE = object_utils.MISSING_VALUE

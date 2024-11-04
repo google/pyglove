@@ -86,7 +86,8 @@ class Html(base.Content):
   WritableTypes = Union[    # pylint: disable=invalid-name
       str,
       'Html',
-      Callable[[], Union[str, 'Html', None]],
+      'HtmlConvertible',
+      Callable[[], Union[str, 'Html', 'HtmlConvertible', None]],
       None
   ]
 
@@ -274,6 +275,20 @@ class Html(base.Content):
         Html, super().from_value(value, copy=copy)
     )
 
+  @classmethod
+  def _to_content(
+      cls, value: WritableTypes
+  ) -> Union['Html', str, None]:
+    if callable(value):
+      value = value()
+    if value is None:
+      return None
+    elif isinstance(value, HtmlConvertible):
+      value = value.to_html()
+    elif not isinstance(value, (str, cls)):
+      raise TypeError(f'Not a writable value for `{cls.__name__}`: {value!r}')
+    return value
+
   #
   # Helper methods for creating templated Html objects.
   #
@@ -337,13 +352,15 @@ class Html(base.Content):
       cls,
       s: WritableTypes,
       javascript_str: bool = False
-  ) -> WritableTypes:
+  ) -> Union[str, 'Html', None]:
     """Escapes an HTML writable object."""
     if s is None:
       return None
 
     if callable(s):
       s = s()
+    if isinstance(s, HtmlConvertible):
+      s = s.to_html()
 
     def _escape(s: str) -> str:
       if javascript_str:
@@ -413,87 +430,27 @@ class Html(base.Content):
 pg_typing.register_converter(str, Html, convert_fn=Html.from_value)
 
 
+class HtmlConvertible:
+  """Base class for HTML convertible objects."""
+
+  def to_html(self, **kwargs) -> Html:
+    """Returns the HTML representation of the object."""
+    return to_html(self, **kwargs)
+
+  def to_html_str(self, *, content_only: bool = False, **kwargs) -> str:
+    """Returns the HTML str of the object."""
+    return self.to_html(**kwargs).to_str(content_only=content_only)
+
+  def _repr_html_(self) -> str:
+    return self.to_html_str()
+
+
 class HtmlView(base.View):
   """Base class for HTML views."""
 
-  class Extension(base.View.Extension):
+  class Extension(base.View.Extension, HtmlConvertible):
     """Base class for HtmlView extensions."""
 
-    def _html_style(self) -> List[str]:
-      """Returns additional CSS style to add for this extension.
-
-      Subclasses can override this method to add additional CSS style to the
-      rendered HTML.
-      """
-      return []
-
-    def _html_element_class(self) -> List[str]:
-      """Returns the CSS classes for the rendered element for this node.
-
-      Subclasses can override this method to add CSS classes to the
-      rendered element of this object.
-      """
-      return [
-          object_utils.camel_to_snake(self.__class__.__name__, '-')
-      ]
-
-    def to_html(
-        self,
-        *,
-        name: Optional[str] = None,
-        root_path: Optional[object_utils.KeyPath] = None,
-        view_id: str = 'html-tree-view',
-        **kwargs
-    ) -> Html:
-      """Returns the HTML representation of the object.
-
-      Args:
-        name: The name of the object.
-        root_path: The root path of the object.
-        view_id: The ID of the view to render the value.
-          See `pg.views.HtmlView.dir()` for all available HTML view IDs.
-        **kwargs: View-specific keyword arguments passed to `pg.to_html`, wich
-          will be used to construct/override `HtmlView` settings.
-
-      Returns:
-        An rendered HTML.
-      """
-      return to_html(
-          self, name=name, root_path=root_path, view_id=view_id, **kwargs
-      )
-
-    def to_html_str(
-        self,
-        *,
-        name: Optional[str] = None,
-        root_path: Optional[object_utils.KeyPath] = None,
-        view_id: str = 'html-tree-view',
-        content_only: bool = False,
-        **kwargs
-    ) -> str:
-      """Returns the HTML str of the object.
-
-      Args:
-        name: The name of the object.
-        root_path: The root path of the object.
-        view_id: The ID of the view to render the value.
-          See `pg.views.HtmlView.dir()` for all available HTML view IDs.
-        content_only: If True, only the content will be returned.
-        **kwargs: View-specific keyword arguments passed to `pg.to_html`, wich
-          will be used to construct/override `HtmlView` settings.
-
-      Returns:
-        An rendered HTML str.
-      """
-      return to_html_str(
-          self, name=name, root_path=root_path,
-          view_id=view_id, content_only=content_only, **kwargs
-      )
-
-    def _repr_html_(self) -> str:
-      return self.to_html_str()
-
-  @abc.abstractmethod
   def render(
       self,
       value: Any,
@@ -503,6 +460,23 @@ class HtmlView(base.View):
       **kwargs
   ) -> Html:
     """Renders the input value into an HTML object."""
+    # For customized HtmlConvertible objects, call their `to_html()` method.
+    if (isinstance(value, HtmlConvertible)
+        and not isinstance(value, self.__class__.Extension)
+        and value.__class__.to_html is not HtmlConvertible.to_html):
+      return value.to_html(name=name, root_path=root_path, **kwargs)
+    return self._render(value, name=name, root_path=root_path, **kwargs)
+
+  @abc.abstractmethod
+  def _render(
+      self,
+      value: Any,
+      *,
+      name: Optional[str] = None,
+      root_path: Optional[object_utils.KeyPath] = None,
+      **kwargs
+  ) -> Html:
+    """View's implementation of HTML rendering."""
 
 
 def to_html(

@@ -272,11 +272,10 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
     self._shared_parts = shared_parts
 
     for c in content:
+      c = self._to_content(c)
       if c is None:
         continue
-      if callable(c):
-        c = c()
-      if isinstance(c, str):
+      elif isinstance(c, str):
         self._content_stream.write(c)
       else:
         self.write(c)
@@ -306,9 +305,7 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
     """
     content_updated = False
     for p in parts:
-      if callable(p):
-        p = p()
-
+      p = self._to_content(p)
       if p is None:
         continue
 
@@ -342,8 +339,7 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
 
   def __add__(self, other: WritableTypes) -> 'Content':
     """Operator +: Concatenates two Content objects."""
-    if callable(other):
-      other = other()
+    other = self._to_content(other)
     if not other:
       return self
     s = copy_lib.deepcopy(self)
@@ -415,6 +411,16 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
         return copy_lib.deepcopy(value)
       return value
     return cls(value)   # pytype: disable=not-instantiable
+
+  @classmethod
+  def _to_content(cls, value: WritableTypes) -> Union['Content', str, None]:
+    """Returns a Content object or None from a writable type."""
+    if callable(value):
+      value = value()
+    if value is None:
+      return None
+    assert isinstance(value, (str, cls)), value
+    return value
 
 
 def view(

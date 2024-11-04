@@ -24,6 +24,7 @@ view_options = base.view_options
 NodeFilter = base.NodeFilter
 
 Html = html.Html
+HtmlConvertible = html.HtmlConvertible
 HtmlView = html.HtmlView
 HtmlTreeView = html.HtmlTreeView
 
