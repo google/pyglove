@@ -309,6 +309,14 @@ Html = views.Html
 to_html = views.to_html
 to_html_str = views.to_html_str
 
+# NOTE(daiyip): Hack to add `controls` to `pg.views.html`.
+# We exclude `html.controls` from `pyglove.core.views.html` package to avoid
+# circular dependency between `pyglove.core.views.html` and
+# `pyglove.core.symbolic`.
+from pyglove.core.views.html import controls
+views.html.controls = controls
+
+
 #
 # Symbols from `io` sub-module.
 #

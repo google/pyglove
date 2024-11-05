@@ -11,17 +11,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""HTML views for PyGlove objects."""
+"""Common HTML controls."""
 
 # pylint: disable=g-importing-member
 # pylint: disable=g-bad-import-order
 
-from pyglove.core.views.html.base import Html
-from pyglove.core.views.html.base import HtmlConvertible
-from pyglove.core.views.html.base import HtmlView
-from pyglove.core.views.html.base import to_html
-from pyglove.core.views.html.base import to_html_str
-from pyglove.core.views.html.tree_view import HtmlTreeView
+from pyglove.core.views.html.controls.base import HtmlControl
+
+
+from pyglove.core.views.html.controls.label import Label
+from pyglove.core.views.html.controls.label import LabelGroup
+from pyglove.core.views.html.controls.label import Badge
+
+from pyglove.core.views.html.controls.tooltip import Tooltip
+
+from pyglove.core.views.html.controls.tab import Tab
+from pyglove.core.views.html.controls.tab import TabControl
+
+from pyglove.core.views.html.controls.progress_bar import ProgressBar
+from pyglove.core.views.html.controls.progress_bar import SubProgress
 
 # pylint: enable=g-bad-import-order
 # pylint: enable=g-importing-member
