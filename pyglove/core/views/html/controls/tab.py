@@ -78,7 +78,7 @@ class TabControl(HtmlControl):
                             'selected' if i == self.selected else None
                         ],
                         onclick=(
-                            f"openTab(event, '{self.element_id(str(i))}')"
+                            f"""openTab(event, '{self.element_id()}', '{self.element_id(str(i))}')"""
                         )
                     ) for i, tab in enumerate(self.tabs)
                 ],
@@ -98,16 +98,16 @@ class TabControl(HtmlControl):
             ) for i, tab in enumerate(self.tabs)
         ],
         css_classes=['tab-control', self.tab_position] + self.css_classes,
-        id=self.id,
+        id=self.element_id(),
         styles=self.styles,
     ).add_script(
         """
-        function openTab(event, tabId) {
-          const tabButtons = document.getElementsByClassName('tab-button');
+        function openTab(event, controlId, tabId) {
+          const tabButtons = document.querySelectorAll('#' + controlId + '> .tab-button-group > .tab-button');
           for (let i = 0; i < tabButtons.length; i++) {
             tabButtons[i].classList.remove('selected');
           }
-          const tabContents = document.getElementsByClassName('tab-content');
+          const tabContents = document.querySelectorAll('#' + controlId + '> .tab-content');
           for (let i = 0; i < tabContents.length; i++) {
             tabContents[i].style.display = 'none';
           }
@@ -120,15 +120,15 @@ class TabControl(HtmlControl):
         """
         .top .tab-button-group {
           overflow-x: hidden;
-          border-bottom: 1px solid #DDD;
+          border-bottom: 1px solid #EEE;
         }
         .left .tab-button-group {
           float: left;
           top: 0;
         }
         .tab-button {
-          background-color: #DDD;
-          border: 1px solid #DDD;
+          background-color: #EEE;
+          border: 1px solid #EEE;
           outline: none;
           cursor: pointer;
           transition: 0.3s;

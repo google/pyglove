@@ -46,6 +46,11 @@ class Label(HtmlControl):
       '(Optional) The URL for the link of the label.'
   ] = None
 
+  target: Annotated[
+      Optional[str],
+      '(Optional) The target for the link of the label.'
+  ] = None
+
   def _on_bound(self):
     super()._on_bound()
     if self.tooltip is not None:
@@ -75,6 +80,7 @@ class Label(HtmlControl):
         href=self.link,
         css_classes=['label'] + self.css_classes,
         styles=self.styles,
+        target=self.target,
     )
     if self.tooltip is None:
       return text_elem

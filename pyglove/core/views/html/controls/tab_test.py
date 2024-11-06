@@ -36,11 +36,13 @@ class TabControlTest(unittest.TestCase):
     self.assert_html_content(
         tab,
         (
-            '<div class="tab-control top"><div class="tab-button-group">'
-            '<button class="tab-button selected" '
-            f'''onclick="openTab(event, '{tab.element_id(str(0))}')">'''
+            f'<div class="tab-control top" id="{tab.element_id()}">'
+            '<div class="tab-button-group"><button class="tab-button selected" '
+            f'''onclick="openTab(event, '{tab.element_id()}', '''
+            f''''{tab.element_id(str(0))}')">'''
             '<a class="label">foo</a></button><button class="tab-button" '
-            f'''onclick="openTab(event, '{tab.element_id(str(1))}')">'''
+            f'''onclick="openTab(event, '{tab.element_id()}', '''
+            f''''{tab.element_id(str(1))}')">'''
             '<a class="label">bar</a></button></div>'
             '<div class="tab-content" style="display:block;" '
             f'id="{tab.element_id(str(0))}"><h1>foo</h1></div>'
