@@ -480,10 +480,12 @@ def from_json(
             f'besides \'{JSONConvertible.TUPLE_MARKER}\'. '
             f'Encountered: {json_value}.')
       return tuple([child_from(v) for v in json_value[1:]])
-    return [child_from(v) for v in json_value]
+    return json_value.__class__(child_from(v) for v in json_value)    # pytype: disable=wrong-arg-types
   elif isinstance(json_value, dict):
     if JSONConvertible.TYPE_NAME_KEY not in json_value:
-      return {k: child_from(v) for k, v in json_value.items()}
+      return json_value.__class__(    # pytype: disable=wrong-arg-types
+          {k: child_from(v) for k, v in json_value.items()}
+      )
     factory_fn = json_value.pop(JSONConvertible.TYPE_NAME_KEY)
     assert factory_fn is not None
     return factory_fn(json_value, **kwargs)
