@@ -166,7 +166,7 @@ class ForwardRef(object_utils.Formattable):
     elif isinstance(other, ForwardRef):
       return self.module is other.module and self.name == other.name
     elif inspect.isclass(other):
-      return self.resolved and self.cls is other
+      return self.resolved and self.cls is other  # pytype: disable=bad-return-type
 
   def __ne__(self, other: Any) -> bool:
     """Operator!=."""

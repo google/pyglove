@@ -138,7 +138,7 @@ class Space(DNASpec):
     """
     return not self.elements
 
-  def validate(self, dna: DNA) -> None:
+  def validate(self, dna: DNA) -> None:  # pytype: disable=signature-mismatch
     """Validate whether a DNA value conforms to this spec."""
     if not self.elements and (dna.value is not None or dna.children):
       raise ValueError(
