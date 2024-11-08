@@ -192,7 +192,7 @@ class StdFileSystem(FileSystem):
   def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     os.remove(path)
 
-  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pytype: disable=signature-mismatch
     os.rmdir(path)
 
   def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
@@ -336,7 +336,7 @@ class MemoryFileSystem(FileSystem):
       raise IsADirectoryError(path)
     del parent_dir[name]
 
-  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pytype: disable=signature-mismatch
     parent_dir, name = self._parent_and_name(path)
     entry = parent_dir.get(name)
     if entry is None:
@@ -485,4 +485,4 @@ def rmdir(path: Union[str, os.PathLike[str]]) -> bool:
 
 def rmdirs(path: Union[str, os.PathLike[str]]) -> bool:
   """Removes a directory chain until a parent directory is not empty."""
-  return _fs.get(path).rmdirs(path)
+  return _fs.get(path).rmdirs(path)  # pytype: disable=bad-return-type
