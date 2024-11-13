@@ -112,6 +112,11 @@ class RefTest(unittest.TestCase):
         TypeError, '.* cannot be serialized at the moment'):
       ref.Ref(A(1)).to_json()
 
+    self.assertEqual(
+        ref.Ref(A(1)).to_json(save_ref_value=True),
+        A(1).to_json()
+    )
+
   def test_pickle(self):
     with self.assertRaisesRegex(
         TypeError, '.* cannot be pickled at the moment'):

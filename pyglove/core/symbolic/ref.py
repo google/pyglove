@@ -137,7 +137,9 @@ class Ref(Object, base.Inferential, tree_view.HtmlTreeView.Extension):
   def sym_eq(self, other: Any) -> bool:
     return isinstance(other, Ref) and self.value is other.value
 
-  def sym_jsonify(self, **kwargs: Any) -> Any:
+  def sym_jsonify(self, *, save_ref_value: bool = False, **kwargs: Any) -> Any:
+    if save_ref_value:
+      return base.to_json(self._value, save_ref_value=save_ref_value, **kwargs)
     raise TypeError(f'{self!r} cannot be serialized at the moment.')
 
   def __getstate__(self):
