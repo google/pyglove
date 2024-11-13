@@ -971,14 +971,13 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
   def sym_jsonify(self, **kwargs) -> object_utils.JSONValueType:
     """Converts current object to a dict of plain Python objects."""
-    return object_utils.merge([
-        {
-            object_utils.JSONConvertible.TYPE_NAME_KEY: (
-                self.__class__.__serialization_key__
-            )
-        },
-        self._sym_attributes.to_json(**kwargs),
-    ])
+    json_dict = {
+        object_utils.JSONConvertible.TYPE_NAME_KEY: (
+            self.__class__.__serialization_key__
+        )
+    }
+    json_dict.update(self._sym_attributes.to_json(**kwargs))
+    return json_dict
 
   def format(self,
              compact: bool = False,
