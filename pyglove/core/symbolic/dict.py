@@ -408,9 +408,9 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       return value
 
     if value.__class__ is base_value.__class__:
-      getter = lambda x, k: x.sym_getattr(k)
+      getter = lambda x, k: x.sym_getattr(k, pg_typing.MISSING_VALUE)
     elif isinstance(value, dict) and isinstance(base_value, dict):
-      getter = lambda x, k: x[k]
+      getter = lambda x, k: x.get(k, pg_typing.MISSING_VALUE)
     else:
       return value
 
