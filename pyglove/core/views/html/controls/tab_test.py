@@ -33,22 +33,10 @@ class TabControlTest(unittest.TestCase):
         tab_lib.Tab('foo', base.Html('<h1>foo</h1>')),
         tab_lib.Tab('bar', base.Html('<h1>bar</h1>')),
     ])
+    elem_id = tab.element_id()
     self.assert_html_content(
         tab,
-        (
-            f'<div class="tab-control top" id="{tab.element_id()}">'
-            '<div class="tab-button-group"><button class="tab-button selected" '
-            f'''onclick="openTab(event, '{tab.element_id()}', '''
-            f''''{tab.element_id(str(0))}')">'''
-            '<a class="label">foo</a></button><button class="tab-button" '
-            f'''onclick="openTab(event, '{tab.element_id()}', '''
-            f''''{tab.element_id(str(1))}')">'''
-            '<a class="label">bar</a></button></div>'
-            '<div class="tab-content" style="display:block;" '
-            f'id="{tab.element_id(str(0))}"><h1>foo</h1></div>'
-            '<div class="tab-content" style="display:none;" '
-            f'id="{tab.element_id(str(1))}"><h1>bar</h1></div></div>'
-        )
+        f"""<div class="tab-control top" id="{elem_id}"><div class="tab-button-group"><button class="tab-button selected" onclick="openTab(event, '{elem_id}', '{elem_id}-0')"><a class="label">foo</a></button><button class="tab-button" onclick="openTab(event, '{elem_id}', '{elem_id}-1')"><a class="label">bar</a></button></div><div class="tab-content-group"><div class="tab-content selected" id="{elem_id}-0"><h1>foo</h1></div><div class="tab-content" id="{elem_id}-1"><h1>bar</h1></div></div></div>"""
     )
 
 
