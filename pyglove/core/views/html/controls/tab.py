@@ -15,7 +15,9 @@
 
 from typing import Annotated, List, Literal, Union
 
+from pyglove.core.symbolic import flags as pg_flags
 from pyglove.core.symbolic import object as pg_object
+
 # pylint: disable=g-importing-member
 from pyglove.core.views.html.base import Html
 from pyglove.core.views.html.base import HtmlConvertible
@@ -36,6 +38,11 @@ class Tab(pg_object.Object):
       Union[Html, HtmlConvertible],
       'The content of the tab.'
   ]
+
+  css_classes: Annotated[
+      List[str],
+      'The CSS classes of the tab.'
+  ] = []
 
 
 @pg_object.use_init_args(
@@ -61,41 +68,86 @@ class TabControl(HtmlControl):
 
   interactive = True
 
+  def append(self, tab: Tab) -> None:
+    with pg_flags.notify_on_change(False):
+      self.tabs.append(tab)
+
+    def class_list(elem_class: str) -> str:
+      classes = [elem_class] + tab.css_classes
+      if len(self.tabs) == 1:
+        classes.append('selected')
+      return ', '.join(f'"{v}"' for v in classes)
+
+    # pytype: disable=attribute-error
+    self._run_javascript(
+        f"""
+        const tabButtonGroups = document.querySelectorAll('#{self.element_id()}' + '> .tab-button-group');
+        console.assert(tabButtonGroups.length === 1);
+        const tabButton = document.createElement('button');
+        tabButton.classList.add({class_list('tab-button')});
+        tabButton.innerHTML = "{Html.escape(tab.label, javascript_str=True).to_str(content_only=True)}";
+        tabButton.onclick = function() {{
+            openTab(event, '{self.element_id()}', '{self.element_id(str(len(self.tabs) - 1))}');
+        }};
+        tabButtonGroups[0].appendChild(tabButton);
+
+        const tabContentGroups = document.querySelectorAll('#{self.element_id()}' + '> .tab-content-group');
+        console.assert(tabContentGroups.length === 1);
+        const tabContent = document.createElement('div');
+        tabContent.id = '{self.element_id(str(len(self.tabs) - 1))}',
+        tabContent.classList.add({class_list('tab-content')});
+        tabContent.innerHTML = "{Html.escape(tab.content, javascript_str=True).to_str(content_only=True)}";
+        tabContentGroups[0].appendChild(tabContent)
+        """
+    )
+    # pytype: enable=attribute-error
+
+  def extend(self, tabs: List[Tab]) -> None:
+    for tab in tabs:
+      self.append(tab)
+
   def _to_html(self, **kwargs):
+    def _tab_button(tab: Tab, i: int) -> Html:
+      return Html.element(
+          'button',
+          [
+              tab.label
+          ],
+          css_classes=[
+              'tab-button',
+              'selected' if i == self.selected else None
+          ] + tab.css_classes,
+          onclick=(
+              f"""openTab(event, '{self.element_id()}', '{self.element_id(str(i))}')"""
+          )
+      )
+
+    def _tab_content(tab: Tab, i: int) -> Html:
+      return Html.element(
+          'div',
+          [
+              tab.content
+          ],
+          css_classes=[
+              'tab-content',
+              'selected' if i == self.selected else None
+          ] + tab.css_classes,
+          id=self.element_id(str(i))
+      )
     return Html.element(
         'div',
         [
             Html.element(
                 'div',
-                [
-                    Html.element(
-                        'button',
-                        [
-                            tab.label
-                        ],
-                        css_classes=[
-                            'tab-button',
-                            'selected' if i == self.selected else None
-                        ],
-                        onclick=(
-                            f"""openTab(event, '{self.element_id()}', '{self.element_id(str(i))}')"""
-                        )
-                    ) for i, tab in enumerate(self.tabs)
-                ],
+                [_tab_button(tab, i) for i, tab in enumerate(self.tabs)],
                 css_classes=['tab-button-group'],
             ),
         ] + [
             Html.element(
                 'div',
-                [
-                    tab.content
-                ],
-                css_classes=['tab-content'],
-                styles=dict(
-                    display='block' if i == self.selected else 'none'
-                ),
-                id=self.element_id(str(i))
-            ) for i, tab in enumerate(self.tabs)
+                [_tab_content(tab, i) for i, tab in enumerate(self.tabs)],
+                css_classes=['tab-content-group'],
+            )
         ],
         css_classes=['tab-control', self.tab_position] + self.css_classes,
         id=self.element_id(),
@@ -107,13 +159,13 @@ class TabControl(HtmlControl):
           for (let i = 0; i < tabButtons.length; i++) {
             tabButtons[i].classList.remove('selected');
           }
-          const tabContents = document.querySelectorAll('#' + controlId + '> .tab-content');
+          const tabContents = document.querySelectorAll('#' + controlId + '> .tab-content-group > .tab-content');
           for (let i = 0; i < tabContents.length; i++) {
-            tabContents[i].style.display = 'none';
+            tabContents[i].classList.remove('selected')
           }
           const tabButton = event.currentTarget;
           tabButton.classList.add('selected');
-          document.getElementById(tabId).style.display = "block";
+          document.getElementById(tabId).classList.add('selected');
         }
         """
     ).add_style(
@@ -123,8 +175,8 @@ class TabControl(HtmlControl):
           border-bottom: 1px solid #EEE;
         }
         .left .tab-button-group {
-          float: left;
-          top: 0;
+          display: inline-flex;
+          flex-direction: column;
         }
         .tab-button {
           background-color: #EEE;
@@ -158,12 +210,18 @@ class TabControl(HtmlControl):
         .left .tab-button:hover {
           border-left-color: orange;
         }
+        .tab-content-group {
+            display: block;
+        }
+        .left .tab-content-group {
+          display: inline-flex;
+        }
         .tab-content {
           display: none;
           padding: 10px;
         }
-        .left .tab-content {
-          float: left;
+        .tab-content.selected {
+          display: block;
         }
         """
     )
