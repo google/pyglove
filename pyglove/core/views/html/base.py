@@ -352,7 +352,7 @@ class Html(base.Content):
       cls,
       s: WritableTypes,
       javascript_str: bool = False
-  ) -> Union[str, 'Html', None]:
+  ) -> Any:
     """Escapes an HTML writable object."""
     if s is None:
       return None

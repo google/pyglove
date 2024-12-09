@@ -96,6 +96,8 @@ class Label(HtmlControl):
       tooltip: Union[str, Html, None] = None,
       link: Optional[str] = None,
       styles: Optional[Dict[str, Any]] = None,
+      add_class: Optional[List[str]] = None,
+      remove_class: Optional[List[str]] = None,
   ) -> None:
     if text is not None:
       self._sync_members(text=self._update_content(text))
@@ -105,7 +107,16 @@ class Label(HtmlControl):
       self._sync_members(link=self._update_property('href', link))
     if tooltip is not None:
       self.tooltip.update(content=tooltip)
-
+    if add_class or remove_class:
+      css_classes = list(self.css_classes)
+      for x in add_class or []:
+        self._add_css_class(x)
+        css_classes.append(x)
+      for x in remove_class or []:
+        self._remove_css_class(x)
+        if x in css_classes:
+          css_classes.remove(x)
+      self._sync_members(css_classes=css_classes)
 
 # Register converter for automatic conversion.
 pg_typing.register_converter(str, Label, Label)

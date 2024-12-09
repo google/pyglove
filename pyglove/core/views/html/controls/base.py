@@ -62,6 +62,7 @@ class HtmlControl(pg_object.Object):
     super()._on_bound()
     self._rendered = False
     self._css_styles = []
+    self._dynamic_injected_css = set()
     self._scripts = []
 
   def add_style(self, *css: str) -> 'HtmlControl':
@@ -76,6 +77,7 @@ class HtmlControl(pg_object.Object):
   def to_html(self, **kwargs) -> Html:
     """Returns the HTML representation of the control."""
     self._rendered = True
+    self._dynamic_injected_css = set()
     html = self._to_html(**kwargs)
     return html.add_style(*self._css_styles).add_script(*self._scripts)
 
@@ -102,7 +104,7 @@ class HtmlControl(pg_object.Object):
     """Synchronizes displayed values to members."""
     self.rebind(fields, skip_notification=True, raise_on_no_change=False)
 
-  def _run_javascript(self, code: str) -> None:
+  def _run_javascript(self, code: str, debug: bool = False) -> None:
     """Runs the given JavaScript code."""
     if not self.interactive:
       raise ValueError(
@@ -113,6 +115,8 @@ class HtmlControl(pg_object.Object):
       return
 
     code = inspect.cleandoc(code)
+    if debug:
+      print('RUN JAVSCRIPT:\n', code)
     if _notebook is not None:
       _notebook.display(_notebook.Javascript(code))
 
@@ -120,6 +124,40 @@ class HtmlControl(pg_object.Object):
     all_tracked = object_utils.thread_local_get(_TLS_TRACKED_SCRIPTS, [])
     for tracked in all_tracked:
       tracked.append(code)
+
+  def _add_css_rules(self, css: str) -> None:
+    if not self._rendered or not css or css in self._dynamic_injected_css:
+      return
+    self._run_javascript(
+        f"""
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        style.textContent = "{Html.escape(css, javascript_str=True)}";
+        document.head.appendChild(style);
+        """
+    )
+    self._dynamic_injected_css.add(css)
+
+  def _apply_css_rules(self, html: Html) -> None:
+    self._add_css_rules(html.styles.content)
+
+  def _insert_adjacent_html(
+      self,
+      element_selector_js: str,
+      html: Html,
+      var_name: str = 'elem',
+      position: str = 'beforeend'
+  ):
+    self._run_javascript(
+        f"""
+        {element_selector_js}
+        {var_name}.insertAdjacentHTML(
+            "{position}",
+            "{Html.escape(html, javascript_str=True).to_str(content_only=True)}"
+        );
+        """,
+    )
+    self._apply_css_rules(html)
 
   def element_id(self, child: Optional[str] = None) -> Optional[str]:
     """Returns the element id of this control or a child."""
@@ -163,14 +201,13 @@ class HtmlControl(pg_object.Object):
       child: Optional[str] = None,
   ) -> base.Html:
     """Updates the inner HTML of the control."""
-    js_html = Html.escape(html, javascript_str=True)
-    assert isinstance(js_html, Html), js_html
     self._run_javascript(
         f"""
         elem = document.getElementById("{self.element_id(child)}");
-        elem.innerHTML = "{js_html.to_str(content_only=True)}";
+        elem.innerHTML = "{Html.escape(html, javascript_str=True).to_str(content_only=True)}";
         """
     )
+    self._add_css_rules(html.styles.content)
     return html
 
   def _update_style(

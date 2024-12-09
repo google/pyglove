@@ -60,19 +60,26 @@ class LabelTest(TestCase):
     )
 
   def test_update(self):
-    label = label_lib.Label('foo', 'bar', 'http://google.com', interactive=True)
+    label = label_lib.Label(
+        'foo', 'bar', 'http://google.com',
+        interactive=True,
+        css_classes=['foo', 'bar'],
+    )
     self.assertIn('id="control-', label.to_html_str(content_only=True))
     with label.track_scripts() as scripts:
       label.update(
           'bar',
           tooltip='baz',
           link='http://www.yahoo.com',
-          styles=dict(color='red')
+          styles=dict(color='red'),
+          add_class=['baz'],
+          remove_class=['bar'],
       )
     self.assertEqual(label.text, 'bar')
     self.assertEqual(label.tooltip.content, 'baz')
     self.assertEqual(label.link, 'http://www.yahoo.com')
     self.assertEqual(label.styles, dict(color='red'))
+    self.assertEqual(label.css_classes, ['foo', 'baz'])
     self.assertEqual(
         scripts,
         [
@@ -104,6 +111,18 @@ class LabelTest(TestCase):
                 f"""
                 elem = document.getElementById("{label.tooltip.element_id()}");
                 elem.classList.remove("html-content");
+                """
+            ),
+            inspect.cleandoc(
+                f"""
+                elem = document.getElementById("{label.element_id()}");
+                elem.classList.add("baz");
+                """
+            ),
+            inspect.cleandoc(
+                f"""
+                elem = document.getElementById("{label.element_id()}");
+                elem.classList.remove("bar");
                 """
             ),
         ]

@@ -30,26 +30,24 @@ class TabControlTest(unittest.TestCase):
 
   def test_basic(self):
     tab = tab_lib.TabControl([
-        tab_lib.Tab('foo', base.Html('<h1>foo</h1>')),
+        tab_lib.Tab('foo', base.Html('<h1>foo</h1>'), css_classes=['foo']),
         tab_lib.Tab('bar', base.Html('<h1>bar</h1>')),
     ])
+    elem_id = tab.element_id()
     self.assert_html_content(
         tab,
-        (
-            f'<div class="tab-control top" id="{tab.element_id()}">'
-            '<div class="tab-button-group"><button class="tab-button selected" '
-            f'''onclick="openTab(event, '{tab.element_id()}', '''
-            f''''{tab.element_id(str(0))}')">'''
-            '<a class="label">foo</a></button><button class="tab-button" '
-            f'''onclick="openTab(event, '{tab.element_id()}', '''
-            f''''{tab.element_id(str(1))}')">'''
-            '<a class="label">bar</a></button></div>'
-            '<div class="tab-content" style="display:block;" '
-            f'id="{tab.element_id(str(0))}"><h1>foo</h1></div>'
-            '<div class="tab-content" style="display:none;" '
-            f'id="{tab.element_id(str(1))}"><h1>bar</h1></div></div>'
-        )
+        f"""<table class="tab-control"><tr><td><div class="tab-button-group top" id="{elem_id}-button-group"><button class="tab-button selected foo" onclick="openTab(event, '{elem_id}', '{elem_id}-0')"><a class="label">foo</a></button><button class="tab-button" onclick="openTab(event, '{elem_id}', '{elem_id}-1')"><a class="label">bar</a></button></div></td></tr><tr><td><div class="tab-content-group top" id="{elem_id}-content-group"><div class="tab-content selected foo" id="{elem_id}-0"><h1>foo</h1></div><div class="tab-content" id="{elem_id}-1"><h1>bar</h1></div></div></td></tr></table>"""
     )
+    with tab.track_scripts() as scripts:
+      tab.extend([
+          tab_lib.Tab(
+              'baz',
+              base.Html(
+                  '<h1 class="a">baz</h1>').add_style('.a { color: red; }')
+              ),
+          tab_lib.Tab('qux', base.Html('<h1>qux</h1>')),
+      ])
+      self.assertEqual(len(scripts), 6)
 
 
 if __name__ == '__main__':
