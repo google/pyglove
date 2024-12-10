@@ -141,7 +141,6 @@ class TabControl(HtmlControl):
         .tab-control {
           border-spacing: 0px;
           border-collapse: collapse;
-          height: 100%;
           margin-top: 10px;
         }
         .tab-control td {
