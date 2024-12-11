@@ -42,8 +42,8 @@ class ProgressBarTest(unittest.TestCase):
             f'<div class="sub-progress foo" id="{bar["foo"].element_id()}">'
             '</div><div class="sub-progress bar" '
             f'id="{bar["bar"].element_id()}"></div></div>'
-            '<div class="label-container"><a class="label progress-label"'
-            f' id="{bar._progress_label.element_id()}">n/a</a><span class='
+            '<div class="label-container"><span class="label progress-label"'
+            f' id="{bar._progress_label.element_id()}">n/a</span><span class='
             f'"tooltip" id="{bar._progress_label.tooltip.element_id()}">'
             'Not started</span></div></div>'
         )

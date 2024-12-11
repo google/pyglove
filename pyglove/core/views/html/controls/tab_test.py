@@ -36,7 +36,7 @@ class TabControlTest(unittest.TestCase):
     elem_id = tab.element_id()
     self.assert_html_content(
         tab,
-        f"""<table class="tab-control"><tr><td><div class="tab-button-group top" id="{elem_id}-button-group"><button class="tab-button selected foo" onclick="openTab(event, '{elem_id}', '{elem_id}-0')"><a class="label">foo</a></button><button class="tab-button" onclick="openTab(event, '{elem_id}', '{elem_id}-1')"><a class="label">bar</a></button></div></td></tr><tr><td><div class="tab-content-group top" id="{elem_id}-content-group"><div class="tab-content selected foo" id="{elem_id}-0"><h1>foo</h1></div><div class="tab-content" id="{elem_id}-1"><h1>bar</h1></div></div></td></tr></table>"""
+        f"""<table class="tab-control"><tr><td><div class="tab-button-group top" id="{elem_id}-button-group"><button class="tab-button selected foo" onclick="openTab(event, '{elem_id}', '{elem_id}-0')"><span class="label">foo</span></button><button class="tab-button" onclick="openTab(event, '{elem_id}', '{elem_id}-1')"><span class="label">bar</span></button></div></td></tr><tr><td><div class="tab-content-group top" id="{elem_id}-content-group"><div class="tab-content selected foo" id="{elem_id}-0"><h1>foo</h1></div><div class="tab-content" id="{elem_id}-1"><h1>bar</h1></div></div></td></tr></table>"""
     )
     with tab.track_scripts() as scripts:
       tab.extend([
@@ -48,6 +48,39 @@ class TabControlTest(unittest.TestCase):
           tab_lib.Tab('qux', base.Html('<h1>qux</h1>')),
       ])
       self.assertEqual(len(scripts), 6)
+    with tab.track_scripts() as scripts:
+      tab.insert(0, tab_lib.Tab('x', 'foo', name='x'))
+      self.assertEqual(len(scripts), 2)
+      self.assertEqual(len(tab.tabs), 5)
+    self.assertEqual(tab.indexof(-1), 4)
+    self.assertEqual(tab.indexof(3), 3)
+    self.assertEqual(tab.indexof(10), 4)
+    self.assertEqual(tab.indexof(-10), -1)
+    self.assertEqual(tab.indexof('x'), 0)
+    self.assertEqual(tab.indexof('y'), -1)
+    self.assertEqual(tab.select(0), 0)
+    self.assertEqual(tab.select('x'), 'x')
+    self.assertEqual(tab.select(['y', 'x']), 'x')
+
+    with self.assertRaisesRegex(ValueError, 'Tab not found'):
+      tab.select('y')
+    with self.assertRaisesRegex(ValueError, 'Tab not found'):
+      tab.insert('y', tab_lib.Tab('z', 'bar'))
+
+    with tab.track_scripts() as scripts:
+      tab.insert('x', tab_lib.Tab('y', 'bar'))
+      self.assertEqual(len(scripts), 2)
+      self.assertEqual(len(tab.tabs), 6)
+
+    with tab.track_scripts() as scripts:
+      tab.select(3)
+      self.assertEqual(len(scripts), 1)
+      self.assertEqual(tab.selected, 3)
+
+    with tab.track_scripts() as scripts:
+      tab.select('x')
+      self.assertEqual(len(scripts), 1)
+      self.assertEqual(tab.selected, 1)
 
 
 if __name__ == '__main__':
