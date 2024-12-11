@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tab control."""
 
-from typing import Annotated, List, Literal, Union
+from typing import Annotated, List, Literal, Optional, Union
 
 from pyglove.core.symbolic import flags as pg_flags
 from pyglove.core.symbolic import object as pg_object
@@ -43,6 +43,11 @@ class Tab(pg_object.Object):
       List[str],
       'The CSS classes of the tab.'
   ] = []
+
+  name: Annotated[
+      Optional[str],
+      'An optional name that can be used to identify a tab under a tab control'
+  ] = None
 
 
 @pg_object.use_init_args(
@@ -87,9 +92,83 @@ class TabControl(HtmlControl):
         position='beforeend',
     )
 
+  def insert(self, index_or_name: Union[int, str], tab: Tab) -> None:
+    """Inserts a tab before a tab identified by index or name."""
+    index = self.indexof(index_or_name)
+    if index == -1:
+      raise ValueError(f'Tab not found: {index_or_name!r}')
+    with pg_flags.notify_on_change(False):
+      self.tabs.insert(index, tab)
+
+    self._insert_adjacent_html(
+        f"""
+        const elem = document.querySelectorAll('#{self.element_id()}-button-group > .tab-button')[{index}];
+        """,
+        self._tab_button(tab, len(self.tabs) - 1),
+        position='beforebegin',
+    )
+    self._insert_adjacent_html(
+        f"""
+        const elem = document.querySelectorAll('#{self.element_id()}-content-group > .tab-content')[{index}];
+        """,
+        self._tab_content(tab, len(self.tabs) - 1),
+        position='beforebegin',
+    )
+
+  def indexof(self, index_or_name: Union[int, str]) -> int:
+    if isinstance(index_or_name, int):
+      index = index_or_name
+      if index >= len(self.tabs):
+        return len(self.tabs) - 1
+      elif index < -len(self.tabs):
+        return -1
+      elif index < 0:
+        index = index + len(self.tabs)
+      return index
+    else:
+      name = index_or_name
+      assert isinstance(name, str), name
+      for i, tab in enumerate(self.tabs):
+        if tab.name == name:
+          return i
+      return -1
+
   def extend(self, tabs: List[Tab]) -> None:
     for tab in tabs:
       self.append(tab)
+
+  def select(
+      self,
+      index_or_name: Union[int, str, List[str]]) -> Union[int, str]:
+    """Selects a tab identified by an index or name.
+
+    Args:
+      index_or_name: The index or name of the tab to select. If a list of names
+        is provided, the first name in the list that is found will be selected.
+
+    Returns:
+      The index (if the index was provided) or name of the selected tab.
+    """
+    selected_name = index_or_name if isinstance(index_or_name, str) else None
+    index = -1
+    if isinstance(index_or_name, list):
+      for name in index_or_name:
+        index = self.indexof(name)
+        if index != -1:
+          selected_name = name
+          break
+    else:
+      index = self.indexof(index_or_name)
+    if index == -1:
+      raise ValueError(f'Tab not found: {index_or_name!r}')
+    self._sync_members(selected=index)
+    self._run_javascript(
+        f"""
+        const tabButtons = document.querySelectorAll('#{self.element_id()}-button-group > .tab-button');
+        tabButtons[{index}].click();
+        """
+    )
+    return selected_name or index
 
   def _to_html(self, **kwargs):
     return Html.element(
