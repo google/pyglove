@@ -34,7 +34,7 @@ class LabelTest(TestCase):
     label = label_lib.Label('foo')
     self.assertIsNone(label.tooltip)
     self.assertIsNone(label.link)
-    self.assert_html_content(label, '<a class="label">foo</a>')
+    self.assert_html_content(label, '<span class="label">foo</span>')
     with self.assertRaisesRegex(ValueError, 'Non-interactive .*'):
       label.update('bar')
 
@@ -54,7 +54,7 @@ class LabelTest(TestCase):
     self.assert_html_content(
         label,
         (
-            '<div class="label-container"><a class="label">foo</a>'
+            '<div class="label-container"><span class="label">foo</span>'
             '<span class="tooltip">bar</span></div>'
         )
     )
@@ -130,7 +130,7 @@ class LabelTest(TestCase):
 
   def test_badge(self):
     badge = label_lib.Badge('foo')
-    self.assert_html_content(badge, '<a class="label badge">foo</a>')
+    self.assert_html_content(badge, '<span class="label badge">foo</span>')
 
 
 class LabelGroupTest(TestCase):
@@ -140,9 +140,9 @@ class LabelGroupTest(TestCase):
     self.assert_html_content(
         group,
         (
-            '<div class="label-group"><a class="label group-name">baz</a>'
-            '<a class="label group-value">foo</a>'
-            '<a class="label group-value">bar</a></div>'
+            '<div class="label-group"><span class="label group-name">baz</span>'
+            '<span class="label group-value">foo</span>'
+            '<span class="label group-value">bar</span></div>'
         )
     )
 

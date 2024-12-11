@@ -74,7 +74,7 @@ class Label(HtmlControl):
 
   def _to_html(self, **kwargs) -> Html:
     text_elem = Html.element(
-        'a',
+        'a' if self.link is not None else 'span',
         [self.text],
         id=self.element_id(),
         href=self.link,
