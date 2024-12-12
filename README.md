@@ -47,7 +47,7 @@ It's commonly used in:
 PyGlove has been [published](https://proceedings.neurips.cc/paper/2020/file/012a91467f210472fab4e11359bbfef6-Paper.pdf)
 at NeurIPS 2020. It is widely used within [Alphabet](https://abc.xyz/), including Google Research, Google Cloud, Youtube and Waymo.
 
-PyGlove is developed by Daiyi Peng and colleagues in [Google Brain Team](https://research.google/teams/brain/).
+PyGlove is developed by Daiyi Peng and colleagues at [Google Brain](https://research.google/teams/brain/).
 
 
 ## Hello PyGlove
@@ -119,6 +119,9 @@ pip install pyglove --pre
   * [Sticky Notes: A mini Domain-specific Language](https://github.com/google/pyglove/blob/main/docs/notebooks/python/sticky_notes.ipynb)
   * [Interactive SVG: Components for Direct Manipulation](https://github.com/google/pyglove/blob/main/docs/notebooks/python/interactive_svg.ipynb)
   * [Where is the Duck: Developing Context-aware Component](https://github.com/google/pyglove/blob/main/docs/notebooks/python/where_is_the_duck.ipynb)
+
+* Interactive Programming
+  * [Viewing PyGlove objects in HTML](https://colab.research.google.com/github/google/pyglove/blob/main/docs/notebooks/gui/html_view.ipynb)
 
 ## Citing PyGlove
 
