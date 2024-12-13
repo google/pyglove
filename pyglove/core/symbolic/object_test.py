@@ -2349,7 +2349,7 @@ class RebindTest(unittest.TestCase):
       A(1).rebind({})
 
     with self.assertRaisesRegex(
-        KeyError, 'Key 1 is not allowed for .*'):
+        KeyError, 'Key must be string type. Encountered 1'):
       A(1).rebind({1: 1})
 
     with self.assertRaisesRegex(

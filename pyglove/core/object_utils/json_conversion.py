@@ -37,7 +37,7 @@ JSONPrimitiveType = Union[int, float, bool, str]
 # pytype doesn't support recursion. Use Any instead of 'JSONValueType'
 # in List and Dict.
 JSONListType = List[Any]
-JSONDictType = Dict[Union[str, int], Any]
+JSONDictType = Dict[str, Any]
 JSONValueType = Union[JSONPrimitiveType, JSONListType, JSONDictType]
 
 # pylint: enable=invalid-name

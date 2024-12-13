@@ -310,7 +310,7 @@ class Symbolic(
     """Seals or unseals current object from further modification."""
     return self._set_raw_attr('_sealed', is_seal)
 
-  def sym_missing(self, flatten: bool = True) -> Dict[Union[str, int], Any]:
+  def sym_missing(self, flatten: bool = True) -> Dict[str, Any]:
     """Returns missing values."""
     missing = getattr(self, '_sym_missing_values')
     if missing is None:
@@ -729,7 +729,7 @@ class Symbolic(
     """Returns if current object is deterministic."""
     return is_deterministic(self)
 
-  def missing_values(self, flatten: bool = True) -> Dict[Union[str, int], Any]:
+  def missing_values(self, flatten: bool = True) -> Dict[str, Any]:
     """Alias for `sym_missing`."""
     return self.sym_missing(flatten)
 
@@ -1094,7 +1094,7 @@ class Symbolic(
     """
 
   @abc.abstractmethod
-  def _sym_missing(self) -> Dict[Union[str, int], Any]:
+  def _sym_missing(self) -> Dict[str, Any]:
     """Returns missing values."""
 
   @abc.abstractmethod
@@ -2142,23 +2142,8 @@ def from_json_str(json_str: str,
   Returns:
     A deserialized value.
   """
-  def _get_key(k: str) -> Union[str, int]:
-    if k.startswith('n_:'):
-      return int(k[3:])
-    return k
-
-  def _decode_int_keys(v):
-    if isinstance(v, dict):
-      return {
-          _get_key(k): _decode_int_keys(v)
-          for k, v in v.items()
-      }
-    elif isinstance(v, list):
-      return [_decode_int_keys(v) for v in v]
-    return v
-
   return from_json(
-      _decode_int_keys(json.loads(json_str)),
+      json.loads(json_str),
       allow_partial=allow_partial,
       root_path=root_path,
       auto_import=auto_import,
@@ -2232,20 +2217,7 @@ def to_json_str(value: Any,
   Returns:
     A JSON string.
   """
-  def _encode_int_keys(v):
-    if isinstance(v, dict):
-      return {
-          f'n_:{k}' if isinstance(k, int) else k: _encode_int_keys(v)
-          for k, v in v.items()
-      }
-    elif isinstance(v, list):
-      return [
-          _encode_int_keys(v) for v in v
-      ]
-    return v
-  return json.dumps(
-      _encode_int_keys(to_json(value, **kwargs)), indent=json_indent
-  )
+  return json.dumps(to_json(value, **kwargs), indent=json_indent)
 
 
 def load(path: str, *args, **kwargs) -> Any:

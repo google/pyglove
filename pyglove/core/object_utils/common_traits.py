@@ -18,7 +18,7 @@ object, for example, partiality (MaybePartial), functor (Functor).
 """
 
 import abc
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 
 class MaybePartial(metaclass=abc.ABCMeta):
@@ -47,7 +47,7 @@ class MaybePartial(metaclass=abc.ABCMeta):
     return len(self.missing_values()) > 0  # pylint: disable=g-explicit-length-test
 
   @abc.abstractmethod
-  def missing_values(self, flatten: bool = True) -> Dict[Union[str, int], Any]:  # pylint: disable=redefined-outer-name
+  def missing_values(self, flatten: bool = True) -> Dict[str, Any]:  # pylint: disable=redefined-outer-name
     """Returns missing values from this object.
 
     Args:
