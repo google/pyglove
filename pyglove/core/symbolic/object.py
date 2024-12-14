@@ -164,11 +164,22 @@ class ObjectMeta(abc.ABCMeta):
       if key is None:
         continue
 
+      # Skip class-level attributes that are not symbolic fields.
+      if typing.get_origin(attr_annotation) is typing.ClassVar:
+        continue
+
       field = pg_typing.Field.from_annotation(key, attr_annotation)
       if isinstance(key, pg_typing.ConstStrKey):
         attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
         if attr_value != pg_typing.MISSING_VALUE:
           field.value.set_default(attr_value)
+
+      if (field.value.frozen and
+          field.value.default is
+          pg_typing.value_specs._FROZEN_VALUE_PLACEHOLDER):  # pylint: disable=protected-access
+        raise TypeError(
+            f'Field {field.key!r} is marked as final but has no default value.'
+        )
       fields.append(field)
 
     # Trigger event so subclass could modify the fields.

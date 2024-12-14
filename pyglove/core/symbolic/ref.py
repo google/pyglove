@@ -14,16 +14,30 @@
 """Symbolic reference."""
 
 import functools
-import numbers
-from typing import Any, Callable, List, Optional, Tuple
+import typing
+from typing import Any, Callable, List, Optional, Tuple, Type
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
-from pyglove.core.symbolic.object import Object
+from pyglove.core.symbolic import object as pg_object
 from pyglove.core.views.html import tree_view
 
 
-class Ref(Object, base.Inferential, tree_view.HtmlTreeView.Extension):
+class RefMeta(pg_object.ObjectMeta):
+  """Metaclass for Ref."""
+
+  def __getitem__(cls, type_arg: Type[Any]) -> Any:    # pylint: disable=no-self-argument
+    if typing.TYPE_CHECKING:
+      return type_arg
+    return pg_typing.Object(type_arg, transform=Ref)
+
+
+class Ref(
+    pg_object.Object,
+    base.Inferential,
+    tree_view.HtmlTreeView.Extension,
+    metaclass=RefMeta
+):
   """Symbolic reference.
 
   When adding a symbolic node to a symbolic tree, it undergoes a copy operation
@@ -82,9 +96,9 @@ class Ref(Object, base.Inferential, tree_view.HtmlTreeView.Extension):
 
   def __new__(cls, value: Any, **kwargs):
     del kwargs
-    if isinstance(value, (bool, numbers.Number, str)):
-      return value
-    return object.__new__(cls)
+    if isinstance(value, (base.Symbolic, list, dict)):
+      return object.__new__(cls)
+    return value
 
   @object_utils.explicit_method_override
   def __init__(self, value: Any, **kwargs) -> None:
@@ -241,4 +255,3 @@ def deref(value: base.Symbolic, recursive: bool = False) -> Any:
       return v
     return value.rebind(_deref, raise_on_no_change=False)
   return value
-

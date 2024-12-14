@@ -37,6 +37,17 @@ from pyglove.core.typing.custom_typing import CustomTyping
 
 MISSING_VALUE = object_utils.MISSING_VALUE
 
+
+class _FrozenValuePlaceholder(CustomTyping):
+  """Placeholder for to-be-assigned frozen value."""
+
+  def custom_apply(self, *args, **kwargs) -> typing.Tuple[bool, typing.Any]:
+    return (False, self)
+
+
+_FROZEN_VALUE_PLACEHOLDER = _FrozenValuePlaceholder()
+
+
 # Type alias for ValueSpec object or Python annotation that could be converted
 # to ValueSpec via `pg.typing.ValueSpec.from_annotation()`. This type alias is
 # just for better readability.
@@ -194,8 +205,18 @@ class ValueSpecBase(ValueSpec):
 
   def extend(self, base: ValueSpec) -> ValueSpec:
     """Extend current value spec on top of a base spec."""
-    if base.frozen:
-      raise TypeError(f'Cannot extend a frozen value spec: {base!r}')
+    if base.frozen and (not self.frozen or self.default != base.default):
+      raise TypeError(f'{self!r} cannot extend a frozen value spec: {base!r}')
+
+    # Special handling for extending enum.
+    if self.frozen and isinstance(base, Enum):
+      if self.default in base.values:
+        return Enum(MISSING_VALUE, base.values).freeze(self.default)
+      else:
+        raise TypeError(
+            f'{self!r} cannot extend {base!r} with incompatible '
+            f'frozen value: {self.default!r} '
+        )
 
     if self._transform is None:
       self._transform = base.transform
@@ -232,7 +253,7 @@ class ValueSpecBase(ValueSpec):
       root_path: typing.Optional[object_utils.KeyPath] = None) -> typing.Any:  # pyformat: disable pylint: disable=line-too-long
     """Apply spec to validate and complete value."""
     root_path = root_path or object_utils.KeyPath()
-    if self.frozen:
+    if self.frozen and self.default is not _FROZEN_VALUE_PLACEHOLDER:
       # Always return the default value if a field is frozen.
       if MISSING_VALUE != value and self.default != value:
         raise ValueError(
@@ -270,7 +291,8 @@ class ValueSpecBase(ValueSpec):
         value = self._transform(value)
       except Exception as e:  # pylint: disable=broad-except
         raise e.__class__(
-            object_utils.message_on_path(str(e), root_path)
+            object_utils.message_on_path(
+                str(e), root_path)
             ).with_traceback(sys.exc_info()[2])
 
       return self.skip_user_transform.apply(
@@ -319,7 +341,7 @@ class ValueSpecBase(ValueSpec):
     return value
 
   def is_compatible(self, other: ValueSpec) -> bool:
-    """Returns if current spec is compatible with the other value spec."""
+    """Returns if current spec can receive all values from the other spec."""
     if self is other:
       return True
     if not isinstance(other, self.__class__):
@@ -416,6 +438,12 @@ class PrimitiveType(ValueSpecBase):
     super().__init__(
         value_type, default, is_noneable=is_noneable, frozen=frozen
     )
+
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del kwargs
+    if (not args and self.has_default) or self.frozen:
+      return self.default
+    return self.apply(self.value_type(*args))
 
 
 class Bool(PrimitiveType):
@@ -898,6 +926,12 @@ class Enum(Generic, PrimitiveType):
         value_type, default, is_noneable=is_noneable, frozen=frozen
     )
 
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del kwargs
+    if (not args and self.has_default) or self.frozen:
+      return self.default
+    return self.apply(*args)
+
   def noneable(self) -> 'Enum':
     """Noneable is specially treated for Enum."""
     if None not in self._values:
@@ -928,6 +962,12 @@ class Enum(Generic, PrimitiveType):
             f'{self!r} cannot extend {base!r}: '
             f'{repr(v)} is not an acceptable value.'
         ) from e
+
+  def is_compatible(self, other: ValueSpec) -> bool:
+    """Enum specific compatibility check."""
+    if other.frozen and other.default in self.values:
+      return True
+    return super().is_compatible(other)
 
   def _is_compatible(self, other: 'Enum') -> bool:
     """Enum specific compatibility check."""
@@ -1066,6 +1106,12 @@ class List(Generic, ValueSpecBase):
     super().__init__(
         list, default, transform, is_noneable=is_noneable, frozen=frozen
     )
+
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del kwargs
+    if (not args and self.has_default) or self.frozen:
+      return self.default
+    return self.apply(list(*args))
 
   @property
   def element(self) -> Field:
@@ -1315,6 +1361,12 @@ class Tuple(Generic, ValueSpecBase):
     super().__init__(
         tuple, default, transform, is_noneable=is_noneable, frozen=frozen
     )
+
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del kwargs
+    if (not args and self.has_default) or self.frozen:
+      return self.default
+    return self.apply(tuple(*args))
 
   @property
   def fixed_length(self) -> bool:
@@ -1617,6 +1669,9 @@ class Dict(Generic, ValueSpecBase):
     if MISSING_VALUE == default:
       self.set_default(default)
 
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    return self.apply(dict(*args, **kwargs))
+
   @property
   def schema(self) -> typing.Optional[Schema]:
     """Returns the schema of this dict spec."""
@@ -1816,6 +1871,9 @@ class Object(Generic, ValueSpecBase):
         t, default, transform, is_noneable=is_noneable, frozen=frozen
     )
 
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    return self.apply(self.cls(*args, **kwargs))
+
   @property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
     """Returns forward references used in this spec."""
@@ -2013,6 +2071,10 @@ class Callable(Generic, ValueSpecBase):
         is_noneable=is_noneable,
         frozen=frozen,
     )
+
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del args, kwargs
+    raise TypeError(f'{self!r} cannot be instantiated.')
 
   @functools.cached_property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -2351,6 +2413,10 @@ class Type(Generic, ValueSpecBase):
     self._forward_ref = forward_ref
     super().__init__(type, default, is_noneable=is_noneable, frozen=frozen)
 
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del args, kwargs
+    return self.type
+
   @property
   def type(self) -> typing.Type[typing.Any]:
     """Returns desired type."""
@@ -2538,6 +2604,10 @@ class Union(Generic, ValueSpecBase):
         is_noneable=is_noneable or has_noneable_candidate,
         frozen=frozen,
     )
+
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del args, kwargs
+    raise TypeError(f'{self!r} cannot be instantiated.')
 
   @functools.cached_property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -2855,6 +2925,10 @@ class Any(ValueSpecBase):
         object, default, transform, is_noneable=True, frozen=frozen
     )
     self._annotation = annotation
+
+  def __call__(self, *args, **kwargs) -> typing.Any:
+    del args, kwargs
+    raise TypeError(f'{self!r} cannot be instantiated.')
 
   def is_compatible(self, other: ValueSpec) -> bool:
     """Any is compatible with any ValueSpec."""

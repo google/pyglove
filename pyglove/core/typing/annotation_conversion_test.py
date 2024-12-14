@@ -306,6 +306,14 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
           ValueSpec.from_annotation(int | str, True),
           vs.Union([vs.Int(), vs.Str()]))
 
+  def test_final(self):
+    self.assertEqual(
+        ValueSpec.from_annotation(
+            typing.Final[int], True
+        ).set_default(1),
+        vs.Int().freeze(1)
+    )
+
 
 if __name__ == '__main__':
   unittest.main()

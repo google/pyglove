@@ -177,6 +177,11 @@ def _value_spec_from_type_annotation(
     if optional:
       spec = spec.noneable()
     return spec
+  elif origin is typing.Final:
+    return _value_spec_from_type_annotation(
+        args[0],
+        accept_value_as_annotation=False
+    ).freeze(vs._FROZEN_VALUE_PLACEHOLDER)  # pylint: disable=protected-access
   elif isinstance(annotation, typing.ForwardRef):
     annotation = annotation.__forward_arg__
     if parent_module is not None:

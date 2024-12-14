@@ -16,6 +16,7 @@
 import copy
 import inspect
 import pickle
+import typing
 from typing import Any
 import unittest
 
@@ -201,6 +202,22 @@ class RefTest(unittest.TestCase):
         <details open class="pyglove foo"><summary><div class="summary-title">Foo(...)</div></summary><div class="complex-value foo"><details class="pyglove ref"><summary><div class="summary-name ref">x</div><div class="summary-title ref">Foo(...)</div></summary><div class="complex-value foo"><details open class="pyglove int"><summary><div class="summary-name">x</div><div class="summary-title">int</div></summary><span class="simple-value int">1</span></details></div></details></div></details>
         """
     )
+
+  def test_annotation(self):
+    typing.TYPE_CHECKING = True
+    assert ref.Ref[ValueError] is ValueError
+    typing.TYPE_CHECKING = False
+
+    class Bar(Object):
+      x: int
+
+    class Foo(Object):
+      y: ref.Ref[Bar]
+
+    f = Foo(Bar(1))
+    self.assertIsInstance(f.sym_getattr('y'), ref.Ref)
+    self.assertEqual(f.y.sym_path, '')
+    self.assertIsInstance(ref.Ref[Bar](1), ref.Ref)
 
 
 if __name__ == '__main__':

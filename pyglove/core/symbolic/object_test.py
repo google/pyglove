@@ -324,6 +324,26 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(e.x, 1)
     self.assertEqual(e.y, 3)
 
+    class F(Object):
+      x: typing.Literal[1, 'a']
+
+    class G(F):
+      x: typing.Final[int] = 1
+      y: typing.ClassVar[int] = 2
+
+    self.assertEqual(G().x, 1)
+    self.assertEqual(G.y, 2)
+
+    with self.assertRaisesRegex(
+        ValueError, 'Frozen field is not assignable'):
+      G(x=2)
+
+    with self.assertRaisesRegex(
+        TypeError, 'Field x is marked as final but has no default value'):
+
+      class H(Object):  # pylint: disable=unused-variable
+        x: typing.Final[int]  # pylint: disable=invalid-name
+
   def test_init_arg_list(self):
 
     def _update_init_arg_list(cls, init_arg_list):

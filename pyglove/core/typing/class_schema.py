@@ -344,6 +344,10 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
       Tuple[Type[Any], ...]]:  # pyformat: disable
     """Returns acceptable (resolved) value type(s)."""
 
+  @abc.abstractmethod
+  def __call__(self, *args, **kwargs) -> Any:
+    """Instantiates a value based on the spec.."""
+
   @property
   @abc.abstractmethod
   def forward_refs(self) -> Set[ForwardRef]:
