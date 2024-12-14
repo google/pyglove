@@ -305,7 +305,7 @@ class HtmlTreeView(HtmlView):
 
     summary = self.summary(
         value,
-        name=name,
+        name=f'[{name}]' if isinstance(name, int) else name,
         parent=parent,
         root_path=root_path,
         css_classes=css_classes,
@@ -622,7 +622,7 @@ class HtmlTreeView(HtmlView):
                     color=summary_color[0],
                     background_color=summary_color[1],
                 ),
-            ) if name else None,
+            ) if name is not None else None,
 
             # Summary title
             Html.element(

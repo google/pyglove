@@ -97,7 +97,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
   @classmethod
   def partial(cls,
-              dict_obj: Optional[typing.Dict[str, Any]] = None,
+              dict_obj: Optional[typing.Dict[Union[str, int], Any]] = None,
               value_spec: Optional[pg_typing.Dict] = None,
               *,
               onchange_callback: Optional[Callable[
@@ -169,8 +169,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   def __init__(self,
                dict_obj: Union[
                    None,
-                   Iterable[Tuple[str, Any]],
-                   typing.Dict[str, Any]] = None,
+                   Iterable[Tuple[Union[str, int], Any]],
+                   typing.Dict[Union[str, int], Any]] = None,
                *,
                value_spec: Optional[pg_typing.Dict] = None,
                onchange_callback: Optional[Callable[
@@ -345,7 +345,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         updates.append(update)
     return updates
 
-  def _sym_missing(self) -> typing.Dict[str, Any]:
+  def _sym_missing(self) -> typing.Dict[Union[str, int], Any]:
     """Returns missing values.
 
     Returns:
@@ -375,7 +375,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             missing[k] = missing_child
     return missing
 
-  def _sym_nondefault(self) -> typing.Dict[str, Any]:
+  def _sym_nondefault(self) -> typing.Dict[Union[str, int], Any]:
     """Returns non-default values as key/value pairs in a dict."""
     non_defaults = dict()
     if self._value_spec is not None and self._value_spec.schema:
@@ -444,7 +444,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Tests if a symbolic attribute exists."""
     return key in self
 
-  def sym_keys(self) -> Iterator[str]:
+  def sym_keys(self) -> Iterator[Union[str, int]]:
     """Iterates the keys of symbolic attributes."""
     if self._value_spec is None or self._value_spec.schema is None:
       for key in super().__iter__():
@@ -467,7 +467,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       yield self._sym_getattr(k)
 
   def sym_items(self) -> Iterator[
-      Tuple[str, Any]]:
+      Tuple[Union[str, int], Any]]:
     """Iterates the (key, value) pairs of symbolic attributes."""
     for k in self.sym_keys():
       yield k, self._sym_getattr(k)
@@ -490,7 +490,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
                 if v != pg_typing.MISSING_VALUE])))
 
   def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
-      self, key: str) -> Any:
+      self, key: Union[str, int]) -> Any:
     """Gets symbolic attribute by key."""
     return super().__getitem__(key)
 
@@ -524,11 +524,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         v.sym_setpath(object_utils.KeyPath(k, new_path))
 
   def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
-      self, key: str, value: Any) -> Optional[base.FieldUpdate]:
+      self, key: Union[str, int], value: Any) -> Optional[base.FieldUpdate]:
     """Set item without permission check."""
-    if not isinstance(key, str):
+    if not isinstance(key, (str, int)):
       raise KeyError(self._error_message(
-          f'Key must be string type. Encountered {key!r}.'))
+          f'Key must be string or int type. Encountered {key!r}.'))
 
     old_value = self.get(key, pg_typing.MISSING_VALUE)
     if old_value is value:
@@ -545,7 +545,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           container_cls = self.__class__
         raise KeyError(
             self._error_message(
-                f'Key \'{key}\' is not allowed for {container_cls}.'))
+                f'Key {key!r} is not allowed for {container_cls}.'))
 
     # Detach old value from object tree.
     if isinstance(old_value, base.TopologyAware):
@@ -575,9 +575,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     return base.FieldUpdate(
         self.sym_path + key, target, field, old_value, new_value)
 
-  def _formalized_value(self, name: str,
-                        field: Optional[pg_typing.Field],
-                        value: Any) -> Any:
+  def _formalized_value(
+      self, name: Union[str, int],
+      field: Optional[pg_typing.Field],
+      value: Any
+  ) -> Any:
     """Get transformed (formal) value from user input."""
     allow_partial = base.accepts_partial(self)
     if field and pg_typing.MISSING_VALUE == value:
@@ -625,14 +627,14 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Customizes pickle.load."""
     self.__init__(state['value'], **state['kwargs'])
 
-  def __getitem__(self, key: str) -> Any:
+  def __getitem__(self, key: Union[str, int]) -> Any:
     """Get item in this Dict."""
     try:
       return self.sym_inferred(key)
     except AttributeError as e:
       raise KeyError(key) from e
 
-  def __setitem__(self, key: str, value: Any) -> None:
+  def __setitem__(self, key: Union[str, int], value: Any) -> None:
     """Set item in this Dict.
 
     Args:
@@ -733,11 +735,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Iterate keys in field declaration order."""
     return self.sym_keys()
 
-  def keys(self) -> Iterator[str]:  # pytype: disable=signature-mismatch
+  def keys(self) -> Iterator[Union[str, int]]:  # pytype: disable=signature-mismatch
     """Returns an iterator of keys in current dict."""
     return self.sym_keys()
 
-  def items(self) -> Iterator[Tuple[str, Any]]:  # pytype: disable=signature-mismatch
+  def items(self) -> Iterator[Tuple[Union[str, int], Any]]:  # pytype: disable=signature-mismatch
     """Returns an iterator of (key, value) items in current dict."""
     return self.sym_items()
 
@@ -750,7 +752,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     return self.sym_clone(deep=False)
 
   def pop(
-      self, key: Any, default: Any = base.RAISE_IF_NOT_FOUND  # pylint: disable=protected-access
+      self, key: Union[str, int], default: Any = base.RAISE_IF_NOT_FOUND  # pylint: disable=protected-access
   ) -> Any:
     """Pops a key from current dict."""
     if key in self:
@@ -762,7 +764,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       raise KeyError(key)
     return default
 
-  def popitem(self) -> Tuple[str, Any]:
+  def popitem(self) -> Tuple[Union[str, int], Any]:
     if self._value_spec is not None:
       raise ValueError(
           '\'popitem\' cannot be performed on a Dict with value spec.')
@@ -781,7 +783,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     if value_spec:
       self.use_value_spec(value_spec, self._allow_partial)
 
-  def setdefault(self, key: str, default: Any = None) -> Any:
+  def setdefault(self, key: Union[str, int], default: Any = None) -> Any:
     """Sets default as the value to key if not present."""
     value = pg_typing.MISSING_VALUE
     if key in self:
@@ -791,12 +793,15 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       value = default
     return value
 
-  def update(self,
-             other: Union[
-                 None,
-                 typing.Dict[str, Any],
-                 Iterable[Tuple[str, Any]]] = None,
-             **kwargs) -> None:  # pytype: disable=signature-mismatch
+  def update(
+      self,
+      other: Union[
+          None,
+          typing.Dict[Union[str, int], Any],
+          Iterable[Tuple[Union[str, int], Any]]
+      ] = None,
+      **kwargs
+  ) -> None:  # pytype: disable=signature-mismatch
     """Update Dict with the same semantic as update on standard dict."""
     updates = dict(other) if other else {}
     updates.update(kwargs)
@@ -807,9 +812,10 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       self,
       hide_frozen: bool = True,
       hide_default_values: bool = False,
-      exclude_keys: Optional[Sequence[str]] = None,
+      exclude_keys: Optional[Sequence[Union[str, int]]] = None,
       use_inferred: bool = False,
-      **kwargs) -> object_utils.JSONValueType:
+      **kwargs
+  ) -> object_utils.JSONValueType:
     """Converts current object to a dict with plain Python objects."""
     exclude_keys = set(exclude_keys or [])
     if self._value_spec and self._value_spec.schema:
@@ -896,8 +902,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       hide_frozen: bool = True,
       hide_default_values: bool = False,
       hide_missing_values: bool = False,
-      include_keys: Optional[Set[str]] = None,
-      exclude_keys: Optional[Set[str]] = None,
+      include_keys: Optional[Set[Union[str, int]]] = None,
+      exclude_keys: Optional[Set[Union[str, int]]] = None,
       use_inferred: bool = False,
       cls_name: Optional[str] = None,
       bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
@@ -963,10 +969,12 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             extra_blankline_for_field_docstr=extra_blankline_for_field_docstr,
             **kwargs)
         if not python_format or key_as_attribute:
-          kv_strs.append(f'{k}={v_str}')
+          if isinstance(k, int):
+            k = f'[{k}]'
+          item = f'{k}={v_str}'
         else:
-          kv_strs.append(f'\'{k}\': {v_str}')
-
+          item = f'{k!r}: {v_str}'
+        kv_strs.append(item)
       s.append(', '.join(kv_strs))
       s.append(close_bracket)
     else:
@@ -993,15 +1001,19 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             use_inferred=use_inferred,
             extra_blankline_for_field_docstr=extra_blankline_for_field_docstr,
             **kwargs)
+
         if not python_format:
           # Format in PyGlove's format (default).
-          s.append(_indent(f'{k} = {v_str}', root_indent + 1))
+          if isinstance(k, int):
+            k = f'[{k}]'
+          item = f'{k} = {v_str}'
         elif key_as_attribute:
           # Format `pg.Objects` under Python format.
-          s.append(_indent(f'{k}={v_str}', root_indent + 1))
+          item = f'{k}={v_str}'
         else:
           # Format regular `pg.Dict` under Python format.
-          s.append(_indent(f'\'{k}\': {v_str}', root_indent + 1))
+          item = f'{k!r}: {v_str}'
+        s.append(_indent(item, root_indent + 1))
       s.append('\n')
       s.append(_indent(close_bracket, root_indent))
     return ''.join(s)
