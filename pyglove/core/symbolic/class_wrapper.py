@@ -45,11 +45,7 @@ class ClassWrapperMeta(pg_object.ObjectMeta):
 
   def __getattr__(self, name):
     """Pass through attribute requests to sym_wrapped_cls."""
-    try:
-      return super().__getattr__(name)
-    except AttributeError:
-      wrapped_cls = object.__getattribute__(self, 'sym_wrapped_cls')
-      return getattr(wrapped_cls, name)
+    return getattr(object.__getattribute__(self, 'sym_wrapped_cls'), name)
 
 
 class ClassWrapper(pg_object.Object, metaclass=ClassWrapperMeta):
