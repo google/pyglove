@@ -19,7 +19,6 @@ import inspect
 import typing
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
-from pyglove.core import logging
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
@@ -49,21 +48,6 @@ class ObjectMeta(abc.ABCMeta):
     """
     return f'{cls.__module__}.{cls.__qualname__}'
 
-  def __getattr__(cls, name):
-    # NOTE(daiyip): For backward compatibility, we allows these names to
-    # be used as aliases to the canonical names if users do not override them.
-    if name == 'schema':
-      logging.warning(
-          '`pg.Object.schema` is deprecated and will be removed in future. '
-          'Please use `__schema__` instead.')
-      return cls.__schema__
-    elif name == 'type_name':
-      logging.warning(
-          '`pg.Object.type_name` is deprecated and will be removed in future. '
-          'Please use `__type_name__` instead.')
-      return cls.__type_name__
-    raise AttributeError(name)
-
   @property
   def init_arg_list(cls) -> List[str]:
     """Gets __init__ positional argument list."""
@@ -80,7 +64,7 @@ class ObjectMeta(abc.ABCMeta):
     """
     # Formalize schema first.
     if schema is not None:
-      schema = cls._normalize_schema(schema)
+      schema = cls._normalize_schema(schema)  # pytype: disable=attribute-error
       setattr(cls, '__schema__', schema)
       setattr(cls, '__sym_fields', pg_typing.Dict(schema))
 
