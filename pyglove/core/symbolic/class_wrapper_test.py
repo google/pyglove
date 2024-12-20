@@ -588,7 +588,7 @@ class ClassWrapperTest(unittest.TestCase):
     self.assertIsInstance(C(1, 2), ClassWrapper)
     self.assertTrue(pg_eq(C(1, 2), C(1, 2)))
     self.assertEqual(list(C.__schema__.fields.keys()), ['x', 'y'])
-    self.assertEqual(repr(C), f'<class {C.type_name!r}>')
+    self.assertEqual(repr(C), f'<class {C.__type_name__!r}>')
 
   def test_custom_metaclass(self):
 
@@ -604,7 +604,7 @@ class ClassWrapperTest(unittest.TestCase):
     A1 = pg_wrap(A)  # pylint: disable=invalid-name
     self.assertTrue(issubclass(A1, ClassWrapper))
     self.assertTrue(issubclass(A1, A))
-    self.assertEqual(A1.type_name, 'pyglove.core.symbolic.class_wrapper_test.A')
+    self.assertEqual(A1.__type_name__, 'pyglove.core.symbolic.class_wrapper_test.A')
     self.assertEqual(A1.__schema__, pg_typing.Schema([]))
     self.assertEqual(A1.foo, 'foo')
     self.assertRegex(repr(A1), r'Symbolic\[.*\]')

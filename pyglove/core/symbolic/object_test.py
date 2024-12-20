@@ -412,7 +412,7 @@ class ObjectTest(unittest.TestCase):
     _assert_init_arg_list(F, ['x', '*y'], ['x'], [], 'y')
 
   def test_forward_reference(self):
-    self.assertIs(Foo.schema.get_field('p').value.cls, Foo)
+    self.assertIs(Foo.__schema__.get_field('p').value.cls, Foo)
 
   def test_update_of_default_values(self):
 
@@ -2595,7 +2595,7 @@ class EventsTest(unittest.TestCase):
                     base.FieldUpdate(
                         path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
                         target=sd.a2.b1.c1[0].d3,
-                        field=sd.a2.b1.c1[0].d3.__class__.schema['z'],
+                        field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
                         old_value=MISSING_VALUE,
                         new_value='foo')
             }
