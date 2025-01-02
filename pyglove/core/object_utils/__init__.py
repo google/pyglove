@@ -126,9 +126,6 @@ from pyglove.core.object_utils.common_traits import Functor
 from pyglove.core.object_utils.common_traits import explicit_method_override
 from pyglove.core.object_utils.common_traits import ensure_explicit_method_override
 
-# Handling code generation.
-from pyglove.core.object_utils.codegen import make_function
-
 # Handling thread local values.
 from pyglove.core.object_utils.thread_local import thread_local_value_scope
 from pyglove.core.object_utils.thread_local import thread_local_has

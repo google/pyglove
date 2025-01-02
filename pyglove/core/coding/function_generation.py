@@ -11,10 +11,16 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Utilities for code generation."""
+"""Utilities for function generation."""
 
 from typing import Any, Dict, List, Optional
-from pyglove.core.object_utils.missing import MISSING_VALUE
+
+
+class _NoTypeAnnotation:
+  """Placeholder for no type annotation."""
+
+
+NO_TYPE_ANNOTATION = _NoTypeAnnotation()
 
 
 def make_function(
@@ -24,11 +30,11 @@ def make_function(
     *,
     exec_globals: Optional[Dict[str, Any]] = None,
     exec_locals: Optional[Dict[str, Any]] = None,
-    return_type: Any = MISSING_VALUE):
+    return_type: Any = NO_TYPE_ANNOTATION):
   """Creates a function dynamically from source."""
   if exec_locals is None:
     exec_locals = {}
-  if return_type != MISSING_VALUE:
+  if return_type != NO_TYPE_ANNOTATION:
     exec_locals['_return_type'] = return_type
     return_annotation = '->_return_type'
   else:

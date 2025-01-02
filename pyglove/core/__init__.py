@@ -323,6 +323,12 @@ views.html.controls = controls
 
 from pyglove.core import io
 
+#
+# Symbols from `coding` sub-module.
+#
+#
+
+from pyglove.core import coding
 
 #
 # Symbols from `logging.py`.

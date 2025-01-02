@@ -21,6 +21,7 @@ import types
 import typing
 from typing import Any, Callable, Dict, List, Optional, Union
 
+from pyglove.core import coding
 from pyglove.core import object_utils
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import key_specs as ks
@@ -753,14 +754,15 @@ class Signature(object_utils.Formattable):
       )
 
     # Generate function.
-    fn = object_utils.make_function(
+    fn = coding.make_function(
         self.name,
         args=args,
         body=body,
         exec_globals=exec_globals,
         exec_locals=exec_locals,
         return_type=getattr(
-            self.return_value, 'annotation', object_utils.MISSING_VALUE))
+            self.return_value, 'annotation', coding.NO_TYPE_ANNOTATION)
+    )
     fn.__module__ = self.module_name
     fn.__name__ = self.name
     fn.__qualname__ = self.qualname

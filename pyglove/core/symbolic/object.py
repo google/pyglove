@@ -19,6 +19,7 @@ import inspect
 import typing
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
+from pyglove.core import coding
 from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
 from pyglove.core.symbolic import base
@@ -504,7 +505,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
   def _create_sym_attribute(cls, attr_name, field):
     """Customizable trait: template of single symbolic attribute."""
     return property(
-        object_utils.make_function(
+        coding.make_function(
             attr_name,
             ['self'],
             [f"return self.sym_inferred('{attr_name}')"],
