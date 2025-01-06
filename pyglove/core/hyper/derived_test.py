@@ -11,13 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.hyper.ValueReference."""
-
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper.derived import ValueReference
 
 
@@ -47,7 +45,7 @@ class ValueReferenceTest(unittest.TestCase):
     self.assertEqual(sd.c[0].y.resolve(), [(sd.c[0], 'c[0].x[0].z')])
     self.assertEqual(sd.c[1].y.resolve(), [(sd.c[1], 'c[1].x[0].z')])
     # Resolve references from this point.
-    self.assertEqual(sd.c[0].y.resolve(object_utils.KeyPath(0)), (sd.c, 'c[0]'))
+    self.assertEqual(sd.c[0].y.resolve(utils.KeyPath(0)), (sd.c, 'c[0]'))
     self.assertEqual(sd.c[0].y.resolve('[0]'), (sd.c, 'c[0]'))
     self.assertEqual(
         sd.c[0].y.resolve(['[0]', '[1]']), [(sd.c, 'c[0]'), (sd.c, 'c[1]')])

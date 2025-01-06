@@ -16,7 +16,7 @@
 import abc
 from typing import Any, Callable, Optional, Tuple
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import class_schema
 
 
@@ -34,11 +34,12 @@ class CustomTyping(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: class_schema.ValueSpec,
       allow_partial: bool,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, class_schema.Field, Any], Any]] = None
+      child_transform: Optional[
+          Callable[[utils.KeyPath, class_schema.Field, Any], Any]
+      ] = None,
   ) -> Tuple[bool, Any]:
     """Custom apply on a value based on its original value spec.
 

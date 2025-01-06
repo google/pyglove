@@ -11,13 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.object_utils.thread_local."""
-
 import threading
 import time
 import unittest
 
-from pyglove.core.object_utils import thread_local
+from pyglove.core.utils import thread_local
 
 
 class ThreadLocalTest(unittest.TestCase):

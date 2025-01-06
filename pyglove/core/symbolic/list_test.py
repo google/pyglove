@@ -20,8 +20,8 @@ import pickle
 from typing import Any
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import inferred
@@ -34,7 +34,7 @@ from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
 
 
-MISSING_VALUE = object_utils.MISSING_VALUE
+MISSING_VALUE = utils.MISSING_VALUE
 
 
 class ListTest(unittest.TestCase):
@@ -685,7 +685,7 @@ class ListTest(unittest.TestCase):
     self.assertTrue(sl.sym_has('[0].x'))
     self.assertTrue(sl.sym_has('[0].x[0]'))
     self.assertTrue(sl.sym_has('[0].x[0].y'))
-    self.assertTrue(sl.sym_has(object_utils.KeyPath.parse('[0].x[0].y')))
+    self.assertTrue(sl.sym_has(utils.KeyPath.parse('[0].x[0].y')))
 
   def test_sym_get(self):
     sl = List([dict(x=[dict(y=1)])])
@@ -1100,7 +1100,7 @@ class ListTest(unittest.TestCase):
     self.assertEqual(sl[1].sym_path, '[1]')
     self.assertEqual(sl[1][0].b.sym_path, '[1][0].b')
 
-    sl.sym_setpath(object_utils.KeyPath('a'))
+    sl.sym_setpath(utils.KeyPath('a'))
     self.assertEqual(sl.sym_path, 'a')
     self.assertEqual(sl[0].sym_path, 'a[0]')
     self.assertEqual(sl[0].a.sym_path, 'a[0].a')
@@ -1412,96 +1412,112 @@ class RebindTest(unittest.TestCase):
         '[3]': 'foo',  # Unchanged.
         '[4]': Insertion('bar')
     })
-    self.assertEqual(updates, [
-        {  # Notification to `sl[2][0]`.
-            'p': base.FieldUpdate(
-                object_utils.KeyPath.parse('[2][0].p'),
-                target=sl[2][0],
-                field=None,
-                old_value=1,
-                new_value=MISSING_VALUE),
-            'q': base.FieldUpdate(
-                object_utils.KeyPath.parse('[2][0].q'),
-                target=sl[2][0],
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=2),
-        },
-        {  # Notification to `sl.c`.
-            '[0].p': base.FieldUpdate(
-                object_utils.KeyPath.parse('[2][0].p'),
-                target=sl[2][0],
-                field=None,
-                old_value=1,
-                new_value=MISSING_VALUE),
-            '[0].q': base.FieldUpdate(
-                object_utils.KeyPath.parse('[2][0].q'),
-                target=sl[2][0],
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=2),
-        },
-        {  # Notification to `sl[1].y`.
-            'z': base.FieldUpdate(
-                object_utils.KeyPath.parse('[1].y.z'),
-                target=sl[1].y,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=1),
-        },
-        {  # Notification to `sl.b`.
-            'x': base.FieldUpdate(
-                object_utils.KeyPath.parse('[1].x'),
-                target=sl[1],
-                field=None,
-                old_value=1,
-                new_value=2),
-            'y.z': base.FieldUpdate(
-                object_utils.KeyPath.parse('[1].y.z'),
-                target=sl[1].y,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=1),
-        },
-        {  # Notification to `sl`.
-            '[0]': base.FieldUpdate(
-                object_utils.KeyPath.parse('[0]'),
-                target=sl,
-                field=None,
-                old_value=1,
-                new_value=2),
-            '[1].x': base.FieldUpdate(
-                object_utils.KeyPath.parse('[1].x'),
-                target=sl[1],
-                field=None,
-                old_value=1,
-                new_value=2),
-            '[1].y.z': base.FieldUpdate(
-                object_utils.KeyPath.parse('[1].y.z'),
-                target=sl[1].y,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=1),
-            '[2][0].p': base.FieldUpdate(
-                object_utils.KeyPath.parse('[2][0].p'),
-                target=sl[2][0],
-                field=None,
-                old_value=1,
-                new_value=MISSING_VALUE),
-            '[2][0].q': base.FieldUpdate(
-                object_utils.KeyPath.parse('[2][0].q'),
-                target=sl[2][0],
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=2),
-            '[4]': base.FieldUpdate(
-                object_utils.KeyPath.parse('[4]'),
-                target=sl,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value='bar')
-        }
-    ])
+    self.assertEqual(
+        updates,
+        [
+            {  # Notification to `sl[2][0]`.
+                'p': base.FieldUpdate(
+                    utils.KeyPath.parse('[2][0].p'),
+                    target=sl[2][0],
+                    field=None,
+                    old_value=1,
+                    new_value=MISSING_VALUE,
+                ),
+                'q': base.FieldUpdate(
+                    utils.KeyPath.parse('[2][0].q'),
+                    target=sl[2][0],
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=2,
+                ),
+            },
+            {  # Notification to `sl.c`.
+                '[0].p': base.FieldUpdate(
+                    utils.KeyPath.parse('[2][0].p'),
+                    target=sl[2][0],
+                    field=None,
+                    old_value=1,
+                    new_value=MISSING_VALUE,
+                ),
+                '[0].q': base.FieldUpdate(
+                    utils.KeyPath.parse('[2][0].q'),
+                    target=sl[2][0],
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=2,
+                ),
+            },
+            {  # Notification to `sl[1].y`.
+                'z': base.FieldUpdate(
+                    utils.KeyPath.parse('[1].y.z'),
+                    target=sl[1].y,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=1,
+                ),
+            },
+            {  # Notification to `sl.b`.
+                'x': base.FieldUpdate(
+                    utils.KeyPath.parse('[1].x'),
+                    target=sl[1],
+                    field=None,
+                    old_value=1,
+                    new_value=2,
+                ),
+                'y.z': base.FieldUpdate(
+                    utils.KeyPath.parse('[1].y.z'),
+                    target=sl[1].y,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=1,
+                ),
+            },
+            {  # Notification to `sl`.
+                '[0]': base.FieldUpdate(
+                    utils.KeyPath.parse('[0]'),
+                    target=sl,
+                    field=None,
+                    old_value=1,
+                    new_value=2,
+                ),
+                '[1].x': base.FieldUpdate(
+                    utils.KeyPath.parse('[1].x'),
+                    target=sl[1],
+                    field=None,
+                    old_value=1,
+                    new_value=2,
+                ),
+                '[1].y.z': base.FieldUpdate(
+                    utils.KeyPath.parse('[1].y.z'),
+                    target=sl[1].y,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=1,
+                ),
+                '[2][0].p': base.FieldUpdate(
+                    utils.KeyPath.parse('[2][0].p'),
+                    target=sl[2][0],
+                    field=None,
+                    old_value=1,
+                    new_value=MISSING_VALUE,
+                ),
+                '[2][0].q': base.FieldUpdate(
+                    utils.KeyPath.parse('[2][0].q'),
+                    target=sl[2][0],
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=2,
+                ),
+                '[4]': base.FieldUpdate(
+                    utils.KeyPath.parse('[4]'),
+                    target=sl,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value='bar',
+                ),
+            },
+        ],
+    )
 
   def test_rebind_with_fn(self):
     sl = List([0, dict(x=1, y='foo', z=[2, 3, 4])])
@@ -1716,7 +1732,7 @@ class FormatTest(unittest.TestCase):
 
   def test_compact_python_format(self):
     self.assertEqual(
-        object_utils.format(
+        utils.format(
             self._list, compact=True, python_format=True, markdown=True
         ),
         "`[{'a1': 1, 'a2': {'b1': {'c1': [{'d1': MISSING_VALUE, "
@@ -1726,9 +1742,12 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_python_format(self):
     self.assertEqual(
-        object_utils.format(
-            self._list, compact=False, verbose=False,
-            python_format=True, markdown=True
+        utils.format(
+            self._list,
+            compact=False,
+            verbose=False,
+            python_format=True,
+            markdown=True,
         ),
         inspect.cleandoc("""
           ```

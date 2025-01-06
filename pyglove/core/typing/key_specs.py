@@ -16,7 +16,7 @@
 import re
 from typing import Any, Dict, Optional
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing.class_schema import KeySpec
 
 
@@ -38,7 +38,7 @@ class KeySpecBase(KeySpec):
     return {}
 
 
-class ConstStrKey(KeySpecBase, object_utils.StrKey):
+class ConstStrKey(KeySpecBase, utils.StrKey):
   """Class that represents a constant string key.
 
   Example::
@@ -159,11 +159,9 @@ class StrKey(NonConstKey):
 
   def format(self, **kwargs):
     """Format this object."""
-    return object_utils.kvlist_str(
-        [
-            ('regex', getattr(self._regex, 'pattern', None), None)
-        ],
-        label=self.__class__.__name__
+    return utils.kvlist_str(
+        [('regex', getattr(self._regex, 'pattern', None), None)],
+        label=self.__class__.__name__,
     )
 
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:

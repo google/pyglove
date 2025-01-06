@@ -17,7 +17,7 @@ import abc
 import copy as copy_lib
 import operator
 from typing import Any, Callable, Iterable, Iterator, List, Optional, Union
-from pyglove.core.object_utils import formatting
+from pyglove.core.utils import formatting
 
 
 class KeyPath(formatting.Formattable):
@@ -822,7 +822,7 @@ class StrKey(metaclass=abc.ABCMeta):
 
   Example::
 
-    class MyKey(pg.object_utils.StrKey):
+    class MyKey(pg.utils.StrKey):
 
       def __init__(self, name):
         self.name = name

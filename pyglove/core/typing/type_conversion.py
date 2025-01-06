@@ -17,7 +17,7 @@ import calendar
 import datetime
 from typing import Any, Callable, Optional, Tuple, Type, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import inspect as pg_inspect
 
 
@@ -135,10 +135,9 @@ def _register_builtin_converters():
                      lambda x: calendar.timegm(x.timetuple()))
 
   # string <=> KeyPath.
-  register_converter(str, object_utils.KeyPath,
-                     object_utils.KeyPath.parse)
-  register_converter(object_utils.KeyPath, str, lambda x: x.path)
+  register_converter(str, utils.KeyPath, utils.KeyPath.parse)
+  register_converter(utils.KeyPath, str, lambda x: x.path)
 
 
 _register_builtin_converters()
-object_utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter
+utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter

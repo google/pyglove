@@ -22,9 +22,9 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 from pyglove.core import geno
 from pyglove.core import logging
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
 class _DataEntity(symbolic.Object):
@@ -116,7 +116,7 @@ class Trial(_DataEntity):
     return tuple(metric_values) if len(metric_values) > 1 else metric_values[0]
 
 
-class Result(object_utils.Formattable):
+class Result(utils.Formattable):
   """Interface for tuning result."""
 
   @property
@@ -416,7 +416,7 @@ class Feedback(metaclass=abc.ABCMeta):
       error_stack = traceback.format_exc()
       logging.warning('Skipping trial on unhandled exception: %s', error_stack)
       self.skip(error_stack)
-    return object_utils.catch_errors(exceptions, skip_on_exception)
+    return utils.catch_errors(exceptions, skip_on_exception)
 
   @contextlib.contextmanager
   def ignore_race_condition(self):

@@ -20,8 +20,8 @@ import inspect
 import typing
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.views import base
 
 NestableStr = Union[
@@ -33,11 +33,11 @@ NestableStr = Union[
 NodeFilter = base.NodeFilter
 NodeColor = Callable[
     [
-        object_utils.KeyPath,    # The path to the value.
-        Any,        # Current value.
-        Any,        # Parent value
+        utils.KeyPath,  # The path to the value.
+        Any,  # Current value.
+        Any,  # Parent value
     ],
-    Optional[str]   # The color of the node.
+    Optional[str],  # The color of the node.
 ]
 
 
@@ -386,7 +386,7 @@ class Html(base.Content):
       cls, nestable_str: NestableStr, separator: str = ' ', dedup: bool = True
   ) -> Optional[str]:
     """Concates the string nodes in a nestable object."""
-    flattened = object_utils.flatten(nestable_str)
+    flattened = utils.flatten(nestable_str)
     if isinstance(flattened, str):
       return flattened
     elif isinstance(flattened, dict):
@@ -456,8 +456,8 @@ class HtmlView(base.View):
       value: Any,
       *,
       name: Optional[str] = None,
-      root_path: Optional[object_utils.KeyPath] = None,
-      **kwargs
+      root_path: Optional[utils.KeyPath] = None,
+      **kwargs,
   ) -> Html:
     """Renders the input value into an HTML object."""
     # For customized HtmlConvertible objects, call their `to_html()` method.
@@ -473,8 +473,8 @@ class HtmlView(base.View):
       value: Any,
       *,
       name: Optional[str] = None,
-      root_path: Optional[object_utils.KeyPath] = None,
-      **kwargs
+      root_path: Optional[utils.KeyPath] = None,
+      **kwargs,
   ) -> Html:
     """View's implementation of HTML rendering."""
 
@@ -483,9 +483,9 @@ def to_html(
     value: Any,
     *,
     name: Optional[str] = None,
-    root_path: Optional[object_utils.KeyPath] = None,
+    root_path: Optional[utils.KeyPath] = None,
     view_id: str = 'html-tree-view',
-    **kwargs
+    **kwargs,
 ) -> Html:
   """Returns the HTML representation of a value.
 
@@ -517,10 +517,10 @@ def to_html_str(
     value: Any,
     *,
     name: Optional[str] = None,
-    root_path: Optional[object_utils.KeyPath] = None,
+    root_path: Optional[utils.KeyPath] = None,
     view_id: str = 'html-tree-view',
     content_only: bool = False,
-    **kwargs
+    **kwargs,
 ) -> str:
   """Returns a HTML str for a value.
 
@@ -545,4 +545,3 @@ def to_html_str(
       view_id=view_id,
       **kwargs
   ).to_str(content_only=content_only)
-

@@ -18,9 +18,9 @@ import dataclasses
 import time
 from typing import Any, Dict, List, Optional
 
-from pyglove.core.object_utils import error_utils
-from pyglove.core.object_utils import json_conversion
-from pyglove.core.object_utils import thread_local
+from pyglove.core.utils import error_utils
+from pyglove.core.utils import json_conversion
+from pyglove.core.utils import thread_local
 
 
 class TimeIt:

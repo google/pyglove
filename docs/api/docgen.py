@@ -59,12 +59,11 @@ MODULES_TO_DOCUMENT = frozenset({
     'hyper',
     'io',
     'patching',
-    'object_utils',
     'symbolic',
     'views',
     'tuning',
     'typing',
-
+    'utils',
     # Ext.
     'early_stopping',
     'evolution',
@@ -73,7 +72,6 @@ MODULES_TO_DOCUMENT = frozenset({
     'evolution.recombinators',
     'mutfun',
     'scalars',
-
     # generators.
     'generators',
 })

@@ -22,7 +22,7 @@ import typing
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from pyglove.core import coding
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import key_specs as ks
 
@@ -141,7 +141,7 @@ class CallableType(enum.Enum):
   METHOD = 2
 
 
-class Signature(object_utils.Formattable):
+class Signature(utils.Formattable):
   """PY3 function signature."""
 
   def __init__(self,
@@ -257,7 +257,7 @@ class Signature(object_utils.Formattable):
       **kwargs,
   ) -> str:
     """Format current object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('', self.id, ''),
             ('args', self.args, []),
@@ -271,7 +271,7 @@ class Signature(object_utils.Formattable):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def annotate(
@@ -288,7 +288,7 @@ class Signature(object_utils.Formattable):
       return_value = class_schema.ValueSpec.from_annotation(
           return_value, auto_typing=True
       )
-      if object_utils.MISSING_VALUE != return_value.default:
+      if utils.MISSING_VALUE != return_value.default:
         raise ValueError('return value spec should not have default value.')
       self.return_value = return_value
 
@@ -337,12 +337,12 @@ class Signature(object_utils.Formattable):
           or field.value.default is None
       ):
         field.value.set_default(
-            arg.value_spec.default, root_path=object_utils.KeyPath(arg.name)
+            arg.value_spec.default, root_path=utils.KeyPath(arg.name)
         )
       if arg.value_spec.default != field.value.default:
         if field.value.is_noneable and not arg.value_spec.has_default:
-            # Special handling noneable which always comes with a default.
-          field.value.set_default(object_utils.MISSING_VALUE)
+          # Special handling noneable which always comes with a default.
+          field.value.set_default(utils.MISSING_VALUE)
         elif not (
             # Special handling Dict type which always has default.
             isinstance(field.value, class_schema.ValueSpec.DictType)
@@ -549,7 +549,7 @@ class Signature(object_utils.Formattable):
     if not callable(callable_object):
       raise TypeError(f'{callable_object!r} is not callable.')
 
-    if isinstance(callable_object, object_utils.Functor):
+    if isinstance(callable_object, utils.Functor):
       assert callable_object.__signature__ is not None
       return callable_object.__signature__
 
@@ -566,15 +566,15 @@ class Signature(object_utils.Formattable):
         description = None
         args_doc = {}
         if func.__doc__:
-          cls_doc = object_utils.DocStr.parse(func.__doc__)
+          cls_doc = utils.DocStr.parse(func.__doc__)
           description = cls_doc.short_description
           args_doc.update(cls_doc.args)
 
         if func.__init__.__doc__:
-          init_doc = object_utils.DocStr.parse(func.__init__.__doc__)
+          init_doc = utils.DocStr.parse(func.__init__.__doc__)
           args_doc.update(init_doc.args)
-        docstr = object_utils.DocStr(
-            object_utils.DocStrStyle.GOOGLE,
+        docstr = utils.DocStr(
+            utils.DocStrStyle.GOOGLE,
             short_description=description,
             long_description=None,
             examples=[],
@@ -593,7 +593,7 @@ class Signature(object_utils.Formattable):
           else CallableType.FUNCTION
       )
       if auto_doc:
-        docstr = object_utils.docstr(func)
+        docstr = utils.docstr(func)
       sig = inspect.signature(func)
 
     module_name = getattr(func, '__module__', None)
@@ -617,7 +617,7 @@ class Signature(object_utils.Formattable):
       module_name: Optional[str] = None,
       qualname: Optional[str] = None,
       auto_typing: bool = False,
-      docstr: Union[str, object_utils.DocStr, None] = None,
+      docstr: Union[str, utils.DocStr, None] = None,
       parent_module: Optional[types.ModuleType] = None,
   ) -> 'Signature':
     """Returns PyGlove signature from Python signature.
@@ -644,7 +644,7 @@ class Signature(object_utils.Formattable):
     varkw = None
 
     if isinstance(docstr, str):
-      docstr = object_utils.DocStr.parse(docstr)
+      docstr = utils.DocStr.parse(docstr)
 
     def make_arg_spec(param: inspect.Parameter) -> Argument:
       """Makes argument spec from inspect.Parameter."""
@@ -708,7 +708,7 @@ class Signature(object_utils.Formattable):
         force_missing_as_default: bool = False,
         arg_prefix: str = ''):
       s = [f'{arg_prefix}{arg_name}']
-      if arg_spec.annotation != object_utils.MISSING_VALUE:
+      if arg_spec.annotation != utils.MISSING_VALUE:
         s.append(f': _annotation_{arg_name}')
         exec_locals[f'_annotation_{arg_name}'] = arg_spec.annotation
       if not arg_prefix and (force_missing_as_default or arg_spec.has_default):
@@ -761,7 +761,8 @@ class Signature(object_utils.Formattable):
         exec_globals=exec_globals,
         exec_locals=exec_locals,
         return_type=getattr(
-            self.return_value, 'annotation', coding.NO_TYPE_ANNOTATION)
+            self.return_value, 'annotation', coding.NO_TYPE_ANNOTATION
+        ),
     )
     fn.__module__ = self.module_name
     fn.__name__ = self.name

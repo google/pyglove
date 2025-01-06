@@ -18,7 +18,7 @@ import sys
 import typing
 import unittest
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
@@ -36,11 +36,10 @@ class ValueSpecTest(unittest.TestCase):
   """Base class for value spec test."""
 
   def assert_json_conversion(self, v):
-    self.assertEqual(object_utils.from_json(v.to_json()), v)
+    self.assertEqual(utils.from_json(v.to_json()), v)
 
   def assert_json_conversion_key(self, v, key):
-    self.assertEqual(
-        v.to_json()[object_utils.JSONConvertible.TYPE_NAME_KEY], key)
+    self.assertEqual(v.to_json()[utils.JSONConvertible.TYPE_NAME_KEY], key)
 
 
 class BoolTest(ValueSpecTest):
@@ -1039,9 +1038,9 @@ class ListTest(ValueSpecTest):
     self.assertEqual(vs.List(vs.Int().noneable()).apply([1, None]), [1, None])
     # Automatic conversion: str -> KeyPath is a registered conversion.
     # See 'type_conversion.py'.
-    l = vs.List(vs.Object(object_utils.KeyPath)).apply(['a.b.c'])
-    self.assertIsInstance(l[0], object_utils.KeyPath)
-    self.assertEqual(l, [object_utils.KeyPath.parse('a.b.c')])
+    l = vs.List(vs.Object(utils.KeyPath)).apply(['a.b.c'])
+    self.assertIsInstance(l[0], utils.KeyPath)
+    self.assertEqual(l, [utils.KeyPath.parse('a.b.c')])
     self.assertEqual(
         vs.List(vs.Int()).apply(
             typed_missing.MISSING_VALUE, allow_partial=True),
@@ -2046,7 +2045,7 @@ class DictTest(ValueSpecTest):
     x = vs.Dict([
         ('a', int, 'field 1', dict(x=1)),
     ]).freeze(dict(a=1))
-    y = object_utils.from_json(x.to_json())
+    y = utils.from_json(x.to_json())
     self.assert_json_conversion(
         vs.Dict([
             ('a', int, 'field 1', dict(x=1)),
@@ -2089,7 +2088,7 @@ class ObjectTest(ValueSpecTest):
     class C(A):
       pass
 
-    class D(C, object_utils.MaybePartial):
+    class D(C, utils.MaybePartial):
 
       def missing_values(self):
         return {'SOME_KEY': 'SOME_VALUE'}
@@ -2378,7 +2377,7 @@ class CallableTest(ValueSpecTest):
 
   def test_value_type(self):
     self.assertIsNone(vs.Callable().value_type)
-    self.assertEqual(vs.Functor().annotation, object_utils.Functor)
+    self.assertEqual(vs.Functor().annotation, utils.Functor)
 
   def test_forward_refs(self):
     self.assertEqual(vs.Callable().forward_refs, set())
@@ -2584,7 +2583,7 @@ class CallableTest(ValueSpecTest):
 
   def test_apply_on_functor(self):
 
-    class FunctorWithRegularArgs(object_utils.Functor):
+    class FunctorWithRegularArgs(utils.Functor):
 
       __signature__ = Signature(
           callable_type=callable_signature.CallableType.FUNCTION,
@@ -2630,7 +2629,7 @@ class CallableTest(ValueSpecTest):
 
   def test_apply_on_functor_with_varargs(self):
 
-    class FunctorWithVarArgs(object_utils.Functor):
+    class FunctorWithVarArgs(utils.Functor):
 
       __signature__ = Signature(
           callable_type=callable_signature.CallableType.FUNCTION,
@@ -2781,7 +2780,7 @@ class CallableTest(ValueSpecTest):
         )
     )
     x = vs.Callable([vs.Int()], default=lambda x: x + 1).noneable()
-    y = object_utils.from_json(x.to_json())
+    y = utils.from_json(x.to_json())
     self.assert_json_conversion(
         vs.Callable([vs.Int()], default=lambda x: x + 1).noneable()
     )

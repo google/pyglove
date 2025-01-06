@@ -14,8 +14,8 @@
 """Interfaces for pure symbolic objects."""
 
 from typing import Any, Callable, Optional, Tuple
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
 class PureSymbolic(pg_typing.CustomTyping):
@@ -37,11 +37,12 @@ class PureSymbolic(pg_typing.CustomTyping):
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
       child_transform: Optional[
-          Callable[[object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
   ) -> Tuple[bool, Any]:
     """Custom apply on a value based on its original value spec.
 

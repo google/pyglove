@@ -16,14 +16,14 @@
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper import base
 from pyglove.core.hyper import derived
 
 
-class ObjectTemplate(base.HyperValue, object_utils.Formattable):
+class ObjectTemplate(base.HyperValue, utils.Formattable):
   """Object template that encodes and decodes symbolic values.
 
   An object template can be created from a hyper value, which is a symbolic
@@ -131,18 +131,18 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
     """
     super().__init__()
     self._value = value
-    self._root_path = object_utils.KeyPath()
+    self._root_path = utils.KeyPath()
     self._compute_derived = compute_derived
     self._where = where
     self._parse_generators()
 
   @property
-  def root_path(self) -> object_utils.KeyPath:
+  def root_path(self) -> utils.KeyPath:
     """Returns root path."""
     return self._root_path
 
   @root_path.setter
-  def root_path(self, path: object_utils.KeyPath):
+  def root_path(self, path: utils.KeyPath):
     """Set root path."""
     self._root_path = path
 
@@ -150,7 +150,8 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
     """Parse generators from its templated value."""
     hyper_primitives = []
     def _extract_immediate_child_hyper_primitives(
-        path: object_utils.KeyPath, value: Any) -> bool:
+        path: utils.KeyPath, value: Any
+    ) -> bool:
       """Extract top-level hyper primitives."""
       if (isinstance(value, base.HyperValue)
           and (not self._where or self._where(value))):
@@ -162,13 +163,14 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
         hyper_primitives.append((path, value))
       elif isinstance(value, symbolic.Object):
         for k, v in value.sym_items():
-          object_utils.traverse(
-              v, _extract_immediate_child_hyper_primitives,
-              root_path=object_utils.KeyPath(k, path))
+          utils.traverse(
+              v,
+              _extract_immediate_child_hyper_primitives,
+              root_path=utils.KeyPath(k, path),
+          )
       return True
 
-    object_utils.traverse(
-        self._value, _extract_immediate_child_hyper_primitives)
+    utils.traverse(self._value, _extract_immediate_child_hyper_primitives)
     self._hyper_primitives = hyper_primitives
 
   @property
@@ -186,15 +188,15 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
     """Returns whether current template is constant value."""
     return not self._hyper_primitives
 
-  def dna_spec(
-      self, location: Optional[object_utils.KeyPath] = None) -> geno.Space:
+  def dna_spec(self, location: Optional[utils.KeyPath] = None) -> geno.Space:
     """Return DNA spec (geno.Space) from this template."""
     return geno.Space(
         elements=[
             primitive.dna_spec(primitive_location)
             for primitive_location, primitive in self._hyper_primitives
         ],
-        location=location or object_utils.KeyPath())
+        location=location or utils.KeyPath(),
+    )
 
   def _decode(self) -> Any:
     """Decode DNA into a value."""
@@ -202,9 +204,10 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
     assert dna is not None
     if not self._hyper_primitives and (dna.value is not None or dna.children):
       raise ValueError(
-          object_utils.message_on_path(
-              f'Encountered extra DNA value to decode: {dna!r}',
-              self._root_path))
+          utils.message_on_path(
+              f'Encountered extra DNA value to decode: {dna!r}', self._root_path
+          )
+      )
 
     # Compute hyper primitive values first.
     rebind_dict = {}
@@ -214,11 +217,14 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
     else:
       if len(dna.children) != len(self._hyper_primitives):
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'The length of child values ({len(dna.children)}) is '
-                f'different from the number of hyper primitives '
+                'different from the number of hyper primitives '
                 f'({len(self._hyper_primitives)}) in ObjectTemplate. '
-                f'DNA={dna!r}, ObjectTemplate={self!r}.', self._root_path))
+                f'DNA={dna!r}, ObjectTemplate={self!r}.',
+                self._root_path,
+            )
+        )
       for i, (primitive_location, primitive) in enumerate(
           self._hyper_primitives):
         rebind_dict[primitive_location.path] = (
@@ -247,18 +253,18 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
       # TODO(daiyip): Currently derived value parsing is done at decode time,
       # which can be optimized by moving to template creation time.
       derived_values = []
-      def _extract_derived_values(
-          path: object_utils.KeyPath, value: Any) -> bool:
+      def _extract_derived_values(path: utils.KeyPath, value: Any) -> bool:
         """Extract top-level primitives."""
         if isinstance(value, derived.DerivedValue):
           derived_values.append((path, value))
         elif isinstance(value, symbolic.Object):
           for k, v in value.sym_items():
-            object_utils.traverse(
-                v, _extract_derived_values,
-                root_path=object_utils.KeyPath(k, path))
+            utils.traverse(
+                v, _extract_derived_values, root_path=utils.KeyPath(k, path)
+            )
         return True
-      object_utils.traverse(value, _extract_derived_values)
+
+      utils.traverse(value, _extract_derived_values)
 
       if derived_values:
         if not copied:
@@ -299,9 +305,9 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
       ValueError if value cannot be encoded by this template.
     """
     children = []
-    def _encode(path: object_utils.KeyPath,
-                template_value: Any,
-                input_value: Any) -> Any:
+    def _encode(
+        path: utils.KeyPath, template_value: Any, input_value: Any
+    ) -> Any:
       """Encode input value according to template value."""
       if (pg_typing.MISSING_VALUE == input_value
           and pg_typing.MISSING_VALUE != template_value):
@@ -339,10 +345,12 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
               f'TemplateOnlyKeys={template_keys - value_keys}, '
               f'InputOnlyKeys={value_keys - template_keys})')
         for key in template_value.sym_keys():
-          object_utils.merge_tree(
+          utils.merge_tree(
               template_value.sym_getattr(key),
               input_value.sym_getattr(key),
-              _encode, root_path=object_utils.KeyPath(key, path))
+              _encode,
+              root_path=utils.KeyPath(key, path),
+          )
       elif isinstance(template_value, symbolic.Dict):
         # Do nothing since merge will iterate all elements in dict and list.
         if not isinstance(input_value, dict):
@@ -358,19 +366,23 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
               f'value. (Path=\'{path}\', Template={template_value!r}, '
               f'Input={input_value!r})')
         for i, template_item in enumerate(template_value):
-          object_utils.merge_tree(
-              template_item, input_value[i], _encode,
-              root_path=object_utils.KeyPath(i, path))
+          utils.merge_tree(
+              template_item,
+              input_value[i],
+              _encode,
+              root_path=utils.KeyPath(i, path),
+          )
       else:
         if template_value != input_value:
           raise ValueError(
-              f'Unmatched value between template and input. '
-              f'(Path=\'{path}\', '
-              f'Template={object_utils.quote_if_str(template_value)}, '
-              f'Input={object_utils.quote_if_str(input_value)})')
+              'Unmatched value between template and input. '
+              f"(Path='{path}', "
+              f'Template={utils.quote_if_str(template_value)}, '
+              f'Input={utils.quote_if_str(input_value)})'
+          )
       return template_value
-    object_utils.merge_tree(
-        self._value, value, _encode, root_path=self._root_path)
+
+    utils.merge_tree(self._value, value, _encode, root_path=self._root_path)
     return geno.DNA(None, children)
 
   def try_encode(self, value: Any) -> Tuple[bool, geno.DNA]:
@@ -399,18 +411,18 @@ class ObjectTemplate(base.HyperValue, object_utils.Formattable):
              root_indent: int = 0,
              **kwargs) -> str:
     """Format this object."""
-    details = object_utils.format(
-        self._value, compact, verbose, root_indent, **kwargs)
+    details = utils.format(self._value, compact, verbose, root_indent, **kwargs)
     return f'{self.__class__.__name__}(value={details})'
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'ObjectTemplate']:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, 'ObjectTemplate']:
     """Validate candidates during value_spec binding time."""
     # Check if value_spec directly accepts `self`.
     if not value_spec.value_type or not isinstance(self, value_spec.value_type):

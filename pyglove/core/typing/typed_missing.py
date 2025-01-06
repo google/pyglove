@@ -14,15 +14,15 @@
 """Typed value placeholders."""
 
 from typing import Any
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import class_schema
 
 
 # Non-typed missing value.
-MISSING_VALUE = object_utils.MISSING_VALUE
+MISSING_VALUE = utils.MISSING_VALUE
 
 
-class MissingValue(object_utils.MissingValue, object_utils.Formattable):
+class MissingValue(utils.MissingValue, utils.Formattable):
   """Class represents missing value **for a specific value spec**."""
 
   def __init__(self, value_spec: class_schema.ValueSpec):
@@ -37,15 +37,15 @@ class MissingValue(object_utils.MissingValue, object_utils.Formattable):
   def __eq__(self, other: Any) -> bool:
     """Operator ==.
 
-    NOTE: `MissingValue(value_spec) and `object_utils.MissingValue` are
+    NOTE: `MissingValue(value_spec) and `utils.MissingValue` are
     considered equal, but `MissingValue(value_spec1)` and
     `MissingValue(value_spec2)` are considered different. That being said,
     the 'eq' operation is not transitive.
 
     However in practice this is not a problem, since user always compare
-    against `schema.MISSING_VALUE` which is `object_utils.MissingValue`.
+    against `schema.MISSING_VALUE` which is `utils.MissingValue`.
     Therefore the `__hash__` function returns the same value with
-    `object_utils.MissingValue`.
+    `utils.MissingValue`.
 
     Args:
       other: the value to compare against.
@@ -80,4 +80,3 @@ class MissingValue(object_utils.MissingValue, object_utils.Formattable):
   def __deepcopy__(self, memo):
     """Avoid deep copy by copying value_spec by reference."""
     return MissingValue(self.value_spec)
-

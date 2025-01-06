@@ -22,7 +22,7 @@ import re
 import sys
 import typing
 import __main__
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import inspect as pg_inspect
@@ -35,7 +35,7 @@ from pyglove.core.typing.class_schema import ValueSpec
 from pyglove.core.typing.custom_typing import CustomTyping
 
 
-MISSING_VALUE = object_utils.MISSING_VALUE
+MISSING_VALUE = utils.MISSING_VALUE
 
 
 class _FrozenValuePlaceholder(CustomTyping):
@@ -169,7 +169,7 @@ class ValueSpecBase(ValueSpec):
       self,
       default: typing.Any,
       use_default_apply: bool = True,
-      root_path: typing.Optional[object_utils.KeyPath] = None
+      root_path: typing.Optional[utils.KeyPath] = None,
   ) -> ValueSpec:
     """Set default value and returns `self`."""
     # NOTE(daiyip): Default can be schema.MissingValue types, all are
@@ -246,13 +246,13 @@ class ValueSpecBase(ValueSpec):
       self,
       value: typing.Any,
       allow_partial: bool = False,
-      child_transform: typing.Optional[typing.Callable[
-          [object_utils.KeyPath, Field, typing.Any],
-          typing.Any
-      ]] = None,
-      root_path: typing.Optional[object_utils.KeyPath] = None) -> typing.Any:  # pyformat: disable pylint: disable=line-too-long
+      child_transform: typing.Optional[
+          typing.Callable[[utils.KeyPath, Field, typing.Any], typing.Any]
+      ] = None,
+      root_path: typing.Optional[utils.KeyPath] = None,
+  ) -> typing.Any:  # pyformat: disable pylint: disable=line-too-long
     """Apply spec to validate and complete value."""
-    root_path = root_path or object_utils.KeyPath()
+    root_path = root_path or utils.KeyPath()
     if self.frozen and self.default is not _FROZEN_VALUE_PLACEHOLDER:
       # Always return the default value if a field is frozen.
       if MISSING_VALUE != value and self.default != value:
@@ -291,9 +291,8 @@ class ValueSpecBase(ValueSpec):
         value = self._transform(value)
       except Exception as e:  # pylint: disable=broad-except
         raise e.__class__(
-            object_utils.message_on_path(
-                str(e), root_path)
-            ).with_traceback(sys.exc_info()[2])
+            utils.message_on_path(str(e), root_path)
+        ).with_traceback(sys.exc_info()[2])
 
       return self.skip_user_transform.apply(
           value,
@@ -309,9 +308,12 @@ class ValueSpecBase(ValueSpec):
       converter = type_conversion.get_converter(type(value), self.value_type)
       if converter is None:
         raise TypeError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Expect {self.value_type} '
-                f'but encountered {type(value)!r}: {value}.', root_path))
+                f'but encountered {type(value)!r}: {value}.',
+                root_path,
+            )
+        )
       value = converter(value)
 
     # NOTE(daiyip): child nodes validation and transformation is done before
@@ -325,15 +327,18 @@ class ValueSpecBase(ValueSpec):
     self._validate(root_path, value)
     return value
 
-  def _validate(self, path: object_utils.KeyPath, value: typing.Any):
+  def _validate(self, path: utils.KeyPath, value: typing.Any):
     """Validation on applied value. Child class can override."""
 
-  def _apply(self,
-             value: typing.Any,
-             allow_partial: bool,
-             child_transform: typing.Callable[
-                 [object_utils.KeyPath, Field, typing.Any], typing.Any],
-             root_path: object_utils.KeyPath) -> typing.Any:
+  def _apply(
+      self,
+      value: typing.Any,
+      allow_partial: bool,
+      child_transform: typing.Callable[
+          [utils.KeyPath, Field, typing.Any], typing.Any
+      ],
+      root_path: utils.KeyPath,
+  ) -> typing.Any:
     """Customized apply so each subclass can override."""
     del allow_partial
     del child_transform
@@ -401,17 +406,17 @@ class ValueSpecBase(ValueSpec):
       **kwargs
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('default', self._default, MISSING_VALUE),
             ('noneable', self._is_noneable, False),
-            ('frozen', self._frozen, False)
+            ('frozen', self._frozen, False),
         ],
         label=self.__class__.__name__,
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
 
@@ -552,15 +557,18 @@ class Str(Generic, PrimitiveType):
         **kwargs,
     )
 
-  def _validate(self, path: object_utils.KeyPath, value: str) -> None:
+  def _validate(self, path: utils.KeyPath, value: str) -> None:
     """Validates applied value."""
     if not self._regex:
       return
     if not self._regex.match(value):
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'String {value!r} does not match '
-              f'regular expression {self._regex.pattern!r}.', path))
+              f'regular expression {self._regex.pattern!r}.',
+              path,
+          )
+      )
 
   @property
   def regex(self):
@@ -595,7 +603,7 @@ class Str(Generic, PrimitiveType):
   ) -> str:
     """Format this object."""
     regex_pattern = self._regex.pattern if self._regex else None
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('default', self._default, MISSING_VALUE),
             ('regex', regex_pattern, None),
@@ -606,7 +614,7 @@ class Str(Generic, PrimitiveType):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def _eq(self, other: 'Str') -> bool:
@@ -665,15 +673,17 @@ class Number(Generic, PrimitiveType):
     """Returns maximum value of acceptable values."""
     return self._max_value
 
-  def _validate(self, path: object_utils.KeyPath,
-                value: numbers.Number) -> None:
+  def _validate(self, path: utils.KeyPath, value: numbers.Number) -> None:
     """Validates applied value."""
     if ((self._min_value is not None and value < self._min_value) or
         (self._max_value is not None and value > self._max_value)):
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'Value {value} is out of range '
-              f'(min={self._min_value}, max={self._max_value}).', path))
+              f'(min={self._min_value}, max={self._max_value}).',
+              path,
+          )
+      )
 
   def _extend(self, base: 'Number') -> None:
     """Number specific extend."""
@@ -726,19 +736,19 @@ class Number(Generic, PrimitiveType):
       **kwargs
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('default', self._default, MISSING_VALUE),
             ('min', self._min_value, None),
             ('max', self._max_value, None),
             ('noneable', self._is_noneable, False),
-            ('frozen', self._frozen, False)
+            ('frozen', self._frozen, False),
         ],
         label=self.__class__.__name__,
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -944,13 +954,14 @@ class Enum(Generic, PrimitiveType):
     """Returns all acceptable values of this spec."""
     return self._values
 
-  def _validate(self, path: object_utils.KeyPath, value: typing.Any) -> None:
+  def _validate(self, path: utils.KeyPath, value: typing.Any) -> None:
     """Validates applied value."""
     if value not in self._values:
       raise ValueError(
-          object_utils.message_on_path(
-              f'Value {value!r} is not in candidate list {self._values}.',
-              path))
+          utils.message_on_path(
+              f'Value {value!r} is not in candidate list {self._values}.', path
+          )
+      )
 
   def _extend(self, base: 'Enum') -> None:
     """Enum specific extend."""
@@ -995,7 +1006,7 @@ class Enum(Generic, PrimitiveType):
       **kwargs
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('default', self._default, MISSING_VALUE),
             ('values', self._values, None),
@@ -1005,7 +1016,7 @@ class Enum(Generic, PrimitiveType):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -1133,12 +1144,15 @@ class List(Generic, ValueSpecBase):
     """Returns max size of the list."""
     return self._element.key.max_value  # pytype: disable=attribute-error  # bind-properties
 
-  def _apply(self,
-             value: typing.List[typing.Any],
-             allow_partial: bool,
-             child_transform: typing.Callable[
-                 [object_utils.KeyPath, Field, typing.Any], typing.Any],
-             root_path: object_utils.KeyPath) -> typing.Any:
+  def _apply(
+      self,
+      value: typing.List[typing.Any],
+      allow_partial: bool,
+      child_transform: typing.Callable[
+          [utils.KeyPath, Field, typing.Any], typing.Any
+      ],
+      root_path: utils.KeyPath,
+  ) -> typing.Any:
     """List specific apply."""
     # NOTE(daiyip): for symbolic List, write access using `__setitem__` will
     # trigger permission error when `accessor_writable` is set to False.
@@ -1155,27 +1169,35 @@ class List(Generic, ValueSpecBase):
     getitem = getattr(value, 'sym_getattr', value.__getitem__)
     for i in range(len(value)):
       v = self._element.apply(
-          getitem(i), allow_partial=allow_partial, transform_fn=child_transform,
-          root_path=object_utils.KeyPath(i, root_path))
+          getitem(i),
+          allow_partial=allow_partial,
+          transform_fn=child_transform,
+          root_path=utils.KeyPath(i, root_path),
+      )
       if getitem(i) is not v:
         set_item(i, v)
     return value
 
-  def _validate(
-      self, path: object_utils.KeyPath, value: typing.List[typing.Any]):
+  def _validate(self, path: utils.KeyPath, value: typing.List[typing.Any]):
     """Validates applied value."""
     if len(value) < self.min_size:
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'Length of list {value!r} is less than '
-              f'min size ({self.min_size}).', path))
+              f'min size ({self.min_size}).',
+              path,
+          )
+      )
 
     if self.max_size is not None:
       if len(value) > self.max_size:
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Length of list {value!r} is greater than '
-                f'max size ({self.max_size}).', path))
+                f'max size ({self.max_size}).',
+                path,
+            )
+        )
 
   def _extend(self, base: 'List') -> None:
     """List specific extend."""
@@ -1203,7 +1225,7 @@ class List(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('', self._element.value, None),
             ('min_size', self.min_size, 0),
@@ -1216,7 +1238,7 @@ class List(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -1409,35 +1431,50 @@ class Tuple(Generic, ValueSpecBase):
     """Returns length of this tuple."""
     return len(self._elements) if self.fixed_length else 0
 
-  def _apply(self,
-             value: typing.Tuple[typing.Any, ...],
-             allow_partial: bool,
-             child_transform: typing.Callable[
-                 [object_utils.KeyPath, Field, typing.Any], typing.Any],
-             root_path: object_utils.KeyPath) -> typing.Any:
+  def _apply(
+      self,
+      value: typing.Tuple[typing.Any, ...],
+      allow_partial: bool,
+      child_transform: typing.Callable[
+          [utils.KeyPath, Field, typing.Any], typing.Any
+      ],
+      root_path: utils.KeyPath,
+  ) -> typing.Any:
     """Tuple specific apply."""
     if self.fixed_length:
       if len(value) != len(self.elements):
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Length of input tuple ({len(value)}) does not match the '
                 f'length of spec ({len(self.elements)}). '
-                f'Input: {value}, Spec: {self!r}', root_path))
+                f'Input: {value}, Spec: {self!r}',
+                root_path,
+            )
+        )
     else:
       if len(value) < self.min_size:
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Length of tuple {value} is less than '
-                f'min size ({self.min_size}).', root_path))
+                f'min size ({self.min_size}).',
+                root_path,
+            )
+        )
       if self.max_size is not None and len(value) > self.max_size:
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Length of tuple {value} is greater than '
-                f'max size ({self.max_size}).', root_path))
+                f'max size ({self.max_size}).',
+                root_path,
+            )
+        )
     return tuple([
         self._elements[i if self.fixed_length else 0].apply(  # pylint: disable=g-complex-comprehension
-            v, allow_partial=allow_partial, transform_fn=child_transform,
-            root_path=object_utils.KeyPath(i, root_path))
+            v,
+            allow_partial=allow_partial,
+            transform_fn=child_transform,
+            root_path=utils.KeyPath(i, root_path),
+        )
         for i, v in enumerate(value)
     ])
 
@@ -1527,7 +1564,7 @@ class Tuple(Generic, ValueSpecBase):
     else:
       value = self._elements[0].value
       default_min, default_max = 0, None
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('', value, None),
             ('default', self._default, MISSING_VALUE),
@@ -1540,7 +1577,7 @@ class Tuple(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -1687,7 +1724,7 @@ class Dict(Generic, ValueSpecBase):
       self,
       default: typing.Any,
       use_default_apply: bool = True,
-      root_path: typing.Optional[object_utils.KeyPath] = None,
+      root_path: typing.Optional[utils.KeyPath] = None,
   ) -> ValueSpec:
     if MISSING_VALUE == default and self._schema:
       self._use_generated_default = True
@@ -1707,12 +1744,15 @@ class Dict(Generic, ValueSpecBase):
       forward_refs.update(field.value.forward_refs)
     return forward_refs
 
-  def _apply(self,
-             value: typing.Dict[typing.Any, typing.Any],
-             allow_partial: bool,
-             child_transform: typing.Callable[
-                 [object_utils.KeyPath, Field, typing.Any], typing.Any],
-             root_path: object_utils.KeyPath) -> typing.Any:
+  def _apply(
+      self,
+      value: typing.Dict[typing.Any, typing.Any],
+      allow_partial: bool,
+      child_transform: typing.Callable[
+          [utils.KeyPath, Field, typing.Any], typing.Any
+      ],
+      root_path: utils.KeyPath,
+  ) -> typing.Any:
     """Dict specific apply."""
     if not self._schema:
       return value
@@ -1756,11 +1796,13 @@ class Dict(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
-            ('fields',
-             list(self._schema.values()) if self._schema else None,
-             None),
+            (
+                'fields',
+                list(self._schema.values()) if self._schema else None,
+                None,
+            ),
             ('noneable', self._is_noneable, False),
             ('frozen', self._frozen, False),
         ],
@@ -1892,19 +1934,24 @@ class Object(Generic, ValueSpecBase):
   def value_type(self) -> typing.Type[typing.Any]:
     return self.cls
 
-  def _apply(self,
-             value: typing.Any,
-             allow_partial: bool,
-             child_transform: typing.Callable[
-                 [object_utils.KeyPath, Field, typing.Any], typing.Any],
-             root_path: object_utils.KeyPath) -> typing.Any:
+  def _apply(
+      self,
+      value: typing.Any,
+      allow_partial: bool,
+      child_transform: typing.Callable[
+          [utils.KeyPath, Field, typing.Any], typing.Any
+      ],
+      root_path: utils.KeyPath,
+  ) -> typing.Any:
     """Object specific apply."""
     del child_transform
-    if isinstance(value, object_utils.MaybePartial):
+    if isinstance(value, utils.MaybePartial):
       if not allow_partial and value.is_partial:
         raise ValueError(
-            object_utils.message_on_path(
-                f'Object {value} is not fully bound.', root_path))
+            utils.message_on_path(
+                f'Object {value} is not fully bound.', root_path
+            )
+        )
     return value
 
   def extend(self, base: ValueSpec) -> ValueSpec:
@@ -1955,9 +2002,9 @@ class Object(Generic, ValueSpecBase):
       name = self._forward_ref.name
     else:
       name = self._value_type.__name__
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
-            ('', object_utils.RawText(name), None),
+            ('', utils.RawText(name), None),
             ('default', self._default, MISSING_VALUE),
             ('noneable', self._is_noneable, False),
             ('frozen', self._frozen, False),
@@ -1966,7 +2013,7 @@ class Object(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2103,12 +2150,12 @@ class Callable(Generic, ValueSpecBase):
     """Value spec for return value."""
     return self._return_value
 
-  def _validate(self, path: object_utils.KeyPath, value: typing.Any) -> None:
+  def _validate(self, path: utils.KeyPath, value: typing.Any) -> None:
     """Validate applied value."""
     if not callable(value):
       raise TypeError(
-          object_utils.message_on_path(
-              f'Value is not callable: {value!r}.', path))
+          utils.message_on_path(f'Value is not callable: {value!r}.', path)
+      )
 
     # Shortcircuit if there is no signature to check.
     if not (self._args or self._kw or self._return_value):
@@ -2120,10 +2167,12 @@ class Callable(Generic, ValueSpecBase):
 
     if len(self._args) > len(signature.args) and not signature.has_varargs:
       raise TypeError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'{signature.id} only take {len(signature.args)} positional '
               f'arguments, while {len(self._args)} is required by {self!r}.',
-              path))
+              path,
+          )
+      )
 
     # Check positional arguments.
     for i in range(min(len(self._args), len(signature.args))):
@@ -2131,10 +2180,12 @@ class Callable(Generic, ValueSpecBase):
       dest_spec = signature.args[i].value_spec
       if not dest_spec.is_compatible(src_spec):
         raise TypeError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Value spec of positional argument {i} is not compatible. '
                 f'Expected: {dest_spec!r}, Actual: {src_spec!r}.',
-                path))
+                path,
+            )
+        )
     if len(self._args) > len(signature.args):
       assert signature.varargs
       assert isinstance(signature.varargs.value_spec, List), signature.varargs
@@ -2143,10 +2194,13 @@ class Callable(Generic, ValueSpecBase):
         src_spec = self._args[i]
         if not dest_spec.is_compatible(src_spec):
           raise TypeError(
-              object_utils.message_on_path(
+              utils.message_on_path(
                   f'Value spec of positional argument {i} is not compatible '
                   f'with the value spec of *{signature.varargs.name}. '
-                  f'Expected: {dest_spec!r}, Actual: {src_spec!r}.', path))
+                  f'Expected: {dest_spec!r}, Actual: {src_spec!r}.',
+                  path,
+              )
+          )
 
     # Check keyword arguments.
     dest_args = signature.args + signature.kwonlyargs
@@ -2159,37 +2213,46 @@ class Callable(Generic, ValueSpecBase):
       if dest_spec is not None:
         if not dest_spec.is_compatible(src_spec):
           raise TypeError(
-              object_utils.message_on_path(
+              utils.message_on_path(
                   f'Value spec of keyword argument {arg_name!r} is not '
                   f'compatible. Expected: {src_spec!r}, Actual: {dest_spec!r}.',
-                  path))
+                  path,
+              )
+          )
       elif signature.varkw:
         assert isinstance(signature.varkw.value_spec, Dict), signature.varkw
         varkw_value_spec = signature.varkw.value_spec.schema.dynamic_field.value   # pytype: disable=attribute-error
         if not varkw_value_spec.is_compatible(src_spec):
           raise TypeError(
-              object_utils.message_on_path(
+              utils.message_on_path(
                   f'Value spec of keyword argument {arg_name!r} is not '
-                  f'compatible with the value spec of '
+                  'compatible with the value spec of '
                   f'**{signature.varkw.name}. '
                   f'Expected: {varkw_value_spec!r}, '
-                  f'Actual: {src_spec!r}.', path))
+                  f'Actual: {src_spec!r}.',
+                  path,
+              )
+          )
       else:
         raise TypeError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Keyword argument {arg_name!r} does not exist in {value!r}.',
-                path))
+                path,
+            )
+        )
 
     # Check return value
     if (self._return_value and signature.return_value
         and not isinstance(signature.return_value, Any)
         and not self._return_value.is_compatible(signature.return_value)):
       raise TypeError(
-          object_utils.message_on_path(
-              f'Value spec for return value is not compatible. '
+          utils.message_on_path(
+              'Value spec for return value is not compatible. '
               f'Expected: {self._return_value!r}, '
               f'Actual: {signature.return_value!r} ({value!r}).',
-              path))
+              path,
+          )
+      )
 
   def _extend(self, base: 'Callable') -> None:
     """Callable specific extension."""
@@ -2260,14 +2323,14 @@ class Callable(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this spec."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('args', self._args, []),
             ('kw', self._kw, []),
             ('returns', self._return_value, None),
             ('default', self._default, MISSING_VALUE),
             ('noneable', self._is_noneable, False),
-            ('frozen', self._frozen, False)
+            ('frozen', self._frozen, False),
         ],
         label=self.__class__.__name__,
         compact=compact,
@@ -2359,14 +2422,14 @@ class Functor(Callable):
         returns=returns,
         default=default,
         transform=transform,
-        callable_type=object_utils.Functor,
+        callable_type=utils.Functor,
         is_noneable=is_noneable,
         frozen=frozen,
     )
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
-    return object_utils.Functor
+    return utils.Functor
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
     exclude_keys = kwargs.pop('exclude_keys', set())
@@ -2431,12 +2494,14 @@ class Type(Generic, ValueSpecBase):
       return set()
     return set([self._forward_ref])
 
-  def _validate(self, path: object_utils.KeyPath, value: typing.Type) -> None:  # pylint: disable=g-bare-generic
+  def _validate(self, path: utils.KeyPath, value: typing.Type) -> None:  # pylint: disable=g-bare-generic
     """Validate applied value."""
     if self.type_resolved and not pg_inspect.is_subclass(value, self.type):
       raise ValueError(
-          object_utils.message_on_path(
-              f'{value!r} is not a subclass of {self.type!r}', path))
+          utils.message_on_path(
+              f'{value!r} is not a subclass of {self.type!r}', path
+          )
+      )
 
   def _is_compatible(self, other: 'Type') -> bool:
     """Type specific compatiblity check."""
@@ -2472,7 +2537,7 @@ class Type(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('', self._expected_type, None),
             ('default', self._default, MISSING_VALUE),
@@ -2483,7 +2548,7 @@ class Type(Generic, ValueSpecBase):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2673,14 +2738,15 @@ class Union(Generic, ValueSpecBase):
           return c
     return None
 
-  def _apply(self,
-             value: typing.Any,
-             allow_partial: bool,
-             child_transform: typing.Callable[
-                 [object_utils.KeyPath, Field, typing.Any],
-                 typing.Any
-             ],
-             root_path: object_utils.KeyPath) -> typing.Any:
+  def _apply(
+      self,
+      value: typing.Any,
+      allow_partial: bool,
+      child_transform: typing.Callable[
+          [utils.KeyPath, Field, typing.Any], typing.Any
+      ],
+      root_path: utils.KeyPath,
+  ) -> typing.Any:
     """Union specific apply."""
     # Match strong-typed candidates first.
     if not self.type_resolved:
@@ -2782,7 +2848,7 @@ class Union(Generic, ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('', self._candidates, None),
             ('default', self._default, MISSING_VALUE),
@@ -2794,7 +2860,7 @@ class Union(Generic, ValueSpecBase):
         verbose=verbose,
         root_indent=root_indent,
         list_wrap_threshold=kwargs.pop('list_wrap_threshold', 20),
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
@@ -2942,17 +3008,17 @@ class Any(ValueSpecBase):
       **kwargs,
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('default', self._default, MISSING_VALUE),
             ('frozen', self._frozen, False),
-            ('annotation', self._annotation, MISSING_VALUE)
+            ('annotation', self._annotation, MISSING_VALUE),
         ],
         label=self.__class__.__name__,
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def annotate(self, annotation: typing.Any) -> 'Any':
@@ -3022,7 +3088,7 @@ ValueSpec.ObjectType = Object
 def ensure_value_spec(
     value_spec: class_schema.ValueSpec,
     src_spec: class_schema.ValueSpec,
-    root_path: typing.Optional[object_utils.KeyPath] = None
+    root_path: typing.Optional[utils.KeyPath] = None,
 ) -> typing.Optional[class_schema.ValueSpec]:
   """Extract counter part from value spec that matches dest spec type.
 
@@ -3043,7 +3109,10 @@ def ensure_value_spec(
     return None
   if not src_spec.is_compatible(value_spec):
     raise TypeError(
-        object_utils.message_on_path(
+        utils.message_on_path(
             f'Source spec {src_spec} is not compatible with destination '
-            f'spec {value_spec}.', root_path))
+            f'spec {value_spec}.',
+            root_path,
+        )
+    )
   return value_spec

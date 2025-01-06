@@ -13,7 +13,7 @@
 # limitations under the License.
 import inspect
 import unittest
-from pyglove.core.object_utils import error_utils
+from pyglove.core.utils import error_utils
 
 
 class ErrorInfoTest(unittest.TestCase):

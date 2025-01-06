@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.object_utils.hierarchical."""
-
 import unittest
-from pyglove.core.object_utils import common_traits
-from pyglove.core.object_utils import hierarchical
-from pyglove.core.object_utils import value_location
+from pyglove.core.utils import common_traits
+from pyglove.core.utils import hierarchical
+from pyglove.core.utils import value_location
 
 
 class TraverseTest(unittest.TestCase):

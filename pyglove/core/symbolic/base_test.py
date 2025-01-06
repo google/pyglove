@@ -11,15 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.symbolic.base."""
-
 import copy
 import inspect
 from typing import Any
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core import views
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic.dict import Dict
@@ -33,7 +31,7 @@ class FieldUpdateTest(unittest.TestCase):
   def test_basics(self):
     x = Dict(x=1)
     f = pg_typing.Field('x', pg_typing.Int())
-    update = base.FieldUpdate(object_utils.KeyPath('x'), x, f, 1, 2)
+    update = base.FieldUpdate(utils.KeyPath('x'), x, f, 1, 2)
     self.assertEqual(update.path, 'x')
     self.assertIs(update.target, x)
     self.assertIs(update.field, f)
@@ -42,15 +40,15 @@ class FieldUpdateTest(unittest.TestCase):
 
   def test_format(self):
     self.assertEqual(
-        base.FieldUpdate(
-            object_utils.KeyPath('x'), Dict(x=1), None, 1, 2
-        ).format(compact=True),
+        base.FieldUpdate(utils.KeyPath('x'), Dict(x=1), None, 1, 2).format(
+            compact=True
+        ),
         'FieldUpdate(parent_path=, path=x, old_value=1, new_value=2)',
     )
 
     self.assertEqual(
         base.FieldUpdate(
-            object_utils.KeyPath('a'), Dict(x=Dict(a=1)).x, None, 1, 2
+            utils.KeyPath('a'), Dict(x=Dict(a=1)).x, None, 1, 2
         ).format(compact=True),
         'FieldUpdate(parent_path=x, path=a, old_value=1, new_value=2)',
     )
@@ -59,34 +57,34 @@ class FieldUpdateTest(unittest.TestCase):
     x = Dict()
     f = pg_typing.Field('x', pg_typing.Int())
     self.assertEqual(
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2),
     )
 
     # Targets are not the same instance.
     self.assertNotEqual(
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        base.FieldUpdate(object_utils.KeyPath('a'), Dict(), f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), Dict(), f, 1, 2),
     )
 
     # Fields are not the same instance.
     self.assertNotEqual(
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        base.FieldUpdate(object_utils.KeyPath('b'), x, copy.copy(f), 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('b'), x, copy.copy(f), 1, 2),
     )
 
     self.assertNotEqual(
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 0, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 0, 2),
     )
 
     self.assertNotEqual(
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2),
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 1),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2),
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 1),
     )
 
     self.assertNotEqual(
-        base.FieldUpdate(object_utils.KeyPath('a'), x, f, 1, 2), Dict()
+        base.FieldUpdate(utils.KeyPath('a'), x, f, 1, 2), Dict()
     )
 
 

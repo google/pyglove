@@ -73,7 +73,7 @@ Symbolic Tree
 A symbolic attribute is usually a value of simple type (e.g. :class:`int`, :class:`str``) or a reference
 to another symbolic object. When multiple symbolic objects are linked together in this way, it forms
 a tree-like structure of symbols. Each object in the tree is identified by a unique
-combination of keys, which we call a *key path* (:class:`pg.KeyPath <pyglove.object_utils.KeyPath>`).
+combination of keys, which we call a *key path* (:class:`pg.KeyPath <pyglove.utils.KeyPath>`).
 Key paths can be used to navigate and manipulate specific nodes in the symbolic tree::
 
     @pg.symbolize

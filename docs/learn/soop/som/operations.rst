@@ -195,7 +195,7 @@ Location
 ========
 
 Each symbolic object has a unique location within a symbolic tree, represented a key path
-(:class:`pg.KeyPath <pyglove.object_utils.KeyPath>`), which is a path consists of the keys
+(:class:`pg.KeyPath <pyglove.utils.KeyPath>`), which is a path consists of the keys
 from the root node to the current node. 
 
 For example, ``a.b[0].c`` is a path with height 4:
@@ -331,7 +331,7 @@ human-readable format can be shown during debugging:
   * ``__str__``  formats a symbolic tree into a multi-line string
     representation, which is usually used in debugging purposes.
 
-Both of these methods are based on :func:`pg.format <pyglove.object_utils.format>`, which provides a
+Both of these methods are based on :func:`pg.format <pyglove.utils.format>`, which provides a
 rich set of features for formatting symbolic trees. For example, exclude
 the keys that have the default values from the string representation::
 
@@ -506,7 +506,7 @@ objects that are merely representations. Here is a summary of operations that de
      - :meth:`~pyglove.symbolic.Symbolic.sym_abstract`
      - Test whether an object is abstract or not.
 
-   * - :func:`pg.is_partial <pyglove.object_utils.is_partial>`
+   * - :func:`pg.is_partial <pyglove.utils.is_partial>`
      - :meth:`~pyglove.symbolic.Symbolic.sym_partial`
      - Test whether an object is partial or not.
      

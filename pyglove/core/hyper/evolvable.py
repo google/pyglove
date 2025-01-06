@@ -20,9 +20,9 @@ import types
 from typing import Any, Callable, List, Optional, Tuple, Union
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper import custom
 
 
@@ -44,7 +44,7 @@ class MutationPoint:
     parent: The parent node of the mutation point.
   """
   mutation_type: 'MutationType'
-  location: object_utils.KeyPath
+  location: utils.KeyPath
   old_value: Any
   parent: Optional[symbolic.Symbolic]
 
@@ -71,9 +71,9 @@ class Evolvable(custom.CustomHyper):
     mutation_points: List[MutationPoint] = []
     mutation_weights: List[float] = []
 
-    def _choose_mutation_point(k: object_utils.KeyPath,
-                               v: Any,
-                               p: Optional[symbolic.Symbolic]):
+    def _choose_mutation_point(
+        k: utils.KeyPath, v: Any, p: Optional[symbolic.Symbolic]
+    ):
       """Visiting function for a symbolic node."""
       def _add_point(mt: MutationType, k=k, v=v, p=p):
         mutation_points.append(MutationPoint(mt, k, v, p))
@@ -98,10 +98,9 @@ class Evolvable(custom.CustomHyper):
           reached_min_size = False
 
         for i, cv in enumerate(v):
-          ck = object_utils.KeyPath(i, parent=k)
+          ck = utils.KeyPath(i, parent=k)
           if not reached_max_size:
-            _add_point(MutationType.INSERT,
-                       k=ck, v=object_utils.MISSING_VALUE, p=v)
+            _add_point(MutationType.INSERT, k=ck, v=utils.MISSING_VALUE, p=v)
 
           if not reached_min_size:
             _add_point(MutationType.DELETE, k=ck, v=cv, p=v)
@@ -109,10 +108,12 @@ class Evolvable(custom.CustomHyper):
           # Replace type and value will be added in traverse.
           symbolic.traverse(cv, _choose_mutation_point, root_path=ck, parent=v)
           if not reached_max_size and i == len(v) - 1:
-            _add_point(MutationType.INSERT,
-                       k=object_utils.KeyPath(i + 1, parent=k),
-                       v=object_utils.MISSING_VALUE,
-                       p=v)
+            _add_point(
+                MutationType.INSERT,
+                k=utils.KeyPath(i + 1, parent=k),
+                v=utils.MISSING_VALUE,
+                p=v,
+            )
         return symbolic.TraverseAction.CONTINUE
       return symbolic.TraverseAction.ENTER
 
@@ -157,7 +158,7 @@ class Evolvable(custom.CustomHyper):
             point.location, point.old_value, point.parent)
     elif point.mutation_type == MutationType.INSERT:
       assert isinstance(point.parent, symbolic.List), point
-      assert point.old_value == object_utils.MISSING_VALUE, point
+      assert point.old_value == utils.MISSING_VALUE, point
       assert isinstance(point.location.key, int), point
       with symbolic.allow_writable_accessors():
         point.parent.insert(
@@ -175,24 +176,31 @@ class Evolvable(custom.CustomHyper):
 # We defer members declaration for Evolvable since the weights will reference
 # the definition of MutationType.
 symbolic.members([
-    ('initial_value', pg_typing.Object(symbolic.Symbolic),
-     'Symbolic value to involve.'),
-    ('node_transform', pg_typing.Callable(
-        [],
-        returns=pg_typing.Any()),
-     ''),
-    ('weights', pg_typing.Callable(
-        [
-            pg_typing.Object(MutationType),
-            pg_typing.Object(object_utils.KeyPath),
-            pg_typing.Any().noneable(),
-            pg_typing.Object(symbolic.Symbolic)
-        ], returns=pg_typing.Float(min_value=0.0)).noneable(),
-     ('An optional callable object that returns the unnormalized (e.g. '
-      'the sum of all probabilities do not have to sum to 1.0) mutation '
-      'probabilities for all the nodes in the symbolic tree, based on '
-      '(mutation type, location, old value, parent node). If None, all the '
-      'locations and mutation types will be sampled uniformly.')),
+    (
+        'initial_value',
+        pg_typing.Object(symbolic.Symbolic),
+        'Symbolic value to involve.',
+    ),
+    ('node_transform', pg_typing.Callable([], returns=pg_typing.Any()), ''),
+    (
+        'weights',
+        pg_typing.Callable(
+            [
+                pg_typing.Object(MutationType),
+                pg_typing.Object(utils.KeyPath),
+                pg_typing.Any().noneable(),
+                pg_typing.Object(symbolic.Symbolic),
+            ],
+            returns=pg_typing.Float(min_value=0.0),
+        ).noneable(),
+        (
+            'An optional callable object that returns the unnormalized (e.g.'
+            ' the sum of all probabilities do not have to sum to 1.0) mutation'
+            ' probabilities for all the nodes in the symbolic tree, based on'
+            ' (mutation type, location, old value, parent node). If None, all'
+            ' the locations and mutation types will be sampled uniformly.'
+        ),
+    ),
 ])(Evolvable)
 
 
@@ -200,25 +208,28 @@ def evolve(
     initial_value: symbolic.Symbolic,
     node_transform: Callable[
         [
-            object_utils.KeyPath,    # Location.
-            Any,                     # Old value.
-                                     # pg.MISSING_VALUE for insertion.
-            symbolic.Symbolic,       # Parent node.
+            utils.KeyPath,  # Location.
+            Any,  # Old value.
+            # pg.MISSING_VALUE for insertion.
+            symbolic.Symbolic,  # Parent node.
         ],
-        Any                          # Replacement.
+        Any,  # Replacement.
     ],
     *,
-    weights: Optional[Callable[
-        [
-            MutationType,  # Mutation type.
-            object_utils.KeyPath,    # Location.
-            Any,                     # Value.
-            symbolic.Symbolic,       # Parent.
-        ],
-        float                        # Mutation weight.
-    ]] = None,  # pylint: disable=bad-whitespace
+    weights: Optional[
+        Callable[
+            [
+                MutationType,  # Mutation type.
+                utils.KeyPath,  # Location.
+                Any,  # Value.
+                symbolic.Symbolic,  # Parent.
+            ],
+            float,  # Mutation weight.
+        ]
+    ] = None,  # pylint: disable=bad-whitespace
     name: Optional[str] = None,
-    hints: Optional[Any] = None) -> Evolvable:
+    hints: Optional[Any] = None
+) -> Evolvable:
   """An evolvable symbolic value.
 
   Example::

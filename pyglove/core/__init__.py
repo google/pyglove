@@ -37,8 +37,7 @@ Here lists the sub-modules included in the core PyGlove library:
    |__ tuning          :  Interface for program tuning with a local backend.
    |__ detouring       :  Detouring classes creation without symbolic types.
    |__ patching        :  Patching a program with URL-like strings.
-   |__ object_utils    :  Utility libary on operating with Python objects.
-
+   |__ utils           :  Utility libary on operating with Python objects.
 """
 
 # NOTE(daiyip): We disable bad-import-order to preserve the relation of
@@ -273,31 +272,35 @@ ObjectFactory = patching.ObjectFactory
 
 
 #
-# Symbols from 'object_utils' sub-module.
+# Symbols from 'utils' sub-module.
 #
 
-from pyglove.core import object_utils
-KeyPath = object_utils.KeyPath
-KeyPathSet = object_utils.KeyPathSet
-MISSING_VALUE = object_utils.MISSING_VALUE
+from pyglove.core import utils
 
-Formattable = object_utils.Formattable
-repr_format = object_utils.repr_format
-str_format = object_utils.str_format
+# For backward compatibility.
+object_utils = utils
 
-MaybePartial = object_utils.MaybePartial
-JSONConvertible = object_utils.JSONConvertible
-DocStr = object_utils.DocStr
+KeyPath = utils.KeyPath
+KeyPathSet = utils.KeyPathSet
+MISSING_VALUE = utils.MISSING_VALUE
 
-registered_types = object_utils.registered_types
-explicit_method_override = object_utils.explicit_method_override
+Formattable = utils.Formattable
+repr_format = utils.repr_format
+str_format = utils.str_format
 
-is_partial = object_utils.is_partial
-format = object_utils.format   # pylint: disable=redefined-builtin
-print = object_utils.print    # pylint: disable=redefined-builtin
-docstr = object_utils.docstr
-catch_errors = object_utils.catch_errors
-timeit = object_utils.timeit
+MaybePartial = utils.MaybePartial
+JSONConvertible = utils.JSONConvertible
+DocStr = utils.DocStr
+
+registered_types = utils.registered_types
+explicit_method_override = utils.explicit_method_override
+
+is_partial = utils.is_partial
+format = utils.format  # pylint: disable=redefined-builtin
+print = utils.print  # pylint: disable=redefined-builtin
+docstr = utils.docstr
+catch_errors = utils.catch_errors
+timeit = utils.timeit
 
 # Symbols from 'views' sub-module.
 

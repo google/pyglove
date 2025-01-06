@@ -17,10 +17,9 @@ import random
 import types
 from typing import Any, Callable, List, Optional, Union
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
-
+from pyglove.core import utils
 from pyglove.core.geno.base import DecisionPoint
 from pyglove.core.geno.base import DNA
 
@@ -125,7 +124,7 @@ class CustomDecisionPoint(DecisionPoint):
           f'CustomDecisionPoint expects string type DNA. '
           f'Encountered: {dna!r}, Location: {self.location.path}.')
 
-  def sym_jsonify(self, **kwargs: Any) -> object_utils.JSONValueType:
+  def sym_jsonify(self, **kwargs: Any) -> utils.JSONValueType:
     """Overrides sym_jsonify to exclude non-serializable fields."""
     exclude_keys = kwargs.pop('exclude_keys', [])
     exclude_keys.extend(['random_dna_fn', 'next_dna_fn'])
@@ -153,21 +152,25 @@ class CustomDecisionPoint(DecisionPoint):
       kvlist = [('id', str(self.id), '\'\'')]
     else:
       kvlist = []
-    details = object_utils.kvlist_str(kvlist + [
-        ('hyper_type', self.hyper_type, None),
-        ('name', self.name, None),
-        ('hints', self.hints, None),
-    ])
+    details = utils.kvlist_str(
+        kvlist
+        + [
+            ('hyper_type', self.hyper_type, None),
+            ('name', self.name, None),
+            ('hints', self.hints, None),
+        ]
+    )
     return f'{self.__class__.__name__}({details})'
 
 
-def custom(hyper_type: Optional[str] = None,
-           next_dna_fn: Optional[
-               Callable[[Optional[DNA]], Optional[DNA]]] = None,
-           random_dna_fn: Optional[Callable[[Any], DNA]] = None,
-           hints: Any = None,
-           location: object_utils.KeyPath = object_utils.KeyPath(),
-           name: Optional[str] = None) -> CustomDecisionPoint:
+def custom(
+    hyper_type: Optional[str] = None,
+    next_dna_fn: Optional[Callable[[Optional[DNA]], Optional[DNA]]] = None,
+    random_dna_fn: Optional[Callable[[Any], DNA]] = None,
+    hints: Any = None,
+    location: utils.KeyPath = utils.KeyPath(),
+    name: Optional[str] = None,
+) -> CustomDecisionPoint:
   """Returns a custom decision point.
 
   It creates the genotype for subclasses of :func:`pyglove.hyper.CustomHyper`.

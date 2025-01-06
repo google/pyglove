@@ -14,8 +14,8 @@
 """Common inferential values."""
 
 from typing import Any, Tuple
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic.object import Object
 
@@ -65,7 +65,7 @@ class ValueFromParentChain(InferredValue):
       if v == pg_typing.MISSING_VALUE:
         if parent is None:
           raise AttributeError(
-              object_utils.message_on_path(
+              utils.message_on_path(
                   (
                       f'`{self.inference_key}` is not found under its context '
                       '(along its symbolic parent chain).'

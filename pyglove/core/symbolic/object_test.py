@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.Object."""
-
 import copy
 import inspect
 import io
@@ -23,8 +21,8 @@ import typing
 from typing import Any
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import inferred
@@ -42,7 +40,7 @@ from pyglove.core.symbolic.pure_symbolic import PureSymbolic
 from pyglove.core.views.html import tree_view  # pylint: disable=unused-import
 
 
-MISSING_VALUE = object_utils.MISSING_VALUE
+MISSING_VALUE = utils.MISSING_VALUE
 
 
 class ObjectMetaTest(unittest.TestCase):
@@ -205,7 +203,7 @@ class ObjectTest(unittest.TestCase):
     ])
     class A(Object):
 
-      @object_utils.explicit_method_override
+      @utils.explicit_method_override
       def __init__(self, x):
         super().__init__(int(x))
 
@@ -214,7 +212,7 @@ class ObjectTest(unittest.TestCase):
 
     class B(A):
 
-      @object_utils.explicit_method_override
+      @utils.explicit_method_override
       def __init__(self, x):  # pylint: disable=super-init-not-called
         # Forgot to call super().__init__ will trigger error.
         self.x = x
@@ -802,8 +800,8 @@ class ObjectTest(unittest.TestCase):
     a = A(A(dict(y=A(1))))
     self.assertTrue(a.sym_has('x'))
     self.assertTrue(a.sym_has('x.x'))
-    self.assertTrue(a.sym_has(object_utils.KeyPath.parse('x.x.y')))
-    self.assertTrue(a.sym_has(object_utils.KeyPath.parse('x.x.y.x')))
+    self.assertTrue(a.sym_has(utils.KeyPath.parse('x.x.y')))
+    self.assertTrue(a.sym_has(utils.KeyPath.parse('x.x.y.x')))
     self.assertFalse(a.sym_has('y'))   # `y` is not a symbolic field.
 
   def test_sym_get(self):
@@ -828,10 +826,10 @@ class ObjectTest(unittest.TestCase):
     self.assertIs(a.sym_get('x'), a.x)
     self.assertIs(a.sym_get('p'), a.sym_getattr('p'))
     self.assertIs(a.sym_get('x.x'), a.x.x)
-    self.assertIs(a.sym_get(object_utils.KeyPath.parse('x.x.y')), a.x.x.y)
-    self.assertIs(a.sym_get(object_utils.KeyPath.parse('x.x.y.x')), a.x.x.y.x)
+    self.assertIs(a.sym_get(utils.KeyPath.parse('x.x.y')), a.x.x.y)
+    self.assertIs(a.sym_get(utils.KeyPath.parse('x.x.y.x')), a.x.x.y.x)
     self.assertIs(
-        a.sym_get(object_utils.KeyPath.parse('x.x.y.p')),
+        a.sym_get(utils.KeyPath.parse('x.x.y.p')),
         a.x.x.y.sym_getattr('p'),
     )
     self.assertIsNone(a.sym_get('x.x.y.q', use_inferred=True))
@@ -1595,7 +1593,7 @@ class ObjectTest(unittest.TestCase):
     self.assertEqual(a.x.x.x.sym_path, 'x.x.x')
     self.assertEqual(a.x.x.x[0].sym_path, 'x.x.x[0]')
 
-    a.sym_setpath(object_utils.KeyPath('a'))
+    a.sym_setpath(utils.KeyPath('a'))
     self.assertEqual(a.sym_path, 'a')
     self.assertEqual(a.x.sym_path, 'a.x')
     self.assertEqual(a.x.x.sym_path, 'a.x.x')
@@ -2075,7 +2073,7 @@ class InitSignatureTest(unittest.TestCase):
     class C(B):
       """Custom __init__."""
 
-      @object_utils.explicit_method_override
+      @utils.explicit_method_override
       def __init__(self, a, b):
         super().__init__(b, x=a)
 
@@ -2450,44 +2448,51 @@ class EventsTest(unittest.TestCase):
         [
             # Set default value from outer space (parent List) for field d1.
             {
-                'd1':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
-                        target=sd.a2.b1.c1[0],
-                        field=sd.a2.b1.c1[0].value_spec.schema['d1'],
-                        old_value=MISSING_VALUE,
-                        new_value='foo')
+                'd1': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d1'],
+                    old_value=MISSING_VALUE,
+                    new_value='foo',
+                )
             },
             # Set default value from outer space (parent List) for field d2.
             {
-                'd2':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
-                        target=sd.a2.b1.c1[0],
-                        field=sd.a2.b1.c1[0].value_spec.schema['d2'],
-                        old_value=MISSING_VALUE,
-                        new_value=True)
-            }
-        ])
+                'd2': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d2'],
+                    old_value=MISSING_VALUE,
+                    new_value=True,
+                )
+            },
+        ],
+    )
 
     # list get updated after bind with parent structures.
-    self.assertEqual(list_updates, [{
-        '[0].d1':
-            base.FieldUpdate(
-                path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
-                target=sd.a2.b1.c1[0],
-                field=sd.a2.b1.c1[0].value_spec.schema['d1'],
-                old_value=MISSING_VALUE,
-                new_value='foo')
-    }, {
-        '[0].d2':
-            base.FieldUpdate(
-                path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
-                target=sd.a2.b1.c1[0],
-                field=sd.a2.b1.c1[0].value_spec.schema['d2'],
-                old_value=MISSING_VALUE,
-                new_value=True)
-    }])
+    self.assertEqual(
+        list_updates,
+        [
+            {
+                '[0].d1': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d1'],
+                    old_value=MISSING_VALUE,
+                    new_value='foo',
+                )
+            },
+            {
+                '[0].d2': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d2'],
+                    old_value=MISSING_VALUE,
+                    new_value=True,
+                )
+            },
+        ],
+    )
 
     # There are no updates in root.
     self.assertEqual(root_updates, [])
@@ -2510,28 +2515,28 @@ class EventsTest(unittest.TestCase):
         root_updates[0],
         {
             'a1': base.FieldUpdate(
-                path=object_utils.KeyPath.parse('a1'),
+                path=utils.KeyPath.parse('a1'),
                 target=sd,
                 field=sd.value_spec.schema['a1'],
                 old_value=MISSING_VALUE,
                 new_value=1,
             ),
             'a2.b1.c1[0].d1': base.FieldUpdate(
-                path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                path=utils.KeyPath.parse('a2.b1.c1[0].d1'),
                 target=sd.a2.b1.c1[0],
                 field=sd.a2.b1.c1[0].value_spec.schema['d1'],
                 old_value='foo',
                 new_value='bar',
             ),
             'a2.b1.c1[0].d2': base.FieldUpdate(
-                path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                path=utils.KeyPath.parse('a2.b1.c1[0].d2'),
                 target=sd.a2.b1.c1[0],
                 field=sd.a2.b1.c1[0].value_spec.schema['d2'],
                 old_value=True,
                 new_value=False,
             ),
             'a2.b1.c1[0].d3.z': base.FieldUpdate(
-                path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
+                path=utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
                 target=sd.a2.b1.c1[0].d3,
                 field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
                 old_value=MISSING_VALUE,
@@ -2547,21 +2552,21 @@ class EventsTest(unittest.TestCase):
             # Root object rebind.
             {
                 '[0].d1': base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d1'),
                     target=sd.a2.b1.c1[0],
                     field=sd.a2.b1.c1[0].value_spec.schema['d1'],
                     old_value='foo',
                     new_value='bar',
                 ),
                 '[0].d2': base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d2'),
                     target=sd.a2.b1.c1[0],
                     field=sd.a2.b1.c1[0].value_spec.schema['d2'],
                     old_value=True,
                     new_value=False,
                 ),
                 '[0].d3.z': base.FieldUpdate(
-                    path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
                     target=sd.a2.b1.c1[0].d3,
                     field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
                     old_value=MISSING_VALUE,
@@ -2577,29 +2582,30 @@ class EventsTest(unittest.TestCase):
         [
             # Root object rebind.
             {
-                'd1':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d1'),
-                        target=sd.a2.b1.c1[0],
-                        field=sd.a2.b1.c1[0].value_spec.schema['d1'],
-                        old_value='foo',
-                        new_value='bar'),
-                'd2':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d2'),
-                        target=sd.a2.b1.c1[0],
-                        field=sd.a2.b1.c1[0].value_spec.schema['d2'],
-                        old_value=True,
-                        new_value=False),
-                'd3.z':
-                    base.FieldUpdate(
-                        path=object_utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
-                        target=sd.a2.b1.c1[0].d3,
-                        field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
-                        old_value=MISSING_VALUE,
-                        new_value='foo')
+                'd1': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d1'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d1'],
+                    old_value='foo',
+                    new_value='bar',
+                ),
+                'd2': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d2'),
+                    target=sd.a2.b1.c1[0],
+                    field=sd.a2.b1.c1[0].value_spec.schema['d2'],
+                    old_value=True,
+                    new_value=False,
+                ),
+                'd3.z': base.FieldUpdate(
+                    path=utils.KeyPath.parse('a2.b1.c1[0].d3.z'),
+                    target=sd.a2.b1.c1[0].d3,
+                    field=sd.a2.b1.c1[0].d3.__class__.__schema__['z'],
+                    old_value=MISSING_VALUE,
+                    new_value='foo',
+                ),
             }
-        ])
+        ],
+    )
 
   def test_on_change_notification_order(self):
     change_order = []
@@ -2645,7 +2651,7 @@ class EventsTest(unittest.TestCase):
     y.x = A()
     self.assertIs(x.old_parent, y)
     self.assertIsNone(x.new_parent)
-    self.assertEqual(x.sym_path, object_utils.KeyPath())
+    self.assertEqual(x.sym_path, utils.KeyPath())
 
   def test_on_path_change(self):
 
@@ -2656,8 +2662,8 @@ class EventsTest(unittest.TestCase):
         self.new_path = new_path
 
     x = A()
-    x.sym_setpath(object_utils.KeyPath('a'))
-    self.assertEqual(x.old_path, object_utils.KeyPath())
+    x.sym_setpath(utils.KeyPath('a'))
+    self.assertEqual(x.old_path, utils.KeyPath())
     self.assertEqual(x.new_path, 'a')
 
     y = Dict(x=x)
@@ -3059,7 +3065,7 @@ class SerializationTest(unittest.TestCase):
 
   def test_serialization_with_json_convertible(self):
 
-    class Y(object_utils.JSONConvertible):
+    class Y(utils.JSONConvertible):
 
       TYPE_NAME = 'Y'
 
@@ -3079,7 +3085,7 @@ class SerializationTest(unittest.TestCase):
       def from_json(cls, json_dict, *args, **kwargs):
         return cls(json_dict.pop('value'))
 
-    object_utils.JSONConvertible.register(Y.TYPE_NAME, Y)
+    utils.JSONConvertible.register(Y.TYPE_NAME, Y)
 
     a = self._A(Y(1), y=True)
     self.assertEqual(base.from_json_str(a.to_json_str()), a)
@@ -3286,9 +3292,7 @@ class FormatTest(unittest.TestCase):
 
   def test_compact_python_format(self):
     self.assertEqual(
-        object_utils.format(
-            self._a, compact=True, python_format=True, markdown=True
-        ),
+        utils.format(self._a, compact=True, python_format=True, markdown=True),
         "`A(x=[A(x=1, y=None), A(x='foo', y={'a': A(x=True, y=1.0)})], "
         'y=MISSING_VALUE)`',
     )
@@ -3333,9 +3337,12 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_python_format(self):
     self.assertEqual(
-        object_utils.format(
-            self._a, compact=False, verbose=False, python_format=True,
-            markdown=True
+        utils.format(
+            self._a,
+            compact=False,
+            verbose=False,
+            python_format=True,
+            markdown=True,
         ),
         inspect.cleandoc("""
             ```
@@ -3502,10 +3509,10 @@ class FormatTest(unittest.TestCase):
         return f() if f is not None else None
       return fn
 
-    with object_utils.str_format(custom_format=_method('_repr_xml_')):
+    with utils.str_format(custom_format=_method('_repr_xml_')):
       self.assertEqual(str(Bar(Foo())), 'Bar(\n  foo = Foo()\n)')
 
-    with object_utils.str_format(custom_format=_method('_repr_html_')):
+    with utils.str_format(custom_format=_method('_repr_html_')):
       self.assertIn('<html>', str(Bar(Foo())))
 
 

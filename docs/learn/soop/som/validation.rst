@@ -220,4 +220,4 @@ By default, PyGlove registered converters between the following pairs:
      - :class:`datetime.datetime`
 
    * - :class:`str`
-     - :class:`pg.KeyPath <pyglove.object_utils.KeyPath>`
+     - :class:`pg.KeyPath <pyglove.utils.KeyPath>`

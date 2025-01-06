@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import time
 import unittest
 
-from pyglove.core.object_utils import json_conversion
-from pyglove.core.object_utils import timing
+from pyglove.core.utils import json_conversion
+from pyglove.core.utils import timing
 
 
 class TimeItTest(unittest.TestCase):

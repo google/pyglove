@@ -16,11 +16,11 @@
 import traceback
 from typing import Any, Callable, List, Optional
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.symbolic import flags
 
 
-class Origin(object_utils.Formattable):
+class Origin(utils.Formattable):
   """Class that represents the origin of a symbolic value.
 
   Origin is used for debugging the creation chain of a symbolic value, as
@@ -158,14 +158,12 @@ class Origin(object_utils.Formattable):
     if isinstance(self._source, (str, type(None))):
       source_str = self._source
     else:
-      source_info = object_utils.format(
+      source_info = utils.format(
           self._source, compact, verbose, root_indent + 1, **kwargs
       )
-      source_str = object_utils.RawText(
-          f'{source_info} at 0x{id(self._source):8x}'
-      )
+      source_str = utils.RawText(f'{source_info} at 0x{id(self._source):8x}')
 
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('tag', self._tag, None),
             ('source', source_str, None),

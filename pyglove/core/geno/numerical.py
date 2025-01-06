@@ -17,10 +17,9 @@ import random
 import types
 from typing import Any, List, Optional, Union
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
-
+from pyglove.core import utils
 from pyglove.core.geno.base import DecisionPoint
 from pyglove.core.geno.base import DNA
 
@@ -167,22 +166,27 @@ class Float(DecisionPoint):
       kvlist = [('id', str(self.id), '\'\'')]
     else:
       kvlist = []
-    details = object_utils.kvlist_str(kvlist + [
-        ('name', self.name, None),
-        ('min_value', self.min_value, None),
-        ('max_value', self.max_value, None),
-        ('scale', self.scale, None),
-        ('hints', self.hints, None),
-    ])
+    details = utils.kvlist_str(
+        kvlist
+        + [
+            ('name', self.name, None),
+            ('min_value', self.min_value, None),
+            ('max_value', self.max_value, None),
+            ('scale', self.scale, None),
+            ('hints', self.hints, None),
+        ]
+    )
     return f'{self.__class__.__name__}({details})'
 
 
-def floatv(min_value: float,
-           max_value: float,
-           scale: Optional[str] = None,
-           hints: Any = None,
-           location: object_utils.KeyPath = object_utils.KeyPath(),
-           name: Optional[str] = None) -> Float:
+def floatv(
+    min_value: float,
+    max_value: float,
+    scale: Optional[str] = None,
+    hints: Any = None,
+    location: utils.KeyPath = utils.KeyPath(),
+    name: Optional[str] = None,
+) -> Float:
   """Returns a Float specification.
 
   It creates the genotype for :func:`pyglove.floatv`.
@@ -226,4 +230,3 @@ def floatv(min_value: float,
   """
   return Float(min_value, max_value, scale,
                hints=hints, location=location, name=name)
-

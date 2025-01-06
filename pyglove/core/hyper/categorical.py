@@ -18,9 +18,9 @@ import typing
 from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper import base
 from pyglove.core.hyper import object_template
 
@@ -85,7 +85,8 @@ class Choices(base.HyperPrimitive):
     self._value_spec = None
 
   def _update_children_paths(
-      self, old_path: object_utils.KeyPath, new_path: object_utils.KeyPath):
+      self, old_path: utils.KeyPath, new_path: utils.KeyPath
+  ):
     """Customized logic to update children paths."""
     super()._update_children_paths(old_path, new_path)
     for t in self._candidate_templates:
@@ -104,19 +105,20 @@ class Choices(base.HyperPrimitive):
         return False
     return True
 
-  def dna_spec(self,
-               location: Optional[object_utils.KeyPath] = None) -> geno.Choices:
+  def dna_spec(self, location: Optional[utils.KeyPath] = None) -> geno.Choices:
     """Returns corresponding DNASpec."""
     return geno.Choices(
         num_choices=self.num_choices,
         candidates=[ct.dna_spec() for ct in self._candidate_templates],
-        literal_values=[self._literal_value(c)
-                        for i, c in enumerate(self.candidates)],
+        literal_values=[
+            self._literal_value(c) for i, c in enumerate(self.candidates)
+        ],
         distinct=self.choices_distinct,
         sorted=self.choices_sorted,
         hints=self.hints,
         name=self.name,
-        location=location or object_utils.KeyPath())
+        location=location or utils.KeyPath(),
+    )
 
   def _literal_value(
       self, candidate: Any, max_len: int = 120) -> Union[int, float, str]:
@@ -124,10 +126,13 @@ class Choices(base.HyperPrimitive):
     if isinstance(candidate, numbers.Number):
       return candidate
 
-    literal = object_utils.format(candidate, compact=True,
-                                  hide_default_values=True,
-                                  hide_missing_values=True,
-                                  strip_object_id=True)
+    literal = utils.format(
+        candidate,
+        compact=True,
+        hide_default_values=True,
+        hide_missing_values=True,
+        strip_object_id=True,
+    )
     if len(literal) > max_len:
       literal = literal[:max_len - 3] + '...'
     return literal
@@ -139,52 +144,70 @@ class Choices(base.HyperPrimitive):
       # Single choice.
       if not isinstance(dna.value, int):
         raise ValueError(
-            object_utils.message_on_path(
-                f'Did you forget to specify values for conditional choices?\n'
+            utils.message_on_path(
+                'Did you forget to specify values for conditional choices?\n'
                 f'Expect integer for {self.__class__.__name__}. '
-                f'Encountered: {dna!r}.', self.sym_path))
+                f'Encountered: {dna!r}.',
+                self.sym_path,
+            )
+        )
       if dna.value >= len(self.candidates):
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Choice out of range. Value: {dna.value!r}, '
-                f'Candidates: {len(self.candidates)}.', self.sym_path))
+                f'Candidates: {len(self.candidates)}.',
+                self.sym_path,
+            )
+        )
       choices = [self._candidate_templates[dna.value].decode(
           geno.DNA(None, dna.children))]
     else:
       # Multi choices.
       if len(dna.children) != self.num_choices:
         raise ValueError(
-            object_utils.message_on_path(
-                f'Number of DNA child values does not match the number of '
+            utils.message_on_path(
+                'Number of DNA child values does not match the number of '
                 f'choices. Child values: {dna.children!r}, '
-                f'Choices: {self.num_choices}.', self.sym_path))
+                f'Choices: {self.num_choices}.',
+                self.sym_path,
+            )
+        )
       if self.choices_distinct or self.choices_sorted:
         sub_dna_values = [s.value for s in dna]
         if (self.choices_distinct
             and len(set(sub_dna_values)) != len(dna.children)):
           raise ValueError(
-              object_utils.message_on_path(
-                  f'DNA child values should be distinct. '
-                  f'Encountered: {sub_dna_values}.', self.sym_path))
+              utils.message_on_path(
+                  'DNA child values should be distinct. '
+                  f'Encountered: {sub_dna_values}.',
+                  self.sym_path,
+              )
+          )
         if self.choices_sorted and sorted(sub_dna_values) != sub_dna_values:
           raise ValueError(
-              object_utils.message_on_path(
-                  f'DNA child values should be sorted. '
-                  f'Encountered: {sub_dna_values}.', self.sym_path))
+              utils.message_on_path(
+                  'DNA child values should be sorted. '
+                  f'Encountered: {sub_dna_values}.',
+                  self.sym_path,
+              )
+          )
       choices = []
       for i, sub_dna in enumerate(dna):
         if not isinstance(sub_dna.value, int):
           raise ValueError(
-              object_utils.message_on_path(
-                  f'Choice value should be int. '
-                  f'Encountered: {sub_dna.value}.',
-                  object_utils.KeyPath(i, self.sym_path)))
+              utils.message_on_path(
+                  f'Choice value should be int. Encountered: {sub_dna.value}.',
+                  utils.KeyPath(i, self.sym_path),
+              )
+          )
         if sub_dna.value >= len(self.candidates):
           raise ValueError(
-              object_utils.message_on_path(
+              utils.message_on_path(
                   f'Choice out of range. Value: {sub_dna.value}, '
                   f'Candidates: {len(self.candidates)}.',
-                  object_utils.KeyPath(i, self.sym_path)))
+                  utils.KeyPath(i, self.sym_path),
+              )
+          )
         choices.append(self._candidate_templates[sub_dna.value].decode(
             geno.DNA(None, sub_dna.children)))
     return choices
@@ -240,15 +263,21 @@ class Choices(base.HyperPrimitive):
     """
     if not isinstance(value, list):
       raise ValueError(
-          object_utils.message_on_path(
-              f'Cannot encode value: value should be a list type. '
-              f'Encountered: {value!r}.', self.sym_path))
+          utils.message_on_path(
+              'Cannot encode value: value should be a list type. '
+              f'Encountered: {value!r}.',
+              self.sym_path,
+          )
+      )
     choices = []
     if self.num_choices is not None and len(value) != self.num_choices:
       raise ValueError(
-          object_utils.message_on_path(
-              f'Length of input list is different from the number of choices '
-              f'({self.num_choices}). Encountered: {value}.', self.sym_path))
+          utils.message_on_path(
+              'Length of input list is different from the number of choices '
+              f'({self.num_choices}). Encountered: {value}.',
+              self.sym_path,
+          )
+      )
     for v in value:
       choice_id = None
       child_dna = None
@@ -259,10 +288,12 @@ class Choices(base.HyperPrimitive):
           break
       if child_dna is None:
         raise ValueError(
-            object_utils.message_on_path(
-                f'Cannot encode value: no candidates matches with '
+            utils.message_on_path(
+                'Cannot encode value: no candidates matches with '
                 f'the value. Value: {v!r}, Candidates: {self.candidates}.',
-                self.sym_path))
+                self.sym_path,
+            )
+        )
       choices.append(geno.DNA(choice_id, [child_dna]))
     return geno.DNA(None, choices)
 
@@ -313,12 +344,13 @@ class ManyOf(Choices):
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'Choices']:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, 'Choices']:
     """Validate candidates during value_spec binding time."""
     # Check if value_spec directly accepts `self`.
     if value_spec.value_type and isinstance(self, value_spec.value_type):
@@ -329,10 +361,12 @@ class ManyOf(Choices):
       dest_spec = value_spec
       if not dest_spec.is_compatible(src_spec):
         raise TypeError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Cannot bind an incompatible value spec {dest_spec!r} '
                 f'to {self.__class__.__name__} with bound spec {src_spec!r}.',
-                path))
+                path,
+            )
+        )
       return (False, self)
 
     list_spec = typing.cast(
@@ -399,12 +433,13 @@ class OneOf(Choices):
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'OneOf']:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, 'OneOf']:
     """Validate candidates during value_spec binding time."""
     # Check if value_spec directly accepts `self`.
     if value_spec.value_type and isinstance(self, value_spec.value_type):
@@ -413,10 +448,13 @@ class OneOf(Choices):
     if self._value_spec:
       if not value_spec.is_compatible(self._value_spec):
         raise TypeError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Cannot bind an incompatible value spec {value_spec!r} '
                 f'to {self.__class__.__name__} with bound '
-                f'spec {self._value_spec!r}.', path))
+                f'spec {self._value_spec!r}.',
+                path,
+            )
+        )
       return (False, self)
 
     for i, c in enumerate(self.candidates):
@@ -426,6 +464,7 @@ class OneOf(Choices):
           root_path=path + f'candidates[{i}]')
     self._value_spec = value_spec
     return (False, self)
+
 
 #
 # Helper methods for creating hyper values.

@@ -16,8 +16,8 @@
 import functools
 import typing
 from typing import Any, Callable, List, Optional, Tuple, Type
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.views.html import tree_view
@@ -100,7 +100,7 @@ class Ref(
       return object.__new__(cls)
     return value
 
-  @object_utils.explicit_method_override
+  @utils.explicit_method_override
   def __init__(self, value: Any, **kwargs) -> None:
     super().__init__(**kwargs)
     if isinstance(value, Ref):
@@ -127,12 +127,13 @@ class Ref(
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool = False,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, Any]:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, Any]:
     """Validate candidates during value_spec binding time."""
     del child_transform
     # Check if the field being assigned could accept the referenced value.
@@ -166,9 +167,12 @@ class Ref(
       root_indent: int = 0,
       **kwargs: Any,
   ) -> str:
-    value_str = object_utils.format(
+    value_str = utils.format(
         self._value,
-        compact=compact, verbose=verbose, root_indent=root_indent + 1)
+        compact=compact,
+        verbose=verbose,
+        root_indent=root_indent + 1,
+    )
     if compact:
       return f'{self.__class__.__name__}({value_str})'
     else:

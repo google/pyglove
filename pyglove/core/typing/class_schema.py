@@ -20,10 +20,10 @@ import sys
 import types
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Type, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 
 
-class KeySpec(object_utils.Formattable, object_utils.JSONConvertible):
+class KeySpec(utils.Formattable, utils.JSONConvertible):
   """Interface for key specifications.
 
   A key specification determines what keys are acceptable for a symbolic
@@ -94,7 +94,7 @@ class KeySpec(object_utils.Formattable, object_utils.JSONConvertible):
     assert False, 'Overridden in `key_specs.py`.'
 
 
-class ForwardRef(object_utils.Formattable):
+class ForwardRef(utils.Formattable):
   """Forward type reference."""
 
   def __init__(self, module: types.ModuleType, name: str):
@@ -147,7 +147,7 @@ class ForwardRef(object_utils.Formattable):
       **kwargs
   ) -> str:
     """Format this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('module', self.module.__name__, None),
             ('name', self.name, None),
@@ -180,7 +180,7 @@ class ForwardRef(object_utils.Formattable):
     return ForwardRef(self.module, self.name)
 
 
-class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
+class ValueSpec(utils.Formattable, utils.JSONConvertible):
   """Interface for value specifications.
 
   A value specification defines what values are acceptable for a symbolic
@@ -367,7 +367,7 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
       self,
       default: Any,
       use_default_apply: bool = True,
-      root_path: Optional[object_utils.KeyPath] = None
+      root_path: Optional[utils.KeyPath] = None,
   ) -> 'ValueSpec':
     """Sets the default value and returns `self`.
 
@@ -398,13 +398,14 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
   @property
   def has_default(self) -> bool:
     """Returns True if the default value is provided."""
-    return self.default != object_utils.MISSING_VALUE
+    return self.default != utils.MISSING_VALUE
 
   @abc.abstractmethod
   def freeze(
       self,
-      permanent_value: Any = object_utils.MISSING_VALUE,
-      apply_before_use: bool = True) -> 'ValueSpec':
+      permanent_value: Any = utils.MISSING_VALUE,
+      apply_before_use: bool = True,
+  ) -> 'ValueSpec':
     """Sets the default value using a permanent value and freezes current spec.
 
     A frozen value spec will not accept any value that is not the default
@@ -471,10 +472,11 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
       self,
       value: Any,
       allow_partial: bool = False,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, 'Field', Any], Any]] = None,
-      root_path: Optional[object_utils.KeyPath] = None,
-      ) -> Any:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, 'Field', Any], Any]
+      ] = None,
+      root_path: Optional[utils.KeyPath] = None,
+  ) -> Any:
     """Validates, completes and transforms the input value.
 
     Here is the procedure of ``apply``::
@@ -551,7 +553,7 @@ class ValueSpec(object_utils.Formattable, object_utils.JSONConvertible):
     assert False, 'Overridden in `annotation_conversion.py`.'
 
 
-class Field(object_utils.Formattable, object_utils.JSONConvertible):
+class Field(utils.Formattable, utils.JSONConvertible):
   """Class that represents the definition of one or a group of attributes.
 
   ``Field`` is held by a :class:`pyglove.Schema` object for defining the
@@ -681,9 +683,11 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
       self,
       value: Any,
       allow_partial: bool = False,
-      transform_fn: Optional[Callable[
-          [object_utils.KeyPath, 'Field', Any], Any]] = None,
-      root_path: Optional[object_utils.KeyPath] = None) -> Any:
+      transform_fn: Optional[
+          Callable[[utils.KeyPath, 'Field', Any], Any]
+      ] = None,
+      root_path: Optional[utils.KeyPath] = None,
+  ) -> Any:
     """Apply current field to a value, which validate and complete the value.
 
     Args:
@@ -735,7 +739,7 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
       **kwargs,
   ) -> str:
     """Format this field into a string."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('key', self._key, None),
             ('value', self._value, None),
@@ -746,7 +750,7 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def to_json(self, **kwargs: Any) -> Dict[str, Any]:
@@ -775,7 +779,7 @@ class Field(object_utils.Formattable, object_utils.JSONConvertible):
     return not self.__eq__(other)
 
 
-class Schema(object_utils.Formattable, object_utils.JSONConvertible):
+class Schema(utils.Formattable, utils.JSONConvertible):
   """Class that represents a schema.
 
   PyGlove's runtime type system is based on the concept of ``Schema`` (
@@ -959,13 +963,12 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
         parent_field: Field,
         child_field: Field) -> Field:
       """Merge function on field with the same key."""
-      if parent_field != object_utils.MISSING_VALUE:
-        if object_utils.MISSING_VALUE == child_field:
+      if parent_field != utils.MISSING_VALUE:
+        if utils.MISSING_VALUE == child_field:
           if (not self._allow_nonconst_keys and not parent_field.key.is_const):
-            hints = object_utils.kvlist_str([
-                ('base', base.name, None),
-                ('path', path, None)
-            ])
+            hints = utils.kvlist_str(
+                [('base', base.name, None), ('path', path, None)]
+            )
             raise ValueError(
                 f'Non-const key {parent_field.key} is not allowed to be '
                 f'added to the schema. ({hints})')
@@ -974,16 +977,15 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
           try:
             child_field.extend(parent_field)
           except Exception as e:  # pylint: disable=broad-except
-            hints = object_utils.kvlist_str([
-                ('base', base.name, None),
-                ('path', path, None)
-            ])
+            hints = utils.kvlist_str(
+                [('base', base.name, None), ('path', path, None)]
+            )
             raise e.__class__(f'{e} ({hints})').with_traceback(
                 sys.exc_info()[2])
       return child_field
 
-    self._fields = object_utils.merge([base.fields, self.fields], _merge_field)
-    self._metadata = object_utils.merge([base.metadata, self.metadata])
+    self._fields = utils.merge([base.fields, self.fields], _merge_field)
+    self._metadata = utils.merge([base.metadata, self.metadata])
 
     # Inherit dynamic field from base if it's not present in the child.
     if self._dynamic_field is None:
@@ -1106,8 +1108,8 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
       dict_obj: Dict[str, Any],
       allow_partial: bool = False,
       child_transform: Optional[Callable[
-          [object_utils.KeyPath, Field, Any], Any]] = None,
-      root_path: Optional[object_utils.KeyPath] = None,
+          [utils.KeyPath, Field, Any], Any]] = None,
+      root_path: Optional[utils.KeyPath] = None,
   ) -> Dict[str, Any]:  # pyformat: disable
     # pyformat: disable
     """Apply this schema to a dict object, validate and transform it.
@@ -1164,18 +1166,18 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
         keys.append(str(key_spec))
       for key in keys:
         if dict_obj:
-          value = dict_obj.get(key, object_utils.MISSING_VALUE)
+          value = dict_obj.get(key, utils.MISSING_VALUE)
         else:
-          value = object_utils.MISSING_VALUE
+          value = utils.MISSING_VALUE
         # NOTE(daiyip): field.default_value may be MISSING_VALUE too
         # or partial.
-        if object_utils.MISSING_VALUE == value:
+        if utils.MISSING_VALUE == value:
           value = copy.deepcopy(field.default_value)
         new_value = field.apply(
             value,
             allow_partial=allow_partial,
             transform_fn=child_transform,
-            root_path=object_utils.KeyPath(key, root_path)
+            root_path=utils.KeyPath(key, root_path),
         )
 
         # NOTE(daiyip): `pg.Dict.__getitem__`` has special logics in handling
@@ -1189,10 +1191,12 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
           dict_obj[key] = new_value
     return dict_obj
 
-  def validate(self,
-               dict_obj: Dict[str, Any],
-               allow_partial: bool = False,
-               root_path: Optional[object_utils.KeyPath] = None) -> None:
+  def validate(
+      self,
+      dict_obj: Dict[str, Any],
+      allow_partial: bool = False,
+      root_path: Optional[utils.KeyPath] = None,
+  ) -> None:
     """Validates whether dict object is conformed with the schema."""
     self.apply(
         copy.deepcopy(dict_obj),
@@ -1257,12 +1261,12 @@ class Schema(object_utils.Formattable, object_utils.JSONConvertible):
       root_indent: int = 0,
       *,
       cls_name: Optional[str] = None,
-      bracket_type: object_utils.BracketType = object_utils.BracketType.ROUND,
+      bracket_type: utils.BracketType = utils.BracketType.ROUND,
       fields_only: bool = False,
       **kwargs,
   ) -> str:
     """Format current Schema into nicely printed string."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('name', self.name, None),
             ('description', self.description, None),

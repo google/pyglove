@@ -232,7 +232,7 @@ language = 'en'
 exclude_patterns = [
     # Temporarily disable sources for faster sphinx-build
     # 'api/core/symbolic',
-    # 'api/core/object_utils',
+    # 'api/core/utils',
     # 'api/core/typing',
     # 'api/core/detouring',
     # 'api/core/wrapping',

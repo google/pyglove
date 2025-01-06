@@ -21,8 +21,8 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from pyglove.core import geno
 from pyglove.core import logging
-from pyglove.core import object_utils
 from pyglove.core import symbolic
+from pyglove.core import utils
 from pyglove.core.tuning import backend
 from pyglove.core.tuning.early_stopping import EarlyStoppingPolicy
 from pyglove.core.tuning.protocols import Feedback
@@ -278,7 +278,7 @@ class _InMemoryResult(Result):
           ('step', self._best_trial.final_measurement.step),
           ('dna', self._best_trial.dna.format(compact=True))
       ])
-    return object_utils.format(json_repr, compact, False, root_indent, **kwargs)
+    return utils.format(json_repr, compact, False, root_indent, **kwargs)
 
 
 @backend.add_backend('in-memory')

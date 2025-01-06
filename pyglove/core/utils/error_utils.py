@@ -21,8 +21,8 @@ import sys
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
-from pyglove.core.object_utils import formatting
-from pyglove.core.object_utils import json_conversion
+from pyglove.core.utils import formatting
+from pyglove.core.utils import json_conversion
 
 
 @dataclasses.dataclass(frozen=True)
@@ -102,7 +102,7 @@ def catch_errors(
 
   Examples::
 
-    with pg.object_utils.catch_errors(
+    with pg.utils.catch_errors(
         [
             RuntimeErrror,
             (ValueError, 'Input is wrong.')

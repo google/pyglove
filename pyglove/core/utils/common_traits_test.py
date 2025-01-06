@@ -11,10 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.object_utils.common_traits."""
-
 import unittest
-from pyglove.core.object_utils import common_traits
+from pyglove.core.utils import common_traits
 
 
 class ExplicitlyOverrideTest(unittest.TestCase):

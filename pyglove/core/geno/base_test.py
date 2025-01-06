@@ -11,12 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.geno.DNA."""
-
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
+from pyglove.core import utils
 from pyglove.core.geno.base import ConditionalKey
 from pyglove.core.geno.base import DNA
 from pyglove.core.geno.categorical import manyof
@@ -1144,7 +1142,7 @@ class ConditionalKeyTest(unittest.TestCase):
     self.assertEqual(key.num_choices, 5)
 
   def test_to_str(self):
-    key = object_utils.KeyPath(['a', ConditionalKey(1, 5), 'b'])
+    key = utils.KeyPath(['a', ConditionalKey(1, 5), 'b'])
     self.assertEqual(str(key), 'a[=1/5].b')
 
 

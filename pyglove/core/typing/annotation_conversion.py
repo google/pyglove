@@ -18,7 +18,7 @@ import inspect
 import types
 import typing
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import annotated
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import inspect as pg_inspect
@@ -73,7 +73,7 @@ def _value_spec_from_default_value(
   elif isinstance(value, tuple):
     value_spec = vs.Tuple(
         [_value_spec_from_default_value(elem, False) for elem in value])
-  elif inspect.isfunction(value) or isinstance(value, object_utils.Functor):
+  elif inspect.isfunction(value) or isinstance(value, utils.Functor):
     value_spec = vs.Callable()
   elif not isinstance(value, type):
     value_spec = vs.Object(type(value))
@@ -132,7 +132,7 @@ def _value_spec_from_type_annotation(
     return vs.Union([vs.List(elem), vs.Tuple(elem)])
   # Handling literals.
   elif origin is typing.Literal:
-    return vs.Enum(object_utils.MISSING_VALUE, args)
+    return vs.Enum(utils.MISSING_VALUE, args)
   # Handling dict.
   elif origin in (dict, typing.Dict, collections.abc.Mapping):
     if not args:

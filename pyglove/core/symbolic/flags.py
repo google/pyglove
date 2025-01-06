@@ -14,7 +14,7 @@
 """Global, thread-local and scoped flags for handling symbolic objects."""
 
 from typing import Any, Callable, ContextManager, Optional
-from pyglove.core.object_utils import thread_local
+from pyglove.core.utils import thread_local
 
 
 #

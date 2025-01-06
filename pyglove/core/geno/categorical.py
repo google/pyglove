@@ -18,10 +18,9 @@ import re
 import types
 from typing import Any, List, Optional, Union
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
-
+from pyglove.core import utils
 from pyglove.core.geno.base import DecisionPoint
 from pyglove.core.geno.base import DNA
 from pyglove.core.geno.base import DNASpec
@@ -139,14 +138,15 @@ class Choices(DecisionPoint):
       for i in range(self.num_choices):
         subchoice_spec = Choices(
             subchoice_index=i,
-            location=object_utils.KeyPath(i),
+            location=utils.KeyPath(i),
             num_choices=1,
             candidates=self.candidates,
             literal_values=self.literal_values,
             distinct=self.distinct,
             sorted=self.sorted,
             name=self.name,
-            hints=self.hints)
+            hints=self.hints,
+        )
         self._decision_points.extend(subchoice_spec.decision_points)
         subchoice_specs.append(subchoice_spec)
       self._subchoice_specs = symbolic.List(subchoice_specs)
@@ -158,7 +158,8 @@ class Choices(DecisionPoint):
         self._decision_points.extend(c.decision_points)
 
   def _update_children_paths(
-      self, old_path: object_utils.KeyPath, new_path: object_utils.KeyPath):
+      self, old_path: utils.KeyPath, new_path: utils.KeyPath
+  ):
     """Trigger path change for subchoices so their IDs can be invalidated."""
     super()._update_children_paths(old_path, new_path)
     if self._subchoice_specs:
@@ -337,7 +338,7 @@ class Choices(DecisionPoint):
               f'DNA child values should be sorted. '
               f'Encountered: {sub_dna_values}, Location: {self.location.path}.')
       for i, sub_dna in enumerate(dna):
-        sub_location = object_utils.KeyPath(i, self.location)
+        sub_location = utils.KeyPath(i, self.location)
         if not isinstance(sub_dna.value, int):
           raise ValueError(
               f'Choice value should be int. Encountered: {sub_dna.value}, '
@@ -601,13 +602,18 @@ class Choices(DecisionPoint):
       kvlist = [('id', str(self.id), '\'\'')]
     else:
       kvlist = []
-    additionl_properties = object_utils.kvlist_str(kvlist + [
-        ('name', self.name, None),
-        ('distinct', self.distinct, True),
-        ('sorted', self.sorted, False),
-        ('hints', self.hints, None),
-        ('subchoice_index', self.subchoice_index, None)
-    ], compact=False, root_indent=root_indent)
+    additionl_properties = utils.kvlist_str(
+        kvlist
+        + [
+            ('name', self.name, None),
+            ('distinct', self.distinct, True),
+            ('sorted', self.sorted, False),
+            ('hints', self.hints, None),
+            ('subchoice_index', self.subchoice_index, None),
+        ],
+        compact=False,
+        root_indent=root_indent,
+    )
     if additionl_properties:
       s.append(', ')
       s.append(additionl_properties)
@@ -615,14 +621,16 @@ class Choices(DecisionPoint):
     return ''.join(s)
 
 
-def manyof(num_choices: int,
-           candidates: List[DNASpec],
-           distinct: bool = True,
-           sorted: bool = False,      # pylint: disable=redefined-builtin
-           literal_values: Optional[List[Union[str, int, float]]] = None,
-           hints: Any = None,
-           location: Union[str, object_utils.KeyPath] = object_utils.KeyPath(),
-           name: Optional[str] = None) -> Choices:
+def manyof(
+    num_choices: int,
+    candidates: List[DNASpec],
+    distinct: bool = True,
+    sorted: bool = False,  # pylint: disable=redefined-builtin
+    literal_values: Optional[List[Union[str, int, float]]] = None,
+    hints: Any = None,
+    location: Union[str, utils.KeyPath] = utils.KeyPath(),
+    name: Optional[str] = None,
+) -> Choices:
   """Returns a multi-choice specification.
 
   It creates the genotype for :func:`pyglove.manyof`.
@@ -674,11 +682,13 @@ def manyof(num_choices: int,
                  hints=hints, location=location, name=name)
 
 
-def oneof(candidates: List[DNASpec],
-          literal_values: Optional[List[Union[str, int, float]]] = None,
-          hints: Any = None,
-          location: Union[str, object_utils.KeyPath] = object_utils.KeyPath(),
-          name: Optional[str] = None) -> Choices:
+def oneof(
+    candidates: List[DNASpec],
+    literal_values: Optional[List[Union[str, int, float]]] = None,
+    hints: Any = None,
+    location: Union[str, utils.KeyPath] = utils.KeyPath(),
+    name: Optional[str] = None,
+) -> Choices:
   """Returns a single choice specification.
 
   It creates the genotype for :func:`pyglove.oneof`.
@@ -716,4 +726,3 @@ def oneof(candidates: List[DNASpec],
   """
   return manyof(1, candidates, literal_values=literal_values,
                 hints=hints, location=location, name=name)
-

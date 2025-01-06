@@ -19,7 +19,7 @@ import sys
 import types
 from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.symbolic.base import Symbolic
 from pyglove.core.symbolic.object import Object
 import pyglove.core.typing as pg_typing
@@ -39,7 +39,7 @@ class Compound(Object):
     # from the user class to compound with.
     Object.__init_subclass__(cls)
 
-  @object_utils.explicit_method_override
+  @utils.explicit_method_override
   def __init__(self, *args, **kwargs):
     # `explicit_init` allows the `__init__` of the other classes that sit after
     # `Compound` to be bypassed.

@@ -20,8 +20,8 @@ import typing
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 from pyglove.core import coding
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import dict as pg_dict
 from pyglove.core.symbolic import flags
@@ -116,7 +116,7 @@ class ObjectMeta(abc.ABCMeta):
 
     # Register class with 'type' property.
     for key in serialization_keys:
-      object_utils.JSONConvertible.register(
+      utils.JSONConvertible.register(
           key, cls, flags.is_repeated_class_registration_allowed()
       )
 
@@ -309,7 +309,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     Args:
       user_cls: The source class that calls this class method.
     """
-    object_utils.ensure_explicit_method_override(
+    utils.ensure_explicit_method_override(
         cls.__init__,
         (
             '`pg.Object.__init__` is a PyGlove managed method. For setting up '
@@ -317,7 +317,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             '`_on_init()`. If you do have a need to override `__init__` and '
             'know the implications, please decorate your overridden method '
             'with `@pg.explicit_method_override`.'
-        ))
+        ),
+    )
 
     # Set `__serialization_key__` before JSONConvertible.__init_subclass__
     # is called.
@@ -363,11 +364,11 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     """Normalizes the schema before applying it."""
 
     schema.set_name(cls.__type_name__)
-    docstr = object_utils.docstr(cls)
+    docstr = utils.docstr(cls)
     if docstr:
       schema.set_description(docstr.description)
 
-    def _formalize_field(path: object_utils.KeyPath, node: Any) -> bool:
+    def _formalize_field(path: utils.KeyPath, node: Any) -> bool:
       """Formalize field."""
       if isinstance(node, pg_typing.Field):
         field = node
@@ -385,27 +386,29 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         if isinstance(field.value, pg_typing.Dict):
           if field.value.schema is not None:
             field.value.schema.set_name(f'{schema.name}.{path.path}')
-            object_utils.traverse(field.value.schema.fields, _formalize_field,
-                                  None, path)
+            utils.traverse(
+                field.value.schema.fields, _formalize_field, None, path
+            )
         elif isinstance(field.value, pg_typing.List):
-          _formalize_field(object_utils.KeyPath(0, path), field.value.element)
+          _formalize_field(utils.KeyPath(0, path), field.value.element)
         elif isinstance(field.value, pg_typing.Tuple):
           for i, elem in enumerate(field.value.elements):
-            _formalize_field(object_utils.KeyPath(i, path), elem)
+            _formalize_field(utils.KeyPath(i, path), elem)
         elif isinstance(field.value, pg_typing.Union):
           for i, c in enumerate(field.value.candidates):
             _formalize_field(
-                object_utils.KeyPath(i, path),
-                pg_typing.Field(field.key, c, 'Union sub-type.'))
+                utils.KeyPath(i, path),
+                pg_typing.Field(field.key, c, 'Union sub-type.'),
+            )
       return True
 
-    object_utils.traverse(schema.fields, _formalize_field)
+    utils.traverse(schema.fields, _formalize_field)
     return schema
 
   @classmethod
   def _finalize_init_arg_list(cls) -> List[str]:
     """Finalizes init_arg_list based on schema."""
-     # Update `init_arg_list`` based on the updated schema.
+    # Update `init_arg_list`` based on the updated schema.
     init_arg_list = cls.__schema__.metadata.get('init_arg_list', None)
     if init_arg_list is None:
       # Inherit from the first non-empty base if they have the same signature.
@@ -476,7 +479,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # Create a new `__init__` that passes through all the arguments to
     # in `pg.Object.__init__`. This is needed for each class to use different
     # signature.
-    @object_utils.explicit_method_override
+    @utils.explicit_method_override
     @functools.wraps(pseudo_init)
     def _init(self, *args, **kwargs):
       # We pass through the arguments to `Object.__init__` instead of
@@ -539,8 +542,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       json_value: Any,
       *,
       allow_partial: bool = False,
-      root_path: Optional[object_utils.KeyPath] = None,
-      **kwargs
+      root_path: Optional[utils.KeyPath] = None,
+      **kwargs,
   ) -> 'Object':
     """Class method that load an symbolic Object from a JSON value.
 
@@ -588,15 +591,16 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         for k, v in json_value.items()
     })
 
-  @object_utils.explicit_method_override
+  @utils.explicit_method_override
   def __init__(
       self,
       *args,
       allow_partial: bool = False,
       sealed: Optional[bool] = None,
-      root_path: Optional[object_utils.KeyPath] = None,
+      root_path: Optional[utils.KeyPath] = None,
       explicit_init: bool = False,
-      **kwargs):
+      **kwargs,
+  ):
     """Create an Object instance.
 
     Args:
@@ -638,8 +642,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     # Fill field_args and init_args from **kwargs.
     _, unmatched_keys = self.__class__.__schema__.resolve(list(kwargs.keys()))
     if unmatched_keys:
-      arg_phrase = object_utils.auto_plural(len(unmatched_keys), 'argument')
-      keys_str = object_utils.comma_delimited_str(unmatched_keys)
+      arg_phrase = utils.auto_plural(len(unmatched_keys), 'argument')
+      keys_str = utils.comma_delimited_str(unmatched_keys)
       raise TypeError(
           f'{self.__class__.__name__}.__init__() got unexpected '
           f'keyword {arg_phrase}: {keys_str}')
@@ -659,8 +663,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         field_args[vararg_name] = list(args[num_named_args:])
         args = args[:num_named_args]
       elif len(args) > len(init_arg_names):
-        arg_phrase = object_utils.auto_plural(len(init_arg_names), 'argument')
-        was_phrase = object_utils.auto_plural(len(args), 'was', 'were')
+        arg_phrase = utils.auto_plural(len(init_arg_names), 'argument')
+        was_phrase = utils.auto_plural(len(args), 'was', 'were')
         raise TypeError(
             f'{self.__class__.__name__}.__init__() takes '
             f'{len(init_arg_names)} positional {arg_phrase} but {len(args)} '
@@ -672,7 +676,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
     for k, v in kwargs.items():
       if k in field_args:
-        values_str = object_utils.comma_delimited_str([field_args[k], v])
+        values_str = utils.comma_delimited_str([field_args[k], v])
         raise TypeError(
             f'{self.__class__.__name__}.__init__() got multiple values for '
             f'argument \'{k}\': {values_str}.')
@@ -687,8 +691,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             and field.key not in field_args):
           missing_args.append(str(field.key))
       if missing_args:
-        arg_phrase = object_utils.auto_plural(len(missing_args), 'argument')
-        keys_str = object_utils.comma_delimited_str(missing_args)
+        arg_phrase = utils.auto_plural(len(missing_args), 'argument')
+        keys_str = utils.comma_delimited_str(missing_args)
         raise TypeError(
             f'{self.__class__.__name__}.__init__() missing {len(missing_args)} '
             f'required {arg_phrase}: {keys_str}.')
@@ -738,8 +742,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     and during __init__.
     """
 
-  def _on_change(self,
-                 field_updates: Dict[object_utils.KeyPath, base.FieldUpdate]):
+  def _on_change(self, field_updates: Dict[utils.KeyPath, base.FieldUpdate]):
     """Event that is triggered when field values in the subtree are updated.
 
     This event will be called
@@ -759,8 +762,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     del field_updates
     return self._on_bound()
 
-  def _on_path_change(
-      self, old_path: object_utils.KeyPath, new_path: object_utils.KeyPath):
+  def _on_path_change(self, old_path: utils.KeyPath, new_path: utils.KeyPath):
     """Event that is triggered after the symbolic path changes."""
     del old_path, new_path
 
@@ -839,8 +841,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     return self._sym_attributes.sym_getattr(key)
 
   def _sym_rebind(
-      self, path_value_pairs: Dict[object_utils.KeyPath, Any]
-      ) -> List[base.FieldUpdate]:
+      self, path_value_pairs: Dict[utils.KeyPath, Any]
+  ) -> List[base.FieldUpdate]:
     """Rebind current object using object-form members."""
     if base.treats_as_sealed(self):
       raise base.WritePermissionError(
@@ -879,9 +881,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     return self
 
   def _update_children_paths(
-      self,
-      old_path: object_utils.KeyPath,
-      new_path: object_utils.KeyPath) -> None:
+      self, old_path: utils.KeyPath, new_path: utils.KeyPath
+  ) -> None:
     """Update children paths according to root_path of current node."""
     self._sym_attributes.sym_setpath(new_path)
     self._on_path_change(old_path, new_path)
@@ -965,10 +966,10 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       return self.sym_hash()
     return super().__hash__()
 
-  def sym_jsonify(self, **kwargs) -> object_utils.JSONValueType:
+  def sym_jsonify(self, **kwargs) -> utils.JSONValueType:
     """Converts current object to a dict of plain Python objects."""
     json_dict = {
-        object_utils.JSONConvertible.TYPE_NAME_KEY: (
+        utils.JSONConvertible.TYPE_NAME_KEY: (
             self.__class__.__serialization_key__
         )
     }
@@ -987,8 +988,9 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         root_indent,
         cls_name=self.__class__.__name__,
         key_as_attribute=True,
-        bracket_type=object_utils.BracketType.ROUND,
-        **kwargs)
+        bracket_type=utils.BracketType.ROUND,
+        **kwargs,
+    )
 
 
 base.Symbolic.ObjectType = Object

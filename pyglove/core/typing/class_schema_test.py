@@ -11,15 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.core.typing.class_schema."""
-
 import copy
 import inspect
 import sys
 from typing import Optional, Union, List
 import unittest
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import annotation_conversion  # pylint: disable=unused-import
 from pyglove.core.typing import class_schema
 from pyglove.core.typing import custom_typing
@@ -204,7 +202,7 @@ class FieldTest(unittest.TestCase):
 
   def test_json_conversion(self):
     def assert_json_conversion(f):
-      self.assertEqual(object_utils.from_json(f.to_json()), f)
+      self.assertEqual(utils.from_json(f.to_json()), f)
 
     assert_json_conversion(Field('a', vs.Int()))
     assert_json_conversion(Field('a', vs.Int(), 'description'))
@@ -822,7 +820,7 @@ class SchemaTest(unittest.TestCase):
     schema = self._create_test_schema()
     schema.set_description('Foo')
     schema.set_name('Bar')
-    schema_copy = object_utils.from_json(schema.to_json())
+    schema_copy = utils.from_json(schema.to_json())
 
     # This compares fields only
     self.assertEqual(schema_copy, schema)

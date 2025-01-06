@@ -25,8 +25,8 @@ import typing
 from typing import Any, Callable, Dict, Iterator, List, Literal, Optional, Tuple, Type, Union
 
 from pyglove.core import io as pg_io
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
@@ -38,15 +38,17 @@ class WritePermissionError(Exception):
   """Exception raisen when write access to object fields is not allowed."""
 
 
-class FieldUpdate(object_utils.Formattable):
+class FieldUpdate(utils.Formattable):
   """Class that describes an update to a field in an object tree."""
 
-  def __init__(self,
-               path: object_utils.KeyPath,
-               target: 'Symbolic',
-               field: Optional[pg_typing.Field],
-               old_value: Any,
-               new_value: Any):
+  def __init__(
+      self,
+      path: utils.KeyPath,
+      target: 'Symbolic',
+      field: Optional[pg_typing.Field],
+      old_value: Any,
+      new_value: Any,
+  ):
     """Constructor.
 
     Args:
@@ -70,18 +72,18 @@ class FieldUpdate(object_utils.Formattable):
       **kwargs,
   ) -> str:
     """Formats this object."""
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
             ('parent_path', self.target.sym_path, None),
             ('path', self.path, None),
-            ('old_value', self.old_value, object_utils.MISSING_VALUE),
-            ('new_value', self.new_value, object_utils.MISSING_VALUE),
+            ('old_value', self.old_value, utils.MISSING_VALUE),
+            ('new_value', self.new_value, utils.MISSING_VALUE),
         ],
         label=self.__class__.__name__,
         compact=compact,
         verbose=verbose,
         root_indent=root_indent,
-        **kwargs
+        **kwargs,
     )
 
   def __eq__(self, other: Any) -> bool:
@@ -124,11 +126,11 @@ class TopologyAware(metaclass=abc.ABCMeta):
 
   @property
   @abc.abstractmethod
-  def sym_path(self) -> object_utils.KeyPath:
+  def sym_path(self) -> utils.KeyPath:
     """Returns the path of this object under its topology."""
 
   @abc.abstractmethod
-  def sym_setpath(self, path: object_utils.KeyPath) -> None:
+  def sym_setpath(self, path: utils.KeyPath) -> None:
     """Sets the path of this object under its topology."""
 
 
@@ -172,9 +174,9 @@ RAISE_IF_NOT_FOUND = (pg_typing.MISSING_VALUE,)
 
 class Symbolic(
     TopologyAware,
-    object_utils.Formattable,
-    object_utils.JSONConvertible,
-    object_utils.MaybePartial,
+    utils.Formattable,
+    utils.JSONConvertible,
+    utils.MaybePartial,
     HtmlConvertible,
 ):
   """Base for all symbolic types.
@@ -203,13 +205,15 @@ class Symbolic(
 
   # pylint: enable=invalid-name
 
-  def __init__(self,
-               *,
-               allow_partial: bool,
-               accessor_writable: bool,
-               sealed: bool,
-               root_path: Optional[object_utils.KeyPath],
-               init_super: bool = True):
+  def __init__(
+      self,
+      *,
+      allow_partial: bool,
+      accessor_writable: bool,
+      sealed: bool,
+      root_path: Optional[utils.KeyPath],
+      init_super: bool = True,
+  ):
     """Constructor.
 
     Args:
@@ -237,7 +241,7 @@ class Symbolic(
     # NOTE(daiyip): parent is used for rebind call to notify their ancestors
     # for updates, not for external usage.
     self._set_raw_attr('_sym_parent', None)
-    self._set_raw_attr('_sym_path', root_path or object_utils.KeyPath())
+    self._set_raw_attr('_sym_path', root_path or utils.KeyPath())
     self._set_raw_attr('_sym_puresymbolic', None)
     self._set_raw_attr('_sym_missing_values', None)
     self._set_raw_attr('_sym_nondefault_values', None)
@@ -317,7 +321,7 @@ class Symbolic(
       missing = self._sym_missing()
       self._set_raw_attr('_sym_missing_values', missing)
     if flatten:
-      missing = object_utils.flatten(missing)
+      missing = utils.flatten(missing)
     return missing
 
   def sym_nondefault(self, flatten: bool = True) -> Dict[Union[int, str], Any]:
@@ -327,7 +331,7 @@ class Symbolic(
       nondefault = self._sym_nondefault()
       self._set_raw_attr('_sym_nondefault_values', nondefault)
     if flatten:
-      nondefault = object_utils.flatten(nondefault)
+      nondefault = utils.flatten(nondefault)
     return nondefault
 
   @property
@@ -405,7 +409,7 @@ class Symbolic(
   def sym_attr_field(self, key: Union[str, int]) -> Optional[pg_typing.Field]:
     """Returns the field definition for a symbolic attribute."""
 
-  def sym_has(self, path: Union[object_utils.KeyPath, str, int]) -> bool:
+  def sym_has(self, path: Union[utils.KeyPath, str, int]) -> bool:
     """Returns True if a path exists in the sub-tree.
 
     Args:
@@ -414,13 +418,14 @@ class Symbolic(
     Returns:
       True if the path exists in current sub-tree, otherwise False.
     """
-    return object_utils.KeyPath.from_value(path).exists(self)
+    return utils.KeyPath.from_value(path).exists(self)
 
   def sym_get(
       self,
-      path: Union[object_utils.KeyPath, str, int],
+      path: Union[utils.KeyPath, str, int],
       default: Any = RAISE_IF_NOT_FOUND,
-      use_inferred: bool = False) -> Any:
+      use_inferred: bool = False,
+  ) -> Any:
     """Returns a sub-node by path.
 
     NOTE: there is no `sym_set`, use `sym_rebind`.
@@ -439,7 +444,7 @@ class Symbolic(
     Raises:
       KeyError if `path` does not exist and `default` is not specified.
     """
-    path = object_utils.KeyPath.from_value(path)
+    path = utils.KeyPath.from_value(path)
     if default is RAISE_IF_NOT_FOUND:
       return path.query(self, use_inferred=use_inferred)
     else:
@@ -533,12 +538,11 @@ class Symbolic(
     return contains(self, value, type)
 
   @property
-  def sym_path(self) -> object_utils.KeyPath:
+  def sym_path(self) -> utils.KeyPath:
     """Returns the path of current object from the root of its symbolic tree."""
     return getattr(self, '_sym_path')
 
-  def sym_setpath(
-      self, path: Optional[Union[str, object_utils.KeyPath]]) -> None:
+  def sym_setpath(self, path: Optional[Union[str, utils.KeyPath]]) -> None:
     """Sets the path of current node in its symbolic tree."""
     if self.sym_path != path:
       old_path = self.sym_path
@@ -547,11 +551,9 @@ class Symbolic(
 
   def sym_rebind(
       self,
-      path_value_pairs: Optional[Union[
-          Dict[
-              Union[object_utils.KeyPath, str, int],
-              Any],
-          Callable]] = None,  # pylint: disable=g-bare-generic
+      path_value_pairs: Optional[
+          Union[Dict[Union[utils.KeyPath, str, int], Any], Callable[..., Any]]
+      ] = None,  # pylint: disable=g-bare-generic
       *,
       raise_on_no_change: bool = True,
       notify_parents: bool = True,
@@ -575,8 +577,9 @@ class Symbolic(
               f'Argument \'path_value_pairs\' should be a dict. '
               f'Encountered {path_value_pairs}'))
     path_value_pairs.update(kwargs)
-    path_value_pairs = {object_utils.KeyPath.from_value(k): v
-                        for k, v in path_value_pairs.items()}
+    path_value_pairs = {
+        utils.KeyPath.from_value(k): v for k, v in path_value_pairs.items()
+    }
 
     if not path_value_pairs and raise_on_no_change:
       raise ValueError(self._error_message('There are no values to rebind.'))
@@ -601,10 +604,9 @@ class Symbolic(
     return new_value
 
   @abc.abstractmethod
-  def sym_jsonify(self,
-                  *,
-                  hide_default_values: bool = False,
-                  **kwargs) -> object_utils.JSONValueType:
+  def sym_jsonify(
+      self, *, hide_default_values: bool = False, **kwargs
+  ) -> utils.JSONValueType:
     """Converts representation of current object to a plain Python object."""
 
   def sym_ne(self, other: Any) -> bool:
@@ -749,16 +751,15 @@ class Symbolic(
 
   def rebind(
       self,
-      path_value_pairs: Optional[Union[
-          Dict[
-              Union[object_utils.KeyPath, str, int],
-              Any],
-          Callable]] = None,  # pylint: disable=g-bare-generic
+      path_value_pairs: Optional[
+          Union[Dict[Union[utils.KeyPath, str, int], Any], Callable[..., Any]]
+      ] = None,  # pylint: disable=g-bare-generic
       *,
       raise_on_no_change: bool = True,
       notify_parents: bool = True,
       skip_notification: Optional[bool] = None,
-      **kwargs) -> 'Symbolic':
+      **kwargs,
+  ) -> 'Symbolic':
     """Alias for `sym_rebind`.
 
     Alias for `sym_rebind`. `rebind` is the recommended way for mutating
@@ -941,7 +942,7 @@ class Symbolic(
     """
     return self.sym_clone(deep, memo, override)
 
-  def to_json(self, **kwargs) -> object_utils.JSONValueType:
+  def to_json(self, **kwargs) -> utils.JSONValueType:
     """Alias for `sym_jsonify`."""
     return to_json(self, **kwargs)
 
@@ -964,13 +965,18 @@ class Symbolic(
   def inspect(
       self,
       path_regex: Optional[str] = None,
-      where: Optional[Union[Callable[[Any], bool],
-                            Callable[[Any, Any], bool]]] = None,
-      custom_selector: Optional[Union[
-          Callable[[object_utils.KeyPath, Any], bool],
-          Callable[[object_utils.KeyPath, Any, Any], bool]]] = None,
+      where: Optional[
+          Union[Callable[[Any], bool], Callable[[Any, Any], bool]]
+      ] = None,
+      custom_selector: Optional[
+          Union[
+              Callable[[utils.KeyPath, Any], bool],
+              Callable[[utils.KeyPath, Any, Any], bool],
+          ]
+      ] = None,
       file=sys.stdout,  # pylint: disable=redefined-builtin
-      **kwargs) -> None:
+      **kwargs,
+  ) -> None:
     """Inspects current object by printing out selected values.
 
     Example::
@@ -1058,7 +1064,7 @@ class Symbolic(
       v = self
     else:
       v = query(self, path_regex, where, False, custom_selector)
-    object_utils.print(v, file=file, **kwargs)
+    utils.print(v, file=file, **kwargs)
 
   def __copy__(self) -> 'Symbolic':
     """Overridden shallow copy."""
@@ -1074,8 +1080,8 @@ class Symbolic(
 
   @abc.abstractmethod
   def _sym_rebind(
-      self, path_value_pairs: Dict[object_utils.KeyPath, Any]
-      ) -> List[FieldUpdate]:
+      self, path_value_pairs: Dict[utils.KeyPath, Any]
+  ) -> List[FieldUpdate]:
     """Subclass specific rebind implementation.
 
     Args:
@@ -1111,9 +1117,8 @@ class Symbolic(
 
   @abc.abstractmethod
   def _update_children_paths(
-      self,
-      old_path: object_utils.KeyPath,
-      new_path: object_utils.KeyPath) -> None:
+      self, old_path: utils.KeyPath, new_path: utils.KeyPath
+  ) -> None:
     """Update children paths according to root_path of current node."""
 
   @abc.abstractmethod
@@ -1122,7 +1127,7 @@ class Symbolic(
     """Child should implement: set an item without permission check."""
 
   @abc.abstractmethod
-  def _on_change(self, field_updates: Dict[object_utils.KeyPath, FieldUpdate]):
+  def _on_change(self, field_updates: Dict[utils.KeyPath, FieldUpdate]):
     """Event that is triggered when field values in the subtree are updated.
 
     This event will be called
@@ -1175,14 +1180,14 @@ class Symbolic(
       # NOTE(daiyip): make a copy of symbolic object if it belongs to another
       # object tree, this prevents it from having multiple parents. See
       # List._formalized_value for similar logic.
-      root_path = object_utils.KeyPath(key, self.sym_path)
+      root_path = utils.KeyPath(key, self.sym_path)
       if (value.sym_parent is not None and
           (value.sym_parent is not self
            or root_path != value.sym_path)):
         value = value.clone()
 
     if isinstance(value, TopologyAware):
-      value.sym_setpath(object_utils.KeyPath(key, self.sym_path))
+      value.sym_setpath(utils.KeyPath(key, self.sym_path))
       value.sym_setparent(self._sym_parent_for_children())
     return value
 
@@ -1191,9 +1196,10 @@ class Symbolic(
     return self
 
   def _set_item_of_current_tree(
-      self, path: object_utils.KeyPath, value: Any) -> Optional[FieldUpdate]:
+      self, path: utils.KeyPath, value: Any
+  ) -> Optional[FieldUpdate]:
     """Set a field of current tree by key path and return its parent."""
-    assert isinstance(path, object_utils.KeyPath), path
+    assert isinstance(path, utils.KeyPath), path
     if not path:
       raise KeyError(
           self._error_message(
@@ -1222,8 +1228,8 @@ class Symbolic(
     per_target_updates = dict()
 
     def _get_target_updates(
-        target: 'Symbolic'
-    ) -> Dict[object_utils.KeyPath, FieldUpdate]:
+        target: 'Symbolic',
+    ) -> Dict[utils.KeyPath, FieldUpdate]:
       target_id = id(target)
       if target_id not in per_target_updates:
         per_target_updates[target_id] = (target, dict())
@@ -1256,7 +1262,7 @@ class Symbolic(
 
   def _error_message(self, message: str) -> str:
     """Create error message to include path information."""
-    return object_utils.message_on_path(message, self.sym_path)
+    return utils.message_on_path(message, self.sym_path)
 
 
 #
@@ -1271,12 +1277,11 @@ def get_rebind_dict(
   """Generate rebind dict using rebinder on target value.
 
   Args:
-    rebinder: A callable object with signature:
-      (key_path: object_utils.KeyPath, value: Any) -> Any or
-      (key_path: object_utils.KeyPath, value: Any, parent: Any) -> Any.  If
-        rebinder returns the same value from input, the value is considered
-        unchanged. Otherwise it will be put into the returning rebind dict. See
-        `Symbolic.rebind` for more details.
+    rebinder: A callable object with signature: (key_path: utils.KeyPath, value:
+      Any) -> Any or (key_path: utils.KeyPath, value: Any, parent: Any) -> Any.
+      If rebinder returns the same value from input, the value is considered
+      unchanged. Otherwise it will be put into the returning rebind dict. See
+      `Symbolic.rebind` for more details.
     target: Upon which value the rebind dict is computed.
 
   Returns:
@@ -1329,15 +1334,17 @@ class TraverseAction(enum.Enum):
   CONTINUE = 2
 
 
-def traverse(x: Any,
-             preorder_visitor_fn: Optional[
-                 Callable[[object_utils.KeyPath, Any, Any],
-                          Optional[TraverseAction]]] = None,
-             postorder_visitor_fn: Optional[
-                 Callable[[object_utils.KeyPath, Any, Any],
-                          Optional[TraverseAction]]] = None,
-             root_path: Optional[object_utils.KeyPath] = None,
-             parent: Optional[Any] = None) -> bool:
+def traverse(
+    x: Any,
+    preorder_visitor_fn: Optional[
+        Callable[[utils.KeyPath, Any, Any], Optional[TraverseAction]]
+    ] = None,
+    postorder_visitor_fn: Optional[
+        Callable[[utils.KeyPath, Any, Any], Optional[TraverseAction]]
+    ] = None,
+    root_path: Optional[utils.KeyPath] = None,
+    parent: Optional[Any] = None,
+) -> bool:
   """Traverse a (maybe) symbolic value using visitor functions.
 
   Example::
@@ -1372,7 +1379,7 @@ def traverse(x: Any,
       either `TraverseAction.ENTER` or `TraverseAction.CONTINUE` for all nodes.
       Otherwise False.
   """
-  root_path = root_path or object_utils.KeyPath()
+  root_path = root_path or utils.KeyPath()
 
   def no_op_visitor(path, value, parent):
     del path, value, parent
@@ -1387,20 +1394,35 @@ def traverse(x: Any,
   if preorder_action is None or preorder_action == TraverseAction.ENTER:
     if isinstance(x, dict):
       for k, v in x.items():
-        if not traverse(v, preorder_visitor_fn, postorder_visitor_fn,
-                        object_utils.KeyPath(k, root_path), x):
+        if not traverse(
+            v,
+            preorder_visitor_fn,
+            postorder_visitor_fn,
+            utils.KeyPath(k, root_path),
+            x,
+        ):
           preorder_action = TraverseAction.STOP
           break
     elif isinstance(x, list):
       for i, v in enumerate(x):
-        if not traverse(v, preorder_visitor_fn, postorder_visitor_fn,
-                        object_utils.KeyPath(i, root_path), x):
+        if not traverse(
+            v,
+            preorder_visitor_fn,
+            postorder_visitor_fn,
+            utils.KeyPath(i, root_path),
+            x,
+        ):
           preorder_action = TraverseAction.STOP
           break
     elif isinstance(x, Symbolic.ObjectType):  # pytype: disable=wrong-arg-types
       for k, v in x.sym_items():
-        if not traverse(v, preorder_visitor_fn, postorder_visitor_fn,
-                        object_utils.KeyPath(k, root_path), x):
+        if not traverse(
+            v,
+            preorder_visitor_fn,
+            postorder_visitor_fn,
+            utils.KeyPath(k, root_path),
+            x,
+        ):
           preorder_action = TraverseAction.STOP
           break
   postorder_action = postorder_visitor_fn(root_path, x, parent)
@@ -1413,12 +1435,16 @@ def traverse(x: Any,
 def query(
     x: Any,
     path_regex: Optional[str] = None,
-    where: Optional[Union[Callable[[Any], bool],
-                          Callable[[Any, Any], bool]]] = None,
+    where: Optional[
+        Union[Callable[[Any], bool], Callable[[Any, Any], bool]]
+    ] = None,
     enter_selected: bool = False,
-    custom_selector: Optional[Union[
-        Callable[[object_utils.KeyPath, Any], bool],
-        Callable[[object_utils.KeyPath, Any, Any], bool]]] = None
+    custom_selector: Optional[
+        Union[
+            Callable[[utils.KeyPath, Any], bool],
+            Callable[[utils.KeyPath, Any, Any], bool],
+        ]
+    ] = None,
 ) -> Dict[str, Any]:
   """Queries a (maybe) symbolic value.
 
@@ -1521,8 +1547,9 @@ def query(
 
   results = {}
 
-  def _preorder_visitor(path: object_utils.KeyPath, v: Any,
-                        parent: Any) -> TraverseAction:
+  def _preorder_visitor(
+      path: utils.KeyPath, v: Any, parent: Any
+  ) -> TraverseAction:
     if select_fn(path, v, parent):  # pytype: disable=wrong-arg-count
       results[str(path)] = v
       return TraverseAction.ENTER if enter_selected else TraverseAction.CONTINUE
@@ -1752,7 +1779,7 @@ def gt(left: Any, right: Any) -> bool:
 
 def _type_order(value: Any) -> str:
   """Returns the ordering string of value's type."""
-  if isinstance(value, object_utils.MissingValue):
+  if isinstance(value, utils.MissingValue):
     type_order = 0
   elif value is None:
     type_order = 1
@@ -1950,7 +1977,7 @@ def is_abstract(x: Any) -> bool:
     True if value itself is partial/PureSymbolic or its child and nested
     child fields contain partial/PureSymbolic values.
   """
-  return object_utils.is_partial(x) or is_pure_symbolic(x)
+  return utils.is_partial(x) or is_pure_symbolic(x)
 
 
 def contains(
@@ -2009,11 +2036,11 @@ def from_json(
     json_value: Any,
     *,
     allow_partial: bool = False,
-    root_path: Optional[object_utils.KeyPath] = None,
+    root_path: Optional[utils.KeyPath] = None,
     auto_import: bool = True,
     auto_dict: bool = False,
     value_spec: Optional[pg_typing.ValueSpec] = None,
-    **kwargs
+    **kwargs,
 ) -> Any:
   """Deserializes a (maybe) symbolic value from JSON value.
 
@@ -2057,28 +2084,30 @@ def from_json(
 
   typename_resolved = kwargs.pop('_typename_resolved', False)
   if not typename_resolved:
-    json_value = object_utils.json_conversion.resolve_typenames(
+    json_value = utils.json_conversion.resolve_typenames(
         json_value, auto_import=auto_import, auto_dict=auto_dict
     )
 
   def _load_child(k, v):
     return from_json(
         v,
-        root_path=object_utils.KeyPath(k, root_path),
+        root_path=utils.KeyPath(k, root_path),
         _typename_resolved=True,
         allow_partial=allow_partial,
-        **kwargs
+        **kwargs,
     )
 
   if isinstance(json_value, list):
-    if (json_value
-        and json_value[0] == object_utils.JSONConvertible.TUPLE_MARKER):
+    if json_value and json_value[0] == utils.JSONConvertible.TUPLE_MARKER:
       if len(json_value) < 2:
         raise ValueError(
-            object_utils.message_on_path(
-                f'Tuple should have at least one element '
-                f'besides \'{object_utils.JSONConvertible.TUPLE_MARKER}\'. '
-                f'Encountered: {json_value}', root_path))
+            utils.message_on_path(
+                'Tuple should have at least one element '
+                f"besides '{utils.JSONConvertible.TUPLE_MARKER}'. "
+                f'Encountered: {json_value}',
+                root_path,
+            )
+        )
       return tuple(_load_child(i, v) for i, v in enumerate(json_value[1:]))
     return Symbolic.ListType.from_json(    # pytype: disable=attribute-error
         json_value,
@@ -2088,7 +2117,7 @@ def from_json(
         **kwargs,
     )
   elif isinstance(json_value, dict):
-    if object_utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
+    if utils.JSONConvertible.TYPE_NAME_KEY not in json_value:
       return Symbolic.DictType.from_json(   # pytype: disable=attribute-error
           json_value,
           value_spec=value_spec,
@@ -2096,20 +2125,25 @@ def from_json(
           allow_partial=allow_partial,
           **kwargs,
       )
-    return object_utils.from_json(
-        json_value, _typename_resolved=True,
-        root_path=root_path, allow_partial=allow_partial, **kwargs
+    return utils.from_json(
+        json_value,
+        _typename_resolved=True,
+        root_path=root_path,
+        allow_partial=allow_partial,
+        **kwargs,
     )
   return json_value
 
 
-def from_json_str(json_str: str,
-                  *,
-                  allow_partial: bool = False,
-                  root_path: Optional[object_utils.KeyPath] = None,
-                  auto_import: bool = True,
-                  auto_dict: bool = False,
-                  **kwargs) -> Any:
+def from_json_str(
+    json_str: str,
+    *,
+    allow_partial: bool = False,
+    root_path: Optional[utils.KeyPath] = None,
+    auto_import: bool = True,
+    auto_dict: bool = False,
+    **kwargs,
+) -> Any:
   """Deserialize (maybe) symbolic object from JSON string.
 
   Example::
@@ -2202,7 +2236,7 @@ def to_json(value: Any, **kwargs) -> Any:
   # classes may have conflicting `to_json` method in their existing classes.
   if isinstance(value, Symbolic):
     return value.sym_jsonify(**kwargs)
-  return object_utils.to_json(value, **kwargs)
+  return utils.to_json(value, **kwargs)
 
 
 def to_json_str(value: Any,
@@ -2378,8 +2412,11 @@ def default_save_handler(
   if file_format == 'json':
     content = to_json_str(value, json_indent=indent, **kwargs)
   elif file_format == 'txt':
-    content = value if isinstance(value, str) else object_utils.format(
-        value, compact=False, verbose=True)
+    content = (
+        value
+        if isinstance(value, str)
+        else utils.format(value, compact=False, verbose=True)
+    )
   else:
     raise ValueError(f'Unsupported `file_format`: {file_format!r}.')
 
@@ -2415,8 +2452,7 @@ def treats_as_sealed(value: Symbolic) -> bool:
 def symbolic_transform_fn(allow_partial: bool):
   """Symbolic object transform function builder."""
 
-  def _fn(
-      path: object_utils.KeyPath, field: pg_typing.Field, value: Any) -> Any:
+  def _fn(path: utils.KeyPath, field: pg_typing.Field, value: Any) -> Any:
     """Transform schema-less List and Dict to symbolic."""
     if isinstance(value, Symbolic):
       return value

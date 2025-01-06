@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.core.typing.typed_missing."""
-
 import unittest
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import typed_missing
 from pyglove.core.typing import value_specs
 
@@ -25,12 +23,12 @@ class MissingValueTest(unittest.TestCase):
 
   def test_eq(self):
     self.assertEqual(
-        typed_missing.MissingValue(value_specs.Int()),
-        object_utils.MISSING_VALUE)
+        typed_missing.MissingValue(value_specs.Int()), utils.MISSING_VALUE
+    )
 
     self.assertEqual(
-        object_utils.MISSING_VALUE,
-        typed_missing.MissingValue(value_specs.Int()))
+        utils.MISSING_VALUE, typed_missing.MissingValue(value_specs.Int())
+    )
 
     self.assertEqual(
         typed_missing.MissingValue(value_specs.Int()),
@@ -54,7 +52,8 @@ class MissingValueTest(unittest.TestCase):
 
     self.assertEqual(
         hash(typed_missing.MissingValue(value_specs.Int())),
-        hash(object_utils.MISSING_VALUE))
+        hash(utils.MISSING_VALUE),
+    )
 
     self.assertNotEqual(
         hash(typed_missing.MissingValue(value_specs.Int())),

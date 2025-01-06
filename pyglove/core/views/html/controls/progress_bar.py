@@ -16,7 +16,7 @@
 import functools
 from typing import Annotated, List, Optional, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.symbolic import object as pg_object
 # pylint: disable=g-importing-member
 from pyglove.core.views.html.base import Html
@@ -73,10 +73,8 @@ class SubProgress(HtmlControl):
         [],
         id=self.element_id(),
         styles=styles,
-        css_classes=[
-            'sub-progress',
-            object_utils.camel_to_snake(self.name, '-')
-        ] + self.css_classes,
+        css_classes=['sub-progress', utils.camel_to_snake(self.name, '-')]
+        + self.css_classes,
     )
 
   def increment(self, delta: int = 1):

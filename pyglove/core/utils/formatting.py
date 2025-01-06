@@ -18,7 +18,7 @@ import enum
 import io
 import sys
 from typing import Any, Callable, ContextManager, Dict, List, Optional, Sequence, Set, Tuple
-from pyglove.core.object_utils import thread_local
+from pyglove.core.utils import thread_local
 
 
 _TLS_STR_FORMAT_KWARGS = '_str_format_kwargs'

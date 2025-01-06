@@ -14,7 +14,7 @@
 """Tests for pyglove.core.typing.key_specs."""
 
 import unittest
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import key_specs as ks
 
 
@@ -22,7 +22,7 @@ class KeySpecTest(unittest.TestCase):
   """Base class for KeySpec tests."""
 
   def assert_json_conversion(self, spec: ks.KeySpec):
-    self.assertEqual(object_utils.from_json(object_utils.to_json(spec)), spec)
+    self.assertEqual(utils.from_json(utils.to_json(spec)), spec)
 
 
 class ConstStrKeyTest(KeySpecTest):
@@ -35,9 +35,9 @@ class ConstStrKeyTest(KeySpecTest):
     self.assertEqual(key.text, 'a')
     self.assertNotEqual(key, 'b')
     self.assertIn(key, {'a': 1})
-    with object_utils.str_format(markdown=True):
+    with utils.str_format(markdown=True):
       self.assertEqual(str(key), 'a')
-    with object_utils.str_format(markdown=True):
+    with utils.str_format(markdown=True):
       self.assertEqual(repr(key), 'a')
     self.assertTrue(key.match('a'))
     self.assertFalse(key.match('b'))

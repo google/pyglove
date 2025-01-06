@@ -17,9 +17,9 @@ import typing
 from typing import Any, Callable, Optional, Tuple
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper import base
 
 
@@ -62,8 +62,7 @@ class Float(base.HyperPrimitive):
           f'\'min_value\' must be positive when `scale` is {self.scale!r}. '
           f'encountered: {self.min_value}.')
 
-  def dna_spec(self,
-               location: Optional[object_utils.KeyPath] = None) -> geno.Float:
+  def dna_spec(self, location: Optional[utils.KeyPath] = None) -> geno.Float:
     """Returns corresponding DNASpec."""
     return geno.Float(
         min_value=self.min_value,
@@ -71,55 +70,74 @@ class Float(base.HyperPrimitive):
         scale=self.scale,
         hints=self.hints,
         name=self.name,
-        location=location or object_utils.KeyPath())
+        location=location or utils.KeyPath(),
+    )
 
   def _decode(self) -> float:
     """Decode a DNA into a float value."""
     dna = self._dna
     if not isinstance(dna.value, float):
       raise ValueError(
-          object_utils.message_on_path(
-              f'Expect float value. Encountered: {dna.value}.', self.sym_path))
+          utils.message_on_path(
+              f'Expect float value. Encountered: {dna.value}.', self.sym_path
+          )
+      )
     if dna.value < self.min_value:
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'DNA value should be no less than {self.min_value}. '
-              f'Encountered {dna.value}.', self.sym_path))
+              f'Encountered {dna.value}.',
+              self.sym_path,
+          )
+      )
 
     if dna.value > self.max_value:
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'DNA value should be no greater than {self.max_value}. '
-              f'Encountered {dna.value}.', self.sym_path))
+              f'Encountered {dna.value}.',
+              self.sym_path,
+          )
+      )
     return dna.value
 
   def encode(self, value: float) -> geno.DNA:
     """Encode a float value into a DNA."""
     if not isinstance(value, float):
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'Value should be float to be encoded for {self!r}. '
-              f'Encountered {value}.', self.sym_path))
+              f'Encountered {value}.',
+              self.sym_path,
+          )
+      )
     if value < self.min_value:
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'Value should be no less than {self.min_value}. '
-              f'Encountered {value}.', self.sym_path))
+              f'Encountered {value}.',
+              self.sym_path,
+          )
+      )
     if value > self.max_value:
       raise ValueError(
-          object_utils.message_on_path(
+          utils.message_on_path(
               f'Value should be no greater than {self.max_value}. '
-              f'Encountered {value}.', self.sym_path))
+              f'Encountered {value}.',
+              self.sym_path,
+          )
+      )
     return geno.DNA(value)
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool = False,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'Float']:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, 'Float']:
     """Validate candidates during value_spec binding time."""
     del allow_partial
     del child_transform
@@ -134,17 +152,23 @@ class Float(base.HyperPrimitive):
       if (float_spec.min_value is not None
           and self.min_value < float_spec.min_value):
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Float.min_value ({self.min_value}) should be no less than '
                 f'the min value ({float_spec.min_value}) of value spec: '
-                f'{float_spec}.', path))
+                f'{float_spec}.',
+                path,
+            )
+        )
       if (float_spec.max_value is not None
           and self.max_value > float_spec.max_value):
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Float.max_value ({self.max_value}) should be no greater than '
                 f'the max value ({float_spec.max_value}) of value spec: '
-                f'{float_spec}.', path))
+                f'{float_spec}.',
+                path,
+            )
+        )
     return (False, self)
 
   def is_leaf(self) -> bool:

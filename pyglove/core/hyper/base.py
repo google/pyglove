@@ -18,9 +18,9 @@ import abc
 from typing import Any, Callable, Optional
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
 class HyperValue(symbolic.NonDeterministic):  # pytype: disable=ignored-metaclass
@@ -110,8 +110,7 @@ class HyperValue(symbolic.NonDeterministic):  # pytype: disable=ignored-metaclas
     """
 
   @abc.abstractmethod
-  def dna_spec(self,
-               location: Optional[object_utils.KeyPath] = None) -> geno.DNASpec:
+  def dna_spec(self, location: Optional[utils.KeyPath] = None) -> geno.DNASpec:
     """Get DNA spec of DNA that is decodable/encodable by this hyper value."""
 
 
@@ -186,12 +185,13 @@ def set_dynamic_evaluate_fn(
   global _global_dynamic_evaluate_fn
   if per_thread:
     assert _global_dynamic_evaluate_fn is None, _global_dynamic_evaluate_fn
-    object_utils.thread_local_set(_TLS_KEY_DYNAMIC_EVALUATE_FN, fn)
+    utils.thread_local_set(_TLS_KEY_DYNAMIC_EVALUATE_FN, fn)
   else:
     _global_dynamic_evaluate_fn = fn
 
 
 def get_dynamic_evaluate_fn() -> Optional[Callable[[HyperValue], Any]]:
   """Gets current dynamic evaluate function."""
-  return object_utils.thread_local_get(
-      _TLS_KEY_DYNAMIC_EVALUATE_FN, _global_dynamic_evaluate_fn)
+  return utils.thread_local_get(
+      _TLS_KEY_DYNAMIC_EVALUATE_FN, _global_dynamic_evaluate_fn
+  )

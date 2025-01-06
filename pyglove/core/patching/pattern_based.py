@@ -15,8 +15,8 @@
 
 import re
 from typing import Any, Callable, Optional, Tuple, Type, Union
-from pyglove.core import object_utils
 from pyglove.core import symbolic
+from pyglove.core import utils
 
 
 def patch_on_key(
@@ -214,11 +214,11 @@ def patch_on_member(
 
 def _conditional_patch(
     src: symbolic.Symbolic,
-    condition: Callable[
-        [object_utils.KeyPath, Any, symbolic.Symbolic], bool],
+    condition: Callable[[utils.KeyPath, Any, symbolic.Symbolic], bool],
     value: Any = None,
     value_fn: Optional[Callable[[Any], Any]] = None,
-    skip_notification: Optional[bool] = None) -> Any:
+    skip_notification: Optional[bool] = None,
+) -> Any:
   """Recursive patch values on condition.
 
   Args:

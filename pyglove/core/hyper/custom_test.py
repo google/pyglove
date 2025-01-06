@@ -11,15 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.hyper.CustomHyper."""
-
 import random
 import unittest
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
-
+from pyglove.core import utils
 from pyglove.core.hyper.categorical import oneof
 from pyglove.core.hyper.custom import CustomHyper
 from pyglove.core.hyper.iter import iterate
@@ -58,12 +55,14 @@ class CustomHyperTest(unittest.TestCase):
   """Test for CustomHyper."""
 
   def test_dna_spec(self):
-    self.assertTrue(symbolic.eq(
-        IntSequence(hints='x').dna_spec('a'),
-        geno.CustomDecisionPoint(
-            hyper_type='IntSequence',
-            location=object_utils.KeyPath('a'),
-            hints='x')))
+    self.assertTrue(
+        symbolic.eq(
+            IntSequence(hints='x').dna_spec('a'),
+            geno.CustomDecisionPoint(
+                hyper_type='IntSequence', location=utils.KeyPath('a'), hints='x'
+            ),
+        )
+    )
 
   def test_decode(self):
     self.assertEqual(IntSequence().decode(geno.DNA('0,1,2')), [0, 1, 2])

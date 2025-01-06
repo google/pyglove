@@ -14,8 +14,8 @@
 """Object factory based on patchers."""
 
 from typing import Any, Callable, Dict, Optional, Type, Union
-from pyglove.core import object_utils
 from pyglove.core import symbolic
+from pyglove.core import utils
 from pyglove.core.patching import rule_based
 
 
@@ -88,7 +88,7 @@ def ObjectFactory(    # pylint: disable=invalid-name
   # Step 3: Patch with additional parameter override dict if available.
   if params_override:
     value = value.rebind(
-        object_utils.flatten(from_maybe_serialized(params_override, dict)),
-        raise_on_no_change=False)
+        utils.flatten(from_maybe_serialized(params_override, dict)),
+        raise_on_no_change=False,
+    )
   return value
-

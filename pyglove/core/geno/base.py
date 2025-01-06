@@ -19,9 +19,9 @@ import random
 import types
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
 class AttributeDict(dict):
@@ -37,12 +37,20 @@ class AttributeDict(dict):
 
 
 @symbolic.members([
-    ('location',
-     pg_typing.Object(object_utils.KeyPath, default=object_utils.KeyPath()),
-     ('KeyPath of associated genetic encoder relative to parent object '
-      'template. This allows DNA generator to apply rule based on locations.')),
-    ('hints',
-     pg_typing.Any(default=None), 'Hints for DNA generator to consume.')
+    (
+        'location',
+        pg_typing.Object(utils.KeyPath, default=utils.KeyPath()),
+        (
+            'KeyPath of associated genetic encoder relative to parent object'
+            ' template. This allows DNA generator to apply rule based on'
+            ' locations.'
+        ),
+    ),
+    (
+        'hints',
+        pg_typing.Any(default=None),
+        'Hints for DNA generator to consume.',
+    ),
 ])
 class DNASpec(symbolic.Object):
   """Base class for DNA specifications (genotypes).
@@ -175,7 +183,7 @@ class DNASpec(symbolic.Object):
     """Returns all decision points in their declaration order."""
 
   @property
-  def decision_ids(self) -> List[object_utils.KeyPath]:
+  def decision_ids(self) -> List[utils.KeyPath]:
     """Returns decision IDs."""
     return list(self._decision_point_by_id.keys())
 
@@ -286,7 +294,7 @@ class DNASpec(symbolic.Object):
     return self.parent_spec if self.is_space else self.parent_spec.parent_choice
 
   @property
-  def id(self) -> object_utils.KeyPath:
+  def id(self) -> utils.KeyPath:
     """Returns a path of locations from the root as the ID for current node."""
     if self._id is None:
       parent = self.parent_spec
@@ -295,18 +303,20 @@ class DNASpec(symbolic.Object):
       elif self.is_space:
         assert parent.is_categorical, parent
         assert self.index is not None
-        self._id = object_utils.KeyPath(
-            ConditionalKey(self.index, len(parent.candidates)),
-            parent.id) + self.location
+        self._id = (
+            utils.KeyPath(
+                ConditionalKey(self.index, len(parent.candidates)), parent.id
+            )
+            + self.location
+        )
       else:
         # Float() or a multi-choice spec of a parent Choice.
         self._id = parent.id + self.location
     return self._id
 
-  def get(self,
-          name_or_id: Union[object_utils.KeyPath, str],
-          default: Any = None
-          ) -> Union['DecisionPoint', List['DecisionPoint']]:
+  def get(
+      self, name_or_id: Union[utils.KeyPath, str], default: Any = None
+  ) -> Union['DecisionPoint', List['DecisionPoint']]:
     """Get decision point(s) by name or ID."""
     try:
       return self[name_or_id]
@@ -314,9 +324,8 @@ class DNASpec(symbolic.Object):
       return default
 
   def __getitem__(
-      self,
-      name_or_id: Union[object_utils.KeyPath, str]
-      ) -> Union['DecisionPoint', List['DecisionPoint']]:
+      self, name_or_id: Union[utils.KeyPath, str]
+  ) -> Union['DecisionPoint', List['DecisionPoint']]:
     """Get decision point(s) by name or ID ."""
     v = self._named_decision_points.get(name_or_id, None)
     if v is None:
@@ -475,7 +484,7 @@ class DNA(symbolic.Object):
   # Allow assignment on symbolic attributes.
   allow_symbolic_assignment = True
 
-  @object_utils.explicit_method_override
+  @utils.explicit_method_override
   def __init__(
       self,
       value: Union[None, int, float, str, List[Any], Tuple[Any]] = None,
@@ -727,7 +736,7 @@ class DNA(symbolic.Object):
     return self._decision_by_id_cache
 
   @property
-  def decision_ids(self) -> List[object_utils.KeyPath]:
+  def decision_ids(self) -> List[utils.KeyPath]:
     """Returns decision IDs."""
     self._ensure_dna_spec()
     return self._spec.decision_ids
@@ -1249,9 +1258,11 @@ class DNA(symbolic.Object):
     return dna
 
   def to_numbers(
-      self, flatten: bool = True,
-      ) -> Union[List[Union[int, float, str]],
-                 object_utils.Nestable[Union[int, float, str]]]:
+      self,
+      flatten: bool = True,
+  ) -> Union[
+      List[Union[int, float, str]], utils.Nestable[Union[int, float, str]]
+  ]:
     """Returns a (maybe) nested structure of numbers as decisions.
 
     Args:
@@ -1338,7 +1349,7 @@ class DNA(symbolic.Object):
               f'Location: {dna_spec.location.path}.')
         children = []
         for i, choice in enumerate(decision):
-          choice_location = object_utils.KeyPath(i, dna_spec.location)
+          choice_location = utils.KeyPath(i, dna_spec.location)
           if not isinstance(choice, int):
             raise ValueError(
                 f'Choice value should be int. Encountered: {choice}, '
@@ -1410,7 +1421,7 @@ class DNA(symbolic.Object):
 
     if type_info:
       json_value = {
-          object_utils.JSONConvertible.TYPE_NAME_KEY: (
+          utils.JSONConvertible.TYPE_NAME_KEY: (
               self.__class__.__serialization_key__
           ),
           'format': 'compact',
@@ -1435,7 +1446,8 @@ class DNA(symbolic.Object):
       json_value: Dict[str, Any],
       *,
       allow_partial: bool = False,
-      root_path: Optional[object_utils.KeyPath] = None) -> 'DNA':
+      root_path: Optional[utils.KeyPath] = None,
+  ) -> 'DNA':
     """Class method that load a DNA from a JSON value.
 
     Args:
@@ -1472,8 +1484,8 @@ class DNA(symbolic.Object):
     return not self.children
 
   def __getitem__(
-      self, key: Union[int, slice, str, object_utils.KeyPath, 'DecisionPoint']
-      ) -> Union[None, 'DNA', List[Optional['DNA']]]:
+      self, key: Union[int, slice, str, utils.KeyPath, 'DecisionPoint']
+  ) -> Union[None, 'DNA', List[Optional['DNA']]]:
     """Get an immediate child DNA or DNA in the sub-tree.
 
     Args:
@@ -1504,10 +1516,11 @@ class DNA(symbolic.Object):
         v = self._decision_by_id[key]
       return v
 
-  def get(self,
-          key: Union[int, slice, str, object_utils.KeyPath, 'DecisionPoint'],
-          default: Any = None
-          ) -> Union[Any, None, 'DNA', List[Optional['DNA']]]:
+  def get(
+      self,
+      key: Union[int, slice, str, utils.KeyPath, 'DecisionPoint'],
+      default: Any = None,
+  ) -> Union[Any, None, 'DNA', List[Optional['DNA']]]:
     """Get an immediate child DNA or DNA in the sub-tree."""
     try:
       return self[key]
@@ -1529,8 +1542,9 @@ class DNA(symbolic.Object):
           return True
       else:
         raise ValueError(
-            f'DNA.__contains__ does not accept '
-            f'{object_utils.quote_if_str(dna_or_value)!r}.')
+            'DNA.__contains__ does not accept '
+            f'{utils.quote_if_str(dna_or_value)!r}.'
+        )
     return False
 
   def __hash__(self):
@@ -1605,12 +1619,13 @@ class DNA(symbolic.Object):
   ):
     """Customize format method for DNA for more compact representation."""
     if as_dict and self.spec:
-      details = object_utils.format(
+      details = utils.format(
           self.to_dict(value_type='choice_and_literal'),
           False,
           verbose,
           root_indent,
-          **kwargs)
+          **kwargs,
+      )
       s = f'DNA({details})'
     else:
       if 'list_wrap_threshold' not in kwargs:
@@ -1621,7 +1636,7 @@ class DNA(symbolic.Object):
       elif self.is_leaf:
         s = f'DNA({self.value!r})'
       else:
-        rep = object_utils.format(
+        rep = utils.format(
             self.to_json(compact=True, type_info=False),
             compact,
             verbose,

@@ -11,15 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.core.typing.callable_signature."""
-
 import copy
 import dataclasses
 import inspect
 from typing import List
 import unittest
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import annotation_conversion   # pylint: disable=unused-import
 from pyglove.core.typing import callable_signature
 from pyglove.core.typing import class_schema
@@ -628,8 +626,8 @@ class FromCallableTest(unittest.TestCase):
     self.assertIsNotNone(signature.varkw)
 
   def test_signature_with_forward_declarations(self):
-    signature = callable_signature.signature(object_utils.KeyPath)
-    self.assertIs(signature.get_value_spec('parent').cls, object_utils.KeyPath)
+    signature = callable_signature.signature(utils.KeyPath)
+    self.assertIs(signature.get_value_spec('parent').cls, utils.KeyPath)
 
 
 class FromSchemaTest(unittest.TestCase):

@@ -17,16 +17,19 @@ import abc
 import copy
 from typing import Any, Callable, List, Optional, Tuple, Union
 
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
-@symbolic.members([
-    ('reference_paths', pg_typing.List(pg_typing.Object(object_utils.KeyPath)),
-     ('Paths of referenced values, which are relative paths searched from '
-      'current node to root.'))
-])
+@symbolic.members([(
+    'reference_paths',
+    pg_typing.List(pg_typing.Object(utils.KeyPath)),
+    (
+        'Paths of referenced values, which are relative paths searched from '
+        'current node to root.'
+    ),
+)])
 class DerivedValue(symbolic.Object, pg_typing.CustomTyping):
   """Base class of value that references to other values in object tree."""
 
@@ -36,8 +39,10 @@ class DerivedValue(symbolic.Object, pg_typing.CustomTyping):
 
   def resolve(
       self, reference_path_or_paths: Optional[Union[str, List[str]]] = None
-      ) -> Union[Tuple[symbolic.Symbolic, object_utils.KeyPath],
-                 List[Tuple[symbolic.Symbolic, object_utils.KeyPath]]]:
+  ) -> Union[
+      Tuple[symbolic.Symbolic, utils.KeyPath],
+      List[Tuple[symbolic.Symbolic, utils.KeyPath]],
+  ]:
     """Resolve reference paths based on the location of this node.
 
     Args:
@@ -54,17 +59,17 @@ class DerivedValue(symbolic.Object, pg_typing.CustomTyping):
     if reference_path_or_paths is None:
       reference_paths = self.reference_paths
     elif isinstance(reference_path_or_paths, str):
-      reference_paths = [object_utils.KeyPath.parse(reference_path_or_paths)]
+      reference_paths = [utils.KeyPath.parse(reference_path_or_paths)]
       single_input = True
-    elif isinstance(reference_path_or_paths, object_utils.KeyPath):
+    elif isinstance(reference_path_or_paths, utils.KeyPath):
       reference_paths = [reference_path_or_paths]
       single_input = True
     elif isinstance(reference_path_or_paths, list):
       paths = []
       for path in reference_path_or_paths:
         if isinstance(path, str):
-          path = object_utils.KeyPath.parse(path)
-        elif not isinstance(path, object_utils.KeyPath):
+          path = utils.KeyPath.parse(path)
+        elif not isinstance(path, utils.KeyPath):
           raise ValueError('Argument \'reference_path_or_paths\' must be None, '
                            'a string, KeyPath object, a list of strings, or a '
                            'list of KeyPath objects.')
@@ -96,8 +101,7 @@ class DerivedValue(symbolic.Object, pg_typing.CustomTyping):
       # Make sure referenced value does not have referenced value.
       # NOTE(daiyip): We can support dependencies between derived values
       # in future if needed.
-      if not object_utils.traverse(
-          referenced_value, self._contains_not_derived_value):
+      if not utils.traverse(referenced_value, self._contains_not_derived_value):
         raise ValueError(
             f'Derived value (path={referenced_value.sym_path}) should not '
             f'reference derived values. '
@@ -107,15 +111,18 @@ class DerivedValue(symbolic.Object, pg_typing.CustomTyping):
     return self.derive(*referenced_values)
 
   def _contains_not_derived_value(
-      self, path: object_utils.KeyPath, value: Any) -> bool:
+      self, path: utils.KeyPath, value: Any
+  ) -> bool:
     """Returns whether a value contains derived value."""
     if isinstance(value, DerivedValue):
       return False
     elif isinstance(value, symbolic.Object):
       for k, v in value.sym_items():
-        if not object_utils.traverse(
-            v, self._contains_not_derived_value,
-            root_path=object_utils.KeyPath(k, path)):
+        if not utils.traverse(
+            v,
+            self._contains_not_derived_value,
+            root_path=utils.KeyPath(k, path),
+        ):
           return False
     return True
 
@@ -137,12 +144,13 @@ class ValueReference(DerivedValue):
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'DerivedValue']:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, 'DerivedValue']:
     """Implement pg_typing.CustomTyping interface."""
     # TODO(daiyip): perform possible static analysis on referenced paths.
     del path, value_spec, allow_partial, child_transform

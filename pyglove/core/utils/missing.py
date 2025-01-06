@@ -14,8 +14,8 @@
 """Representing missing value for a field."""
 
 from typing import Any, Dict
-from pyglove.core.object_utils import formatting
-from pyglove.core.object_utils import json_conversion
+from pyglove.core.utils import formatting
+from pyglove.core.utils import json_conversion
 
 
 class MissingValue(formatting.Formattable, json_conversion.JSONConvertible):

@@ -16,9 +16,9 @@
 import re
 import typing
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
 class Patcher(symbolic.Functor):
@@ -350,7 +350,7 @@ def from_uri(uri: str) -> Patcher:
   name, args, kwargs = parse_uri(uri)
   patcher_cls = typing.cast(Type[Any], _PATCHER_REGISTRY.get(name))
   args, kwargs = parse_args(patcher_cls.__signature__, args, kwargs)
-  return patcher_cls(object_utils.MISSING_VALUE, *args, **kwargs)
+  return patcher_cls(utils.MISSING_VALUE, *args, **kwargs)
 
 
 def parse_uri(uri: str) -> Tuple[str, List[str], Dict[str, str]]:
@@ -467,7 +467,8 @@ def parse_arg(patcher_id: str, arg_name: str,
         f'{value_spec!r} cannot be used for Patcher argument.\n'
         f'Consider to treat this argument as string and parse it yourself.')
   return value_spec.apply(
-      arg, root_path=object_utils.KeyPath.parse(f'{patcher_id}.{arg_name}'))
+      arg, root_path=utils.KeyPath.parse(f'{patcher_id}.{arg_name}')
+  )
 
 
 def parse_list(string: str,

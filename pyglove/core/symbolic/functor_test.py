@@ -11,15 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.Functor."""
-
 import inspect
 import io
 import typing
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic.base import from_json_str as pg_from_json_str
 from pyglove.core.symbolic.dict import Dict
@@ -31,7 +29,7 @@ from pyglove.core.symbolic.object import members as pg_members
 from pyglove.core.symbolic.object import Object
 
 
-MISSING_VALUE = object_utils.MISSING_VALUE
+MISSING_VALUE = utils.MISSING_VALUE
 
 
 class FunctorTest(unittest.TestCase):

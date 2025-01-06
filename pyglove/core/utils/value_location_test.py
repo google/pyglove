@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.object_utils.value_location."""
-
 import unittest
-from pyglove.core.object_utils import formatting
-from pyglove.core.object_utils import value_location
+from pyglove.core.utils import formatting
+from pyglove.core.utils import value_location
 
 
 KeyPath = value_location.KeyPath

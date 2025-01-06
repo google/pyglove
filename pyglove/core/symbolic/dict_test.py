@@ -11,16 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.Dict."""
-
 import copy
 import inspect
 import io
 import pickle
 import unittest
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import inferred
@@ -31,7 +29,7 @@ from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
 
 
-MISSING_VALUE = object_utils.MISSING_VALUE
+MISSING_VALUE = utils.MISSING_VALUE
 
 
 class DictTest(unittest.TestCase):
@@ -799,7 +797,7 @@ class DictTest(unittest.TestCase):
     self.assertTrue(sd.sym_has('y.z'))
     self.assertTrue(sd.sym_has('[1].a'))
     self.assertTrue(sd.sym_has('y[2]'))
-    self.assertTrue(sd.sym_has(object_utils.KeyPath.parse('y.z')))
+    self.assertTrue(sd.sym_has(utils.KeyPath.parse('y.z')))
     self.assertFalse(sd.sym_has('x.z'))
 
   def test_sym_get(self):
@@ -1267,7 +1265,7 @@ class DictTest(unittest.TestCase):
     self.assertEqual(sd.x.a.sym_path, 'x.a')
     self.assertEqual(sd.y[0].b.sym_path, 'y[0].b')
 
-    sd.sym_setpath(object_utils.KeyPath('a'))
+    sd.sym_setpath(utils.KeyPath('a'))
     self.assertEqual(sd.sym_path, 'a')
     self.assertEqual(sd.x.sym_path, 'a.x')
     self.assertEqual(sd.x.a.sym_path, 'a.x.a')
@@ -1724,96 +1722,112 @@ class RebindTest(unittest.TestCase):
         'd': 'foo',  # Unchanged.
         'e': 'bar'
     })
-    self.assertEqual(updates, [
-        {  # Notification to `sd.c[0]`.
-            'p': base.FieldUpdate(
-                object_utils.KeyPath.parse('c[0].p'),
-                target=sd.c[0],
-                field=None,
-                old_value=1,
-                new_value=MISSING_VALUE),
-            'q': base.FieldUpdate(
-                object_utils.KeyPath.parse('c[0].q'),
-                target=sd.c[0],
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=2),
-        },
-        {  # Notification to `sd.c`.
-            '[0].p': base.FieldUpdate(
-                object_utils.KeyPath.parse('c[0].p'),
-                target=sd.c[0],
-                field=None,
-                old_value=1,
-                new_value=MISSING_VALUE),
-            '[0].q': base.FieldUpdate(
-                object_utils.KeyPath.parse('c[0].q'),
-                target=sd.c[0],
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=2),
-        },
-        {  # Notification to `sd.b.y`.
-            'z': base.FieldUpdate(
-                object_utils.KeyPath.parse('b.y.z'),
-                target=sd.b.y,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=1),
-        },
-        {  # Notification to `sd.b`.
-            'x': base.FieldUpdate(
-                object_utils.KeyPath.parse('b.x'),
-                target=sd.b,
-                field=None,
-                old_value=1,
-                new_value=2),
-            'y.z': base.FieldUpdate(
-                object_utils.KeyPath.parse('b.y.z'),
-                target=sd.b.y,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=1),
-        },
-        {  # Notification to `sd`.
-            'a': base.FieldUpdate(
-                object_utils.KeyPath.parse('a'),
-                target=sd,
-                field=None,
-                old_value=1,
-                new_value=2),
-            'b.x': base.FieldUpdate(
-                object_utils.KeyPath.parse('b.x'),
-                target=sd.b,
-                field=None,
-                old_value=1,
-                new_value=2),
-            'b.y.z': base.FieldUpdate(
-                object_utils.KeyPath.parse('b.y.z'),
-                target=sd.b.y,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=1),
-            'c[0].p': base.FieldUpdate(
-                object_utils.KeyPath.parse('c[0].p'),
-                target=sd.c[0],
-                field=None,
-                old_value=1,
-                new_value=MISSING_VALUE),
-            'c[0].q': base.FieldUpdate(
-                object_utils.KeyPath.parse('c[0].q'),
-                target=sd.c[0],
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value=2),
-            'e': base.FieldUpdate(
-                object_utils.KeyPath.parse('e'),
-                target=sd,
-                field=None,
-                old_value=MISSING_VALUE,
-                new_value='bar')
-        }
-    ])
+    self.assertEqual(
+        updates,
+        [
+            {  # Notification to `sd.c[0]`.
+                'p': base.FieldUpdate(
+                    utils.KeyPath.parse('c[0].p'),
+                    target=sd.c[0],
+                    field=None,
+                    old_value=1,
+                    new_value=MISSING_VALUE,
+                ),
+                'q': base.FieldUpdate(
+                    utils.KeyPath.parse('c[0].q'),
+                    target=sd.c[0],
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=2,
+                ),
+            },
+            {  # Notification to `sd.c`.
+                '[0].p': base.FieldUpdate(
+                    utils.KeyPath.parse('c[0].p'),
+                    target=sd.c[0],
+                    field=None,
+                    old_value=1,
+                    new_value=MISSING_VALUE,
+                ),
+                '[0].q': base.FieldUpdate(
+                    utils.KeyPath.parse('c[0].q'),
+                    target=sd.c[0],
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=2,
+                ),
+            },
+            {  # Notification to `sd.b.y`.
+                'z': base.FieldUpdate(
+                    utils.KeyPath.parse('b.y.z'),
+                    target=sd.b.y,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=1,
+                ),
+            },
+            {  # Notification to `sd.b`.
+                'x': base.FieldUpdate(
+                    utils.KeyPath.parse('b.x'),
+                    target=sd.b,
+                    field=None,
+                    old_value=1,
+                    new_value=2,
+                ),
+                'y.z': base.FieldUpdate(
+                    utils.KeyPath.parse('b.y.z'),
+                    target=sd.b.y,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=1,
+                ),
+            },
+            {  # Notification to `sd`.
+                'a': base.FieldUpdate(
+                    utils.KeyPath.parse('a'),
+                    target=sd,
+                    field=None,
+                    old_value=1,
+                    new_value=2,
+                ),
+                'b.x': base.FieldUpdate(
+                    utils.KeyPath.parse('b.x'),
+                    target=sd.b,
+                    field=None,
+                    old_value=1,
+                    new_value=2,
+                ),
+                'b.y.z': base.FieldUpdate(
+                    utils.KeyPath.parse('b.y.z'),
+                    target=sd.b.y,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=1,
+                ),
+                'c[0].p': base.FieldUpdate(
+                    utils.KeyPath.parse('c[0].p'),
+                    target=sd.c[0],
+                    field=None,
+                    old_value=1,
+                    new_value=MISSING_VALUE,
+                ),
+                'c[0].q': base.FieldUpdate(
+                    utils.KeyPath.parse('c[0].q'),
+                    target=sd.c[0],
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value=2,
+                ),
+                'e': base.FieldUpdate(
+                    utils.KeyPath.parse('e'),
+                    target=sd,
+                    field=None,
+                    old_value=MISSING_VALUE,
+                    new_value='bar',
+                ),
+            },
+        ],
+    )
 
   def test_rebind_with_fn(self):
     sd = Dict(a=1, b=dict(x=2, y='foo', z=[0, 1, 2]))
@@ -2096,7 +2110,7 @@ class FormatTest(unittest.TestCase):
 
   def test_compact_python_format(self):
     self.assertEqual(
-        object_utils.format(
+        utils.format(
             self._dict, compact=True, python_format=True, markdown=True
         ),
         "`{'a1': 1, 'a2': {'b1': {'c1': [{'d1': MISSING_VALUE, "
@@ -2106,9 +2120,12 @@ class FormatTest(unittest.TestCase):
 
   def test_noncompact_python_format(self):
     self.assertEqual(
-        object_utils.format(
-            self._dict, compact=False, verbose=False,
-            python_format=True, markdown=True
+        utils.format(
+            self._dict,
+            compact=False,
+            verbose=False,
+            python_format=True,
+            markdown=True,
         ),
         inspect.cleandoc("""
             ```

@@ -19,7 +19,7 @@ import inspect
 import sys
 from typing import Annotated, Any, Dict, Iterator, List, Optional, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.symbolic import object as pg_object
 from pyglove.core.views.html import base
 
@@ -89,16 +89,16 @@ class HtmlControl(pg_object.Object):
   @contextlib.contextmanager
   def track_scripts(cls) -> Iterator[List[str]]:
     del cls
-    all_tracked = object_utils.thread_local_get(_TLS_TRACKED_SCRIPTS, [])
+    all_tracked = utils.thread_local_get(_TLS_TRACKED_SCRIPTS, [])
     current = []
     all_tracked.append(current)
-    object_utils.thread_local_set(_TLS_TRACKED_SCRIPTS, all_tracked)
+    utils.thread_local_set(_TLS_TRACKED_SCRIPTS, all_tracked)
     try:
       yield current
     finally:
       all_tracked.pop(-1)
       if not all_tracked:
-        object_utils.thread_local_del(_TLS_TRACKED_SCRIPTS)
+        utils.thread_local_del(_TLS_TRACKED_SCRIPTS)
 
   def _sync_members(self, **fields) -> None:
     """Synchronizes displayed values to members."""
@@ -121,7 +121,7 @@ class HtmlControl(pg_object.Object):
       _notebook.display(_notebook.Javascript(code))
 
     # Track script execution.
-    all_tracked = object_utils.thread_local_get(_TLS_TRACKED_SCRIPTS, [])
+    all_tracked = utils.thread_local_get(_TLS_TRACKED_SCRIPTS, [])
     for tracked in all_tracked:
       tracked.append(code)
 

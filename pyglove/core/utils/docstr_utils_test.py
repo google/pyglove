@@ -11,11 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.object_utils.docstr_utils."""
-
 import inspect
 import unittest
-from pyglove.core.object_utils import docstr_utils
+from pyglove.core.utils import docstr_utils
 
 
 class DocStrTest(unittest.TestCase):

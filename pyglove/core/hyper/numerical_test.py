@@ -11,14 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tests for pyglove.hyper.Float."""
-
 import unittest
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import symbolic
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper.numerical import Float
 from pyglove.core.hyper.numerical import floatv
 
@@ -44,12 +42,14 @@ class FloatTest(unittest.TestCase):
       floatv(-1.0, 1.0, 'log')
 
   def test_dna_spec(self):
-    self.assertTrue(symbolic.eq(
-        floatv(0.0, 1.0).dna_spec('a'),
-        geno.Float(
-            location=object_utils.KeyPath('a'),
-            min_value=0.0,
-            max_value=1.0)))
+    self.assertTrue(
+        symbolic.eq(
+            floatv(0.0, 1.0).dna_spec('a'),
+            geno.Float(
+                location=utils.KeyPath('a'), min_value=0.0, max_value=1.0
+            ),
+        )
+    )
 
   def test_decode(self):
     v = floatv(0.0, 1.0)

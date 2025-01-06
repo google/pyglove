@@ -15,11 +15,10 @@
 
 import copy
 import inspect
-
 from typing import Any, List, Optional, Type
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
 
@@ -129,9 +128,9 @@ def boilerplate_class(
   cls.auto_register = True
 
   allow_partial = value.allow_partial
-  def _freeze_field(path: object_utils.KeyPath,
-                    field: pg_typing.Field,
-                    value: Any) -> Any:
+  def _freeze_field(
+      path: utils.KeyPath, field: pg_typing.Field, value: Any
+  ) -> Any:
     # We do not do validation since Object is already in valid form.
     del path
     if not isinstance(field.key, pg_typing.ListKey):

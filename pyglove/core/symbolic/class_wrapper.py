@@ -26,8 +26,8 @@ import types
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 from pyglove.core import detouring
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 from pyglove.core.symbolic import dict as pg_dict  # pylint: disable=unused-import
 from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
@@ -71,7 +71,7 @@ class _SubclassedWrapperBase(ClassWrapper):
   # the `__init__` method.
   auto_typing = False
 
-  @object_utils.explicit_method_override
+  @utils.explicit_method_override
   def __init__(self, *args, **kwargs):
     """Overridden __init__ to construct symbolic wrapper only."""
     # NOTE(daiyip): We avoid `__init__` to be called multiple times.
@@ -100,7 +100,7 @@ class _SubclassedWrapperBase(ClassWrapper):
   def __init_subclass__(cls):
     # Class wrappers inherit `__init__` from the user class. Therefore, we mark
     # all of them as explicitly overridden.
-    object_utils.explicit_method_override(cls.__init__)
+    utils.explicit_method_override(cls.__init__)
 
     super().__init_subclass__()
     if cls.__init__ is _SubclassedWrapperBase.__init__:
@@ -129,7 +129,7 @@ class _SubclassedWrapperBase(ClassWrapper):
       init_arg_list, arg_fields = _extract_init_signature(
           cls, auto_doc=cls.auto_doc, auto_typing=cls.auto_typing)
 
-      @object_utils.explicit_method_override
+      @utils.explicit_method_override
       @functools.wraps(cls.__init__)
       def _sym_init(self, *args, **kwargs):
         _SubclassedWrapperBase.__init__(self, *args, **kwargs)
@@ -522,7 +522,7 @@ def apply_wrappers(
   """
   if not wrapper_classes:
     wrapper_classes = []
-    for _, c in object_utils.JSONConvertible.registered_types():
+    for _, c in utils.JSONConvertible.registered_types():
       if (issubclass(c, ClassWrapper)
           and c not in (ClassWrapper, _SubclassedWrapperBase)
           and (not where or where(c))
@@ -544,13 +544,13 @@ def _extract_init_signature(
     # Read args docstr from both class doc string and __init__ doc string.
     args_docstr = dict()
     if cls.__doc__:
-      cls_docstr = object_utils.DocStr.parse(cls.__doc__)
+      cls_docstr = utils.DocStr.parse(cls.__doc__)
       args_docstr = cls_docstr.args
     if init_method.__doc__:
-      init_docstr = object_utils.DocStr.parse(init_method.__doc__)
+      init_docstr = utils.DocStr.parse(init_method.__doc__)
       args_docstr.update(init_docstr.args)
-    docstr = object_utils.DocStr(
-        object_utils.DocStrStyle.GOOGLE,
+    docstr = utils.DocStr(
+        utils.DocStrStyle.GOOGLE,
         short_description=None,
         long_description=None,
         examples=[],

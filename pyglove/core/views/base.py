@@ -136,18 +136,18 @@ import types
 from typing import Any, Callable, Dict, Iterator, Optional, Sequence, Set, Type, Union
 
 from pyglove.core import io as pg_io
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 
 
 # Type definition for the value filter function.
 NodeFilter = Callable[
     [
-        object_utils.KeyPath,    # The path to the value.
-        Any,        # Current value.
-        Any,        # Parent value
+        utils.KeyPath,  # The path to the value.
+        Any,  # Current value.
+        Any,  # Parent value
     ],
-    bool            # Whether to include the value.
+    bool,  # Whether to include the value.
 ]
 
 
@@ -157,7 +157,7 @@ _TLS_KEY_OPERAND_STACK_BY_METHOD = '__view_operand_stack__'
 _TLS_KEY_VIEW_OPTIONS = '__view_options__'
 
 
-class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
+class Content(utils.Formattable, metaclass=abc.ABCMeta):
   """Content: A type of media to be displayed in a view.
 
   For example, `pg.Html` is a `Content` type that represents HTML to be
@@ -171,7 +171,7 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
       None
   ]
 
-  class SharedParts(object_utils.Formattable):
+  class SharedParts(utils.Formattable):
     """A part of the content that should appear just once.
 
     For example, `pg.Html.Styles` is a `SharedParts` type that represents
@@ -244,7 +244,7 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
         **kwargs
     ) -> str:
       if compact:
-        return object_utils.kvlist_str(
+        return utils.kvlist_str(
             [
                 ('parts', self._parts, {}),
             ],
@@ -252,7 +252,7 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
             compact=compact,
             verbose=verbose,
             root_indent=root_indent,
-            bracket_type=object_utils.BracketType.ROUND,
+            bracket_type=utils.BracketType.ROUND,
         )
       return self.content
 
@@ -363,17 +363,16 @@ class Content(object_utils.Formattable, metaclass=abc.ABCMeta):
     """Formats the Content object."""
     del kwargs
     if compact:
-      return object_utils.kvlist_str(
+      return utils.kvlist_str(
           [
               ('content', self.content, ''),
-          ] + [
-              (k, v, None) for k, v in self._shared_parts.items()
-          ],
+          ]
+          + [(k, v, None) for k, v in self._shared_parts.items()],
           label=self.__class__.__name__,
           compact=compact,
           verbose=verbose,
           root_indent=root_indent,
-          bracket_type=object_utils.BracketType.ROUND,
+          bracket_type=utils.BracketType.ROUND,
       )
     return self.to_str(content_only=content_only)
 
@@ -427,9 +426,9 @@ def view(
     value: Any,
     *,
     name: Optional[str] = None,
-    root_path: Optional[object_utils.KeyPath] = None,
+    root_path: Optional[utils.KeyPath] = None,
     view_id: str = 'html-tree-view',
-    **kwargs
+    **kwargs,
 ) -> Content:
   """Views an object through generating content based on a specific view.
 
@@ -451,8 +450,7 @@ def view(
   with view_options(**kwargs) as options:
     view_object = View.create(view_id)
     return view_object.render(
-        value, name=name, root_path=root_path or object_utils.KeyPath(),
-        **options
+        value, name=name, root_path=root_path or utils.KeyPath(), **options
     )
 
 
@@ -471,14 +469,14 @@ def view_options(**kwargs) -> Iterator[Dict[str, Any]]:
   Yields:
     The merged keyword arguments.
   """
-  parent_options = object_utils.thread_local_peek(_TLS_KEY_VIEW_OPTIONS, {})
+  parent_options = utils.thread_local_peek(_TLS_KEY_VIEW_OPTIONS, {})
   # Deep merge the two dict.
-  options = object_utils.merge([parent_options, kwargs])
-  object_utils.thread_local_push(_TLS_KEY_VIEW_OPTIONS, options)
+  options = utils.merge([parent_options, kwargs])
+  utils.thread_local_push(_TLS_KEY_VIEW_OPTIONS, options)
   try:
     yield options
   finally:
-    object_utils.thread_local_pop(_TLS_KEY_VIEW_OPTIONS)
+    utils.thread_local_pop(_TLS_KEY_VIEW_OPTIONS)
 
 
 class View(metaclass=abc.ABCMeta):
@@ -697,8 +695,8 @@ class View(metaclass=abc.ABCMeta):
       value: Any,
       *,
       name: Optional[str] = None,
-      root_path: Optional[object_utils.KeyPath] = None,
-      **kwargs
+      root_path: Optional[utils.KeyPath] = None,
+      **kwargs,
   ) -> Content:
     """Renders the input value.
 
@@ -789,20 +787,18 @@ class View(metaclass=abc.ABCMeta):
   ) -> Iterator[Any]:
     """Context manager for tracking the value being rendered."""
     del self
-    rendering_stack = object_utils.thread_local_get(
+    rendering_stack = utils.thread_local_get(
         _TLS_KEY_OPERAND_STACK_BY_METHOD, {}
     )
     callsite_value = rendering_stack.get(view_method, None)
     rendering_stack[view_method] = value
-    object_utils.thread_local_set(
-        _TLS_KEY_OPERAND_STACK_BY_METHOD, rendering_stack
-    )
+    utils.thread_local_set(_TLS_KEY_OPERAND_STACK_BY_METHOD, rendering_stack)
     try:
       yield callsite_value
     finally:
       if callsite_value is None:
         rendering_stack.pop(view_method)
         if not rendering_stack:
-          object_utils.thread_local_del(_TLS_KEY_OPERAND_STACK_BY_METHOD)
+          utils.thread_local_del(_TLS_KEY_OPERAND_STACK_BY_METHOD)
       else:
         rendering_stack[view_method] = callsite_value

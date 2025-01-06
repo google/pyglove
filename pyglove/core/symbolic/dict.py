@@ -16,8 +16,8 @@
 import typing
 from typing import Any, Callable, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Union
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 
@@ -96,14 +96,16 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
   """
 
   @classmethod
-  def partial(cls,
-              dict_obj: Optional[typing.Dict[Union[str, int], Any]] = None,
-              value_spec: Optional[pg_typing.Dict] = None,
-              *,
-              onchange_callback: Optional[Callable[
-                  [typing.Dict[object_utils.KeyPath, base.FieldUpdate]], None]
-              ] = None,  # pylint: disable=bad-continuation
-              **kwargs) -> 'Dict':
+  def partial(
+      cls,
+      dict_obj: Optional[typing.Dict[Union[str, int], Any]] = None,
+      value_spec: Optional[pg_typing.Dict] = None,
+      *,
+      onchange_callback: Optional[
+          Callable[[typing.Dict[utils.KeyPath, base.FieldUpdate]], None]
+      ] = None,  # pylint: disable=bad-continuation
+      **kwargs,
+  ) -> 'Dict':
     """Class method that creates a partial Dict object."""
     return cls(dict_obj,
                value_spec=value_spec,
@@ -112,13 +114,15 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
                **kwargs)
 
   @classmethod
-  def from_json(cls,
-                json_value: Any,
-                *,
-                value_spec: Optional[pg_typing.Dict] = None,
-                allow_partial: bool = False,
-                root_path: Optional[object_utils.KeyPath] = None,
-                **kwargs) -> 'Dict':
+  def from_json(
+      cls,
+      json_value: Any,
+      *,
+      value_spec: Optional[pg_typing.Dict] = None,
+      allow_partial: bool = False,
+      root_path: Optional[utils.KeyPath] = None,
+      **kwargs,
+  ) -> 'Dict':
     """Class method that load an symbolic Dict from a JSON value.
 
     Args:
@@ -156,27 +160,31 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         {
             k: base.from_json(
                 v,
-                root_path=object_utils.KeyPath(k, root_path),
+                root_path=utils.KeyPath(k, root_path),
                 allow_partial=allow_partial,
-                **kwargs
-            ) for k, v in json_value.items()
+                **kwargs,
+            )
+            for k, v in json_value.items()
         },
         value_spec=value_spec,
         root_path=root_path,
         allow_partial=allow_partial,
     )
 
-  def __init__(self,
-               dict_obj: Union[
-                   None,
-                   Iterable[Tuple[Union[str, int], Any]],
-                   typing.Dict[Union[str, int], Any]] = None,
-               *,
-               value_spec: Optional[pg_typing.Dict] = None,
-               onchange_callback: Optional[Callable[
-                   [typing.Dict[object_utils.KeyPath, base.FieldUpdate]], None]
-               ] = None,  # pylint: disable=bad-continuation
-               **kwargs):
+  def __init__(
+      self,
+      dict_obj: Union[
+          None,
+          Iterable[Tuple[Union[str, int], Any]],
+          typing.Dict[Union[str, int], Any],
+      ] = None,
+      *,
+      value_spec: Optional[pg_typing.Dict] = None,
+      onchange_callback: Optional[
+          Callable[[typing.Dict[utils.KeyPath, base.FieldUpdate]], None]
+      ] = None,  # pylint: disable=bad-continuation
+      **kwargs,
+  ):
     """Constructor.
 
     Args:
@@ -335,8 +343,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     return self
 
   def _sym_rebind(
-      self, path_value_pairs: typing.Dict[object_utils.KeyPath, Any]
-      ) -> List[base.FieldUpdate]:
+      self, path_value_pairs: typing.Dict[utils.KeyPath, Any]
+  ) -> List[base.FieldUpdate]:
     """Subclass specific rebind implementation."""
     updates = []
     for k, v in path_value_pairs.items():
@@ -360,7 +368,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         if keys:
           for key in keys:
             v = self.sym_getattr(key)
-            if object_utils.MISSING_VALUE == v:
+            if utils.MISSING_VALUE == v:
               missing[key] = field.value.default
             else:
               if isinstance(v, base.Symbolic):
@@ -514,14 +522,13 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         pass_through=True)
 
   def _update_children_paths(
-      self,
-      old_path: object_utils.KeyPath,
-      new_path: object_utils.KeyPath) -> None:
+      self, old_path: utils.KeyPath, new_path: utils.KeyPath
+  ) -> None:
     """Update children paths according to root_path of current node."""
     del old_path
     for k, v in self.sym_items():
       if isinstance(v, base.TopologyAware):
-        v.sym_setpath(object_utils.KeyPath(k, new_path))
+        v.sym_setpath(utils.KeyPath(k, new_path))
 
   def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
       self, key: Union[str, int], value: Any) -> Optional[base.FieldUpdate]:
@@ -550,7 +557,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     # Detach old value from object tree.
     if isinstance(old_value, base.TopologyAware):
       old_value.sym_setparent(None)
-      old_value.sym_setpath(object_utils.KeyPath())
+      old_value.sym_setpath(utils.KeyPath())
 
     if (pg_typing.MISSING_VALUE == value and
         (not field or isinstance(field.key, pg_typing.NonConstKey))):
@@ -589,13 +596,15 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       value = base.from_json(
           value,
           allow_partial=allow_partial,
-          root_path=object_utils.KeyPath(name, self.sym_path))
+          root_path=utils.KeyPath(name, self.sym_path),
+      )
     if field and flags.is_type_check_enabled():
       value = field.apply(
           value,
           allow_partial=allow_partial,
           transform_fn=base.symbolic_transform_fn(self._allow_partial),
-          root_path=object_utils.KeyPath(name, self.sym_path))
+          root_path=utils.KeyPath(name, self.sym_path),
+      )
     return self._relocate_if_symbolic(name, value)
 
   @property
@@ -603,8 +612,9 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Returns True if current dict subscribes field updates."""
     return self._onchange_callback is not None
 
-  def _on_change(self, field_updates: typing.Dict[object_utils.KeyPath,
-                                                  base.FieldUpdate]):
+  def _on_change(
+      self, field_updates: typing.Dict[utils.KeyPath, base.FieldUpdate]
+  ):
     """On change event of Dict."""
     if self._onchange_callback:
       self._onchange_callback(field_updates)
@@ -814,8 +824,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       hide_default_values: bool = False,
       exclude_keys: Optional[Sequence[Union[str, int]]] = None,
       use_inferred: bool = False,
-      **kwargs
-  ) -> object_utils.JSONValueType:
+      **kwargs,
+  ) -> utils.JSONValueType:
     """Converts current object to a dict with plain Python objects."""
     exclude_keys = set(exclude_keys or [])
     if self._value_spec and self._value_spec.schema:
@@ -858,11 +868,12 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
       child_transform: Optional[
-          Callable[[object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
   ) -> Tuple[bool, 'Dict']:
     """Implement pg.typing.CustomTyping interface.
 
@@ -881,9 +892,12 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     if self._value_spec:
       if value_spec and not value_spec.is_compatible(self._value_spec):
         raise ValueError(
-            object_utils.message_on_path(
+            utils.message_on_path(
                 f'Dict (spec={self._value_spec!r}) cannot be assigned to an '
-                f'incompatible field (spec={value_spec!r}).', path))
+                f'incompatible field (spec={value_spec!r}).',
+                path,
+            )
+        )
       if self._allow_partial == allow_partial:
         proceed_with_standard_apply = False
       else:
@@ -906,7 +920,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       exclude_keys: Optional[Set[Union[str, int]]] = None,
       use_inferred: bool = False,
       cls_name: Optional[str] = None,
-      bracket_type: object_utils.BracketType = object_utils.BracketType.CURLY,
+      bracket_type: utils.BracketType = utils.BracketType.CURLY,
       key_as_attribute: bool = False,
       extra_blankline_for_field_docstr: bool = False,
       **kwargs,
@@ -948,7 +962,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             v = self.sym_inferred(k, default=v)
           field_list.append((None, k, v))
 
-    open_bracket, close_bracket = object_utils.bracket_chars(bracket_type)
+    open_bracket, close_bracket = utils.bracket_chars(bracket_type)
     if not field_list:
       return f'{cls_name}{open_bracket}{close_bracket}'
 
@@ -956,7 +970,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       s = [f'{cls_name}{open_bracket}']
       kv_strs = []
       for _, k, v in field_list:
-        v_str = object_utils.format(
+        v_str = utils.format(
             v,
             compact,
             verbose,
@@ -967,7 +981,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             python_format=python_format,
             use_inferred=use_inferred,
             extra_blankline_for_field_docstr=extra_blankline_for_field_docstr,
-            **kwargs)
+            **kwargs,
+        )
         if not python_format or key_as_attribute:
           if isinstance(k, int):
             k = f'[{k}]'
@@ -989,7 +1004,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           description = typing.cast(pg_typing.Field, f).description
           for line in description.split('\n'):
             s.append(_indent(f'# {line}\n', root_indent + 1))
-        v_str = object_utils.format(
+        v_str = utils.format(
             v,
             compact,
             verbose,
@@ -1000,7 +1015,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             python_format=python_format,
             use_inferred=use_inferred,
             extra_blankline_for_field_docstr=extra_blankline_for_field_docstr,
-            **kwargs)
+            **kwargs,
+        )
 
         if not python_format:
           # Format in PyGlove's format (default).

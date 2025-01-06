@@ -19,8 +19,8 @@ import types
 from typing import Any, Callable, Optional, Tuple, Union
 
 from pyglove.core import geno
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.hyper import base
 
 
@@ -111,8 +111,7 @@ class CustomHyper(base.HyperPrimitive):
     raise NotImplementedError(
         f'\'custom_encode\' is not supported by {self.__class__.__name__!r}.')
 
-  def dna_spec(
-      self, location: Optional[object_utils.KeyPath] = None) -> geno.DNASpec:
+  def dna_spec(self, location: Optional[utils.KeyPath] = None) -> geno.DNASpec:
     """Always returns CustomDecisionPoint for CustomHyper."""
     return geno.CustomDecisionPoint(
         hyper_type=self.__class__.__name__,
@@ -147,12 +146,13 @@ class CustomHyper(base.HyperPrimitive):
 
   def custom_apply(
       self,
-      path: object_utils.KeyPath,
+      path: utils.KeyPath,
       value_spec: pg_typing.ValueSpec,
       allow_partial: bool,
-      child_transform: Optional[Callable[
-          [object_utils.KeyPath, pg_typing.Field, Any], Any]] = None
-      ) -> Tuple[bool, 'CustomHyper']:
+      child_transform: Optional[
+          Callable[[utils.KeyPath, pg_typing.Field, Any], Any]
+      ] = None,
+  ) -> Tuple[bool, 'CustomHyper']:
     """Validate candidates during value_spec binding time."""
     del path, value_spec, allow_partial, child_transform
     # Allow custom hyper to be assigned to any type.

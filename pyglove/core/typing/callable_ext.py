@@ -19,14 +19,14 @@ import inspect
 import types
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence, Tuple, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.typing import callable_signature
 
 
 _TLS_KEY_PRESET_KWARGS = '__preset_kwargs__'
 
 
-class PresetArgValue(object_utils.Formattable):
+class PresetArgValue(utils.Formattable):
   """Value placeholder for arguments whose value will be provided by presets.
 
   Example:
@@ -39,12 +39,12 @@ class PresetArgValue(object_utils.Formattable):
     print(foo(x=1))  # 2: y=1
   """
 
-  def __init__(self, default: Any = object_utils.MISSING_VALUE):
+  def __init__(self, default: Any = utils.MISSING_VALUE):
     self.default = default
 
   @property
   def has_default(self) -> bool:
-    return self.default != object_utils.MISSING_VALUE
+    return self.default != utils.MISSING_VALUE
 
   def __eq__(self, other: Any) -> bool:
     return isinstance(other, PresetArgValue) and (
@@ -55,13 +55,13 @@ class PresetArgValue(object_utils.Formattable):
     return not self.__eq__(other)
 
   def format(self, *args, **kwargs):
-    return object_utils.kvlist_str(
+    return utils.kvlist_str(
         [
-            ('default', self.default, object_utils.MISSING_VALUE),
+            ('default', self.default, utils.MISSING_VALUE),
         ],
         label='PresetArgValue',
         *args,
-        **kwargs
+        **kwargs,
     )
 
   @classmethod
@@ -182,15 +182,15 @@ def preset_args(
     Current preset kwargs.
   """
 
-  parent_presets = object_utils.thread_local_peek(
+  parent_presets = utils.thread_local_peek(
       _TLS_KEY_PRESET_KWARGS, _ArgPresets()
   )
   current_preset = parent_presets.derive(kwargs, preset_name, inherit_preset)
-  object_utils.thread_local_push(_TLS_KEY_PRESET_KWARGS, current_preset)
+  utils.thread_local_push(_TLS_KEY_PRESET_KWARGS, current_preset)
   try:
     yield current_preset
   finally:
-    object_utils.thread_local_pop(_TLS_KEY_PRESET_KWARGS, None)
+    utils.thread_local_pop(_TLS_KEY_PRESET_KWARGS, None)
 
 
 def enable_preset_args(
@@ -243,9 +243,7 @@ def enable_preset_args(
       @functools.wraps(func)
       def _func(*args, **kwargs):
         # Map positional arguments to keyword arguments.
-        presets = object_utils.thread_local_peek(
-            _TLS_KEY_PRESET_KWARGS, None
-        )
+        presets = utils.thread_local_peek(_TLS_KEY_PRESET_KWARGS, None)
         preset_kwargs = presets.get_preset(preset_name) if presets else {}
         args, kwargs = PresetArgValue.resolve_args(
             args, kwargs, positional_arg_names, arg_defaults, preset_kwargs,

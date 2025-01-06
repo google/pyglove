@@ -22,14 +22,14 @@ import types
 import typing
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import flags
 from pyglove.core.symbolic import object as pg_object
 
 
-class Functor(pg_object.Object, object_utils.Functor):
+class Functor(pg_object.Object, utils.Functor):
   """Symbolic functions (Functors).
 
   A symbolic function is a symbolic class with a ``__call__`` method, whose
@@ -124,7 +124,7 @@ class Functor(pg_object.Object, object_utils.Functor):
     if not hasattr(cls, '__orig_init__'):
       setattr(cls, '__orig_init__', cls.__init__)
 
-    @object_utils.explicit_method_override
+    @utils.explicit_method_override
     @functools.wraps(pseudo_init)
     def _init(self, *args, **kwargs):
       self.__class__.__orig_init__(self, *args, **kwargs)
@@ -148,14 +148,15 @@ class Functor(pg_object.Object, object_utils.Functor):
       return instance()
     return instance
 
-  @object_utils.explicit_method_override
+  @utils.explicit_method_override
   def __init__(
       self,
       *args,
-      root_path: Optional[object_utils.KeyPath] = None,
+      root_path: Optional[utils.KeyPath] = None,
       override_args: bool = False,
       ignore_extra_args: bool = False,
-      **kwargs):
+      **kwargs,
+  ):
     """Constructor.
 
     Args:
@@ -182,8 +183,8 @@ class Functor(pg_object.Object, object_utils.Functor):
         varargs = list(args[len(signature.args) :])
         args = args[: len(signature.args)]
       else:
-        arg_phrase = object_utils.auto_plural(len(signature.args), 'argument')
-        was_phrase = object_utils.auto_plural(len(args), 'was', 'were')
+        arg_phrase = utils.auto_plural(len(signature.args), 'argument')
+        was_phrase = utils.auto_plural(len(args), 'was', 'were')
         raise TypeError(
             f'{signature.id}() takes {len(signature.args)} '
             f'positional {arg_phrase} but {len(args)} {was_phrase} given.'
@@ -257,8 +258,7 @@ class Functor(pg_object.Object, object_utils.Functor):
     # pylint: enable=protected-access
     return typing.cast(Functor, other)
 
-  def _on_change(
-      self, field_updates: Dict[object_utils.KeyPath, base.FieldUpdate]):
+  def _on_change(self, field_updates: Dict[utils.KeyPath, base.FieldUpdate]):
     """Custom handling field change to update bound args."""
     for relative_path, update in field_updates.items():
       assert relative_path
@@ -406,8 +406,8 @@ class Functor(pg_object.Object, object_utils.Functor):
       if ignore_extra_args:
         args = args[: len(signature.args)]
       else:
-        arg_phrase = object_utils.auto_plural(len(signature.args), 'argument')
-        was_phrase = object_utils.auto_plural(len(args), 'was', 'were')
+        arg_phrase = utils.auto_plural(len(signature.args), 'argument')
+        was_phrase = utils.auto_plural(len(args), 'was', 'were')
         raise TypeError(
             f'{signature.id}() takes {len(signature.args)} '
             f'positional {arg_phrase} but {len(args)} {was_phrase} given.'
@@ -483,9 +483,10 @@ class Functor(pg_object.Object, object_utils.Functor):
         missing_required_arg_names.append(arg.name)
 
     if missing_required_arg_names:
-      arg_phrase = object_utils.auto_plural(
-          len(missing_required_arg_names), 'argument')
-      args_str = object_utils.comma_delimited_str(missing_required_arg_names)
+      arg_phrase = utils.auto_plural(
+          len(missing_required_arg_names), 'argument'
+      )
+      args_str = utils.comma_delimited_str(missing_required_arg_names)
       raise TypeError(
           f'{signature.id}() missing {len(missing_required_arg_names)} '
           f'required positional {arg_phrase}: {args_str}.'

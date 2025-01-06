@@ -15,8 +15,8 @@
 
 from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
-from pyglove.core import object_utils
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import list as pg_list
 from pyglove.core.symbolic import object as pg_object
@@ -112,8 +112,7 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
         return 'No diff'
       # When there is no diff, but the same value needs to be displayed
       # we simply return the value.
-      return object_utils.format(
-          self.value, compact, verbose, root_indent, **kwargs)
+      return utils.format(self.value, compact, verbose, root_indent, **kwargs)
     if self.is_leaf:
       exclude_keys = kwargs.pop('exclude_keys', None)
       exclude_keys = exclude_keys or set()
@@ -129,7 +128,7 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
             verbose=verbose,
             root_indent=root_indent,
             cls_name='',
-            bracket_type=object_utils.BracketType.SQUARE,
+            bracket_type=utils.BracketType.SQUARE,
             **kwargs,
         )
       if self.left is self.right:
@@ -141,7 +140,7 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
           verbose=verbose,
           root_indent=root_indent,
           cls_name=cls_name,
-          bracket_type=object_utils.BracketType.ROUND,
+          bracket_type=utils.BracketType.ROUND,
           **kwargs,
       )
 
@@ -155,7 +154,7 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
       max_summary_len_for_str: int = 80,
       **kwargs,
     ) -> Optional[tree_view.Html]:
-  # pytype: enable=annotation-type-mismatch
+    # pytype: enable=annotation-type-mismatch
     if not bool(self):
       v = self.value
       if (isinstance(v, (int, float, bool, type(None)))
@@ -199,11 +198,11 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
       *,
       view: tree_view.HtmlTreeView,
       parent: Any = None,
-      root_path: Optional[object_utils.KeyPath] = None,
+      root_path: Optional[utils.KeyPath] = None,
       css_classes: Optional[Sequence[str]] = None,
-      **kwargs
+      **kwargs,
   ) -> tree_view.Html:
-    root_path = root_path or object_utils.KeyPath()
+    root_path = root_path or utils.KeyPath()
     if not bool(self):
       if self.value == Diff.MISSING:
         root = tree_view.Html.element(
@@ -353,7 +352,8 @@ def diff(
     right: Any,
     flatten: bool = False,
     collapse: Union[bool, str, Callable[[Any, Any], bool]] = 'same_type',
-    mode: str = 'diff') -> object_utils.Nestable[Diff]:
+    mode: str = 'diff',
+) -> utils.Nestable[Diff]:
   """Inspect the symbolic diff between two objects.
 
   For example::
@@ -479,7 +479,7 @@ def diff(
       assert isinstance(container, base.Symbolic)
       return container.sym_hasattr, container.sym_getattr, container.sym_items
 
-  def _diff(x, y) -> Tuple[object_utils.Nestable[Diff], bool]:
+  def _diff(x, y) -> Tuple[utils.Nestable[Diff], bool]:
     if x is y or x == y:
       return (Diff(x, y), False)
     if not _should_collapse(x, y):
@@ -533,5 +533,5 @@ def diff(
   if not has_diff and mode == 'diff':
     diff_value = Diff()
   if flatten:
-    diff_value = object_utils.flatten(diff_value)
+    diff_value = utils.flatten(diff_value)
   return diff_value

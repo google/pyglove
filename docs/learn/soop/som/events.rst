@@ -93,7 +93,7 @@ which is triggered when any of the symbolic arguments are updated via
         self._z = self.x ** 2
 
 The ``_on_change`` event takes a ``updates`` argument, which is a dict of
-:class:`pg.KeyPath <pyglove.object_utils.KeyPath>` to
+:class:`pg.KeyPath <pyglove.utils.KeyPath>` to
 :class:`pg.FieldUpdate <pyglove.symbolic.FieldUpdate>` objects
 in case the user want to cherrypick the internal states to recompute based
 on the updates. For example::

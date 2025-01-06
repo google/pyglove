@@ -16,13 +16,13 @@
 import inspect
 from typing import Any, Callable, Dict, Iterable, Literal, Optional, Sequence, Tuple, Union
 
-from pyglove.core import object_utils
+from pyglove.core import utils
 from pyglove.core.symbolic import base as pg_symbolic
 from pyglove.core.views.html import base
 
 
-KeyPath = object_utils.KeyPath
-KeyPathSet = object_utils.KeyPathSet
+KeyPath = utils.KeyPath
+KeyPathSet = utils.KeyPathSet
 Html = base.Html
 HtmlView = base.HtmlView
 
@@ -940,10 +940,13 @@ class HtmlTreeView(HtmlView):
           return repr(value)
         else:
           return value
-      return object_utils.format(
+      return utils.format(
           value,
-          compact=False, verbose=False, hide_default_values=True,
-          python_format=True, use_inferred=True,
+          compact=False,
+          verbose=False,
+          hide_default_values=True,
+          python_format=True,
+          use_inferred=True,
           max_bytes_len=64,
       )
     return Html.element(
@@ -1257,7 +1260,7 @@ class HtmlTreeView(HtmlView):
     del parent, kwargs
     if content is None:
       content = Html.escape(
-          object_utils.format(
+          utils.format(
               value,
               root_path=root_path,
               compact=False,
@@ -1302,7 +1305,7 @@ class HtmlTreeView(HtmlView):
       class_name = f'{value.__name__}-class'
     else:
       class_name = type(value).__name__
-    return object_utils.camel_to_snake(class_name, '-')
+    return utils.camel_to_snake(class_name, '-')
 
   @staticmethod
   def init_uncollapse(
@@ -1341,40 +1344,40 @@ class HtmlTreeView(HtmlView):
   @staticmethod
   def get_passthrough_kwargs(
       *,
-      enable_summary: Optional[bool] = object_utils.MISSING_VALUE,
-      enable_summary_for_str: bool = object_utils.MISSING_VALUE,
-      max_summary_len_for_str: int = object_utils.MISSING_VALUE,
-      enable_summary_tooltip: bool = object_utils.MISSING_VALUE,
+      enable_summary: Optional[bool] = utils.MISSING_VALUE,
+      enable_summary_for_str: bool = utils.MISSING_VALUE,
+      max_summary_len_for_str: int = utils.MISSING_VALUE,
+      enable_summary_tooltip: bool = utils.MISSING_VALUE,
       key_style: Union[
           Literal['label', 'summary'],
-          Callable[[KeyPath, Any, Any], Literal['label', 'summary']]
-      ] = object_utils.MISSING_VALUE,
+          Callable[[KeyPath, Any, Any], Literal['label', 'summary']],
+      ] = utils.MISSING_VALUE,
       key_color: Union[
           Tuple[Optional[str], Optional[str]],
-          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = object_utils.MISSING_VALUE,
+          Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]],
+      ] = utils.MISSING_VALUE,
       include_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
-          None
-      ] = object_utils.MISSING_VALUE,
+          None,
+      ] = utils.MISSING_VALUE,
       exclude_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
-          None
-      ] = object_utils.MISSING_VALUE,
-      enable_key_tooltip: bool = object_utils.MISSING_VALUE,
+          None,
+      ] = utils.MISSING_VALUE,
+      enable_key_tooltip: bool = utils.MISSING_VALUE,
       uncollapse: Union[
           KeyPathSet, base.NodeFilter, None
-      ] = object_utils.MISSING_VALUE,
-      extra_flags: Optional[Dict[str, Any]] = object_utils.MISSING_VALUE,
-      highlight: Optional[base.NodeFilter] = object_utils.MISSING_VALUE,
-      lowlight: Optional[base.NodeFilter] = object_utils.MISSING_VALUE,
-      debug: bool = object_utils.MISSING_VALUE,
+      ] = utils.MISSING_VALUE,
+      extra_flags: Optional[Dict[str, Any]] = utils.MISSING_VALUE,
+      highlight: Optional[base.NodeFilter] = utils.MISSING_VALUE,
+      lowlight: Optional[base.NodeFilter] = utils.MISSING_VALUE,
+      debug: bool = utils.MISSING_VALUE,
       remove: Optional[Iterable[str]] = None,
       **kwargs,
   ):
-  # pytype: enable=annotation-type-mismatch
+    # pytype: enable=annotation-type-mismatch
     """Gets the rendering arguments to pass through to the child nodes."""
     del kwargs
     passthrough_kwargs = dict(
@@ -1386,23 +1389,22 @@ class HtmlTreeView(HtmlView):
         key_style=key_style,
         key_color=key_color,
         include_keys=(
-            include_keys if callable(include_keys)
-            else object_utils.MISSING_VALUE
+            include_keys if callable(include_keys) else utils.MISSING_VALUE
         ),
         exclude_keys=(
-            exclude_keys if callable(exclude_keys)
-            else object_utils.MISSING_VALUE
+            exclude_keys if callable(exclude_keys) else utils.MISSING_VALUE
         ),
         uncollapse=uncollapse,
         highlight=highlight,
         lowlight=lowlight,
         extra_flags=extra_flags,
-        debug=debug
+        debug=debug,
     )
     # Filter out missing values.
     passthrough_kwargs = {
-        k: v for k, v in passthrough_kwargs.items()
-        if v is not object_utils.MISSING_VALUE
+        k: v
+        for k, v in passthrough_kwargs.items()
+        if v is not utils.MISSING_VALUE
     }
     if remove:
       return {
@@ -1467,7 +1469,7 @@ class HtmlTreeView(HtmlView):
       )
 
     # Deep hierarchy merge.
-    return object_utils.merge_tree(call_kwargs, overriden_kwargs)
+    return utils.merge_tree(call_kwargs, overriden_kwargs)
 
   @staticmethod
   def merge_uncollapse(

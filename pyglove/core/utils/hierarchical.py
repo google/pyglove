@@ -14,9 +14,9 @@
 """Operating hierarchical object."""
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from pyglove.core.object_utils import common_traits
-from pyglove.core.object_utils.missing import MISSING_VALUE
-from pyglove.core.object_utils.value_location import KeyPath
+from pyglove.core.utils import common_traits
+from pyglove.core.utils.missing import MISSING_VALUE
+from pyglove.core.utils.value_location import KeyPath
 
 
 def traverse(value: Any,
@@ -33,7 +33,7 @@ def traverse(value: Any,
       print(path)
 
     tree = {'a': [{'c': [1, 2]}, {'d': {'g': (3, 4)}}], 'b': 'foo'}
-    pg.object_utils.traverse(tree, preorder_visit)
+    pg.utils.traverse(tree, preorder_visit)
 
     # Should print:
     # 'a'
@@ -48,10 +48,10 @@ def traverse(value: Any,
 
   Args:
     value: A maybe hierarchical value to traverse.
-    preorder_visitor_fn: Preorder visitor function.
-      Function signature is (path, value) -> should_continue.
-    postorder_visitor_fn: Postorder visitor function.
-      Function signature is (path, value) -> should_continue.
+    preorder_visitor_fn: Preorder visitor function. Function signature is (path,
+      value) -> should_continue.
+    postorder_visitor_fn: Postorder visitor function. Function signature is
+      (path, value) -> should_continue.
     root_path: The key path of the root value.
 
   Returns:
@@ -111,7 +111,7 @@ def transform(value: Any,
         'e': 'bar',
         'f': 4
     }
-    output = pg.object_utils.transform(inputs, _remove_int)
+    output = pg.utils.transform(inputs, _remove_int)
     assert output == {
         'a': {
             'c': ['bar'],
@@ -123,11 +123,11 @@ def transform(value: Any,
   Args:
     value: Any python value type. If value is a list of dict, transformation
       will occur recursively.
-    transform_fn: Transform function in signature
-      (path, value) -> new value
-      If new value is MISSING_VALUE, key will be deleted.
+    transform_fn: Transform function in signature (path, value) -> new value If
+      new value is MISSING_VALUE, key will be deleted.
     root_path: KeyPath of the root.
     inplace: If True, perform transformation in place.
+
   Returns:
     Transformed value.
   """
@@ -186,7 +186,7 @@ def flatten(src: Any, flatten_complex_keys: bool = True) -> Any:
         'b': 'hi',
         'c': None
     }
-    output = pg.object_utils.flatten(inputs)
+    output = pg.utils.flatten(inputs)
     assert output == {
         'a.e': 1,
         'a.f[0].g': 2,
@@ -200,9 +200,9 @@ def flatten(src: Any, flatten_complex_keys: bool = True) -> Any:
   Args:
     src: source value to flatten.
     flatten_complex_keys: if True, complex keys such as 'x.y' will be flattened
-    as 'x'.'y'. For example:
-      {'a': {'b.c': 1}} will be flattened into {'a.b.c': 1} if this flag is on,
-      otherwise it will be flattened as {'a[b.c]': 1}.
+      as 'x'.'y'. For example: {'a': {'b.c': 1}} will be flattened into
+      {'a.b.c': 1} if this flag is on, otherwise it will be flattened as
+      {'a[b.c]': 1}.
 
   Returns:
     For primitive value types, `src` itself will be returned.
@@ -464,7 +464,7 @@ def merge(value_list: List[Any],
             'f': 10
         }
     }
-    output = pg.object_utils.merge([original, patch])
+    output = pg.utils.merge([original, patch])
     assert output == {
         'a': 1,
         # b is updated.
@@ -486,14 +486,12 @@ def merge(value_list: List[Any],
       value. The merge process will keep input values intact.
     merge_fn: A function to handle value merge that will be called for updated
       or added keys. If a branch is added/updated, the root of branch will be
-      passed to merge_fn.
-      the signature of function is:
-      `(path, left_value, right_value) -> final_value`
-      If a key is only present in src dict, old_value is MISSING_VALUE;
-      If a key is only present in dest dict, new_value is MISSING_VALUE;
-      otherwise both new_value and old_value are filled.
-      If final_value is MISSING_VALUE for a path, it will be removed from its
-      parent collection.
+      passed to merge_fn. the signature of function is: `(path, left_value,
+      right_value) -> final_value` If a key is only present in src dict,
+      old_value is MISSING_VALUE; If a key is only present in dest dict,
+      new_value is MISSING_VALUE; otherwise both new_value and old_value are
+      filled. If final_value is MISSING_VALUE for a path, it will be removed
+      from its parent collection.
 
   Returns:
     A merged value.
