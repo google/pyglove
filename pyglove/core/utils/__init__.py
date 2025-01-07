@@ -155,5 +155,10 @@ from pyglove.core.utils.error_utils import ErrorInfo
 from pyglove.core.utils.timing import timeit
 from pyglove.core.utils.timing import TimeIt
 
+# Text color.
+from pyglove.core.utils.text_color import colored
+from pyglove.core.utils.text_color import colored_block
+from pyglove.core.utils.text_color import decolor
+
 # pylint: enable=g-importing-member
 # pylint: enable=g-bad-import-order
