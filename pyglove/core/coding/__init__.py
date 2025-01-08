@@ -18,6 +18,19 @@
 # pylint: disable=g-bad-import-order
 # pylint: disable=g-importing-member
 
+from pyglove.core.coding.errors import CodeError
+from pyglove.core.coding.errors import SerializationError
+
+from pyglove.core.coding.permissions import CodePermission
+
+from pyglove.core.coding.parsing import parse
+
+from pyglove.core.coding.execution import context
+from pyglove.core.coding.execution import get_context
+from pyglove.core.coding.execution import evaluate
+from pyglove.core.coding.execution import sandbox_call
+from pyglove.core.coding.execution import run
+
 from pyglove.core.coding.function_generation import NO_TYPE_ANNOTATION
 from pyglove.core.coding.function_generation import make_function
 
