@@ -302,6 +302,9 @@ docstr = utils.docstr
 catch_errors = utils.catch_errors
 timeit = utils.timeit
 
+colored = utils.colored
+decolor = utils.decolor
+
 # Symbols from 'views' sub-module.
 
 from pyglove.core import views
