@@ -220,14 +220,14 @@ def sandbox_call(
     q.close()
 
 
-def _maybe_call_in_sandbox(
+def maybe_sandbox_call(
     func: Callable[..., Any],
     *args,
     sandbox: Optional[bool] = None,
     timeout: Optional[float] = None,
     **kwargs
 ) -> Any:
-  """Calls a function with sandbox support.
+  """Maybe calls a function with sandboxing.
 
   Args:
     func: Function to call.
@@ -302,7 +302,7 @@ def run(
     TimeoutError: If the execution time exceeds the timeout.
     Exception: Exception  that are raised from the code.
   """
-  return _maybe_call_in_sandbox(
+  return maybe_sandbox_call(
       evaluate, code=code, global_vars=global_vars, permission=permission,
       returns_stdout=returns_stdout, outputs_intermediate=outputs_intermediate,
       sandbox=sandbox, timeout=timeout

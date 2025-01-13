@@ -242,7 +242,7 @@ class CallTest(unittest.TestCase):
       return x + y
 
     self.assertEqual(
-        execution._maybe_call_in_sandbox(foo, 1, y=2, sandbox=False),
+        execution.maybe_sandbox_call(foo, 1, y=2, sandbox=False),
         3
     )
 
@@ -251,7 +251,7 @@ class CallTest(unittest.TestCase):
       return x + y
 
     self.assertEqual(
-        execution._maybe_call_in_sandbox(foo, 1, y=2, sandbox=True),
+        execution.maybe_sandbox_call(foo, 1, y=2, sandbox=True),
         3
     )
 
@@ -262,14 +262,14 @@ class CallTest(unittest.TestCase):
       return A
 
     with self.assertRaises(errors.SerializationError):
-      execution._maybe_call_in_sandbox(make_cls, sandbox=True)
+      execution.maybe_sandbox_call(make_cls, sandbox=True)
 
   def test_call_with_automatic_sandboxing(self):
     def foo(x, y):
       return x + y
 
     self.assertEqual(
-        execution._maybe_call_in_sandbox(foo, 1, y=2),
+        execution.maybe_sandbox_call(foo, 1, y=2),
         3
     )
 
@@ -279,7 +279,7 @@ class CallTest(unittest.TestCase):
         x: str
       return A
 
-    self.assertTrue(inspect.isclass(execution._maybe_call_in_sandbox(make_cls)))
+    self.assertTrue(inspect.isclass(execution.maybe_sandbox_call(make_cls)))
 
 
 class RunTest(unittest.TestCase):
