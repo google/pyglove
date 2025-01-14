@@ -56,6 +56,16 @@ class TimeIt:
           **kwargs,
       )
 
+    def merge(self, other: 'TimeIt.Status') -> 'TimeIt.Status':
+      """Merges the status of two `pg.timeit`."""
+      assert other.name == self.name, (self.name, other.name)
+      return TimeIt.Status(
+          name=self.name,
+          elapse=self.elapse + other.elapse,
+          has_ended=self.has_ended and other.has_ended,
+          error=self.error or other.error,
+      )
+
   @dataclasses.dataclass
   class StatusSummary(json_conversion.JSONConvertible):
     """Aggregated summary for repeated calls for `pg.timeit`."""
@@ -125,7 +135,7 @@ class TimeIt:
     self._name: str = name
     self._start_time: Optional[float] = None
     self._end_time: Optional[float] = None
-    self._child_contexts: Dict[str, TimeIt] = {}
+    self._child_contexts: List[TimeIt] = []
     self._error: Optional[error_utils.ErrorInfo] = None
     self._parent: Optional[TimeIt] = None
 
@@ -137,13 +147,11 @@ class TimeIt:
   @property
   def children(self) -> List['TimeIt']:
     """Returns child contexts."""
-    return list(self._child_contexts.values())
+    return self._child_contexts
 
   def add(self, context: 'TimeIt'):
     """Adds a child context."""
-    if context.name in self._child_contexts:
-      raise ValueError(f'`timeit` with name {context.name!r} already exists.')
-    self._child_contexts[context.name] = context
+    self._child_contexts.append(context)
 
   def start(self):
     """Starts timing."""
@@ -206,11 +214,14 @@ class TimeIt:
             has_ended=self.has_ended, error=self._error,
         )
     }
-    for child in self._child_contexts.values():
+    for child in self._child_contexts:
       child_result = child.status()
       for k, v in child_result.items():
         key = f'{self.name}.{k}' if self.name else k
-        result[key] = v
+        if key in result:
+          result[key] = result[key].merge(v)
+        else:
+          result[key] = v
     return result
 
   def __enter__(self):

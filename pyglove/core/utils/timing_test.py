@@ -62,9 +62,9 @@ class TimeItTest(unittest.TestCase):
         self.assertFalse(r['node.child'].has_ended)
         self.assertTrue(r['node.child.grandchild'].has_ended)
 
-        with self.assertRaisesRegex(ValueError, '.* already exists'):
-          with timing.timeit('grandchild'):
-            pass
+        with timing.timeit('grandchild') as t3:
+          time.sleep(0.5)
+        self.assertEqual(t1.children, [t2, t3])
 
     elapse2 = t.elapse
     self.assertTrue(t.has_ended)
@@ -72,17 +72,20 @@ class TimeItTest(unittest.TestCase):
     time.sleep(0.5)
     self.assertEqual(elapse2, t.elapse)
 
-    statuss = t.status()
+    status = t.status()
     self.assertEqual(
-        list(statuss.keys()),
+        list(status.keys()),
         ['node', 'node.child', 'node.child.grandchild']
     )
     self.assertEqual(
-        sorted([v.elapse for v in statuss.values()], reverse=True),
-        [v.elapse for v in statuss.values()],
+        status['node.child.grandchild'].elapse, t2.elapse + t3.elapse
     )
-    self.assertTrue(all(v.has_ended for v in statuss.values()))
-    self.assertFalse(any(v.has_error for v in statuss.values()))
+    self.assertEqual(
+        sorted([v.elapse for v in status.values()], reverse=True),
+        [v.elapse for v in status.values()],
+    )
+    self.assertTrue(all(v.has_ended for v in status.values()))
+    self.assertFalse(any(v.has_error for v in status.values()))
     status = t.status()
     json_dict = json_conversion.to_json(status)
     status2 = json_conversion.from_json(json_dict)
