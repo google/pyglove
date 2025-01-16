@@ -86,6 +86,10 @@ from pyglove.core.symbolic.compounding import compound
 from pyglove.core.symbolic.compounding import compound_class
 from pyglove.core.symbolic.boilerplate import boilerplate_class
 
+from pyglove.core.symbolic.contextual_object import ContextualObject
+from pyglove.core.symbolic.contextual_object import ContextualAttribute
+from pyglove.core.symbolic.contextual_object import contextual_attribute
+
 # Inferential types.
 from pyglove.core.symbolic.base import Inferential
 

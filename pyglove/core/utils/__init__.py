@@ -155,6 +155,14 @@ from pyglove.core.utils.error_utils import ErrorInfo
 from pyglove.core.utils.timing import timeit
 from pyglove.core.utils.timing import TimeIt
 
+# Value override from context manager.
+from pyglove.core.utils.contextual import ContextualOverride
+from pyglove.core.utils.contextual import contextual_override
+from pyglove.core.utils.contextual import with_contextual_override
+from pyglove.core.utils.contextual import get_contextual_override
+from pyglove.core.utils.contextual import contextual_value
+from pyglove.core.utils.contextual import all_contextual_values
+
 # Text color.
 from pyglove.core.utils.text_color import colored
 from pyglove.core.utils.text_color import colored_block

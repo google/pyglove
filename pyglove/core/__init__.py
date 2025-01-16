@@ -125,6 +125,9 @@ compound_class = symbolic.compound_class
 # Method for declaring a boilerplated class from a symbolic instance.
 boilerplate_class = symbolic.boilerplate_class
 
+# Methods for contextual objects.
+ContextualObject = symbolic.ContextualObject
+contextual_attribute = symbolic.contextual_attribute
 
 #
 # Context manager for swapping wrapped class with their wrappers.
@@ -301,6 +304,10 @@ print = utils.print  # pylint: disable=redefined-builtin
 docstr = utils.docstr
 catch_errors = utils.catch_errors
 timeit = utils.timeit
+
+contextual_override = utils.contextual_override
+with_contextual_override = utils.with_contextual_override
+contextual_value = utils.contextual_value
 
 colored = utils.colored
 decolor = utils.decolor
