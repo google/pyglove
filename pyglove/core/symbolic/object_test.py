@@ -1914,6 +1914,32 @@ class InheritanceTest(unittest.TestCase):
     self.assertEqual(d.x, 'foo')
     self.assertEqual(d.foo(), 'B')
 
+  def test_multi_inheritance2(self):
+
+    class A(Object):
+      x: typing.Callable[[], Any]
+
+    class B(A):
+      def x(self):
+        return 1
+
+    class C(A):
+      pass
+
+    class D(C, B):
+      pass
+
+    self.assertIs(D.__schema__['x'].default_value, B.x)
+
+    class E(A):
+      def x(self):
+        return 2
+
+    class F(E, B):
+      pass
+
+    self.assertIs(F.__schema__['x'].default_value, E.x)
+
 
 class InitSignatureTest(unittest.TestCase):
   """Tests for `pg.Object.__init__` signature."""

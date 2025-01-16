@@ -107,6 +107,7 @@ class FieldTest(unittest.TestCase):
     self.assertEqual(f.description, 'a field')
     self.assertIsInstance(f.metadata, dict)
     self.assertEqual(len(f.metadata), 0)
+    self.assertIsNone(f.origin)
 
     # Cover the self comparison in __eq__.
     self.assertEqual(f, f)

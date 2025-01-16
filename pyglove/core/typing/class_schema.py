@@ -593,7 +593,9 @@ class Field(utils.Formattable, utils.JSONConvertible):
       key_spec: Union[KeySpec, str],
       value_spec: ValueSpec,
       description: Optional[str] = None,
-      metadata: Optional[Dict[str, Any]] = None):
+      metadata: Optional[Dict[str, Any]] = None,
+      origin: Optional[Type[Any]] = None,
+  ) -> None:
     """Constructor.
 
     Args:
@@ -602,6 +604,7 @@ class Field(utils.Formattable, utils.JSONConvertible):
       value_spec: Value specification of the field.
       description: Description of the field.
       metadata: A dict of objects as metadata for the field.
+      origin: The class that this field originates from.
 
     Raises:
       ValueError: metadata is not a dict.
@@ -612,6 +615,7 @@ class Field(utils.Formattable, utils.JSONConvertible):
     self._key = key_spec
     self._value = value_spec
     self._description = description
+    self._origin = origin
 
     if metadata and not isinstance(metadata, dict):
       raise ValueError('metadata must be a dict.')
@@ -666,6 +670,15 @@ class Field(utils.Formattable, utils.JSONConvertible):
       Metadata of this field as a dict.
     """
     return self._metadata
+
+  @property
+  def origin(self) -> Optional[Type[Any]]:
+    """The class that this field originates from."""
+    return self._origin
+
+  def set_origin(self, origin: Type[Any]) -> None:
+    """Sets the origin (source class) of this field."""
+    self._origin = origin
 
   def extend(self, base_field: 'Field') -> 'Field':
     """Extend current field based on a base field."""
@@ -745,6 +758,7 @@ class Field(utils.Formattable, utils.JSONConvertible):
             ('value', self._value, None),
             ('description', self._description, None),
             ('metadata', self._metadata, {}),
+            ('origin', self._origin, None),
         ],
         label=self.__class__.__name__,
         compact=compact,
@@ -869,7 +883,9 @@ class Schema(utils.Formattable, utils.JSONConvertible):
       description: Optional[str] = None,
       *,
       allow_nonconst_keys: bool = False,
-      metadata: Optional[Dict[str, Any]] = None):
+      metadata: Optional[Dict[str, Any]] = None,
+      for_cls: Optional[Type[Any]] = None,
+  ):
     """Constructor.
 
     Args:
@@ -882,6 +898,7 @@ class Schema(utils.Formattable, utils.JSONConvertible):
       description: Optional str as the description for the schema.
       allow_nonconst_keys: Whether immediate fields can use non-const keys.
       metadata: Optional dict of user objects as schema-level metadata.
+      for_cls: Optional class that this schema applies to.
 
     Raises:
       TypeError: Argument `fields` is not a list.
@@ -902,6 +919,11 @@ class Schema(utils.Formattable, utils.JSONConvertible):
     self._fields = {f.key: f for f in fields}
     self._description = description
     self._metadata = metadata or {}
+
+    if for_cls is not None:
+      for f in fields:
+        if f.origin is None:
+          f.set_origin(for_cls)
 
     self._dynamic_field = None
     for f in fields:
@@ -938,21 +960,27 @@ class Schema(utils.Formattable, utils.JSONConvertible):
     Returns:
       The merged schema.
     """
-    field_names = set()
-    fields = []
+    fields = {}
     kw_field = None
     for schema in schema_list:
       for key, field in schema.fields.items():
-        if key.is_const and key not in field_names:
-          fields.append(field)
-          field_names.add(key)
-        elif not key.is_const and kw_field is None:
+        if key.is_const:
+          if key not in fields or (
+              field.origin is not None
+              and fields[key].origin is not None
+              and issubclass(field.origin, fields[key].origin)
+          ):
+            fields[key] = field
+        elif kw_field is None:
           kw_field = field
 
     if kw_field is not None:
-      fields.append(kw_field)
+      fields[kw_field.key] = kw_field
     return Schema(
-        fields, name=name, description=description, allow_nonconst_keys=True
+        list(fields.values()),
+        name=name,
+        description=description,
+        allow_nonconst_keys=True
     )
 
   def extend(self, base: 'Schema') -> 'Schema':
@@ -1415,6 +1443,7 @@ def create_schema(
     allow_nonconst_keys: bool = False,
     metadata: Optional[Dict[str, Any]] = None,
     description: Optional[str] = None,
+    for_cls: Optional[Type[Any]] = None,
     parent_module: Optional[types.ModuleType] = None
 ) -> Schema:
   """Creates ``Schema`` from a list of ``Field``s or equivalences.
@@ -1456,6 +1485,7 @@ def create_schema(
     allow_nonconst_keys: Whether to allow non const keys in schema.
     metadata: Optional dict of user objects as schema-level metadata.
     description: Optional description of the schema.
+    for_cls: (Optional) the class that this schema applies to.
     parent_module: (Optional) parent module for defining this schema, which will
       be used for forward reference lookup.
 
@@ -1479,6 +1509,7 @@ def create_schema(
       allow_nonconst_keys=allow_nonconst_keys,
       metadata=metadata,
       description=description,
+      for_cls=for_cls,
   )
 
 

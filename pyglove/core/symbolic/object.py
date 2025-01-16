@@ -96,6 +96,7 @@ class ObjectMeta(abc.ABCMeta):
         base_schema_list=[cls.__schema__] if extend else [],
         allow_nonconst_keys=True,
         metadata=metadata,
+        for_cls=cls,
     )
     cls.apply_schema(schema)
 
@@ -193,6 +194,7 @@ class ObjectMeta(abc.ABCMeta):
             field.value.freeze(attr_value, apply_before_use=False)
         else:
           field.value.set_default(attr_value)
+        field.set_origin(cls)
 
 
 # Use ObjectMeta as meta class to inherit schema and type_name property.
@@ -344,6 +346,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
           base_schema_list=base_schema_list,
           allow_nonconst_keys=True,
           metadata={},
+          for_cls=user_cls,
       )
 
       # Freeze callable symbolic attributes if they are provided as methods.
