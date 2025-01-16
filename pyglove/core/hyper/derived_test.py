@@ -120,7 +120,7 @@ class ValueReferenceTest(unittest.TestCase):
     sd.y = ValueReference(['x'])
     # TODO(daiyip): Enable this test once static analysis is done
     # on derived values.
-    # with self.assertRaisesRegexp(
+    # with self.assertRaisesRegex(
     #     TypeError, ''):
     #   sd.z = ValueReference(['x'])
 
