@@ -18,6 +18,7 @@ import contextlib
 import io
 import multiprocessing
 import pickle
+import queue
 from typing import Any, Callable, Dict, Optional, Union
 
 from pyglove.core import utils
@@ -197,27 +198,29 @@ def sandbox_call(
       q.put(e)
 
   q = multiprocessing.Queue()
+  p = multiprocessing.Process(
+      target=_call, args=tuple([q] + list(args)), kwargs=kwargs
+  )
   try:
-    p = multiprocessing.Process(
-        target=_call, args=tuple([q] + list(args)), kwargs=kwargs)
     p.start()
-    p.join(timeout=timeout)
+    x = q.get(timeout=timeout)
+  except queue.Empty as e:
     if p.is_alive():
       # We use `kill` instead of `terminate` to release process resources
       # right away.
       p.kill()
-      raise TimeoutError(f'Execution time exceed {timeout} seconds.')
-    x = q.get()
-    if isinstance(x, Exception):
-      raise x
-    try:
-      return pickle.loads(x)
-    except Exception as e:
-      raise errors.SerializationError(
-          'Cannot deserialize the output from sandbox.', e
-      ) from e
+    raise TimeoutError(f'Execution time exceed {timeout} seconds.') from e
   finally:
     q.close()
+
+  if isinstance(x, Exception):
+    raise x
+  try:
+    return pickle.loads(x)
+  except Exception as e:
+    raise errors.SerializationError(
+        'Cannot deserialize the output from sandbox.', e
+    ) from e
 
 
 def maybe_sandbox_call(
