@@ -150,6 +150,27 @@ class EvaluateTest(unittest.TestCase):
     )
     self.assertEqual(ret, 'z is 1\n')
 
+  def test_attribute_assignment(self):
+    ret = execution.evaluate(
+        inspect.cleandoc(
+            """
+            class A:
+              def __init__(self, x):
+                self.x = x
+
+            a = A(1)
+            a.x = 2
+            """
+        ),
+        permission=permissions.CodePermission.ALL,
+        outputs_intermediate=True,
+    )
+    self.assertEqual(
+        list(ret.keys()), ['A', 'a', '__result__', '__stdout__']
+    )
+    self.assertTrue(inspect.isclass(ret['A']))
+    self.assertEqual(ret['__result__'], 2)
+
   def test_complex(self):
     ret = execution.evaluate(
         inspect.cleandoc(

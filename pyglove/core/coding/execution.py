@@ -108,7 +108,8 @@ def evaluate(
 
       if isinstance(last_expr, ast.Assign):
         for name_node in last_expr.targets:
-          result_vars.append(name_node.id)
+          if isinstance(name_node, ast.Name):
+            result_vars.append(name_node.id)
 
       last_expr = ast.Expression(last_expr.value)  # pytype: disable=attribute-error
 
