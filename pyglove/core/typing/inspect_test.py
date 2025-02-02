@@ -13,7 +13,7 @@
 # limitations under the License.
 """Tests for generic type utility."""
 
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Protocol, TypeVar
 import unittest
 
 from pyglove.core.typing import callable_signature
@@ -60,6 +60,26 @@ class AA1(AA):
   class BB1:
     class CC1:
       pass
+
+
+class E(Protocol):
+
+  def __call__(self, x: int) -> int:
+    pass
+
+
+class E1(E):
+  pass
+
+
+class E2(E, Protocol):
+
+  def bar(self, x: int) -> int:
+    pass
+
+
+class F(Protocol[XType]):
+  x: XType
 
 
 class InspectTest(unittest.TestCase):
@@ -111,6 +131,16 @@ class InspectTest(unittest.TestCase):
     self.assertFalse(inspect.is_subclass(B1[Str], B[str]))
     self.assertFalse(inspect.is_subclass(B1[Str], A[str, int]))
 
+    # Protocol check.
+    self.assertTrue(inspect.is_subclass(E, E))
+    self.assertTrue(inspect.is_subclass(E, Protocol))
+    # We do not really check protocol comformance at runtime for performance
+    # reasons. So all user classes are considered as subclasses of a Protocol
+    # class.
+    self.assertTrue(inspect.is_subclass(A, E))
+    self.assertFalse(inspect.is_subclass(str, E))
+    self.assertFalse(inspect.is_subclass(1, E))
+
     # Test tuple cases.
     self.assertTrue(inspect.is_subclass(int, (str, int)))
     self.assertTrue(inspect.is_subclass(C, (int, A[str, int])))
@@ -124,7 +154,24 @@ class InspectTest(unittest.TestCase):
     self.assertTrue(inspect.is_instance(D(), A[str, int]))
     self.assertTrue(inspect.is_instance(D(), B[str]))
 
+  def test_is_protocol(self):
+    self.assertFalse(inspect.is_protocol(1))
+    self.assertFalse(inspect.is_protocol(str))
+    self.assertFalse(inspect.is_protocol(Any))
+    self.assertFalse(inspect.is_protocol(A))
+    self.assertFalse(inspect.is_protocol(A[str, int]))
+    self.assertFalse(inspect.is_protocol(Protocol))
+    self.assertFalse(inspect.is_protocol(Protocol[XType]))
+    self.assertTrue(inspect.is_protocol(E))
+    # subclasses of a Protocol class will downgrade if it's not explicitly
+    # inherited from Protocol.
+    # See https://typing.readthedocs.io/en/latest/spec/protocol.html
+    self.assertFalse(inspect.is_protocol(E1))
+    self.assertTrue(inspect.is_protocol(E2))
+    self.assertTrue(inspect.is_protocol(F))
+
   def test_is_generic(self):
+    self.assertFalse(inspect.is_generic(1))
     self.assertFalse(inspect.is_generic(str))
     self.assertFalse(inspect.is_generic(Any))
     self.assertFalse(inspect.is_generic(A))

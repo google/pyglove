@@ -30,6 +30,11 @@ def is_subclass(
   """An issubclass extension that supports Any and generic types."""
 
   def _is_subclass(src: Type[Any], target: Type[Any]) -> bool:
+    if is_protocol(target):
+      # NOTE(daiyip): loose runtime check for Protocol.
+      # As runtime protocol check (through decorating the protocol class with
+      # @typing.runtime_checkable) might be unreliable and very slow.
+      return inspect.isclass(src) and src.__module__ != 'builtins'
     if target is Any:
       return True
     elif src is Any:
@@ -76,6 +81,17 @@ def is_subclass(
   if isinstance(target, tuple):
     return any(_is_subclass(src, x) for x in target)
   return _is_subclass(src, target)
+
+
+def is_protocol(maybe_protocol: Type[Any]) -> bool:
+  """Returns True if a type is a protocol."""
+  if not inspect.isclass(maybe_protocol):
+    return False
+  maybe_protocol = typing.get_origin(maybe_protocol) or maybe_protocol
+  for base in maybe_protocol.__bases__:
+    if base is typing.Protocol or typing.get_origin(base) is typing.Protocol:
+      return True
+  return False
 
 
 def is_generic(maybe_generic: Type[Any]) -> bool:

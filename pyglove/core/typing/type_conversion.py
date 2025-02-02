@@ -24,11 +24,13 @@ from pyglove.core.typing import inspect as pg_inspect
 class _TypeConverterRegistry:
   """Type converter registry."""
 
+  _JSON_VALUE_TYPES = frozenset(
+      [int, float, bool, type(None), list, tuple, dict, str]
+  )
+
   def __init__(self):
     """Constructor."""
     self._converter_list = []
-    self._json_value_types = set(
-        [int, float, bool, type(None), list, tuple, dict, str])
 
   def register(
       self,
@@ -45,14 +47,17 @@ class _TypeConverterRegistry:
       raise TypeError('Argument \'src\' and \'dest\' must be a type or '
                       'tuple of types.')
     if isinstance(dest, tuple):
-      json_value_convertible = any(d in self._json_value_types for d in dest)
+      json_value_convertible = any(d in self._JSON_VALUE_TYPES for d in dest)
     else:
-      json_value_convertible = dest in self._json_value_types
+      json_value_convertible = dest in self._JSON_VALUE_TYPES
     self._converter_list.append((src, dest, convert_fn, json_value_convertible))
 
   def get_converter(
       self, src: Type[Any], dest: Type[Any]) -> Optional[Callable[[Any], Any]]:
     """Get converter from source type to destination type."""
+    if pg_inspect.is_protocol(dest):
+      return None
+
     # TODO(daiyip): Right now we don't see the need of a large number of
     # converters, thus its affordable to iterate the list.
     # We may consider more efficient way to do lookup in future.
