@@ -16,6 +16,7 @@
 import abc
 import functools
 import inspect
+import sys
 import typing
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
@@ -154,7 +155,9 @@ class ObjectMeta(abc.ABCMeta):
       if typing.get_origin(attr_annotation) is typing.ClassVar:
         continue
 
-      field = pg_typing.Field.from_annotation(key, attr_annotation)
+      field = pg_typing.Field.from_annotation(
+          key, attr_annotation, parent_module=sys.modules[cls.__module__]
+      )
       if isinstance(key, pg_typing.ConstStrKey):
         attr_value = cls.__dict__.get(attr_name, pg_typing.MISSING_VALUE)
         if attr_value != pg_typing.MISSING_VALUE:

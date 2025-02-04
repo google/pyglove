@@ -31,24 +31,31 @@ from pyglove.core.typing.class_schema import Schema
 class ForwardRefTest(unittest.TestCase):
   """Test for `ForwardRef` class."""
 
+  class A:
+    pass
+
   def setUp(self):
     super().setUp()
     self._module = sys.modules[__name__]
 
   def test_basics(self):
-    r = class_schema.ForwardRef(self._module, 'FieldTest')
+    r = class_schema.ForwardRef(self._module, 'ForwardRefTest.A')
     self.assertIs(r.module, self._module)
-    self.assertEqual(r.name, 'FieldTest')
-    self.assertEqual(r.qualname, f'{self._module.__name__}.FieldTest')
+    self.assertEqual(r.name, 'A')
+    self.assertEqual(r.qualname, 'ForwardRefTest.A')
+    self.assertEqual(r.type_id, f'{self._module.__name__}.ForwardRefTest.A')
 
   def test_resolved(self):
-    self.assertTrue(class_schema.ForwardRef(self._module, 'FieldTest').resolved)
+    self.assertTrue(
+        class_schema.ForwardRef(self._module, 'ForwardRefTest.A').resolved
+    )
     self.assertFalse(class_schema.ForwardRef(self._module, 'Foo').resolved)
 
   def test_as_annotation(self):
     self.assertEqual(
-        class_schema.ForwardRef(self._module, 'FieldTest').as_annotation(),
-        FieldTest,
+        class_schema.ForwardRef(
+            self._module, 'ForwardRefTest.A').as_annotation(),
+        ForwardRefTest.A,
     )
     self.assertEqual(
         class_schema.ForwardRef(self._module, 'Foo').as_annotation(), 'Foo'
@@ -56,7 +63,8 @@ class ForwardRefTest(unittest.TestCase):
 
   def test_cls(self):
     self.assertIs(
-        class_schema.ForwardRef(self._module, 'FieldTest').cls, FieldTest
+        class_schema.ForwardRef(self._module, 'ForwardRefTest.A').cls,
+        ForwardRefTest.A
     )
 
     with self.assertRaisesRegex(TypeError, '.* does not exist in module'):

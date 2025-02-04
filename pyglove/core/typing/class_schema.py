@@ -97,9 +97,10 @@ class KeySpec(utils.Formattable, utils.JSONConvertible):
 class ForwardRef(utils.Formattable):
   """Forward type reference."""
 
-  def __init__(self, module: types.ModuleType, name: str):
+  def __init__(self, module: types.ModuleType, qualname: str):
     self._module = module
-    self._name = name
+    self._qualname = qualname
+    self._resolved_value = None
 
   @property
   def module(self) -> types.ModuleType:
@@ -109,35 +110,54 @@ class ForwardRef(utils.Formattable):
   @property
   def name(self) -> str:
     """Returns the name of the type reference."""
-    return self._name
+    return self._qualname.split('.')[-1]
 
   @property
   def qualname(self) -> str:
     """Returns the qualified name of the reference."""
-    return f'{self.module.__name__}.{self.name}'
+    return self._qualname
+
+  @property
+  def type_id(self) -> str:
+    """Returns the type id of the reference."""
+    return f'{self.module.__name__}.{self.qualname}'
 
   def as_annotation(self) -> Union[Type[Any], str]:
     """Returns the forward reference as an annotation."""
-    return self.cls if self.resolved else self.name
+    return self.cls if self.resolved else self.qualname
 
   @property
   def resolved(self) -> bool:
     """Returns True if the symbol for the name is resolved.."""
-    return hasattr(self.module, self.name)
+    if self._resolved_value is None:
+      self._resolved_value = self._resolve()
+    return self._resolved_value is not None
+
+  def _resolve(self) -> Optional[Any]:
+    names = self._qualname.split('.')
+    parent_obj = self.module
+    for name in names:
+      parent_obj = getattr(parent_obj, name, utils.MISSING_VALUE)
+      if parent_obj == utils.MISSING_VALUE:
+        return None
+    if not inspect.isclass(parent_obj):
+      raise TypeError(
+          f'{self.qualname!r} from module {self.module.__name__!r} '
+          'is not a class.'
+      )
+    return parent_obj
 
   @property
   def cls(self) -> Type[Any]:
     """Returns the resolved reference class.."""
-    reference = getattr(self.module, self.name, None)
-    if reference is None:
-      raise TypeError(
-          f'{self.name!r} does not exist in module {self.module.__name__!r}'
-      )
-    elif not inspect.isclass(reference):
-      raise TypeError(
-          f'{self.name!r} from module {self.module.__name__!r} is not a class.'
-      )
-    return reference
+    if self._resolved_value is None:
+      self._resolved_value = self._resolve()
+      if self._resolved_value is None:
+        raise TypeError(
+            f'{self.qualname!r} does not exist in '
+            f'module {self.module.__name__!r}'
+        )
+    return self._resolved_value
 
   def format(
       self,
@@ -150,7 +170,7 @@ class ForwardRef(utils.Formattable):
     return utils.kvlist_str(
         [
             ('module', self.module.__name__, None),
-            ('name', self.name, None),
+            ('name', self.qualname, None),
         ],
         label=self.__class__.__name__,
         compact=compact,
@@ -164,7 +184,7 @@ class ForwardRef(utils.Formattable):
     if self is other:
       return True
     elif isinstance(other, ForwardRef):
-      return self.module is other.module and self.name == other.name
+      return self.module is other.module and self.qualname == other.qualname
     elif inspect.isclass(other):
       return self.resolved and self.cls is other  # pytype: disable=bad-return-type
 
@@ -173,11 +193,11 @@ class ForwardRef(utils.Formattable):
     return not self.__eq__(other)
 
   def __hash__(self) -> int:
-    return hash((self.module, self.name))
+    return hash((self.module, self.qualname))
 
   def __deepcopy__(self, memo) -> 'ForwardRef':
     """Override deep copy to avoid copying module."""
-    return ForwardRef(self.module, self.name)
+    return ForwardRef(self.module, self.qualname)
 
 
 class ValueSpec(utils.Formattable, utils.JSONConvertible):
@@ -628,9 +648,11 @@ class Field(utils.Formattable, utils.JSONConvertible):
       annotation: Any,
       description: Optional[str] = None,
       metadata: Optional[Dict[str, Any]] = None,
-      auto_typing=True) -> 'Field':
+      auto_typing=True,
+      parent_module: Optional[types.ModuleType] = None
+      ) -> 'Field':
     """Gets a Field from annotation."""
-    del key, annotation, description, metadata, auto_typing
+    del key, annotation, description, metadata, auto_typing, parent_module
     assert False, 'Overridden in `annotation_conversion.py`.'
 
   @property

@@ -375,6 +375,9 @@ import pyglove.core.typing.annotation_conversion  # pylint: disable=unused-impor
 # Interface for custom typing.
 from pyglove.core.typing.custom_typing import CustomTyping
 
+# Annotation conversion
+from pyglove.core.typing.annotation_conversion import annotation_from_str
+
 # Callable signature.
 from pyglove.core.typing.callable_signature import Argument
 from pyglove.core.typing.callable_signature import CallableType
