@@ -100,7 +100,6 @@ class ForwardRef(utils.Formattable):
   def __init__(self, module: types.ModuleType, qualname: str):
     self._module = module
     self._qualname = qualname
-    self._resolved_value = None
 
   @property
   def module(self) -> types.ModuleType:
@@ -129,9 +128,7 @@ class ForwardRef(utils.Formattable):
   @property
   def resolved(self) -> bool:
     """Returns True if the symbol for the name is resolved.."""
-    if self._resolved_value is None:
-      self._resolved_value = self._resolve()
-    return self._resolved_value is not None
+    return self._resolve() is not None
 
   def _resolve(self) -> Optional[Any]:
     names = self._qualname.split('.')
@@ -150,14 +147,13 @@ class ForwardRef(utils.Formattable):
   @property
   def cls(self) -> Type[Any]:
     """Returns the resolved reference class.."""
-    if self._resolved_value is None:
-      self._resolved_value = self._resolve()
-      if self._resolved_value is None:
-        raise TypeError(
-            f'{self.qualname!r} does not exist in '
-            f'module {self.module.__name__!r}'
-        )
-    return self._resolved_value
+    reference = self._resolve()
+    if reference is None:
+      raise TypeError(
+          f'{self.qualname!r} does not exist in '
+          f'module {self.module.__name__!r}'
+      )
+    return reference
 
   def format(
       self,

@@ -27,7 +27,8 @@ from pyglove.core.typing.class_schema import ValueSpec
 
 
 class Foo:
-  pass
+  class Bar:
+    pass
 
 
 _MODULE = sys.modules[__name__]
@@ -57,6 +58,18 @@ class AnnotationFromStrTest(unittest.TestCase):
     self.assertEqual(
         annotation_conversion.annotation_from_str('tuple[int, str]'),
         tuple[int, str]
+    )
+    self.assertEqual(
+        annotation_conversion.annotation_from_str('list[Foo]', _MODULE),
+        list[Foo]
+    )
+    self.assertEqual(
+        annotation_conversion.annotation_from_str('list[Foo.Bar]', _MODULE),
+        list[Foo.Bar]
+    )
+    self.assertEqual(
+        annotation_conversion.annotation_from_str('list[Foo.Baz]', _MODULE),
+        list[typing.ForwardRef('Foo.Baz', False, _MODULE)]
     )
 
   def test_generic_types(self):
@@ -139,6 +152,28 @@ class AnnotationFromStrTest(unittest.TestCase):
         ]
     )
 
+  def test_reloading(self):
+    setattr(_MODULE, '__reloading__', True)
+    self.assertEqual(
+        annotation_conversion.annotation_from_str(
+            'typing.List[Foo]', _MODULE),
+        typing.List[
+            typing.ForwardRef(
+                'Foo', False, _MODULE
+            )
+        ]
+    )
+    self.assertEqual(
+        annotation_conversion.annotation_from_str(
+            'typing.List[Foo.Bar]', _MODULE),
+        typing.List[
+            typing.ForwardRef(
+                'Foo.Bar', False, _MODULE
+            )
+        ]
+    )
+    delattr(_MODULE, '__reloading__')
+
   def test_bad_annotation(self):
     with self.assertRaisesRegex(SyntaxError, 'Expected type identifier'):
       annotation_conversion.annotation_from_str('typing.List[]')
@@ -151,6 +186,9 @@ class AnnotationFromStrTest(unittest.TestCase):
 
     with self.assertRaisesRegex(SyntaxError, 'Expected "]"'):
       annotation_conversion.annotation_from_str('typing.Callable[[x')
+
+    with self.assertRaisesRegex(TypeError, '.* does not exist'):
+      annotation_conversion.annotation_from_str('typing.Foo', _MODULE)
 
 
 class FieldFromAnnotationTest(unittest.TestCase):

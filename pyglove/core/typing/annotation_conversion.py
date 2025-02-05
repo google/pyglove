@@ -195,24 +195,64 @@ def annotation_from_str(
     return t_id
 
   def _resolve(type_id: str):
+
+    def _as_forward_ref() -> typing.ForwardRef:
+      return typing.ForwardRef(type_id, False, parent_module)  # pytype: disable=not-callable
+
     def _resolve_name(name: str, parent_obj: typing.Any):
       if name == 'None':
-        return None
+        return None, True
       if parent_obj is not None and hasattr(parent_obj, name):
-        return getattr(parent_obj, name)
+        return getattr(parent_obj, name), False
       if hasattr(builtins, name):
-        return getattr(builtins, name)
+        return getattr(builtins, name), True
       if type_id == '...':
-        return ...
-      return utils.MISSING_VALUE
-    parent_obj = parent_module
-    for name in type_id.split('.'):
-      parent_obj = _resolve_name(name, parent_obj)
-      if parent_obj == utils.MISSING_VALUE:
-        return typing.ForwardRef(     # pytype: disable=not-callable
-            type_id, False, parent_module
-        )
-    return parent_obj
+        return ..., True
+      return utils.MISSING_VALUE, False
+
+    names = type_id.split('.')
+    if len(names) == 1:
+      reference, is_builtin = _resolve_name(names[0], parent_module)
+      if is_builtin:
+        return reference
+      if not is_builtin and (
+          # When reference is not found, we should treat it as a forward
+          # reference.
+          reference == utils.MISSING_VALUE
+          # When module is being reloaded, we should treat all non-builtin
+          # references as forward references.
+          or getattr(parent_module, '__reloading__', False)
+      ):
+        return _as_forward_ref()
+      return reference
+
+    root_obj, _ = _resolve_name(names[0], parent_module)
+    # When root object is not found, we should treat it as a forward reference.
+    if root_obj == utils.MISSING_VALUE:
+      return _as_forward_ref()
+
+    parent_obj = root_obj
+    # When root object is a module, we should treat reference to its children
+    # as non-forward references.
+    if inspect.ismodule(root_obj):
+      for name in names[1:]:
+        parent_obj, _ = _resolve_name(name, parent_obj)
+        if parent_obj == utils.MISSING_VALUE:
+          raise TypeError(f'{type_id!r} does not exist.')
+      return parent_obj
+    # When root object is non-module variable of current module, and when the
+    # module is being reloaded, we should treat reference to its children as
+    # forward references.
+    elif getattr(parent_module, '__reloading__', False):
+      return _as_forward_ref()
+    # When root object is non-module variable of current module, we should treat
+    # unresolved reference to its children as forward references.
+    else:
+      for name in names[1:]:
+        parent_obj, _ = _resolve_name(name, parent_obj)
+        if parent_obj == utils.MISSING_VALUE:
+          return _as_forward_ref()
+      return parent_obj
 
   root = _maybe_union()
   if _pos() != len(s):
