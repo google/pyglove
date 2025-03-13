@@ -140,9 +140,9 @@ class MemoryFileSystemTest(unittest.TestCase):
     # Make dirs.
     fs.mkdirs(os.path.join(dir_a, 'b/c/d'))
 
+    fs.mkdirs(os.path.join(dir_a, 'b/c/d'))
     with self.assertRaises(FileExistsError):
-      fs.mkdirs(os.path.join(dir_a, 'b/c/d'))
-    fs.mkdirs(os.path.join(dir_a, 'b/c/d'), exist_ok=True)
+      fs.mkdirs(os.path.join(dir_a, 'b/c/d'), exist_ok=False)
     with self.assertRaises(NotADirectoryError):
       fs.mkdirs(os.path.join(file1, 'e'))
 

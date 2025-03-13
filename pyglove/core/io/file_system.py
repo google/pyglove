@@ -99,7 +99,7 @@ class FileSystem(metaclass=abc.ABCMeta):
       self,
       path: Union[str, os.PathLike[str]],
       mode: int = 0o777,
-      exist_ok: bool = False,
+      exist_ok: bool = True,
   ) -> None:
     """Makes a directory chain based on a path."""
 
@@ -185,7 +185,7 @@ class StdFileSystem(FileSystem):
       self,
       path: Union[str, os.PathLike[str]],
       mode: int = 0o777,
-      exist_ok: bool = False,
+      exist_ok: bool = True,
   ) -> None:
     os.makedirs(path, mode, exist_ok)
 
@@ -309,7 +309,7 @@ class MemoryFileSystem(FileSystem):
       self,
       path: Union[str, os.PathLike[str]],
       mode: int = 0o777,
-      exist_ok: bool = False,
+      exist_ok: bool = True,
   ) -> None:
     del mode
     current = self._root
@@ -472,7 +472,7 @@ def mkdir(path: Union[str, os.PathLike[str]], mode: int = 0o777) -> None:
 def mkdirs(
     path: Union[str, os.PathLike[str]],
     mode: int = 0o777,
-    exist_ok: bool = False,
+    exist_ok: bool = True,
 ) -> None:
   """Makes a directory chain."""
   _fs.get(path).mkdirs(path, mode=mode, exist_ok=exist_ok)
