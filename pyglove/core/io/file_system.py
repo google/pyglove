@@ -77,6 +77,10 @@ class FileSystem(metaclass=abc.ABCMeta):
     """Opens a file with a path."""
 
   @abc.abstractmethod
+  def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:
+    """Changes the permission of a file."""
+
+  @abc.abstractmethod
   def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     """Returns True if a path exists."""
 
@@ -166,6 +170,9 @@ class StdFileSystem(FileSystem):
       self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
   ) -> File:
     return StdFile(io.open(path, mode, **kwargs))
+
+  def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:
+    os.chmod(path, mode)
 
   def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     return os.path.exists(path)
@@ -271,6 +278,10 @@ class MemoryFileSystem(FileSystem):
     if file is None:
       raise FileNotFoundError(path)
     return file
+
+  def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:
+    # No-op.
+    del path, mode
 
   def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     return self._locate(path) is not None
@@ -411,6 +422,11 @@ def open(path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs) -> File:
   return _fs.get(path).open(path, mode, **kwargs)
 
 
+def chmod(path: Union[str, os.PathLike[str]], mode: int) -> None:
+  """Changes the permission of a file."""
+  _fs.get(path).chmod(path, mode)
+
+
 def readfile(
     path: Union[str, os.PathLike[str]],
     mode: str = 'r',
@@ -432,11 +448,14 @@ def writefile(
     content: Union[str, bytes],
     *,
     mode: str = 'w',
+    perms: Optional[int] = 0o664,   # Default to world-readable.
     **kwargs,
 ) -> None:
   """Writes content to a file."""
   with _fs.get(path).open(path, mode=mode, **kwargs) as f:
     f.write(content)
+  if perms is not None:
+    chmod(path, perms)
 
 
 def rm(path: Union[str, os.PathLike[str]]) -> None:

@@ -26,9 +26,11 @@ class Sequence(metaclass=abc.ABCMeta):
 
   def __init__(
       self,
+      perms: Optional[int] = None,
       serializer: Optional[Callable[[Any], Union[bytes, str]]] = None,
       deserializer: Optional[Callable[[Union[bytes, str]], Any]] = None
   ):
+    self._perms = perms
     self._serializer = serializer
     self._deserializer = deserializer
 
@@ -88,6 +90,7 @@ class SequenceIO(metaclass=abc.ABCMeta):
       path: Union[str, os.PathLike[str]],
       mode: str,
       *,
+      perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
       **kwargs
@@ -130,6 +133,7 @@ def open_sequence(
     path: Union[str, os.PathLike[str]],
     mode: str = 'r',
     *,
+    perms: Optional[int] = 0o664,  # Default to world-readable.
     serializer: Optional[
         Callable[[Any], Union[bytes, str]]
     ] = None,
@@ -143,6 +147,7 @@ def open_sequence(
   Args:
     path: The path to the sequence.
     mode: The mode of the sequence.
+    perms: (Optional) The permissions of the sequence.
     serializer: (Optional) A serializer function for converting a structured
       object to a string or bytes.
     deserializer: (Optional) A deserializer function for converting a string or
@@ -158,7 +163,7 @@ def open_sequence(
     if make_dirs_if_not_exist:
       file_system.mkdirs(parent_dir, exist_ok=True)
   return _registry.get(path).open(
-      path, mode, serializer=serializer, deserializer=deserializer
+      path, mode, perms=perms, serializer=serializer, deserializer=deserializer
   )
 
 
@@ -170,10 +175,12 @@ class MemorySequence(Sequence):
       path: str,
       mode: str,
       records: list[Union[str, bytes]],
+      *,
+      perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]]
   ):
-    super().__init__(serializer, deserializer)
+    super().__init__(perms, serializer, deserializer)
     self._path = path
     self._mode = mode
     self._records = records
@@ -226,6 +233,7 @@ class MemorySequenceIO(SequenceIO):
       path: Union[str, os.PathLike[str]],
       mode: str,
       *,
+      perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
       **kwargs
@@ -236,7 +244,7 @@ class MemorySequenceIO(SequenceIO):
       self._root[path] = []
     return MemorySequence(
         path, mode, self._root[path],
-        serializer=serializer, deserializer=deserializer
+        perms=perms, serializer=serializer, deserializer=deserializer
     )
 
 
@@ -248,12 +256,16 @@ class LineSequence(Sequence):
 
   def __init__(
       self,
-      file: file_system.File,
+      path: str,
+      mode: str,
+      perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
   ) -> None:
-    super().__init__(serializer, deserializer)
-    self._file = file
+    super().__init__(perms, serializer, deserializer)
+    self._path = path
+    self._mode = mode
+    self._file = file_system.open(path, mode)
 
   def __len__(self):
     raise NotImplementedError(
@@ -277,6 +289,8 @@ class LineSequence(Sequence):
 
   def close(self) -> None:
     self._file.close()
+    if ('w' in self._mode or 'a' in self._mode) and self._perms is not None:
+      file_system.chmod(self._path, self._perms)
 
 
 class LineSequenceIO(SequenceIO):
@@ -287,13 +301,12 @@ class LineSequenceIO(SequenceIO):
       path: Union[str, os.PathLike[str]],
       mode: str,
       *,
+      perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
       **kwargs
   ) -> Sequence:
     """Opens a reader for a sequence."""
     del kwargs
-    return LineSequence(
-        file_system.open(path, mode), serializer, deserializer
-    )
+    return LineSequence(path, mode, perms, serializer, deserializer)
 
