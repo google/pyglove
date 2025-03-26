@@ -119,6 +119,10 @@ class MemorySequenceIOTest(unittest.TestCase):
     with sequence_io.open_sequence('/file1.mem@123', 'r') as f:
       self.assertEqual(list(iter(f)), ['abc'])
 
+  def test_sharded_file_name(self):
+    with sequence_io.open_sequence('/file1.mem-00000-of-00001', 'w') as f:
+      self.assertIsInstance(f, sequence_io.MemorySequence)
+
 
 if __name__ == '__main__':
   unittest.main()

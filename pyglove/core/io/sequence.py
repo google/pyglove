@@ -16,6 +16,7 @@
 import abc
 import collections
 import os
+import re
 from typing import Any, Callable, Iterator, Optional, Union
 
 from pyglove.core.io import file_system
@@ -98,6 +99,9 @@ class SequenceIO(metaclass=abc.ABCMeta):
     """Opens a sequence for reading or writing."""
 
 
+_SHARDED_FILE_EXT = re.compile(r'(.*)-(\d+)-of-(\d+)$')
+
+
 class _SequenceIORegistry(object):
   """Registry for record IO systems."""
 
@@ -116,6 +120,9 @@ class _SequenceIORegistry(object):
       extension = parts[-1].lower()
       if '@' in extension:
         extension = extension.split('@')[0]
+      match = _SHARDED_FILE_EXT.match(extension)
+      if match:
+        extension = match.group(1)
       if extension in self._registry:
         return self._registry[extension]
     return LineSequenceIO()
