@@ -131,7 +131,7 @@ def evaluate(
         result = eval(  # pylint: disable=eval-used
             compile(last_expr, '', mode='eval'), global_vars
         )
-      except Exception as e:
+      except BaseException as e:
         raise errors.CodeError(code, e) from e
 
       for result_var in result_vars:
@@ -139,7 +139,7 @@ def evaluate(
     else:
       try:
         exec(compile(code_block, '', mode='exec'), global_vars)  # pylint: disable=exec-used
-      except Exception as e:
+      except BaseException as e:
         raise errors.CodeError(code, e) from e
       global_vars[RESULT_KEY] = list(global_vars.values())[-1]
 
@@ -188,7 +188,7 @@ def sandbox_call(
       r = func(*args, **kwargs)
       try:
         return pickle.dumps(r)
-      except Exception as e:
+      except BaseException as e:
         raise errors.SerializationError(
             f'Cannot serialize sandbox result: {r}', e
         ) from e

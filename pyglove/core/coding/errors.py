@@ -28,7 +28,7 @@ class CodeError(RuntimeError):
   def __init__(
       self,
       code: str,
-      cause: Exception,
+      cause: BaseException,
       ):
     self.code = code
     self.cause = cause
@@ -93,7 +93,7 @@ class CodeError(RuntimeError):
 class SerializationError(RuntimeError):
   """Object serialization error."""
 
-  def __init__(self, message: Optional[str], cause: Exception):
+  def __init__(self, message: Optional[str], cause: BaseException):
     self.message = message
     self.cause = cause
 

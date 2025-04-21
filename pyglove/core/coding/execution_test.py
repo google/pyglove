@@ -217,6 +217,10 @@ class EvaluateTest(unittest.TestCase):
       execution.evaluate(
           'raise ValueError()', permission=permissions.CodePermission.ALL
       )
+    with self.assertRaisesRegex(errors.CodeError, 'SystemExit'):
+      execution.evaluate(
+          'raise SystemExit()', permission=permissions.CodePermission.ALL
+      )
 
 
 @dataclasses.dataclass
