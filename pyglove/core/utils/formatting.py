@@ -161,6 +161,7 @@ def kvlist_str(
     label: Optional[str] = None,
     bracket_type: BracketType = BracketType.ROUND,
     custom_format: Optional[CustomFormatFn] = None,
+    memo: Optional[Set[int]] = None,
     **kwargs,
 ) -> str:
   """Formats a list key/value pairs into a comma delimited string.
@@ -178,6 +179,8 @@ def kvlist_str(
     custom_format: An optional custom format function, which will be applied to
       each value (and child values) in kvlist. If the function returns None, it
       will fall back to the default `pg.format`.
+    memo: A set of object ids that have been formatted. Used to avoid
+      infinite recursion in the formatting process.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
   Returns:
@@ -208,6 +211,7 @@ def kvlist_str(
           verbose=verbose,
           root_indent=child_indent,
           custom_format=custom_format,
+          memo=memo,
           **kwargs
       )
       if not compact:
@@ -271,6 +275,7 @@ def format(   # pylint: disable=redefined-builtin
     max_bytes_len: Optional[int] = None,
     *,
     custom_format: Optional[CustomFormatFn] = None,
+    memo: Optional[Set[int]] = None,
     **kwargs,
 ) -> str:
   """Formats a (maybe) hierarchical value with flags.
@@ -297,6 +302,8 @@ def format(   # pylint: disable=redefined-builtin
     custom_format: An optional custom format function, which will be applied to
       each value (and child values) in kvlist. If the function returns None, it
       will fall back to the default `pg.format`.
+    memo: A set of object ids that have been formatted. Used to avoid
+      infinite recursion in the formatting process.
     **kwargs: Keyword arguments that will be passed through unto child
       ``Formattable`` objects.
 
@@ -308,6 +315,14 @@ def format(   # pylint: disable=redefined-builtin
     result = custom_format(value, root_indent)
     if result is not None:
       return maybe_markdown_quote(result, markdown)
+
+  if memo is None:
+    memo = set()
+
+  id_ = id(value)
+  if id_ in memo:
+    return f'<recursive {value.__class__.__name__} at 0x{id_:x}>'  # pylint: disable=bad-whitespace
+  memo.add(id_)
 
   exclude_keys = exclude_keys or set()
 
@@ -327,6 +342,7 @@ def format(   # pylint: disable=redefined-builtin
         max_str_len=max_str_len,
         max_bytes_len=max_bytes_len,
         custom_format=custom_format,
+        memo=memo,
         **kwargs
     )
 
@@ -345,6 +361,7 @@ def format(   # pylint: disable=redefined-builtin
           max_str_len=max_str_len,
           max_bytes_len=max_bytes_len,
           custom_format=custom_format,
+          memo=memo,
           **kwargs
       )
     elif isinstance(value, (list, tuple)):
@@ -393,6 +410,7 @@ def format(   # pylint: disable=redefined-builtin
              if compact else str_ext(value, custom_format, root_indent)]
         if strip_object_id and 'object at 0x' in s[-1]:
           s = [f'{value.__class__.__name__}(...)']
+  memo.remove(id_)
   return maybe_markdown_quote(''.join(s), markdown)
 
 
@@ -454,10 +472,10 @@ def camel_to_snake(text: str, separator: str = '_') -> str:
   return (separator.join(c for c in chunks if c)).lower()
 
 
-def printv(v: Any, **kwargs):
+def printv(*args, **kwargs):
   """Prints formatted value."""
   fs = kwargs.pop('file', sys.stdout)
-  print(format(v, **kwargs), file=fs)
+  print(*[format(v, **kwargs) for v in args], file=fs)
 
 
 def _indent(text: str, indent: int) -> str:

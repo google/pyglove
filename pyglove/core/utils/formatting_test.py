@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import inspect
+import io
 import unittest
 
 from pyglove.core.utils import formatting
@@ -408,6 +409,26 @@ class FormatTest(unittest.TestCase):
         '{\'x\': <a/>}'
     )
 
+  def test_recursion(self):
+    # Recursive dict.
+    x = dict(x=1)
+    x['y'] = x
+    self.assertEqual(
+        formatting.format(x, compact=True),
+        f'{{\'x\': 1, \'y\': <recursive dict at 0x{id(x):x}>}}'
+    )
+    self.assertEqual(
+        formatting.format(x, compact=False),
+        f'{{\n  \'x\': 1,\n  \'y\': <recursive dict at 0x{id(x):x}>\n}}'
+    )
+    # Non-recursive dict.
+    y = dict(x=1)
+    a = dict(x=y, y=y)
+    self.assertEqual(
+        formatting.format(a, compact=True),
+        '{\'x\': {\'x\': 1}, \'y\': {\'x\': 1}}'
+    )
+
   def test_markdown(self):
 
     class A(formatting.Formattable):
@@ -447,6 +468,11 @@ class FormatTest(unittest.TestCase):
     self.assertEqual(
         formatting.format(b'bar', max_bytes_len=2), 'b\'ba...\''
     )
+
+  def test_printv(self):
+    with io.StringIO() as f:
+      formatting.printv(1, 2, 3, file=f)
+      self.assertEqual(f.getvalue(), '1 2 3\n')
 
 
 if __name__ == '__main__':
