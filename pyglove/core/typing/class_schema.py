@@ -370,7 +370,10 @@ class ValueSpec(utils.Formattable, utils.JSONConvertible):
     """Returns forward referenes used by the value spec."""
 
   @abc.abstractmethod
-  def noneable(self) -> 'ValueSpec':
+  def noneable(
+      self,
+      is_noneable=True,
+      use_none_as_default: bool = True) -> 'ValueSpec':
     """Marks none-able and returns `self`."""
 
   @property

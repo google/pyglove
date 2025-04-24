@@ -407,7 +407,7 @@ def _value_spec_from_type_annotation(
     else:
       spec = vs.Union([_sub_value_spec_from_annotation(x) for x in args])
     if optional:
-      spec = spec.noneable()
+      spec = spec.noneable(use_none_as_default=False)
     return spec
   elif origin is typing.Final:
     return _value_spec_from_type_annotation(

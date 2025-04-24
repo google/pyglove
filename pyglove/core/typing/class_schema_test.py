@@ -885,20 +885,31 @@ class CreateSchemaTest(unittest.TestCase):
     self.assertEqual(s['e'], Field('e', vs.Enum(0, [0, 1])))
     self.assertEqual(s.metadata, {'user_data': 2})
     self.assertEqual(s['f'], Field('f', vs.Int()))
-    self.assertEqual(s['f1'], Field('f1', vs.Int().noneable()))
+    self.assertEqual(
+        s['f1'], Field('f1', vs.Int().noneable(use_none_as_default=False))
+    )
     self.assertEqual(s['g'], Field('g', vs.Float()))
-    self.assertEqual(s['g1'], Field('g1', vs.Float().noneable()))
+    self.assertEqual(
+        s['g1'], Field('g1', vs.Float().noneable(use_none_as_default=False))
+    )
     self.assertEqual(s['h'], Field('h', vs.Bool()))
-    self.assertEqual(s['h1'], Field('h1', vs.Bool().noneable()))
+    self.assertEqual(
+        s['h1'], Field('h1', vs.Bool().noneable(use_none_as_default=False))
+    )
     self.assertEqual(s['i'], Field('i', vs.Str()))
-    self.assertEqual(s['i1'], Field('i1', vs.Str().noneable()))
+    self.assertEqual(
+        s['i1'], Field('i1', vs.Str().noneable(use_none_as_default=False))
+    )
     self.assertEqual(
         s['j'], Field('j', vs.Union([vs.Int(), vs.Float(), vs.Bool()]))
     )
     self.assertEqual(s['k'], Field('k', vs.List(vs.Any())))
     self.assertEqual(s['l'], Field('l', vs.List(vs.Int())))
     self.assertEqual(s['L'], Field('L', vs.List(vs.Int())))
-    self.assertEqual(s['l1'], Field('l1', vs.List(vs.Int()).noneable()))
+    self.assertEqual(
+        s['l1'],
+        Field('l1', vs.List(vs.Int()).noneable(use_none_as_default=False))
+    )
     self.assertEqual(
         s['l2'],
         Field('l2', vs.List(vs.Str()).set_default(['black', 'white'])),

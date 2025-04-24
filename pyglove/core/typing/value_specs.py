@@ -140,11 +140,18 @@ class ValueSpecBase(ValueSpec):
     """Returns True if current value spec accepts None."""
     return self._is_noneable
 
-  def noneable(self) -> 'ValueSpecBase':
+  def noneable(
+      self,
+      is_noneable: bool = True,
+      use_none_as_default: bool = True
+  ) -> 'ValueSpecBase':
     """Marks None is acceptable and returns `self`."""
-    self._is_noneable = True
-    if MISSING_VALUE == self._default:  # pytype: disable=attribute-error
-      self._default = None
+    self._is_noneable = is_noneable
+    if is_noneable:
+      if use_none_as_default and not self.has_default:  # pytype: disable=attribute-error
+        self.set_default(None, False)
+    elif self.default is None:
+      self.set_default(MISSING_VALUE, False)
     return self
 
   @property
@@ -942,11 +949,21 @@ class Enum(Generic, PrimitiveType):
       return self.default
     return self.apply(*args)
 
-  def noneable(self) -> 'Enum':
+  def noneable(
+      self,
+      is_noneable: bool = True,
+      use_none_as_default: bool = True
+  ) -> 'Enum':
     """Noneable is specially treated for Enum."""
-    if None not in self._values:
-      self._values.append(None)
-    self._is_noneable = True
+    if is_noneable:
+      if None not in self._values:
+        self._values.append(None)
+    else:
+      if None in self._values:
+        self._values.remove(None)
+        if self._default is None:
+          self._default = MISSING_VALUE
+    self._is_noneable = is_noneable
     return self
 
   @property
@@ -1714,10 +1731,19 @@ class Dict(Generic, ValueSpecBase):
     """Returns the schema of this dict spec."""
     return self._schema
 
-  def noneable(self) -> 'Dict':
+  def noneable(
+      self,
+      is_noneable: bool = True,
+      use_none_as_default: bool = True
+  ) -> 'Dict':
     """Override noneable in Dict to always set default value None."""
-    self._is_noneable = True
-    self.set_default(None, False)
+    self._is_noneable = is_noneable
+    if is_noneable:
+      if use_none_as_default:
+        self.set_default(None, False)
+    elif self._default is None:
+      # Automatically generate default based on schema.
+      self.set_default(MISSING_VALUE)
     return self
 
   def set_default(
@@ -2698,11 +2724,18 @@ class Union(Generic, ValueSpecBase):
       value_types.update(child_value_type)
     return tuple(value_types)
 
-  def noneable(self) -> 'Union':
+  def noneable(
+      self,
+      is_noneable: bool = True,
+      use_none_as_default: bool = True
+  ) -> 'Union':
     """Customized noneable for Union."""
-    super().noneable()
+    super().noneable(
+        is_noneable=is_noneable,
+        use_none_as_default=use_none_as_default
+    )
     for c in self._candidates:
-      c.noneable()
+      c.noneable(is_noneable=is_noneable, use_none_as_default=False)
     return self
 
   @property
