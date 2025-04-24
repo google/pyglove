@@ -61,10 +61,6 @@ class BoolTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Bool().is_noneable)
     self.assertTrue(vs.Bool().noneable().is_noneable)
-    self.assertIsNone(vs.Bool().noneable().default)
-    self.assertFalse(vs.Bool().noneable(use_none_as_default=False).has_default)
-    self.assertFalse(vs.Bool().noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.Bool().noneable().noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Bool()), 'Bool()')
@@ -216,10 +212,6 @@ class StrTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Str().is_noneable)
     self.assertTrue(vs.Str().noneable().is_noneable)
-    self.assertIsNone(vs.Str().noneable().default)
-    self.assertFalse(vs.Str().noneable(use_none_as_default=False).has_default)
-    self.assertFalse(vs.Str().noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.Str().noneable().noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Str()), 'Str()')
@@ -379,10 +371,6 @@ class IntTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Int().is_noneable)
     self.assertTrue(vs.Int().noneable().is_noneable)
-    self.assertIsNone(vs.Int().noneable().default)
-    self.assertFalse(vs.Int().noneable(use_none_as_default=False).has_default)
-    self.assertFalse(vs.Int().noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.Int().noneable().noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Int()), 'Int()')
@@ -596,10 +584,6 @@ class FloatTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Float().is_noneable)
     self.assertTrue(vs.Float().noneable().is_noneable)
-    self.assertIsNone(vs.Float().noneable().default)
-    self.assertFalse(vs.Float().noneable(use_none_as_default=False).has_default)
-    self.assertFalse(vs.Float().noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.Float().noneable().noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(str(vs.Float()), 'Float()')
@@ -825,18 +809,6 @@ class EnumTest(ValueSpecTest):
     self.assertEqual(
         vs.Enum('a', ['a', 'b']).noneable(),
         vs.Enum('a', ['a', 'b', None]))
-    self.assertEqual(
-        vs.Enum('a', ['a', 'b']).noneable().default,
-        'a'
-    )
-    self.assertEqual(
-        vs.Enum('a', ['a', None]).noneable(False),
-        vs.Enum('a', ['a'])
-    )
-    self.assertEqual(
-        vs.Enum(None, [None, 'a']).noneable(False),
-        vs.Enum(typed_missing.MISSING_VALUE, ['a'])
-    )
 
   def test_repr(self):
     self.assertEqual(
@@ -988,12 +960,6 @@ class ListTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.List(vs.Int()).is_noneable)
     self.assertTrue(vs.List(vs.Int()).noneable().is_noneable)
-    self.assertIsNone(vs.List(vs.Int()).noneable().default)
-    self.assertFalse(
-        vs.List(vs.Int()).noneable(use_none_as_default=False).has_default
-    )
-    self.assertFalse(vs.List(vs.Int()).noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.List(vs.Int()).noneable().noneable(False).has_default)
 
   def test_str(self):
     self.assertEqual(
@@ -1302,12 +1268,6 @@ class TupleTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Tuple([vs.Int()]).is_noneable)
     self.assertTrue(vs.Tuple([vs.Int()]).noneable().is_noneable)
-    self.assertFalse(
-        vs.Tuple([vs.Int()]).noneable().noneable(False).is_noneable
-    )
-    self.assertFalse(
-        vs.Tuple([vs.Int()]).noneable().noneable(False).has_default
-    )
 
   def test_fixed_length(self):
     self.assertFalse(vs.Tuple(vs.Int()).fixed_length)
@@ -1790,12 +1750,6 @@ class DictTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Dict().is_noneable)
     self.assertTrue(vs.Dict().noneable().is_noneable)
-    self.assertFalse(vs.Dict().noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.Dict().noneable().noneable(False).has_default)
-    self.assertEqual(
-        vs.Dict({'x': vs.Int(default=1)}).noneable().noneable(False).default,
-        {'x': 1}
-    )
 
   def test_repr(self):
     self.assertEqual(repr(vs.Dict()), 'Dict()')
@@ -2202,8 +2156,6 @@ class ObjectTest(ValueSpecTest):
     self.assertFalse(vs.Object(self.A).is_noneable)
     self.assertTrue(vs.Object(self.A).noneable().is_noneable)
     self.assertTrue(vs.Object('Foo').noneable().is_noneable)
-    self.assertFalse(vs.Object(self.A).noneable(False).is_noneable)
-    self.assertFalse(vs.Object(self.A).noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Object(self.A)), 'Object(A)')
@@ -2464,8 +2416,6 @@ class CallableTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Callable().is_noneable)
     self.assertTrue(vs.Callable().noneable().is_noneable)
-    self.assertFalse(vs.Callable().noneable().noneable(False).is_noneable)
-    self.assertFalse(vs.Callable().noneable().noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Callable()), 'Callable()')
@@ -2911,8 +2861,6 @@ class TypeTest(ValueSpecTest):
   def test_noneable(self):
     self.assertFalse(vs.Type(Exception).is_noneable)
     self.assertTrue(vs.Type(Exception).noneable().is_noneable)
-    self.assertFalse(vs.Type(Exception).noneable(False).is_noneable)
-    self.assertFalse(vs.Type(Exception).noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Type(Exception)), 'Type(<class \'Exception\'>)')
@@ -3175,41 +3123,6 @@ class UnionTest(ValueSpecTest):
     )
     self.assertTrue(
         vs.Union([vs.Int().noneable(), vs.Bool()]).is_noneable)
-    self.assertFalse(
-        vs.Union([vs.Int().noneable(), vs.Bool()]).has_default)
-    self.assertTrue(
-        vs.Union([vs.Int().noneable(), vs.Bool()]).candidates[0].has_default
-    )
-    self.assertIsNone(
-        vs.Union(
-            [vs.Int(), vs.Bool()]
-        ).noneable().default
-    )
-    self.assertFalse(
-        vs.Union(
-            [vs.Int(), vs.Bool()]
-        ).noneable(use_none_as_default=False).has_default
-    )
-    self.assertTrue(
-        vs.Union(
-            [vs.Int(), vs.Bool()]
-        ).noneable().candidates[0].is_noneable
-    )
-    self.assertFalse(
-        vs.Union(
-            [vs.Int(), vs.Bool()]
-        ).noneable().candidates[0].has_default
-    )
-    self.assertFalse(
-        vs.Union(
-            [vs.Int().noneable(), vs.Bool()]
-        ).noneable(False).candidates[0].is_noneable
-    )
-    self.assertFalse(
-        vs.Union(
-            [vs.Int().noneable(), vs.Bool()]
-        ).noneable(False).candidates[0].has_default
-    )
 
   def test_str(self):
     self.assertEqual(
@@ -3219,8 +3132,8 @@ class UnionTest(ValueSpecTest):
         'Union([Int(), Bool()], default=1, frozen=True)')
     self.assertEqual(
         repr(vs.Union([vs.Int(), vs.Bool()], default=1).noneable()),
-        'Union([Int(noneable=True), '
-        'Bool(noneable=True)], default=1, noneable=True)')
+        'Union([Int(default=None, noneable=True), '
+        'Bool(default=None, noneable=True)], default=1, noneable=True)')
 
   def test_annotation(self):
     self.assertEqual(
@@ -3523,11 +3436,6 @@ class AnyTest(ValueSpecTest):
 
   def test_noneable(self):
     self.assertTrue(vs.Any().is_noneable)
-    self.assertFalse(vs.Any().has_default)
-    self.assertTrue(vs.Any().noneable().is_noneable)
-    self.assertTrue(vs.Any().noneable().has_default)
-    self.assertFalse(vs.Any().noneable(False).is_noneable)
-    self.assertFalse(vs.Any().noneable().noneable(False).has_default)
 
   def test_repr(self):
     self.assertEqual(repr(vs.Any()), 'Any()')

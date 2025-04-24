@@ -67,9 +67,7 @@ class AnnotationFutureConversionTest(unittest.TestCase):
       class Bar(pg.Object):
         x: list[int | None]
 
-      self.assert_value_spec(
-          Bar, 'x', vs.List(vs.Int().noneable(use_none_as_default=False))
-      )
+      self.assert_value_spec(Bar, 'x', vs.List(vs.Int().noneable()))
 
   def test_var_length_tuple(self):
 
@@ -90,17 +88,13 @@ class AnnotationFutureConversionTest(unittest.TestCase):
     class Foo(pg.Object):
       x: typing.Optional[int]
 
-    self.assert_value_spec(
-        Foo, 'x', vs.Int().noneable(use_none_as_default=False)
-    )
+    self.assert_value_spec(Foo, 'x', vs.Int().noneable())
 
     if sys.version_info >= (3, 10):
       class Bar(pg.Object):
         x: int | None
 
-      self.assert_value_spec(
-          Bar, 'x', vs.Int().noneable(use_none_as_default=False)
-      )
+      self.assert_value_spec(Bar, 'x', vs.Int().noneable())
 
   def test_union(self):
 
@@ -108,11 +102,7 @@ class AnnotationFutureConversionTest(unittest.TestCase):
       x: Union[int, typing.Union[str, bool], None]
 
     self.assert_value_spec(
-        Foo,
-        'x',
-        vs.Union(
-            [vs.Int(), vs.Str(), vs.Bool()]
-        ).noneable(use_none_as_default=False)
+        Foo, 'x', vs.Union([vs.Int(), vs.Str(), vs.Bool()]).noneable()
     )
 
     if sys.version_info >= (3, 10):
@@ -135,7 +125,7 @@ class AnnotationFutureConversionTest(unittest.TestCase):
 
   def test_self_referencial(self):
     self.assert_value_spec(
-        self.A, 'a', vs.Object(self.A).noneable(use_none_as_default=False)
+        self.A, 'a', vs.Object(self.A).noneable()
     )
     self.assert_value_spec(
         self.A, 'b', vs.List(vs.Object(self.A))
