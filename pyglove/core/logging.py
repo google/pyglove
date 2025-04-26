@@ -17,16 +17,46 @@ This module allows PyGlove to use external created logger for logging PyGlove
 events without introducing library dependencies in PyGlove.
 """
 
+import inspect
 import logging
+from typing import Any, Callable, List, Union
 
 
 _DEFAULT_LOGGER = logging.getLogger()
+
+
+def register_frame_to_skip(
+    method: Union[Callable[..., Any], List[Callable[..., Any]]]
+) -> bool:
+  """Skips the source of the given method when logging.
+
+  Args:
+    method: The method to skip. Can be a single method or a list of methods.
+
+  Returns:
+    True if the method is registered to skip.
+
+  Raises:
+    TypeError: The source file of the method cannot be inspected.
+  """
+  register_fn = getattr(
+      _DEFAULT_LOGGER.__class__, 'register_frame_to_skip', None
+  )
+  if register_fn is None:
+    return False
+  methods = [method] if not isinstance(method, list) else method
+  for m in methods:
+    register_fn(inspect.getsourcefile(m), m.__name__)
+  return True
 
 
 def set_logger(logger: logging.Logger) -> None:
   """Sets current logger."""
   global _DEFAULT_LOGGER
   _DEFAULT_LOGGER = logger
+
+  # Skip logging frames in pyglove.logging.
+  register_frame_to_skip([debug, info, warning, error, critical])
 
 
 def get_logger() -> logging.Logger:
