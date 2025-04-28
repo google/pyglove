@@ -1409,7 +1409,7 @@ class HtmlTreeView(HtmlView):
     if remove:
       return {
           k: v for k, v in passthrough_kwargs.items()
-          if k not in remove
+          if k not in remove  # pytype: disable=unsupported-operands
       }
     return passthrough_kwargs
 
