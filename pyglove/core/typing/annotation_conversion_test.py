@@ -459,11 +459,11 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
   def test_optional(self):
     self.assertEqual(
         ValueSpec.from_annotation(typing.Optional[int], True),
-        vs.Int().noneable())
+        vs.Int().noneable(use_none_as_default=False))
     if annotation_conversion._UnionType:
       self.assertEqual(
           ValueSpec.from_annotation(int | None, True),
-          vs.Int().noneable())
+          vs.Int().noneable(use_none_as_default=False))
 
   def test_union(self):
     self.assertEqual(
@@ -471,11 +471,11 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
         vs.Union([vs.Int(), vs.Str()]))
     self.assertEqual(
         ValueSpec.from_annotation(typing.Union[int, str, None], True),
-        vs.Union([vs.Int(), vs.Str()]).noneable())
+        vs.Union([vs.Int(), vs.Str()]).noneable(use_none_as_default=False))
     if annotation_conversion._UnionType:
       self.assertEqual(
-          ValueSpec.from_annotation(int | str, True),
-          vs.Union([vs.Int(), vs.Str()]))
+          ValueSpec.from_annotation(int | str | None, True),
+          vs.Union([vs.Int(), vs.Str()]).noneable(use_none_as_default=False))
 
   def test_final(self):
     self.assertEqual(

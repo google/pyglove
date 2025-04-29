@@ -2458,7 +2458,8 @@ def symbolic_transform_fn(allow_partial: bool):
       return value
     if isinstance(value, dict):
       value_spec = pg_typing.ensure_value_spec(
-          field.value, pg_typing.Dict(), path)
+          field.value, pg_typing.Dict().noneable(), path
+      )
       value = Symbolic.DictType(   # pytype: disable=not-callable  # pylint: disable=not-callable
           value,
           value_spec=value_spec,
@@ -2471,7 +2472,10 @@ def symbolic_transform_fn(allow_partial: bool):
           pass_through=True)
     elif isinstance(value, list):
       value_spec = pg_typing.ensure_value_spec(
-          field.value, pg_typing.List(pg_typing.Any()), path)
+          field.value,
+          pg_typing.List(pg_typing.Any()).noneable(),
+          path
+      )
       value = Symbolic.ListType(   # pytype: disable=not-callable  # pylint: disable=not-callable
           value,
           value_spec=value_spec,
