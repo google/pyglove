@@ -16,6 +16,7 @@
 from typing import Annotated, Any, Dict, List, Optional, Union
 
 from pyglove.core import typing as pg_typing
+from pyglove.core import utils as pg_utils
 from pyglove.core.symbolic import flags as pg_flags
 from pyglove.core.symbolic import object as pg_object
 # pylint: disable=g-importing-member
@@ -156,6 +157,23 @@ class LabelGroup(HtmlControl):
       Optional[Label],
       'The label for the name of the group.'
   ] = None
+
+  @pg_utils.explicit_method_override
+  def __init__(
+      self,
+      labels: List[Union[Label, str, Html, None, List[Any]]],
+      name: Optional[Label] = None,
+      id: Optional[str] = None,  # pylint: disable=redefined-builtin
+      css_classes: Optional[List[str]] = None,
+      styles: Optional[Dict[str, str]] = None,
+      **kwargs,
+  ) -> None:
+    if labels:
+      labels = [l for l in pg_utils.flatten(labels).values() if l is not None]
+    super().__init__(
+        labels=labels, name=name, id=id, css_classes=css_classes or [],
+        styles=styles or {}, **kwargs
+    )
 
   def _on_bound(self):
     super()._on_bound()

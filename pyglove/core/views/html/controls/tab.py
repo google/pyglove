@@ -13,8 +13,9 @@
 # limitations under the License.
 """Tab control."""
 
-from typing import Annotated, List, Literal, Optional, Union
+from typing import Annotated, Any, Dict, List, Literal, Optional, Union
 
+from pyglove.core import utils as pg_utils
 from pyglove.core.symbolic import flags as pg_flags
 from pyglove.core.symbolic import object as pg_object
 
@@ -72,6 +73,48 @@ class TabControl(HtmlControl):
   ] = 'top'
 
   interactive = True
+
+  @pg_utils.explicit_method_override
+  def __init__(
+      self,
+      tabs: List[Union[Tab, None, List[Any]]],
+      selected: Union[int, str, List[str]] = 0,
+      tab_position: Literal['top', 'left'] = 'top',
+      id: Optional[str] = None,   # pylint: disable=redefined-builtin
+      css_classes: Optional[List[str]] = None,
+      styles: Optional[Dict[str, str]] = None,
+      **kwargs,
+  ):
+    if tabs:
+      tabs = [t for t in pg_utils.flatten(tabs).values() if t is not None]
+    selected = self._find_tab_index(tabs, selected)
+    if selected == -1:
+      selected = 0
+    super().__init__(
+        tabs, selected=selected, tab_position=tab_position, id=id,
+        css_classes=css_classes or [], styles=styles or {},
+        **kwargs
+    )
+
+  @classmethod
+  def _find_tab_index(
+      cls,
+      tabs: List[Tab],
+      index_or_name: Union[int, str, List[str]]) -> int:
+    """Finds the index of a tab identified by an index or name."""
+    if isinstance(index_or_name, int):
+      return index_or_name
+    if isinstance(index_or_name, str):
+      priority_choices = [index_or_name]
+    else:
+      priority_choices = index_or_name
+
+    name_index = {t.name: i for i, t in enumerate(tabs)}
+    for name in priority_choices:
+      index = name_index.get(name)
+      if index is not None:
+        return index
+    return -1
 
   def append(self, tab: Tab) -> None:
     with pg_flags.notify_on_change(False):

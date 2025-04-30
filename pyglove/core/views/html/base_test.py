@@ -800,12 +800,14 @@ class HtmlTest(TestCase):
             'div',
             [
                 '<hr>',
-                lambda: '<div>bar</div>',
+                [[lambda: '<div>bar</div>']],
                 None,
-                Html.element(
-                    'div',
-                    css_classes='my_class',
-                ).add_style('div.my_class { color: red; }')
+                [
+                    Html.element(
+                        'div',
+                        css_classes='my_class',
+                    ).add_style('div.my_class { color: red; }')
+                ]
             ]
         )),
         """

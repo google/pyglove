@@ -136,7 +136,7 @@ class LabelTest(TestCase):
 class LabelGroupTest(TestCase):
 
   def test_basic(self):
-    group = label_lib.LabelGroup(['foo', 'bar'], name='baz')
+    group = label_lib.LabelGroup(['foo', None, ['bar']], name='baz')
     self.assert_html_content(
         group,
         (

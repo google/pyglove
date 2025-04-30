@@ -18,7 +18,7 @@ import functools
 import html as html_lib
 import inspect
 import typing
-from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, Optional, Sequence, Union
 
 from pyglove.core import typing as pg_typing
 from pyglove.core import utils
@@ -297,7 +297,7 @@ class Html(base.Content):
   def element(
       cls,
       tag: str,
-      inner_html: Optional[List[WritableTypes]] = None,
+      inner_html: Optional[utils.Nestable[WritableTypes]] = None,
       *,
       options: Union[str, Iterable[str], None] = None,
       css_classes: NestableStr = None,
@@ -340,8 +340,11 @@ class Html(base.Content):
 
     # Write the inner HTML.
     if inner_html:
-      for child in inner_html:
-        s.write(child)
+      if isinstance(inner_html, list):
+        for child in utils.flatten(inner_html).values():
+          s.write(child)
+      else:
+        s.write(inner_html)
 
     # Write the closing tag.
     s.write(f'</{tag}>')
