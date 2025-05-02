@@ -394,6 +394,9 @@ from pyglove.core.typing.callable_ext import enable_preset_args
 from pyglove.core.typing.callable_ext import preset_args
 from pyglove.core.typing.callable_ext import CallableWithOptionalKeywordArgs
 
+# JSON schema conversion.
+from pyglove.core.typing.json_schema import to_json_schema
+
 # PyType support.
 from pyglove.core.typing.pytype_support import *
 

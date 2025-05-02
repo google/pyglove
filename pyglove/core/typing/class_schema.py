@@ -571,6 +571,17 @@ class ValueSpec(utils.Formattable, utils.JSONConvertible):
     del annotation, auto_typing, accept_value_as_annotation, parent_module
     assert False, 'Overridden in `annotation_conversion.py`.'
 
+  def to_json_schema(
+      self,
+      include_type_name: bool = True,
+      include_subclasses: bool = False,
+      inline_nested_refs: bool = False,
+      **kwargs
+  ) -> Dict[str, Any]:
+    """Converts this field to JSON schema."""
+    del include_type_name, include_subclasses, inline_nested_refs, kwargs
+    assert False, 'Overridden in `json_schema.py`.'
+
 
 class Field(utils.Formattable, utils.JSONConvertible):
   """Class that represents the definition of one or a group of attributes.
@@ -1343,6 +1354,18 @@ class Schema(utils.Formattable, utils.JSONConvertible):
         exclude_default=True,
         **kwargs,
     )
+
+  def to_json_schema(
+      self,
+      *,
+      include_type_name: bool = True,
+      include_subclasses: bool = False,
+      inline_nested_refs: bool = False,
+      **kwargs
+  ) -> Dict[str, Any]:
+    """Converts this field to JSON schema."""
+    del include_type_name, include_subclasses, inline_nested_refs, kwargs
+    assert False, 'Overridden in `json_schema.py`.'
 
   def __eq__(self, other: Any) -> bool:
     if self is other:
