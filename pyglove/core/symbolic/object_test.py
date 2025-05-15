@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import abc
 import copy
 import inspect
 import io
@@ -492,6 +493,33 @@ class ObjectTest(unittest.TestCase):
     b = B(1, 2, 3)
     self.assertEqual(b.x, 2)
     self.assertEqual(b.sym_init_args.x, 1)
+
+  def test_override_abstract_property(self):
+    class A(metaclass=abc.ABCMeta):
+
+      @property
+      @abc.abstractmethod
+      def x(self):
+        pass
+
+    class B(Object, A):
+      x: int
+
+    self.assertEqual(B(1).x, 1)
+
+  def test_override_abstract_property_with_members_decorator(self):
+    class A(metaclass=abc.ABCMeta):
+
+      @property
+      @abc.abstractmethod
+      def x(self):
+        pass
+
+    class B(Object, A):
+      pass
+
+    pg_members([('x', pg_typing.Int())])(B)
+    self.assertEqual(B(1).x, 1)   # pylint: disable=abstract-class-instantiated
 
   def test_runtime_type_check(self):
 

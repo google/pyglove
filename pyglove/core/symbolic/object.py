@@ -101,6 +101,18 @@ class ObjectMeta(abc.ABCMeta):
     )
     cls.apply_schema(schema)
 
+    # Update abstract methods.
+    # abc.update_abstractmethods is only available in Python 3.10 and above.
+    if sys.version_info >= (3, 10):
+      abc.update_abstractmethods(cls)
+    elif cls.allow_symbolic_attribute:
+      abstract_methods = getattr(cls, '__abstractmethods__', frozenset())
+      new_abstract_methods = []
+      for name in abstract_methods:
+        if name not in cls.__schema__.fields:
+          new_abstract_methods.append(name)
+      setattr(cls, '__abstractmethods__', frozenset(new_abstract_methods))
+
   def register_for_deserialization(
       cls,
       serialization_key: Optional[str] = None,
@@ -506,7 +518,10 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         attr_value = getattr(cls, attr_name, pg_typing.MISSING_VALUE)
         if attr_value == pg_typing.MISSING_VALUE or (
             not inspect.isfunction(attr_value)
-            and not isinstance(attr_value, property)
+            and (
+                not isinstance(attr_value, property)
+                or getattr(attr_value, '__isabstractmethod__', False)
+            )
         ):
           setattr(cls, attr_name, cls._create_sym_attribute(attr_name, field))
 
@@ -517,7 +532,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
         coding.make_function(
             attr_name,
             ['self'],
-            [f"return self.sym_inferred('{attr_name}')"],
+            [f'return self.sym_inferred(\'{attr_name}\')'],
             return_type=field.value.annotation,
         )
     )
