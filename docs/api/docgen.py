@@ -116,7 +116,7 @@ class Templates:
 
 
 @dataclasses.dataclass
-class Api:
+class Api(metaclass=abc.ABCMeta):
   """Base class for an API entry."""
   name: str
   qualname: Optional[str]
@@ -156,7 +156,6 @@ class Api:
     return os.path.relpath(self.doc_handle, base_handle)
 
   @property
-  @abc.abstractmethod
   def doc_dir(self) -> str:
     dir_segments = self.canonical_path.split('.')[1:]
     if not dir_segments:
@@ -220,7 +219,7 @@ class Leaf(Api):
     self._doc_handlename = None
 
   @property
-  def doc_handlename(self) -> str:
+  def doc_handlename(self) -> Optional[str]:
     return self._doc_handlename
 
   def set_doc_handlename(self, doc_handlename: str) -> None:
@@ -238,6 +237,7 @@ class Leaf(Api):
   @property
   def doc_handle(self) -> str:
     """Returns doc handle (e.g. core/typing/dict) relative to base_handle."""
+    assert self.doc_handlename is not None, self
     return os.path.join(self.doc_dir, self.doc_handlename)
 
   @abc.abstractmethod
@@ -305,6 +305,7 @@ class NamedEntry:
   api: Api
 
 
+@dataclasses.dataclass
 class Module(Api):
   """API entry for a module."""
 
@@ -315,7 +316,7 @@ class Module(Api):
 
   def __getitem__(self, key):
     """Returns child API entry."""
-    return self._name_to_api[key]
+    return self._name_to_api[key]   # pytype: disable=attribute-error
 
   @property
   def template_variable(self) -> str:
@@ -370,7 +371,7 @@ class Module(Api):
   def children(self) -> List[NamedEntry]:
     return self._children
 
-  def all_apis(self, memo: Optional[Set[id]] = None) -> List[Leaf]:
+  def all_apis(self, memo: Optional[Set[int]] = None) -> List[Leaf]:
     """Returns all leaf APIs."""
     if memo is None:
       memo = set()
@@ -380,7 +381,9 @@ class Module(Api):
         apis.append(c.api)
         memo.add(id(c))
     for m in self.modules:
-      apis.extend(m.api.all_apis(memo))
+      module_api = m.api
+      assert isinstance(module_api, Module)
+      apis.extend(module_api.all_apis(memo))
     return apis
 
 
@@ -409,7 +412,7 @@ def get_api(pg) -> Module:
           child_api = Function(
               child.__name__, f'{child.__module__}.{child.__name__}')
         elif (not inspect.ismodule(child)
-              and not isinstance(child, typing._Final)):  # pylint: disable=protected-access
+              and not isinstance(child, typing._Final)):  # pytype: disable=module-attr  # pylint: disable=protected-access
           child_api = Object(name, None)
         if child_api:
           symbol_to_api[id(child)] = child_api

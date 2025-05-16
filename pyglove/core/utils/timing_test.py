@@ -14,6 +14,7 @@
 import time
 import unittest
 
+from pyglove.core.symbolic import error_info  # pylint: disable=unused-import
 from pyglove.core.utils import json_conversion
 from pyglove.core.utils import timing
 

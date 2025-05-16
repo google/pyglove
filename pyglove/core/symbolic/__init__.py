@@ -145,5 +145,6 @@ from pyglove.core.symbolic.list import mark_as_insertion
 
 # Error types.
 from pyglove.core.symbolic.base import WritePermissionError
+from pyglove.core.symbolic.error_info import ErrorInfo
 
 # pylint: enable=g-bad-import-order

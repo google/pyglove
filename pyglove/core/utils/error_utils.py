@@ -13,33 +13,37 @@
 # limitations under the License.
 """Utilities for working with errors."""
 
+import abc
 import contextlib
 import dataclasses
 import inspect
 import re
 import sys
 import traceback
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
-
-from pyglove.core.utils import formatting
-from pyglove.core.utils import json_conversion
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 
-@dataclasses.dataclass(frozen=True)
-class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
-  """Serializable error information.
+class ErrorInfo(metaclass=abc.ABCMeta):
+  """Interface for error information."""
 
-  Attributes:
-    tag: A path of the error types in the exception chain. For example,
-      `ValueError.ZeroDivisionError` means the error is a `ZeroDivisionError`
-      raised at the first place and then reraised as a `ValueError`.
-    description: The description of the error.
-    stacktrace: The stacktrace of the error.
-  """
+  # The implementation of ErrorInfo will be a symbolic class, which is
+  # defined in pyglove.core.symbolic.error_info and will be assigned later.
+  _IMPLEMENTATION = None
 
-  tag: str
-  description: str
-  stacktrace: str
+  @property
+  @abc.abstractmethod
+  def tag(self) -> str:
+    """A path of the error types in the exception chain."""
+
+  @property
+  @abc.abstractmethod
+  def description(self) -> str:
+    """The description of the error."""
+
+  @property
+  @abc.abstractmethod
+  def stacktrace(self) -> str:
+    """The stacktrace of the error."""
 
   @classmethod
   def _compute_tag(cls, error: BaseException):
@@ -52,35 +56,13 @@ class ErrorInfo(json_conversion.JSONConvertible, formatting.Formattable):
   @classmethod
   def from_exception(cls, error: BaseException) -> 'ErrorInfo':
     """Creates an error info from an exception."""
-    return cls(
+    assert cls._IMPLEMENTATION is not None, 'ErrorInfo is not implemented.'
+    return cls._IMPLEMENTATION(   # pytype: disable=wrong-arg-types
         tag=cls._compute_tag(error),
         description=str(error),
         stacktrace=''.join(
             traceback.format_exception(*sys.exc_info())
         )
-    )
-
-  def to_json(self, **kwargs) -> Dict[str, Any]:
-    return self.to_json_dict(
-        fields=dict(
-            tag=(self.tag, None),
-            description=(self.description, None),
-            stacktrace=(self.stacktrace, None),
-        ),
-        exclude_default=True,
-        **kwargs,
-    )
-
-  def format(self, *args, **kwargs) -> str:
-    return formatting.kvlist_str(
-        [
-            ('tag', self.tag, None),
-            ('description', self.description, None),
-            ('stacktrace', self.stacktrace, None),
-        ],
-        *args,
-        label=self.__class__.__name__,
-        **kwargs,
     )
 
 

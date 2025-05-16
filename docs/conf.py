@@ -34,7 +34,9 @@ import os
 import re
 import sys
 
-from sphinx.domains.python import PyXRefRole
+from sphinx.domains import python as sphinx_python
+
+PyXRefRole = sphinx_python.PyXRefRole
 
 
 # Set parent directory to path in order to import pyglove.
