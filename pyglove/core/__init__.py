@@ -91,6 +91,9 @@ InferredValue = symbolic.InferredValue
 Ref = symbolic.Ref
 maybe_ref = symbolic.maybe_ref
 
+# Symbolic error info
+ErrorInfo = symbolic.ErrorInfo
+
 # Decorator for declaring symbolic. members for `pg.Object`.
 members = symbolic.members
 
