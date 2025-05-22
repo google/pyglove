@@ -844,7 +844,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
               value = self.sym_inferred(key, default=value)
             if pg_typing.MISSING_VALUE == value:
               continue
-            if hide_default_values and base.eq(value, field.default_value):
+            if hide_default_values and base.eq(field.default_value, value):
               continue
             json_repr[key] = base.to_json(
                 value,
@@ -952,7 +952,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
             if pg_typing.MISSING_VALUE == v:
               if hide_missing_values:
                 continue
-            elif hide_default_values and base.eq(v, field.default_value):
+            elif hide_default_values and base.eq(field.default_value, v):
               continue
             field_list.append((field, key, v))
     else:
