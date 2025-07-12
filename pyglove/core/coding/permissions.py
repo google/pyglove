@@ -23,16 +23,17 @@ from pyglove.core import utils
 class CodePermissionMeta(enum.EnumMeta):
 
   @property
-  def BASIC(cls) -> 'CodePermission':
+  def BASIC(cls) -> 'CodePermission':  # pylint: disable=invalid-name
     """Returns basic permissions."""
-    return cls.ASSIGN | cls.CALL
+    return cls.ASSIGN | cls.CALL    # pytype: disable=attribute-error
 
   @property
-  def ALL(cls) -> 'CodePermission':
+  def ALL(cls) -> 'CodePermission':  # pylint: disable=invalid-name
     """Returns all permissions."""
     return (
-        cls.BASIC | cls.CONDITION | cls.LOOP | cls.EXCEPTION |
-        cls.CLASS_DEFINITION | cls.FUNCTION_DEFINITION | cls.IMPORT)
+        cls.BASIC | cls.CONDITION | cls.LOOP | cls.EXCEPTION |         # pytype: disable=attribute-error
+        cls.CLASS_DEFINITION | cls.FUNCTION_DEFINITION | cls.IMPORT    # pytype: disable=attribute-error
+    )
 
 
 class CodePermission(enum.Flag, metaclass=CodePermissionMeta):
