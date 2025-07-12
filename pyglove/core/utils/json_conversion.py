@@ -624,6 +624,7 @@ def _method_to_json(f: types.MethodType) -> Dict[str, str]:
 
 
 _SUPPORTED_ANNOTATIONS = {
+    typing.Annotated: 'typing.Annotated',
     typing.Any: 'typing.Any',
     typing.Sequence: 'typing.Sequence',
     collections.abc.Sequence: 'typing.Sequence',

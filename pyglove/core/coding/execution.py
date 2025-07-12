@@ -198,8 +198,9 @@ def sandbox_call(
     except Exception as e:  # pylint: disable=broad-exception-caught
       q.put(e)
 
-  q = multiprocessing.Queue()
-  p = multiprocessing.Process(
+  ctx = multiprocessing.get_context('fork')
+  q = ctx.Queue()
+  p = ctx.Process(
       target=_call, args=tuple([q] + list(args)), kwargs=kwargs
   )
   try:

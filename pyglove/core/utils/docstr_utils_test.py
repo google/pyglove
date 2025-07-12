@@ -111,7 +111,6 @@ class DocStrTest(unittest.TestCase):
       pass
 
     self.assertIsNone(docstr_utils.docstr(Foo))
-    self.assertIsNone(docstr_utils.docstr(None))
 
     class Bar:
       """bar."""

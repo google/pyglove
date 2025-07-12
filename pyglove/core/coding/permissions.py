@@ -20,7 +20,22 @@ from typing import Optional
 from pyglove.core import utils
 
 
-class CodePermission(enum.Flag):
+class CodePermissionMeta(enum.EnumMeta):
+
+  @property
+  def BASIC(cls) -> 'CodePermission':
+    """Returns basic permissions."""
+    return cls.ASSIGN | cls.CALL
+
+  @property
+  def ALL(cls) -> 'CodePermission':
+    """Returns all permissions."""
+    return (
+        cls.BASIC | cls.CONDITION | cls.LOOP | cls.EXCEPTION |
+        cls.CLASS_DEFINITION | cls.FUNCTION_DEFINITION | cls.IMPORT)
+
+
+class CodePermission(enum.Flag, metaclass=CodePermissionMeta):
   """Permissions for code execution."""
 
   # Allows assignment.
@@ -46,21 +61,6 @@ class CodePermission(enum.Flag):
 
   # Allows import.
   IMPORT = enum.auto()
-
-  @classmethod
-  @property
-  def BASIC(cls) -> 'CodePermission':    # pylint: disable=invalid-name
-    """Returns basic permissions."""
-    return CodePermission.ASSIGN | CodePermission.CALL
-
-  @classmethod
-  @property
-  def ALL(cls) -> 'CodePermission':    # pylint: disable=invalid-name
-    """Returns all permissions."""
-    return (
-        CodePermission.BASIC | CodePermission.CONDITION | CodePermission.LOOP |
-        CodePermission.EXCEPTION | CodePermission.CLASS_DEFINITION |
-        CodePermission.FUNCTION_DEFINITION | CodePermission.IMPORT)
 
 
 _TLS_CODE_RUN_PERMISSION = '__code_run_permission__'

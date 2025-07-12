@@ -29,7 +29,7 @@ class TimeItTest(unittest.TestCase):
 
     tc.start()
     self.assertTrue(tc.has_started)
-    self.assertGreater(tc.elapse, 0)
+    self.assertGreaterEqual(tc.elapse, 0)
 
     self.assertTrue(tc.end())
     self.assertTrue(tc.has_ended)

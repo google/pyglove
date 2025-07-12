@@ -88,7 +88,6 @@ class Functor(pg_object.Object, utils.Functor):
   #
 
   @classmethod
-  @property
   def is_subclassed_functor(cls) -> bool:
     """Returns True if this class is a subclassed Functor."""
     return cls.auto_schema
@@ -96,7 +95,7 @@ class Functor(pg_object.Object, utils.Functor):
   @classmethod
   def _update_signatures_based_on_schema(cls):
     # Update the return value of subclassed functors.
-    if cls.is_subclassed_functor:  # pylint: disable=using-constant-test
+    if cls.is_subclassed_functor():  # pylint: disable=using-constant-test
       private_call_signature = pg_typing.Signature.from_callable(
           cls._call, auto_typing=True, auto_doc=True,
       )
@@ -235,7 +234,7 @@ class Functor(pg_object.Object, utils.Functor):
 
     # For subclassed Functor, we use thread-local storage for storing temporary
     # member overrides from the arguments during functor call.
-    self._tls = threading.local() if self.is_subclassed_functor else None
+    self._tls = threading.local() if self.is_subclassed_functor() else None
 
   def _sym_inferred(self, key: str, **kwargs: Any) -> Any:
     """Overrides method to allow member overrides during call."""
@@ -361,7 +360,7 @@ class Functor(pg_object.Object, utils.Functor):
     args, kwargs = self._parse_call_time_overrides(*args, **kwargs)
     signature = self.__signature__
 
-    if self.is_subclassed_functor:
+    if self.is_subclassed_functor():
       for arg_spec, arg_value in zip(signature.args, args):
         kwargs[arg_spec.name] = arg_value
 
