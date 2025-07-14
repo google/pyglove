@@ -389,7 +389,7 @@ class WrapModuleTest(unittest.TestCase):
     self.assertEqual(len(wrapper_classes), 1)
     self.assertIsInstance(wrapper_classes[0](), self._B)
     self.assertIsInstance(wrapper_classes[0](), ClassWrapper)
-    self.assertEqual(wrapper_classes[0].__module__, 'pyglove.core.symbolic.class_wrapper_test')
+    self.assertEqual(wrapper_classes[0].__module__, 'pyglove.core.symbolic.class_wrapper_test1')
 
   def test_where(self):
     wrapper_classes = pg_wrap_module(
@@ -604,7 +604,7 @@ class ClassWrapperTest(unittest.TestCase):
     A1 = pg_wrap(A)  # pylint: disable=invalid-name
     self.assertTrue(issubclass(A1, ClassWrapper))
     self.assertTrue(issubclass(A1, A))
-    self.assertEqual(A1.__type_name__, 'pyglove.core.symbolic.class_wrapper_test.A')
+    self.assertEqual(A1.__type_name__, 'pyglove.core.symbolic.class_wrapper_test1.A')
     self.assertEqual(A1.__schema__, pg_typing.Schema([]))
     self.assertEqual(A1.foo, 'foo')
     self.assertRegex(repr(A1), r'Symbolic\[.*\]')
