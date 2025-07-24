@@ -23,7 +23,7 @@ import marshal
 import pickle
 import types
 import typing
-from typing import Any, Callable, ContextManager, Dict, Iterable, Iterator, List, Optional, Set, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, ContextManager, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Type, TypeVar, Union
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -83,9 +83,16 @@ class _TypeRegistry:
           f'{self._type_to_cls_map[type_name].__name__}.')
     self._type_to_cls_map[type_name] = cls
 
-  def add_module_alias(self, module: str, alias: str) -> None:
+  def add_module_alias(
+      self,
+      module: str,
+      alias: Union[str, Sequence[str]]
+  ) -> None:
     """Maps a module name to another name. Usually due to rename."""
-    self._prefix_mapping[alias] = module
+    if isinstance(alias, str):
+      alias = [alias]
+    for name in alias:
+      self._prefix_mapping[name] = module
 
   def is_registered(self, type_name: str) -> bool:
     """Returns whether a type name is registered."""
@@ -245,9 +252,13 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     cls._TYPE_REGISTRY.register(type_name, subclass, override_existing)
 
   @classmethod
-  def add_module_alias(cls, source_name: str, target_name: str) -> None:
+  def add_module_alias(
+      cls,
+      module: str,
+      alias: Union[str, Sequence[str]]
+  ) -> None:
     """Adds a module alias so previous serialized objects could be loaded."""
-    cls._TYPE_REGISTRY.add_module_alias(source_name, target_name)
+    cls._TYPE_REGISTRY.add_module_alias(module, alias)
 
   @classmethod
   def is_registered(cls, type_name: str) -> bool:
