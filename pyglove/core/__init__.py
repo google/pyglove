@@ -306,6 +306,7 @@ format = utils.format  # pylint: disable=redefined-builtin
 print = utils.print  # pylint: disable=redefined-builtin
 docstr = utils.docstr
 catch_errors = utils.catch_errors
+match_error = utils.match_error
 timeit = utils.timeit
 
 contextual_override = utils.contextual_override

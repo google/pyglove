@@ -148,6 +148,7 @@ from pyglove.core.utils.docstr_utils import docstr
 
 # Handling exceptions.
 from pyglove.core.utils.error_utils import catch_errors
+from pyglove.core.utils.error_utils import match_error
 from pyglove.core.utils.error_utils import CatchErrorsContext
 from pyglove.core.utils.error_utils import ErrorInfo
 

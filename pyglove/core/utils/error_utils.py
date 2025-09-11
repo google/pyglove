@@ -108,6 +108,64 @@ def catch_errors(
   Yields:
     A CatchErrorsContext object.
   """
+  errors = _parse_error_spec(errors)
+  context = CatchErrorsContext()
+  try:
+    yield context
+  except BaseException as e:    # pylint: disable=broad-exception-caught
+    if match_error(e, errors):
+      context.error = e
+      if error_handler is not None:
+        error_handler(e)
+    else:
+      raise
+
+
+def match_error(
+    error: BaseException,
+    errors: Union[
+        Union[Type[BaseException], Tuple[Type[BaseException], str]],
+        Sequence[Union[Type[BaseException], Tuple[Type[BaseException], str]]],
+        Dict[Type[BaseException], List[str]],
+    ],
+) -> bool:
+  """Returns True if the error matches the specification, .
+
+  Args:
+    error: The error to match.
+    errors: A sequence of exception types or tuples of exception type and error
+      messages (described in regular expression) as the desired exception types
+      to match.
+
+  Returns:
+    True if the error matches the specification, False otherwise.
+  """
+  error_mapping = _parse_error_spec(errors)
+  error_message = error.__class__.__name__ + ': ' + str(error)
+  for error_type, error_regexes in error_mapping.items():
+    if isinstance(error, error_type):
+      if not error_regexes:
+        return True
+      else:
+        for regex in error_regexes:
+          assert regex is not None
+          if not regex.startswith(('^', '.*')):
+            regex = '.*' + regex
+          if re.match(regex, error_message):
+            return True
+  return False
+
+
+def _parse_error_spec(
+    errors: Union[
+        Union[Type[BaseException], Tuple[Type[BaseException], str]],
+        Sequence[Union[Type[BaseException], Tuple[Type[BaseException], str]]],
+        Dict[Type[BaseException], List[str]],
+    ]
+) -> Dict[Type[BaseException], List[str]]:
+  """Parses a sequence of error specifications into a dictionary."""
+  if isinstance(errors, dict):
+    return errors
   if not isinstance(errors, (tuple, list)):
     errors = [errors]
   elif (
@@ -136,28 +194,4 @@ def catch_errors(
       error_mapping[error_type] = []
     if regex is not None:
       error_mapping[error_type].append(regex)
-
-  context = CatchErrorsContext()
-  try:
-    yield context
-  except tuple(error_mapping.keys()) as e:
-    error_message = e.__class__.__name__ + ': ' + str(e)
-    found_match = False
-    for error_type, error_regexes in error_mapping.items():
-      if isinstance(e, error_type):
-        if not error_regexes:
-          found_match = True
-        else:
-          for regex in error_regexes:
-            assert regex is not None
-            if not regex.startswith(('^', '.*')):
-              regex = '.*' + regex
-            if re.match(regex, error_message):
-              found_match = True
-              break
-    if found_match:
-      context.error = e
-      if error_handler is not None:
-        error_handler(e)
-    else:
-      raise e
+  return error_mapping
