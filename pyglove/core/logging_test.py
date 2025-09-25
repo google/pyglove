@@ -21,15 +21,9 @@ class LoggingTest(unittest.TestCase):
   """Tests for pg.logging."""
 
   def testLogging(self):
-    string_io = io.StringIO()
-    logger = logging.getLogger('logger1')
-    logger.setLevel(logging.INFO)
-    console_handler = logging.StreamHandler(stream=string_io)
-    console_handler.setLevel(logging.INFO)
-    logger.addHandler(console_handler)
-
     self.assertIs(pg_logging.get_logger(), logging.getLogger())
-    pg_logging.set_logger(logger)
+    string_io = io.StringIO()
+    logger = pg_logging.use_stream(string_io, name='logger1', fmt='')
     self.assertIs(pg_logging.get_logger(), logger)
 
     pg_logging.debug('x=%s', 1)
@@ -46,19 +40,16 @@ class LoggingTest(unittest.TestCase):
     ]) + '\n')
 
     string_io = io.StringIO()
-    logger = logging.getLogger('logger2')
-    logger.setLevel(logging.DEBUG)
-    console_handler = logging.StreamHandler(stream=string_io)
-    console_handler.setLevel(logging.DEBUG)
-    logger.addHandler(console_handler)
+    with pg_logging.redirect_stream(
+        string_io, level=logging.DEBUG, name='logger2', fmt=''
+    ):
+      pg_logging.debug('x=%s', 6)
+      self.assertEqual(string_io.getvalue(), '\n'.join([
+          'x=6',
+      ]) + '\n')
 
-    pg_logging.set_logger(logger)
-
-    pg_logging.debug('x=%s', 6)
-    self.assertEqual(string_io.getvalue(), '\n'.join([
-        'x=6',
-    ]) + '\n')
-
+    pg_logging.use_stdout()
+    pg_logging.info('y=%s', 7)
 
 if __name__ == '__main__':
   unittest.main()

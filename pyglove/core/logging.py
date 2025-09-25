@@ -17,9 +17,11 @@ This module allows PyGlove to use external created logger for logging PyGlove
 events without introducing library dependencies in PyGlove.
 """
 
+import contextlib
 import inspect
 import logging
-from typing import Any, Callable, List, Union
+import sys
+from typing import Any, Callable, Iterator, List, Union
 
 
 _DEFAULT_LOGGER = logging.getLogger()
@@ -117,3 +119,45 @@ def critical(msg: str, *args, **kwargs) -> None:
     **kwargs: Keyword arguments for the logger.
   """
   _DEFAULT_LOGGER.critical(msg, *args, **kwargs)
+
+
+def use_stream(
+    stream: Any,
+    level: int = logging.INFO,
+    name: str = 'custom',
+    fmt: str = '{levelname:8} | {asctime} | {message}',
+    datefmt: str = '%Y-%m-%d %H:%M:%S') -> logging.Logger:
+  """Use stdout for logging."""
+  logger = logging.getLogger(name)
+  logger.setLevel(level)
+  stdout_handler = logging.StreamHandler(stream=stream)
+  stdout_handler.setLevel(level)
+  stdout_handler.setFormatter(
+      logging.Formatter(fmt=fmt, datefmt=datefmt, style='{'))
+  logger.addHandler(stdout_handler)
+  set_logger(logger)
+  return logger
+
+
+def use_stdout(
+    level: int = logging.INFO,
+    fmt: str = '{levelname:8} | {asctime} | {message}',
+    datefmt: str = '%Y-%m-%d %H:%M:%S') -> logging.Logger:
+  """Use stdout for logging."""
+  return use_stream(sys.stdout, level, 'stdout', fmt, datefmt)
+
+
+@contextlib.contextmanager
+def redirect_stream(
+    stream: Any,
+    level: int = logging.INFO,
+    name: str = 'custom',
+    fmt: str = '{levelname:8} | {asctime} | {message}',
+    datefmt: str = '%Y-%m-%d %H:%M:%S') -> Iterator[logging.Logger]:
+  """Redirect the stream to the given logger."""
+  previous_logger = get_logger()
+  try:
+    logger = use_stream(stream, level, name, fmt, datefmt)
+    yield logger
+  finally:
+    set_logger(previous_logger)
