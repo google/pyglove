@@ -1,4 +1,4 @@
-# Copyright 2019 The PyGlove Authors
+# Copyright 2025 The PyGlove Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -352,6 +352,12 @@ from pyglove.core import coding
 #
 
 from pyglove.core import logging
+
+#
+# Symbols from `monitoring.py`.
+#
+
+from pyglove.core import monitoring
 
 # pylint: enable=g-import-not-at-top
 # pylint: enable=reimported
