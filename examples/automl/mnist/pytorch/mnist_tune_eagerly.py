@@ -132,15 +132,24 @@ def main(argv):
 
   def inspect_search_space():
     _ = train_and_eval(dry_run=True)
+
   search_space = pg.hyper.trace(inspect_search_space, require_hyper_name=True)
   search_algorithm = pg.evolution.regularized_evolution()
 
   for automl_context, feedback in pg.sample(
-      search_space, search_algorithm, num_examples=5):
+      search_space, search_algorithm, num_examples=5
+  ):
     with automl_context():
-      print('Starting trial #%d with parameters %s.'
-            % (feedback.id, {k: search_space.evaluate(v)
-                             for k, v in search_space.hyper_dict.items()}))
+      print(
+          'Starting trial #%d with parameters %s.'
+          % (
+              feedback.id,
+              {
+                  k: search_space.evaluate(v)
+                  for k, v in (search_space.hyper_dict or {}).items()
+              },
+          )
+      )
       accuracy = train_and_eval(epochs=1)
       feedback(accuracy)
 
