@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
 import unittest
 from pyglove.core import monitoring
 
@@ -204,6 +205,11 @@ class InMemoryScalarTest(unittest.TestCase):
     scalar.record(3)
     scalar.distribution()
     self.assertEqual(dist.count, 3)
+
+    scalar = collection.get_scalar('scalar2', 'scalar description')
+    with scalar.record_duration():
+      time.sleep(0.1)
+    self.assertGreaterEqual(scalar.distribution().mean, 100)
 
   def test_scalar_with_parameters(self):
     collection = monitoring.InMemoryMetricCollection('/test')

@@ -19,10 +19,12 @@ programs.
 
 import abc
 import collections
+import contextlib
 import math
 import threading
+import time
 import typing
-from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
 
 
 try:
@@ -193,6 +195,16 @@ class Scalar(Metric):
     Returns:
       The distribution of the scalar.
     """
+
+  @contextlib.contextmanager
+  def record_duration(self, scale: int = 1000, **parameters) -> Iterator[None]:
+    """Context manager that records the duration of code block to the scalar."""
+    start_time = time.time()
+    try:
+      yield
+    finally:
+      duration = (time.time() - start_time) * scale
+      self.record(int(duration), **parameters)
 
 
 class MetricCollection(metaclass=abc.ABCMeta):
