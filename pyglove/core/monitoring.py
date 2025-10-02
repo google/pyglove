@@ -25,7 +25,7 @@ import threading
 import time
 import typing
 from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
-
+from pyglove.core.utils import error_utils
 
 try:
   import numpy  # pylint: disable=g-import-not-at-top
@@ -197,13 +197,34 @@ class Scalar(Metric):
     """
 
   @contextlib.contextmanager
-  def record_duration(self, scale: int = 1000, **parameters) -> Iterator[None]:
-    """Context manager that records the duration of code block to the scalar."""
+  def record_duration(
+      self,
+      *,
+      scale: int = 1000,
+      error_parameter: str = 'error',
+      **parameters) -> Iterator[None]:
+    """Context manager that records the duration of code block to the scalar.
+
+    Args:
+      scale: The scale of the duration.
+      error_parameter: The parameter name for recording the error. If the name
+        is not defined as a parameter for the scalar, the error tag will not be
+        recorded.
+      **parameters: Parameters for parameterized scalars.
+    """
     start_time = time.time()
+    error = None
     try:
       yield
+    except BaseException as e:
+      error = e
+      raise e
     finally:
       duration = (time.time() - start_time) * scale
+      if error is not None and error_parameter in self._parameter_definitions:
+        parameters[error_parameter] = (
+            error_utils.ErrorInfo.from_exception(error).tag
+        )
       self.record(int(duration), **parameters)
 
 

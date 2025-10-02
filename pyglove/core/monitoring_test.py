@@ -15,6 +15,7 @@
 import time
 import unittest
 from pyglove.core import monitoring
+from pyglove.core.symbolic import error_info  # pylint: disable=unused-import
 
 
 class MetricCollectionTest(unittest.TestCase):
@@ -230,6 +231,15 @@ class InMemoryScalarTest(unittest.TestCase):
     self.assertEqual(dist.count, 2)
     dist = scalar.distribution(field1='bar')
     self.assertEqual(dist.count, 1)
+
+    scalar = collection.get_scalar(
+        'scalar2', 'scalar description', {'error': str}
+    )
+    with self.assertRaises(ValueError):
+      with scalar.record_duration():
+        time.sleep(0.1)
+        raise ValueError()
+    self.assertGreaterEqual(scalar.distribution(error='ValueError').mean, 100)
 
 
 if __name__ == '__main__':
