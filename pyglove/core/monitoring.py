@@ -221,9 +221,10 @@ class Scalar(Metric):
       raise e
     finally:
       duration = (time.time() - start_time) * scale
-      if error is not None and error_parameter in self._parameter_definitions:
+      if error_parameter in self._parameter_definitions:
         parameters[error_parameter] = (
             error_utils.ErrorInfo.from_exception(error).tag
+            if error is not None else ''
         )
       self.record(int(duration), **parameters)
 

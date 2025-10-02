@@ -240,6 +240,9 @@ class InMemoryScalarTest(unittest.TestCase):
         time.sleep(0.1)
         raise ValueError()
     self.assertGreaterEqual(scalar.distribution(error='ValueError').mean, 100)
+    with scalar.record_duration():
+      time.sleep(0.1)
+    self.assertGreaterEqual(scalar.distribution(error='').mean, 100)
 
 
 if __name__ == '__main__':
