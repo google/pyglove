@@ -14,7 +14,17 @@
 """Pluggable metric systems for monitoring.
 
 This module allows PyGlove to plugin metrics to monitor the execution of
-programs.
+programs. There are three common metrics for monitoring: counters, scalars, and
+distributions.
+
+* Counters are metrics that track the number of times an event occurs. It's
+monotonically increasing over time.
+
+* Scalars are metrics that track a single value at a given time, for example,
+available memory size. It does not accumulate over time like counters.
+
+* Distributions are metrics that track the distribution of a numerical value.
+For example, the latency of an operation.
 """
 
 import abc
@@ -24,7 +34,7 @@ import math
 import threading
 import time
 import typing
-from typing import Any, Callable, Dict, Iterator, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Generic, Iterator, List, Optional, Tuple, Type, TypeVar, Union
 from pyglove.core.utils import error_utils
 
 try:
@@ -33,7 +43,10 @@ except ImportError:
   numpy = None
 
 
-class Metric(metaclass=abc.ABCMeta):
+MetricValueType = TypeVar('MetricValueType')
+
+
+class Metric(Generic[MetricValueType], metaclass=abc.ABCMeta):
   """Base class for metrics."""
 
   def __init__(
@@ -41,12 +54,23 @@ class Metric(metaclass=abc.ABCMeta):
       namespace: str,
       name: str,
       description: str,
-      parameter_definitions: Dict[str, Type[Union[int, str, bool]]]
+      parameter_definitions: Dict[str, Type[Union[int, str, bool]]],
+      **additional_flags,
   ) -> None:
+    """Initializes the metric.
+
+    Args:
+      namespace: The namespace of the metric.
+      name: The name of the metric.
+      description: The description of the metric.
+      parameter_definitions: The definitions of the parameters for the metric.
+      **additional_flags: Additional flags for the metric.
+    """
     self._namespace = namespace
     self._name = name
     self._description = description
     self._parameter_definitions = parameter_definitions
+    self._flags = additional_flags
 
   @property
   def namespace(self) -> str:
@@ -73,6 +97,11 @@ class Metric(metaclass=abc.ABCMeta):
     """Returns the parameter definitions of the metric."""
     return self._parameter_definitions
 
+  @property
+  def flags(self) -> Dict[str, Any]:
+    """Returns the flags of the metric."""
+    return self._flags
+
   def _parameters_key(self, **parameters) -> Tuple[Any, ...]:
     """Returns the parameters tuple for the metric."""
     for k, t in self._parameter_definitions.items():
@@ -96,9 +125,24 @@ class Metric(metaclass=abc.ABCMeta):
         )
     return tuple(parameters[k] for k in self._parameter_definitions)
 
+  @abc.abstractmethod
+  def value(self, **parameters) -> MetricValueType:
+    """Returns the value of the metric for the given parameters.
 
-class Counter(Metric):
-  """Base class for counters."""
+    Args:
+      **parameters: Parameters for parameterized counters.
+
+    Returns:
+      The value of the metric.
+    """
+
+
+class Counter(Metric[int]):
+  """Base class for counters.
+
+  Counters are metrics that track the number of times an event occurs. It's
+  monotonically increasing over time.
+  """
 
   @abc.abstractmethod
   def increment(self, delta: int = 1, **parameters) -> int:
@@ -112,20 +156,42 @@ class Counter(Metric):
       The new value of the counter.
     """
 
+
+class Scalar(Metric[MetricValueType]):
+  """Base class for scalar values.
+
+  Scalar values are metrics that track a single value at a given time, for
+  example, available memory size. It does not accumulate over time like
+  counters.
+  """
+
   @abc.abstractmethod
-  def value(self, **parameters) -> int:
-    """Returns the value of the counter for the given parameters.
+  def set(self, value: MetricValueType, **parameters) -> None:
+    """Sets the value of the scalar.
 
     Args:
+      value: The value to record.
+      **parameters: Parameters for parameterized scalars.
+    """
+
+  @abc.abstractmethod
+  def increment(
+      self,
+      delta: MetricValueType = 1, **parameters
+  ) -> MetricValueType:
+    """Increments the scalar by delta and returns the new value.
+
+    Args:
+      delta: The amount to increment the counter by.
       **parameters: Parameters for parameterized counters.
 
     Returns:
-      The value of the counter.
+      The new value of the metric.
     """
 
 
-class Distribution(metaclass=abc.ABCMeta):
-  """Distribution of scalar values."""
+class DistributionValue(metaclass=abc.ABCMeta):
+  """Base for distribution value."""
 
   @property
   @abc.abstractmethod
@@ -173,27 +239,20 @@ class Distribution(metaclass=abc.ABCMeta):
     """Returns the fraction of values in the distribution less than value."""
 
 
-class Scalar(Metric):
-  """Base class for scalar values."""
+class Distribution(Metric[DistributionValue]):
+  """Base class for distributional metrics.
+
+  Distributions are metrics that track the distribution of a numerical value.
+  For example, the latency of an operation.
+  """
 
   @abc.abstractmethod
-  def record(self, value: int, **parameters) -> None:
-    """Records a value to the scalar.
+  def record(self, value: float, **parameters) -> None:
+    """Records a value to the distribution.
 
     Args:
       value: The value to record.
-      **parameters: Parameters for parameterized scalars.
-    """
-
-  @abc.abstractmethod
-  def distribution(self, **parameters) -> Distribution:
-    """Returns the distribution of the scalar.
-
-    Args:
-      **parameters: Parameters for parameterized scalars.
-
-    Returns:
-      The distribution of the scalar.
+      **parameters: Parameters for parameterized distributions.
     """
 
   @contextlib.contextmanager
@@ -203,14 +262,14 @@ class Scalar(Metric):
       scale: int = 1000,
       error_parameter: str = 'error',
       **parameters) -> Iterator[None]:
-    """Context manager that records the duration of code block to the scalar.
+    """Context manager that records the duration of code block.
 
     Args:
       scale: The scale of the duration.
       error_parameter: The parameter name for recording the error. If the name
-        is not defined as a parameter for the scalar, the error tag will not be
-        recorded.
-      **parameters: Parameters for parameterized scalars.
+        is not defined as a parameter for the distribution, the error tag will
+        not be recorded.
+      **parameters: Parameters for parameterized distributions.
     """
     start_time = time.time()
     error = None
@@ -226,11 +285,15 @@ class Scalar(Metric):
             error_utils.ErrorInfo.from_exception(error).tag
             if error is not None else ''
         )
-      self.record(int(duration), **parameters)
+      self.record(duration, **parameters)
 
 
 class MetricCollection(metaclass=abc.ABCMeta):
   """Base class for counter collections."""
+
+  _COUNTER_CLASS = Counter
+  _SCALAR_CLASS = Scalar
+  _DISTRIBUTION_CLASS = Distribution
 
   def __init__(
       self,
@@ -266,13 +329,10 @@ class MetricCollection(metaclass=abc.ABCMeta):
   def _get_or_create_metric(
       self,
       metric_cls: Type[Metric],
-      create_metric_fn: Callable[
-          [str, str, Dict[str, Type[Union[int, str, bool]]]],
-          Metric
-      ],
       name: str,
       description: str,
-      parameter_definitions: Dict[str, Type[Union[int, str, bool]]]
+      parameter_definitions: Dict[str, Type[Union[int, str, bool]]],
+      **additional_flags,
   ) -> Metric:
     """Gets or creates a metric with the given name."""
     full_name = f'{self._namespace}/{name}'
@@ -294,7 +354,13 @@ class MetricCollection(metaclass=abc.ABCMeta):
             f'definitions ({metric.parameter_definitions!r}).'
         )
     else:
-      metric = create_metric_fn(name, description, parameter_definitions)
+      metric = metric_cls(
+          self.namespace,
+          name,
+          description,
+          parameter_definitions,
+          **additional_flags
+      )
       self._metrics[full_name] = metric
     return metric
 
@@ -303,7 +369,7 @@ class MetricCollection(metaclass=abc.ABCMeta):
       name: str,
       description: str,
       parameters: Optional[Dict[str, Type[Union[int, str, bool]]]] = None,
-      **kwargs
+      **additional_flags
   ) -> Counter:
     """Gets or creates a counter with the given name.
 
@@ -312,7 +378,9 @@ class MetricCollection(metaclass=abc.ABCMeta):
       description: The description of the counter.
       parameters: The definitions of the parameters for the counter.
         `default_parameters` from the collection will be used if not specified.
-      **kwargs: Additional arguments for creating the counter.
+      **additional_flags: Additional arguments for creating the counter.
+        Subclasses can use these arguments to provide additional information for
+        creating the counter.
 
     Returns:
       The counter with the given name.
@@ -320,28 +388,23 @@ class MetricCollection(metaclass=abc.ABCMeta):
     if parameters is None:
       parameters = self._default_parameter_definitions
     return typing.cast(
-        Counter, self._get_or_create_metric(
-            Counter, self._create_counter, name, description, parameters,
-            **kwargs
+        Counter,
+        self._get_or_create_metric(
+            self._COUNTER_CLASS,
+            name,
+            description,
+            parameters,
+            **additional_flags
         )
     )
-
-  @abc.abstractmethod
-  def _create_counter(
-      self,
-      name: str,
-      description: str,
-      parameter_definitions: Dict[str, Type[Union[int, str, bool]]],
-      **kwargs
-  ) -> Counter:
-    """Creates a counter with the given name."""
 
   def get_scalar(
       self,
       name: str,
       description: str,
       parameters: Optional[Dict[str, Type[Union[int, str, bool]]]] = None,
-      **kwargs
+      value_type: Type[Union[int, float]] = int,
+      **additional_flags
   ) -> Scalar:
     """Gets or creates a scalar with the given name.
 
@@ -350,7 +413,8 @@ class MetricCollection(metaclass=abc.ABCMeta):
       description: The description of the counter.
       parameters: The definitions of the parameters for the counter.
         `default_parameters` from the collection will be used if not specified.
-      **kwargs: Additional arguments for creating the scalar.
+      value_type: The type of the value for the scalar.
+      **additional_flags: Additional arguments for creating the scalar.
 
     Returns:
       The counter with the given name.
@@ -360,19 +424,46 @@ class MetricCollection(metaclass=abc.ABCMeta):
     return typing.cast(
         Scalar,
         self._get_or_create_metric(
-            Scalar, self._create_scalar, name, description, parameters, **kwargs
+            self._SCALAR_CLASS,
+            name,
+            description,
+            parameters,
+            value_type=value_type,
+            **additional_flags
         )
     )
 
-  @abc.abstractmethod
-  def _create_scalar(
+  def get_distribution(
       self,
       name: str,
       description: str,
-      parameter_definitions: Dict[str, Type[Union[int, str, bool]]],
-      **kwargs
-  ) -> Scalar:
-    """Creates a counter with the given name."""
+      parameters: Optional[Dict[str, Type[Union[int, str, bool]]]] = None,
+      **additional_flags
+  ) -> Distribution:
+    """Gets or creates a distribution with the given name.
+
+    Args:
+      name: The name of the distribution.
+      description: The description of the distribution.
+      parameters: The definitions of the parameters for the distribution.
+        `default_parameters` from the collection will be used if not specified.
+      **additional_flags: Additional arguments for creating the distribution.
+
+    Returns:
+      The distribution with the given name.
+    """
+    if parameters is None:
+      parameters = self._default_parameter_definitions
+    return typing.cast(
+        Distribution,
+        self._get_or_create_metric(
+            self._DISTRIBUTION_CLASS,
+            name,
+            description,
+            parameters,
+            **additional_flags
+        )
+    )
 
 #
 # InMemoryMetricCollection.
@@ -401,14 +492,46 @@ class _InMemoryCounter(Counter):
     return self._counter[self._parameters_key(**parameters)]
 
 
-class _InMemoryScalar(Scalar):
+class _InMemoryScalar(Scalar[MetricValueType]):
   """In-memory scalar."""
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+    self._values = collections.defaultdict(self.flags['value_type'])
+    self._lock = threading.Lock()
+
+  def increment(
+      self,
+      delta: MetricValueType = 1,
+      **parameters
+  ) -> MetricValueType:
+    """Increments the scalar by delta and returns the new value."""
+    parameters_key = self._parameters_key(**parameters)
+    with self._lock:
+      value = self._values[parameters_key]
+      value += delta
+      self._values[parameters_key] = value
+      return value
+
+  def set(self, value: MetricValueType, **parameters) -> None:
+    """Sets the value of the scalar."""
+    parameters_key = self._parameters_key(**parameters)
+    with self._lock:
+      self._values[parameters_key] = value
+
+  def value(self, **parameters) -> MetricValueType:
+    """Returns the distribution of the scalar."""
+    return self._values[self._parameters_key(**parameters)]
+
+
+class _InMemoryDistribution(Distribution):
+  """In-memory distribution."""
 
   def __init__(self, *args, window_size: int = 1024 * 1024, **kwargs):
     super().__init__(*args, **kwargs)
     self._window_size = window_size
     self._distributions = collections.defaultdict(
-        lambda: _InMemoryDistribution(self._window_size)
+        lambda: _InMemoryDistributionValue(self._window_size)
     )
     self._lock = threading.Lock()
 
@@ -417,14 +540,13 @@ class _InMemoryScalar(Scalar):
     parameters_key = self._parameters_key(**parameters)
     self._distributions[parameters_key].add(value)
 
-  def distribution(self, **parameters) -> Distribution:
+  def value(self, **parameters) -> DistributionValue:
     """Returns the distribution of the scalar."""
-    parameters_key = self._parameters_key(**parameters)
-    return self._distributions[parameters_key]
+    return self._distributions[self._parameters_key(**parameters)]
 
 
-class _InMemoryDistribution(Distribution):
-  """In memory distribution of scalar values."""
+class _InMemoryDistributionValue(DistributionValue):
+  """In memory distribution value."""
 
   def __init__(self, window_size: int = 1024 * 1024):
     self._window_size = window_size
@@ -511,30 +633,9 @@ class _InMemoryDistribution(Distribution):
 class InMemoryMetricCollection(MetricCollection):
   """In-memory counter."""
 
-  def _create_counter(
-      self,
-      name: str,
-      description: str,
-      parameter_definitions: Dict[str, Type[Union[int, str, bool]]],
-      **kwargs
-  ) -> Counter:
-    return _InMemoryCounter(
-        self._namespace, name, description, parameter_definitions
-    )
-
-  def _create_scalar(
-      self,
-      name: str,
-      description: str,
-      parameter_definitions: Dict[str, Type[Union[int, str, bool]]],
-      *,
-      window_size: int = 1024 * 1024,
-      **kwargs
-  ) -> Scalar:
-    return _InMemoryScalar(
-        self._namespace, name, description, parameter_definitions,
-        window_size=window_size, **kwargs
-    )
+  _COUNTER_CLASS = _InMemoryCounter
+  _SCALAR_CLASS = _InMemoryScalar
+  _DISTRIBUTION_CLASS = _InMemoryDistribution
 
 
 _METRIC_COLLECTION_CLS = InMemoryMetricCollection  # pylint: disable=invalid-name

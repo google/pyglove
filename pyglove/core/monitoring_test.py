@@ -55,7 +55,7 @@ class MetricCollectionTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Metric .* already exists with a different type'
     ):
-      collection.get_scalar('counter', 'counter description')
+      collection.get_distribution('counter', 'counter description')
 
     with self.assertRaisesRegex(
         ValueError, 'Metric .* already exists with a different description'
@@ -71,11 +71,11 @@ class MetricCollectionTest(unittest.TestCase):
       )
 
 
-class InMemoryDistributionTest(unittest.TestCase):
-  """Tests for in memory distribution."""
+class InMemoryDistributionValueTest(unittest.TestCase):
+  """Tests for in memory distribution value."""
 
   def test_empty_distribution(self):
-    dist = monitoring._InMemoryDistribution()
+    dist = monitoring._InMemoryDistributionValue()
     self.assertEqual(dist.count, 0)
     self.assertEqual(dist.sum, 0.0)
     self.assertEqual(dist.mean, 0.0)
@@ -86,7 +86,7 @@ class InMemoryDistributionTest(unittest.TestCase):
     self.assertEqual(dist.fraction_less_than(100), 0.0)
 
   def test_add_value(self):
-    dist = monitoring._InMemoryDistribution()
+    dist = monitoring._InMemoryDistributionValue()
     dist.add(1)
     dist.add(3)
     dist.add(10)
@@ -106,7 +106,7 @@ class InMemoryDistributionTest(unittest.TestCase):
   def test_add_value_no_numpy(self):
     numpy = monitoring.numpy
     monitoring.numpy = None
-    dist = monitoring._InMemoryDistribution()
+    dist = monitoring._InMemoryDistributionValue()
     dist.add(1)
     dist.add(3)
     dist.add(10)
@@ -125,7 +125,7 @@ class InMemoryDistributionTest(unittest.TestCase):
     monitoring.numpy = numpy
 
   def test_window_size(self):
-    dist = monitoring._InMemoryDistribution(window_size=3)
+    dist = monitoring._InMemoryDistributionValue(window_size=3)
     dist.add(1)
     dist.add(3)
     dist.add(10)
@@ -199,50 +199,90 @@ class InMemoryScalarTest(unittest.TestCase):
     self.assertEqual(scalar.description, 'scalar description')
     self.assertEqual(scalar.parameter_definitions, {})
     self.assertEqual(scalar.full_name, '/test/scalar')
-    dist = scalar.distribution()
-    self.assertEqual(dist.count, 0)
-    scalar.record(1)
-    scalar.record(2)
-    scalar.record(3)
-    scalar.distribution()
-    self.assertEqual(dist.count, 3)
-
-    scalar = collection.get_scalar('scalar2', 'scalar description')
-    with scalar.record_duration():
-      time.sleep(0.1)
-    self.assertGreaterEqual(scalar.distribution().mean, 100)
+    self.assertEqual(scalar.value(), 0)
+    self.assertEqual(scalar.increment(), 1)
+    self.assertEqual(scalar.value(), 1)
+    scalar.set(3)
+    self.assertEqual(scalar.increment(2), 5)
+    self.assertEqual(scalar.value(), 5)
 
   def test_scalar_with_parameters(self):
     collection = monitoring.InMemoryMetricCollection('/test')
     scalar = collection.get_scalar(
-        'scalar', 'scalar description', {'field1': str}
+        'scalar', 'scalar description', {'field1': str}, float
     )
     self.assertEqual(scalar.namespace, '/test')
     self.assertEqual(scalar.name, 'scalar')
     self.assertEqual(scalar.description, 'scalar description')
     self.assertEqual(scalar.parameter_definitions, {'field1': str})
     self.assertEqual(scalar.full_name, '/test/scalar')
-    dist = scalar.distribution(field1='foo')
-    self.assertEqual(dist.count, 0)
-    scalar.record(1, field1='foo')
-    scalar.record(2, field1='foo')
-    scalar.record(3, field1='bar')
-    dist = scalar.distribution(field1='foo')
-    self.assertEqual(dist.count, 2)
-    dist = scalar.distribution(field1='bar')
-    self.assertEqual(dist.count, 1)
+    self.assertEqual(scalar.value(field1='foo'), 0.0)
+    scalar.set(2.5, field1='bar')
+    self.assertEqual(scalar.value(field1='bar'), 2.5)
+    self.assertEqual(scalar.increment(1.1, field1='bar'), 3.6)
+    self.assertEqual(scalar.value(field1='bar'), 3.6)
+    self.assertEqual(scalar.value(field1='foo'), 0.0)
 
-    scalar = collection.get_scalar(
-        'scalar2', 'scalar description', {'error': str}
+
+class InMemoryDistributionTest(unittest.TestCase):
+  """Tests for in memory distribution."""
+
+  def test_distribution_without_parameters(self):
+    collection = monitoring.InMemoryMetricCollection('/test')
+    dist = collection.get_distribution(
+        'distribution', 'distribution description'
+    )
+    self.assertEqual(dist.namespace, '/test')
+    self.assertEqual(dist.name, 'distribution')
+    self.assertEqual(dist.description, 'distribution description')
+    self.assertEqual(dist.parameter_definitions, {})
+    self.assertEqual(dist.full_name, '/test/distribution')
+    v = dist.value()
+    self.assertEqual(v.count, 0)
+    dist.record(1)
+    dist.record(2)
+    dist.record(3)
+    v = dist.value()
+    self.assertEqual(v.count, 3)
+
+    dist = collection.get_distribution(
+        'distribution2', 'distribution description'
+    )
+    with dist.record_duration():
+      time.sleep(0.1)
+    self.assertGreaterEqual(dist.value().mean, 100)
+
+  def test_distribution_with_parameters(self):
+    collection = monitoring.InMemoryMetricCollection('/test')
+    dist = collection.get_distribution(
+        'distribution', 'distribution description', {'field1': str}
+    )
+    self.assertEqual(dist.namespace, '/test')
+    self.assertEqual(dist.name, 'distribution')
+    self.assertEqual(dist.description, 'distribution description')
+    self.assertEqual(dist.parameter_definitions, {'field1': str})
+    self.assertEqual(dist.full_name, '/test/distribution')
+    value = dist.value(field1='foo')
+    self.assertEqual(value.count, 0)
+    dist.record(1, field1='foo')
+    dist.record(2, field1='foo')
+    dist.record(3, field1='bar')
+    value = dist.value(field1='foo')
+    self.assertEqual(value.count, 2)
+    value = dist.value(field1='bar')
+    self.assertEqual(value.count, 1)
+
+    dist = collection.get_distribution(
+        'distribution2', 'distribution description', {'error': str}
     )
     with self.assertRaises(ValueError):
-      with scalar.record_duration():
+      with dist.record_duration():
         time.sleep(0.1)
         raise ValueError()
-    self.assertGreaterEqual(scalar.distribution(error='ValueError').mean, 100)
-    with scalar.record_duration():
+    self.assertGreaterEqual(dist.value(error='ValueError').mean, 100)
+    with dist.record_duration():
       time.sleep(0.1)
-    self.assertGreaterEqual(scalar.distribution(error='').mean, 100)
+    self.assertGreaterEqual(dist.value(error='').mean, 100)
 
 
 if __name__ == '__main__':
