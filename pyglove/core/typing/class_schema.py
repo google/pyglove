@@ -582,6 +582,16 @@ class ValueSpec(utils.Formattable, utils.JSONConvertible):
     del include_type_name, include_subclasses, inline_nested_refs, kwargs
     assert False, 'Overridden in `json_schema.py`.'
 
+  @classmethod
+  def from_json_schema(
+      cls,
+      json_schema: Dict[str, Any],
+      class_fn: Optional[Callable[[str, 'Schema'], Type[Any]]] = None
+  ) -> 'ValueSpec':
+    """Converts a JSON schema to a value spec."""
+    del json_schema, class_fn
+    assert False, 'Overridden in `json_schema.py`.'
+
 
 class Field(utils.Formattable, utils.JSONConvertible):
   """Class that represents the definition of one or a group of attributes.
@@ -1374,6 +1384,16 @@ class Schema(utils.Formattable, utils.JSONConvertible):
 
   def __ne__(self, other: Any) -> bool:
     return not self.__eq__(other)
+
+  @classmethod
+  def from_json_schema(
+      cls,
+      json_schema: Dict[str, Any],
+      class_fn: Optional[Callable[[str, 'Schema'], Type[Any]]] = None
+  ) -> 'Schema':
+    """Converts a JSON schema to a schema."""
+    del json_schema, class_fn
+    assert False, 'Overridden in `json_schema.py`.'
 
 
 FieldDef = Union[

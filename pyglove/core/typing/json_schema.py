@@ -15,7 +15,7 @@
 
 import dataclasses
 import inspect
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 from pyglove.core import utils
 from pyglove.core.typing import callable_signature
@@ -53,8 +53,8 @@ def _json_schema_from_schema(
     required = []
 
     if type_name and include_type_name:
-      properties['_type'] = {'const': type_name}
-      required.append('_type')
+      properties[utils.JSONConvertible.TYPE_NAME_KEY] = {'const': type_name}
+      required.append(utils.JSONConvertible.TYPE_NAME_KEY)
 
     for key, field in schema.items():
       if isinstance(key, ks.ConstStrKey):
@@ -145,7 +145,6 @@ def _json_schema_from_value_spec(
     }
     if not isinstance(value_spec.element.value, vs.Any):
       definition['items'] = _child_json_schema(value_spec.element.value)
-    return definition
   elif isinstance(value_spec, vs.Dict):
     if value_spec.schema is None:
       definition = {
@@ -168,9 +167,7 @@ def _json_schema_from_value_spec(
           include_type_name=include_type_name,
           include_subclasses=include_subclasses,
       )
-    definitions = [
-        _json_schema_from_cls(value_spec.cls)
-    ]
+    definitions = [_json_schema_from_cls(value_spec.cls)]
 
     if include_subclasses:
       for subclass in value_spec.cls.__subclasses__():
@@ -206,12 +203,26 @@ def _json_schema_from_value_spec(
         f'Value spec {value_spec!r} cannot be converted to JSON schema.'
     )
 
+  if (value_spec.has_default
+      and value_spec.default is not None
+      and not isinstance(value_spec, vs.Dict)):
+    default = utils.to_json(value_spec.default)
+    if not include_type_name:
+      def _remove_type_name(_, v: Dict[str, Any]):
+        if isinstance(v, dict):
+          v.pop(utils.JSONConvertible.TYPE_NAME_KEY, None)
+        return v
+      default = utils.transform(default, _remove_type_name)
+    definition['default'] = default
+
   if not ignore_nonable and value_spec.is_noneable:
     nullable = {'type': 'null'}
     if 'anyOf' in definition:
       definition['anyOf'].append(nullable)
     else:
       definition = {'anyOf': [definition, nullable]}
+    if value_spec.default is None:
+      definition['default'] = None
   return definition
 
 
@@ -294,6 +305,8 @@ def _canonicalize_schema(
   }
   canonical_form = {'$defs': referenced_defs} if referenced_defs else {}
   canonical_form.update(new_root)
+  if 'default' in root:
+    canonical_form['default'] = root['default']
   return canonical_form
 
 #
@@ -336,5 +349,205 @@ def _schema_to_json_schema(
       **kwargs
   )
 
-vs.ValueSpec.to_json_schema = _value_spec_to_json_schema
+class_schema.ValueSpec.to_json_schema = _value_spec_to_json_schema
 class_schema.Schema.to_json_schema = _schema_to_json_schema
+
+#
+# from JSON schema to PyGlove value spec.
+#
+
+
+def _json_schema_to_value_spec(
+    json_schema: Dict[str, Any],
+    defs: Dict[str, Type[Any]],
+    class_fn: Optional[Callable[[str, class_schema.Schema], Type[Any]]],
+    add_json_schema_as_metadata: bool,
+) -> class_schema.ValueSpec:
+  """Converts a JSON schema to a value spec."""
+  # Generate code to convert JSON schema to value spec.
+  def _value_spec(value_schema: Dict[str, Any]):
+    return _json_schema_to_value_spec(
+        value_schema, defs, class_fn, add_json_schema_as_metadata
+    )
+
+  if '$ref' in json_schema:
+    # TODO(daiyip): Support circular references.
+    ref_key = json_schema['$ref'].split('/')[-1]
+    type_ref = defs.get(ref_key)
+    if type_ref is None:
+      raise ValueError(
+          f'Reference {ref_key!r} not defined in defs. '
+          'Please make sure classes being referenced are defined '
+          'before the referencing classes. '
+      )
+    return type_ref
+  type_str = json_schema.get('type')
+  default = json_schema.get('default', utils.MISSING_VALUE)
+  if type_str is None:
+    if 'enum' in json_schema:
+      for v in json_schema['enum']:
+        if not isinstance(v, (str, int, float, bool)):
+          raise ValueError(
+              f'Enum candidate {v!r} is not supported for JSON schema '
+              'conversion.'
+          )
+      return vs.Enum(
+          default,
+          [v for v in json_schema['enum'] if v is not None]
+      )
+    elif 'anyOf' in json_schema:
+      candidates = []
+      accepts_none = False
+      for v in json_schema['anyOf']:
+        candidate = _value_spec(v)
+        if candidate.frozen and candidate.default is None:
+          accepts_none = True
+          continue
+        candidates.append(candidate)
+
+      if len(candidates) == 1:
+        spec = candidates[0]
+      else:
+        spec = vs.Union(candidates)
+      if accepts_none:
+        spec = spec.noneable()
+      return spec
+  elif type_str == 'null':
+    return vs.Any().freeze(None)
+  elif type_str == 'boolean':
+    return vs.Bool(default=default)
+  elif type_str == 'integer':
+    minimum = json_schema.get('minimum')
+    maximum = json_schema.get('maximum')
+    return vs.Int(min_value=minimum, max_value=maximum, default=default)
+  elif type_str == 'number':
+    minimum = json_schema.get('minimum')
+    maximum = json_schema.get('maximum')
+    return vs.Float(min_value=minimum, max_value=maximum, default=default)
+  elif type_str == 'string':
+    pattern = json_schema.get('pattern')
+    return vs.Str(regex=pattern, default=default)
+  elif type_str == 'array':
+    items = json_schema.get('items')
+    return vs.List(_value_spec(items) if items else vs.Any(), default=default)
+  elif type_str == 'object':
+    schema = _json_schema_to_schema(
+        json_schema, defs, class_fn, add_json_schema_as_metadata
+    )
+    if class_fn is not None and 'title' in json_schema:
+      return vs.Object(class_fn(json_schema['title'], schema))
+    return vs.Dict(schema=schema if schema.fields else None)
+  raise ValueError(f'Unsupported type {type_str!r} in JSON schema.')
+
+
+def _json_schema_to_schema(
+    json_schema: Dict[str, Any],
+    defs: Dict[str, Type[Any]],
+    class_fn: Optional[Callable[[str, class_schema.Schema], Type[Any]]],
+    add_json_schema_as_metadata: bool,
+) -> class_schema.Schema:
+  """Converts a JSON schema to a schema."""
+  title = json_schema.get('title')
+  properties = json_schema.get('properties', {})
+  fields = []
+  required = set(json_schema.get('required', []))
+  for name, property_schema in properties.items():
+    value_spec = _json_schema_to_value_spec(
+        property_schema, defs, class_fn, add_json_schema_as_metadata
+    )
+    if name not in required and not value_spec.has_default:
+      value_spec = value_spec.noneable()
+    fields.append(
+        class_schema.Field(
+            name,
+            value_spec,
+            description=property_schema.get('description'),
+            metadata=(
+                dict(json_schema=property_schema)
+                if add_json_schema_as_metadata else None
+            )
+        )
+    )
+  additional_properties = json_schema.get('additionalProperties')
+  if additional_properties:
+    if isinstance(additional_properties, dict):
+      value_spec = _json_schema_to_value_spec(
+          additional_properties, defs, class_fn, add_json_schema_as_metadata
+      )
+    else:
+      value_spec = vs.Any()
+    fields.append(class_schema.Field(ks.StrKey(), value_spec))
+  return class_schema.Schema(
+      name=title,
+      description=json_schema.get('description'),
+      fields=fields,
+      allow_nonconst_keys=True,
+  )
+
+
+@classmethod
+def _value_spec_from_json_schema(
+    cls,
+    json_schema: Dict[str, Any],
+    class_fn: Optional[Callable[[str, class_schema.Schema], Type[Any]]] = None,
+    add_json_schema_as_metadata: bool = False,
+) -> class_schema.ValueSpec:
+  """Creates a PyGlove value spec from a JSON schema.
+
+  Args:
+    json_schema: The JSON schema for a value spec.
+    class_fn: A function that creates a PyGlove class from a class name and a
+      schema. If None, all "object" type properties will be converted to
+      `pg.typing.Dict`. Otherwise, "object" type properties will be converted to
+      a class.
+    add_json_schema_as_metadata: Whether to add the JSON schema as field
+      metadata.
+
+  Returns:
+    A PyGlove value spec.
+  """
+  del cls
+  defs = {}
+  if '$defs' in json_schema:
+    for key, def_entry in json_schema['$defs'].items():
+      defs[key] = _json_schema_to_value_spec(
+          def_entry, defs, class_fn, add_json_schema_as_metadata
+      )
+  return _json_schema_to_value_spec(
+      json_schema, defs, class_fn, add_json_schema_as_metadata
+  )
+
+
+@classmethod
+def _schema_from_json_schema(
+    cls,
+    json_schema: Dict[str, Any],
+    class_fn: Optional[Callable[[str, class_schema.Schema], Type[Any]]] = None,
+    add_json_schema_as_metadata: bool = False,
+) -> class_schema.Schema:
+  """Creates a PyGlove schema from a JSON schema.
+
+  Args:
+    json_schema: The JSON schema to convert.
+    class_fn: A function that creates a PyGlove class from a class name and a
+      schema. If None, all "object" type properties will be converted to
+      `pg.typing.Dict`. Otherwise, "object" type properties will be converted to
+      a class.
+    add_json_schema_as_metadata: Whether to add the JSON schema as field
+      metadata.
+
+  Returns:
+    A PyGlove schema.
+  """
+  del cls
+  if json_schema.get('type') != 'object':
+    raise ValueError(
+        f'JSON schema is not an object type: {json_schema!r}'
+    )
+  return _json_schema_to_schema(
+      json_schema, {}, class_fn, add_json_schema_as_metadata
+  )
+
+
+class_schema.ValueSpec.from_json_schema = _value_spec_from_json_schema
+class_schema.Schema.from_json_schema = _schema_from_json_schema
