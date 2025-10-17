@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import concurrent.futures
 import unittest
 from pyglove.core.utils import contextual
@@ -83,6 +84,15 @@ class ContextualTest(unittest.TestCase):
           [3]
       )
 
+  def test_with_contextual_override_async_func(self):
+    async def func(i):
+      del i
+      return contextual.contextual_value('x')
+
+    with contextual.contextual_override(x=3):
+      self.assertEqual(
+          asyncio.run(contextual.with_contextual_override(func)(0)), 3
+      )
 
 if __name__ == '__main__':
   unittest.main()

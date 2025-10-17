@@ -15,6 +15,7 @@
 
 import contextlib
 import dataclasses
+import inspect
 import threading
 from typing import Any, Callable, ContextManager, Iterator, Optional
 
@@ -89,10 +90,14 @@ def with_contextual_override(func: Callable[..., Any]) -> Callable[..., Any]:
   with contextual_override() as current_context:
     pass
 
-  def _func(*args, **kwargs) -> Any:
-    with contextual_override(**current_context):
-      return func(*args, **kwargs)
-
+  if inspect.iscoroutinefunction(func):
+    async def _func(*args, **kwargs) -> Any:
+      with contextual_override(**current_context):
+        return await func(*args, **kwargs)
+  else:
+    def _func(*args, **kwargs) -> Any:
+      with contextual_override(**current_context):
+        return func(*args, **kwargs)
   return _func
 
 
