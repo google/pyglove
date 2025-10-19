@@ -503,12 +503,10 @@ class Symbolic(
         return default
 
   def _sym_inferred(self, key: Union[str, int], **kwargs) -> Any:
-    return self._infer_if_applicable(self.sym_getattr(key), **kwargs)
-
-  def _infer_if_applicable(self, value: Any, **kwargs) -> Any:
-    if isinstance(value, Inferential):
-      return value.infer(**kwargs)
-    return value
+    v = self.sym_getattr(key)
+    if isinstance(v, Inferential):
+      v = v.infer(**kwargs)
+    return v
 
   @abc.abstractmethod
   def sym_keys(self) -> Iterator[Union[str, int]]:

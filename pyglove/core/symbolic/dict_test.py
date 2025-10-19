@@ -415,19 +415,6 @@ class DictTest(unittest.TestCase):
     with self.assertRaisesRegex(KeyError, 'Key \'y1\' is not allowed'):
       sd.y1 = 4
 
-  def test_get(self):
-    sd = Dict(a=1)
-    self.assertEqual(sd.get('a'), 1)
-    self.assertIsNone(sd.get('x'))
-    self.assertEqual(sd.get('x', 2), 2)
-
-    # Test inferred values.
-    sd = Dict(x=inferred.ValueFromParentChain())
-    self.assertIsNone(sd.get('x'))
-
-    _ = Dict(sd=sd, x=1)
-    self.assertEqual(sd.get('x'), 1)
-
   def test_getattr(self):
     sd = Dict(a=1)
     self.assertEqual(sd.a, 1)
@@ -726,11 +713,6 @@ class DictTest(unittest.TestCase):
     ]))
     self.assertEqual(list(sd.values()), [2, 1, 3])
 
-    # Test values with inferred values.
-    sd = Dict(x=1, y=inferred.ValueFromParentChain())
-    _ = Dict(sd=sd, y=2)
-    self.assertEqual(list(sd.values()), [1, 2])
-
   def test_items(self):
     sd = Dict(b={'c': True, 'd': []}, a=0)
     self.assertEqual(list(sd.items()), [('b', {'c': True, 'd': []}), ('a', 0)])
@@ -742,11 +724,6 @@ class DictTest(unittest.TestCase):
         ('c', pg_typing.Int()),
     ]))
     self.assertEqual(list(sd.items()), [('b', 2), ('a', 1), ('c', 3)])
-
-    # Test items with inferred values.
-    sd = Dict(x=1, y=inferred.ValueFromParentChain())
-    _ = Dict(sd=sd, y=2)
-    self.assertEqual(list(sd.items()), [('x', 1), ('y', 2)])
 
   def test_non_default(self):
     sd = Dict(a=1)

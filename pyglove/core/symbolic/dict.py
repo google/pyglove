@@ -236,8 +236,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         accessor_writable=True,
         # We delay seal operation until members are filled.
         sealed=False,
-        root_path=root_path
-    )
+        root_path=root_path)
 
     dict.__init__(self)
     self._value_spec = None
@@ -248,10 +247,9 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     for k, v in kwargs.items():
       dict_obj[k] = v
 
-    iter_items = getattr(dict_obj, 'sym_items', dict_obj.items)
     if value_spec:
       if pass_through:
-        for k, v in iter_items():
+        for k, v in dict_obj.items():
           super().__setitem__(k, self._relocate_if_symbolic(k, v))
 
         # NOTE(daiyip): when pass_through is on, we simply trust input
@@ -260,11 +258,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         # repeated validation and transformation.
         self._value_spec = value_spec
       else:
-        for k, v in iter_items():
+        for k, v in dict_obj.items():
           super().__setitem__(k, self._formalized_value(k, None, v))
         self.use_value_spec(value_spec, allow_partial)
     else:
-      for k, v in iter_items():
+      for k, v in dict_obj.items():
         self._set_item_without_permission_check(k, v)
 
     # NOTE(daiyip): We set onchange callback at the end of init to avoid
@@ -539,7 +537,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       raise KeyError(self._error_message(
           f'Key must be string or int type. Encountered {key!r}.'))
 
-    old_value = self.sym_getattr(key, pg_typing.MISSING_VALUE)
+    old_value = self.get(key, pg_typing.MISSING_VALUE)
     if old_value is value:
       return None
 
@@ -645,13 +643,6 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       return self.sym_inferred(key)
     except AttributeError as e:
       raise KeyError(key) from e
-
-  def get(self, key: Union[str, int], default: Any = None) -> Any:
-    """Get item in this Dict."""
-    try:
-      return self.sym_inferred(key)
-    except AttributeError:
-      return default
 
   def __setitem__(self, key: Union[str, int], value: Any) -> None:
     """Set item in this Dict.
@@ -760,13 +751,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
   def items(self) -> Iterator[Tuple[Union[str, int], Any]]:  # pytype: disable=signature-mismatch
     """Returns an iterator of (key, value) items in current dict."""
-    for k, v in self.sym_items():
-      yield k, self._infer_if_applicable(v)
+    return self.sym_items()
 
   def values(self) -> Iterator[Any]:  # pytype: disable=signature-mismatch
     """Returns an iterator of values in current dict.."""
-    for v in self.sym_values():
-      yield self._infer_if_applicable(v)
+    return self.sym_values()
 
   def copy(self) -> 'Dict':
     """Overridden copy using symbolic copy."""
