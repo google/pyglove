@@ -207,12 +207,16 @@ def _json_schema_from_value_spec(
       and value_spec.default is not None
       and not isinstance(value_spec, vs.Dict)):
     default = utils.to_json(value_spec.default)
-    if not include_type_name:
-      def _remove_type_name(_, v: Dict[str, Any]):
-        if isinstance(v, dict):
+    def _remove_markers(_, v):
+      if isinstance(v, dict):
+        if not include_type_name:
           v.pop(utils.JSONConvertible.TYPE_NAME_KEY, None)
-        return v
-      default = utils.transform(default, _remove_type_name)
+        v.pop(utils.JSONConvertible.SYMBOLIC_MARKER, None)
+      if (isinstance(v, list)
+          and v[0] == utils.JSONConvertible.SYMBOLIC_MARKER):
+        v.pop(0, None)
+      return v
+    default = utils.transform(default, _remove_markers)
     definition['default'] = default
 
   if not ignore_nonable and value_spec.is_noneable:

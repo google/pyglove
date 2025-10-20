@@ -17,6 +17,7 @@ import abc
 import base64
 import collections
 import contextlib
+import dataclasses
 import importlib
 import inspect
 import marshal
@@ -24,6 +25,7 @@ import pickle
 import types
 import typing
 from typing import Any, Callable, ContextManager, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Type, TypeVar, Union
+
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -186,6 +188,19 @@ class JSONConvertible(metaclass=abc.ABCMeta):
   # Marker (as the first element of a list) for serializing tuples.
   TUPLE_MARKER = '__tuple__'
 
+  # Marker (as the first element of a list or key of a dict) for symbolic
+  # lists and dicts.
+  SYMBOLIC_MARKER = '__symbolic__'
+
+  # Marker for references to shared objects.
+  REF_KEY = '$ref'
+
+  # Marker for root value when JSONConversionContext is used.
+  ROOT_VALUE_KEY = '$root'
+
+  # Marker for JSONConversionContext.
+  CONTEXT_KEY = '$context'
+
   # Type converter that converts a complex type to basic JSON value type.
   # When this field is set by users, the converter will be invoked when a
   # complex value cannot be serialized by existing methods.
@@ -215,7 +230,12 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     return cls(**init_args)
 
   @abc.abstractmethod
-  def to_json(self, **kwargs) -> JSONValueType:
+  def to_json(
+      self,
+      *,
+      context: Optional['JSONConversionContext'] = None,
+      **kwargs
+  ) -> JSONValueType:
     """Returns a plain Python value as a representation for this object.
 
     A plain Python value are basic python types that can be serialized into
@@ -224,6 +244,7 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     Python values as their values.
 
     Args:
+      context: JSON conversion context.
       **kwargs: Keyword arguments as flags to control JSON conversion.
 
     Returns:
@@ -389,8 +410,14 @@ class _OpaqueObject(JSONConvertible):
     }, **kwargs)
 
   @classmethod
-  def from_json(cls, json_value: JSONValueType, *args, **kwargs) -> Any:
-    del args, kwargs
+  def from_json(
+      cls,
+      json_value: JSONValueType,
+      *args,
+      context: Optional['JSONConversionContext'] = None,
+      **kwargs
+  ) -> Any:
+    del args, context, kwargs
     assert isinstance(json_value, dict) and 'value' in json_value, json_value
     encoder = cls(json_value['value'], encoded=True)
     return encoder.value
@@ -401,7 +428,169 @@ def registered_types() -> Iterable[Tuple[str, Type[JSONConvertible]]]:
   return JSONConvertible.registered_types()
 
 
-def to_json(value: Any, **kwargs) -> Any:
+class JSONConversionContext(JSONConvertible):
+  """JSON conversion context.
+
+  JSONConversionContext is introduced to handle serialization scenarios where
+  operations cannot be performed in a single pass. For example: Serialization
+  and deserialization of shared objects across different locations.
+
+  # Shared object serialization/deserialization.
+
+  In PyGlove, only values referenced by `pg.Ref` and non-PyGlove managed objects
+  are sharable. This ensures that multiple references to the same object are
+  serialized only once. During deserialization, the object is created just once
+  and shared among all references.
+  """
+
+  @dataclasses.dataclass
+  class ObjectEntry:
+    value: Any
+    serialized: Optional[JSONValueType]
+    ref_index: int
+    ref_count: int
+
+  def __init__(self,) -> None:
+    self._shared_objects: list[JSONConversionContext.ObjectEntry] = []
+    self._id_to_shared_object = {}
+
+  def get_shared(self, ref_index: int) -> ObjectEntry:
+    """Gets the shared object of a ref index."""
+    return self._shared_objects[ref_index]
+
+  def add_shared(self, shared: ObjectEntry) -> None:
+    self._shared_objects.append(shared)
+    self._id_to_shared_object[id(shared.value)] = shared
+
+  def next_shared_index(self) -> int:
+    """Returns the next shared index."""
+    return len(self._shared_objects)
+
+  def serialize_maybe_shared(
+      self,
+      value: Any,
+      json_fn: Optional[Callable[..., JSONValueType]] = None,
+      **kwargs
+  ) -> JSONValueType:
+    """Track maybe shared objects and returns their JSON representation."""
+    if json_fn is None:
+      json_fn = lambda **kwargs: to_json(value, **kwargs)
+    kwargs.pop('context', None)
+    value_id = id(value)
+    shared_object = self._id_to_shared_object.get(value_id)
+    if shared_object is None:
+      serialized = json_fn(context=self, **kwargs)
+
+      # It's possible that maybe_shared_json is called recursively on the same
+      # object, thus we need to check for self-references explicitly.
+      if (isinstance(serialized, dict)
+          and JSONConvertible.REF_KEY in serialized
+          and len(serialized) == 1):
+        return serialized
+
+      shared_object = self.ObjectEntry(
+          value=value,
+          serialized=serialized,
+          ref_index=self.next_shared_index(),
+          ref_count=0,
+      )
+      self._shared_objects.append(shared_object)
+      self._id_to_shared_object[value_id] = shared_object
+    shared_object.ref_count += 1
+    return {
+        JSONConvertible.REF_KEY: shared_object.ref_index
+    }
+
+  def _maybe_deref(self, serialized: Any, ref_index_map: dict[int, int]) -> Any:
+    """In-place dereference ref-1 shared objects in an object tree.
+
+    Args:
+      serialized: The object tree to dereference.
+      ref_index_map: A map from the original index of shared objects to their
+        indices after the ref-1 shared objects are trimmed.
+
+    Returns:
+      The (maybe) dereferenced object tree.
+    """
+    if isinstance(serialized, dict):
+      ref_index = serialized.get(JSONConvertible.REF_KEY)
+      if ref_index is None:
+        for k, x in serialized.items():
+          serialized[k] = self._maybe_deref(x, ref_index_map)
+      else:
+        shared = self.get_shared(ref_index)
+        if shared.ref_count == 1:
+          ref_serialized = self._maybe_deref(shared.serialized, ref_index_map)
+          if isinstance(ref_serialized, dict):
+            serialized.pop(JSONConvertible.REF_KEY)
+            serialized.update(ref_serialized)
+            return serialized
+          return ref_serialized
+        else:
+          serialized[JSONConvertible.REF_KEY] = ref_index_map[shared.ref_index]
+    elif isinstance(serialized, list):
+      for i, x in enumerate(serialized):
+        serialized[i] = self._maybe_deref(x, ref_index_map)
+    return serialized
+
+  def to_json(self, *, root: Any, **kwargs) -> JSONValueType:
+    """Serializes a root node with the context to JSON value."""
+    # `ref_index_map` stores the original index of shared objects to their
+    # indices after the ref-1 shared objects are trimmed.
+    ref_index_map = {}
+
+    shared_objects = []
+    for i, v in enumerate(self._shared_objects):
+      ref_index_map[i] = len(shared_objects)
+      if v.ref_count != 1:
+        shared_objects.append(v.value)
+
+    root = self._maybe_deref(root, ref_index_map)
+
+    serialized_shared_objects = [
+        v.serialized for v in self._shared_objects if v.ref_count != 1
+    ]
+    if not shared_objects:
+      return root
+    serialized = {}
+    if shared_objects:
+      serialized[JSONConvertible.CONTEXT_KEY] = {
+          'shared_objects': [
+              self._maybe_deref(x, ref_index_map)
+              for x in serialized_shared_objects
+          ],
+      }
+    serialized[JSONConvertible.ROOT_VALUE_KEY] = root
+    return serialized
+
+  @classmethod
+  def from_json(
+      cls, json_value: JSONValueType, **kwargs
+  ) -> 'JSONConversionContext':
+    """Deserializes a JSONConvertible value from JSON value."""
+    context = cls()
+    if isinstance(json_value, dict):
+      # Shared objects are serialized in a bottom-up order, thus dependent
+      # shared objects must be deserialized first.
+      if shared_objects_json := json_value.get('shared_objects'):
+        for v in shared_objects_json:
+          context.add_shared(
+              cls.ObjectEntry(
+                  value=from_json(v, context=context, **kwargs),
+                  serialized=v,
+                  ref_index=context.next_shared_index(),
+                  ref_count=0,
+              )
+          )
+    return context
+
+
+def to_json(
+    value: Any,
+    *,
+    context: Optional[JSONConversionContext] = None,
+    **kwargs
+) -> Any:
   """Serializes a (maybe) JSONConvertible value into a plain Python object.
 
   Args:
@@ -413,22 +602,50 @@ def to_json(value: Any, **kwargs) -> Any:
       * Tuple types;
       * Dict types.
 
+    context: JSON conversion context.
     **kwargs: Keyword arguments to pass to value.to_json if value is
       JSONConvertible.
 
   Returns:
     JSON value.
   """
+  if context is None:
+    is_root = True
+    context = JSONConversionContext()
+  else:
+    is_root = False
+
   if isinstance(value, (type(None), bool, int, float, str)):
+    # Primitive types serialize by values.
     v = value
   elif isinstance(value, JSONConvertible):
-    v = value.to_json(**kwargs)
-  elif isinstance(value, tuple):
-    v = [JSONConvertible.TUPLE_MARKER] + to_json(list(value), **kwargs)
+    # Non-symbolic objects serialize by references.
+    v = context.serialize_maybe_shared(
+        value,
+        json_fn=getattr(value, 'sym_jsonify', value.to_json),
+        **kwargs
+    )
   elif isinstance(value, list):
-    v = [to_json(item, **kwargs) for item in value]
+    # Standard lists serialize by references.
+    v = context.serialize_maybe_shared(
+        value,
+        json_fn=lambda **kwargs: [to_json(x, **kwargs) for x in value],
+        **kwargs
+    )
   elif isinstance(value, dict):
-    v = {k: to_json(v, **kwargs) for k, v in value.items()}
+    # Standard dicts serialize by references.
+    v = context.serialize_maybe_shared(
+        value,
+        json_fn=lambda **kwargs: {
+            k: to_json(v, **kwargs) for k, v in value.items()   # pytype: disable=attribute-error
+        },
+        **kwargs
+    )
+  elif isinstance(value, tuple):
+    # Tuples serialize by values.
+    v = [JSONConvertible.TUPLE_MARKER] + [
+        to_json(item, context=context, **kwargs) for item in value
+    ]
   elif isinstance(value, (type, typing.GenericAlias)):  # pytype: disable=module-attr
     v = _type_to_json(value)
   elif inspect.isbuiltin(value):
@@ -448,23 +665,34 @@ def to_json(value: Any, **kwargs) -> Any:
     if JSONConvertible.TYPE_CONVERTER is not None:
       converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
       if converter:
-        v = to_json(converter(value))
+        v = to_json(converter(value), context=context, **kwargs)
         converted = True
     if not converted:
-      v = _OpaqueObject(value).to_json(**kwargs)
+      # Opaque objects serialize by references.
+      v = context.serialize_maybe_shared(
+          value,
+          json_fn=lambda **kwargs: _OpaqueObject(value).to_json(**kwargs),
+          **kwargs
+      )
+
+  if is_root:
+    return context.to_json(root=v, **kwargs)
   return v
 
 
 def from_json(
     json_value: JSONValueType,
     *,
+    context: Optional[JSONConversionContext] = None,
     auto_import: bool = True,
     auto_dict: bool = False,
-    **kwargs) -> Any:
+    **kwargs
+) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
 
   Args:
     json_value: Input JSON value.
+    context: Serialization context.
     auto_import: If True, when a '_type' is not registered, PyGlove will
       identify its parent module and automatically import it. For example,
       if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
@@ -476,12 +704,20 @@ def from_json(
   Returns:
     Deserialized value.
   """
+  if context is None:
+    if (isinstance(json_value, dict)
+        and (context_node := json_value.get(JSONConvertible.CONTEXT_KEY))):
+      context = JSONConversionContext.from_json(context_node, **kwargs)
+      json_value = json_value[JSONConvertible.ROOT_VALUE_KEY]
+    else:
+      context = JSONConversionContext()
+
   typename_resolved = kwargs.pop('_typename_resolved', False)
   if not typename_resolved:
     json_value = resolve_typenames(json_value, auto_import, auto_dict)
 
   def child_from(v):
-    return from_json(v, _typename_resolved=True, **kwargs)
+    return from_json(v, context=context, _typename_resolved=True, **kwargs)
 
   if isinstance(json_value, list):
     if json_value and json_value[0] == JSONConvertible.TUPLE_MARKER:
@@ -493,18 +729,21 @@ def from_json(
       return tuple([child_from(v) for v in json_value[1:]])
     return [child_from(v) for v in json_value]
   elif isinstance(json_value, dict):
+    if JSONConvertible.REF_KEY in json_value:
+      v = context.get_shared(json_value[JSONConvertible.REF_KEY]).value
+      return v
     if JSONConvertible.TYPE_NAME_KEY not in json_value:
       return {k: child_from(v) for k, v in json_value.items()}
     factory_fn = json_value.pop(JSONConvertible.TYPE_NAME_KEY)
     assert factory_fn is not None
-    return factory_fn(json_value, **kwargs)
+    return factory_fn(json_value, context=context, **kwargs)
   return json_value
 
 
 def resolve_typenames(
     json_value: JSONValueType,
     auto_import: bool = True,
-    auto_dict: bool = False
+    auto_dict: bool = False,
 ) -> JSONValueType:
   """Inplace resolves the "_type" keys with their factories in a JSON tree."""
 

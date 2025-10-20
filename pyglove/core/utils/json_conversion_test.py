@@ -156,7 +156,7 @@ class JSONConvertibleTest(unittest.TestCase):
       def __init__(self, x=None):
         self.x = x
 
-      def to_json(self):
+      def to_json(self, **kwargs):
         return T.to_json_dict(dict(x=(self.x, None)), exclude_default=True)
 
       def __eq__(self, other):
@@ -202,7 +202,7 @@ class JSONConvertibleTest(unittest.TestCase):
     def __init__(self, x=None):
       self.x = x
 
-    def to_json(self):
+    def to_json(self, **kwargs):
       return self.to_json_dict(
           dict(x=(self.x, None)), exclude_default=True
       )
@@ -215,7 +215,6 @@ class JSONConvertibleTest(unittest.TestCase):
 
   def test_json_conversion_with_auto_import(self):
     json_dict = json_conversion.to_json(self.CustomJsonConvertible(1))
-
     with self.assertRaisesRegex(
         TypeError, 'Type name .* is not registered'):
       json_conversion.from_json(json_dict, auto_import=False)
@@ -392,6 +391,65 @@ class JSONConvertibleTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, '.* is not a `pg.JSONConvertible` subclass'):
       json_conversion.from_json({'_type': '__main__.A'})
+
+  def test_json_conversion_with_sharing(self):
+
+    class T(json_conversion.JSONConvertible):
+
+      def __init__(self, x=None):
+        self.x = x
+
+      def to_json(self, **kwargs):
+        return T.to_json_dict(dict(x=(self.x, None)), exclude_default=True)
+
+    t = T(1)
+    x = X(1)
+    u = {'x': x}
+    v = [u, t]
+    y = dict(t=t, x=x, u=u, v=v)
+    y_json = json_conversion.to_json(y)
+    x_serialized = json_conversion._OpaqueObject(x).to_json()
+    self.assertEqual(
+        y_json,
+        {
+            '$context': {
+                'shared_objects': [
+                    {
+                        '_type': json_conversion._type_name(T),
+                        'x': 1
+                    },
+                    x_serialized,
+                    {
+                        'x': {
+                            '$ref': 1
+                        }
+                    }
+                ]
+            },
+            '$root': {
+                't': {
+                    '$ref': 0
+                },
+                'x': {
+                    '$ref': 1
+                },
+                'u': {
+                    '$ref': 2
+                },
+                'v': [
+                    {
+                        '$ref': 2
+                    },
+                    {
+                        '$ref': 0
+                    }
+                ]
+            }
+        }
+    )
+    y_prime = json_conversion.from_json(y_json)
+    self.assertIs(y_prime['t'], y_prime['v'][1])
+    self.assertIs(y_prime['u'], y_prime['v'][0])
 
 
 if __name__ == '__main__':

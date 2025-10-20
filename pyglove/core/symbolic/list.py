@@ -137,6 +137,9 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     Returns:
       A schema-less symbolic list, but its items maybe symbolic.
     """
+    # Remove symbolic marker if present.
+    if json_value and json_value[0] == utils.JSONConvertible.SYMBOLIC_MARKER:
+      json_value.pop(0)
     return cls(
         [
             base.from_json(
@@ -770,15 +773,26 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     return (proceed_with_standard_apply, self)
 
   def sym_jsonify(
-      self, use_inferred: bool = False, **kwargs
+      self,
+      use_inferred: bool = False,
+      omit_symbolic_marker: bool = False,
+      **kwargs
   ) -> utils.JSONValueType:
     """Converts current list to a list of plain Python objects."""
     def json_item(idx):
       v = self.sym_getattr(idx)
       if use_inferred and isinstance(v, base.Inferential):
         v = self.sym_inferred(idx, default=v)
-      return base.to_json(v, use_inferred=use_inferred, **kwargs)
-    return [json_item(i) for i in range(len(self))]
+      return base.to_json(
+          v,
+          use_inferred=use_inferred,
+          omit_symbolic_marker=omit_symbolic_marker,
+          **kwargs
+      )
+    json_value = [json_item(i) for i in range(len(self))]
+    if not omit_symbolic_marker:
+      json_value.insert(0, utils.JSONConvertible.SYMBOLIC_MARKER)
+    return json_value
 
   def format(
       self,

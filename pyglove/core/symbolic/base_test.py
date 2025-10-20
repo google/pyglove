@@ -20,9 +20,9 @@ from pyglove.core import typing as pg_typing
 from pyglove.core import utils
 from pyglove.core import views
 from pyglove.core.symbolic import base
-from pyglove.core.symbolic.dict import Dict
-from pyglove.core.symbolic.inferred import ValueFromParentChain
-from pyglove.core.symbolic.object import Object
+from pyglove.core.symbolic.dict import Dict                      # pylint: disable=g-importing-member
+from pyglove.core.symbolic.inferred import ValueFromParentChain  # pylint: disable=g-importing-member
+from pyglove.core.symbolic.object import Object                  # pylint: disable=g-importing-member
 
 
 class FieldUpdateTest(unittest.TestCase):

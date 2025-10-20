@@ -797,7 +797,8 @@ class ListTest(unittest.TestCase):
     # Refer to SerializationTest for more detailed tests.
     sl = List([0, inferred.ValueFromParentChain()])
     self.assertEqual(
-        sl.sym_jsonify(), [0, inferred.ValueFromParentChain().to_json()]
+        sl.sym_jsonify(),
+        ['__symbolic__', 0, inferred.ValueFromParentChain().to_json()]
     )
 
   def test_sym_rebind(self):
@@ -1583,7 +1584,10 @@ class SerializationTest(unittest.TestCase):
     sl = List([0, 'foo', None, dict(x=1)])
 
     # Key order is preserved.
-    self.assertEqual(sl.to_json_str(), '[0, "foo", null, {"x": 1}]')
+    self.assertEqual(
+        sl.to_json_str(),
+        '["__symbolic__", 0, "foo", null, {"__symbolic__": true, "x": 1}]'
+    )
 
   def test_schematized(self):
     sl = List.partial(
@@ -1595,7 +1599,10 @@ class SerializationTest(unittest.TestCase):
             # Frozen field shall not be written.
             ('z', pg_typing.Bool(True).freeze()),
         ])))
-    self.assertEqual(sl.to_json_str(), '[{"x": 1, "y": null}]')
+    self.assertEqual(
+        sl.to_json_str(),
+        '["__symbolic__", {"__symbolic__": true, "x": 1, "y": null}]'
+    )
 
   def test_serialization_with_converter(self):
 
@@ -1619,10 +1626,16 @@ class SerializationTest(unittest.TestCase):
     pg_typing.register_converter(A, float, convert_fn=lambda x: x.value)
     pg_typing.register_converter(float, A, convert_fn=A)
 
-    self.assertEqual(sl.to_json(), [{'x': 1, 'y': 2.0}])
+    self.assertEqual(
+        sl.to_json(),
+        ['__symbolic__', {'__symbolic__': True, 'x': 1, 'y': 2.0}]
+    )
     self.assertEqual(List.from_json(sl.to_json(), value_spec=spec), sl)
 
-    self.assertEqual(sl.to_json_str(), '[{"x": 1, "y": 2.0}]')
+    self.assertEqual(
+        sl.to_json_str(),
+        '["__symbolic__", {"__symbolic__": true, "x": 1, "y": 2.0}]'
+    )
     self.assertEqual(base.from_json_str(sl.to_json_str(), value_spec=spec), sl)
 
   def test_serialization_with_tuple(self):
@@ -1643,19 +1656,22 @@ class SerializationTest(unittest.TestCase):
             # Frozen field shall not be written.
             ('z', pg_typing.Bool(True).freeze()),
         ])))
-    self.assertEqual(sl.to_json_str(hide_default_values=True), '[{"x": 1}]')
+    self.assertEqual(
+        sl.to_json_str(hide_default_values=True),
+        '["__symbolic__", {"__symbolic__": true, "x": 1}]'
+    )
 
   def test_use_inferred(self):
     sl = List([0, List([inferred.ValueFromParentChain()])])
     self.assertEqual(
         sl.to_json_str(),
-        ('[0, [{"_type": "'
+        ('["__symbolic__", 0, ["__symbolic__", {"_type": "'
          + inferred.ValueFromParentChain.__type_name__
          + '"}]]')
     )
     self.assertEqual(
         sl.to_json_str(use_inferred=True),
-        ('[0, [0]]')
+        ('["__symbolic__", 0, ["__symbolic__", 0]]')
     )
 
   def test_from_json(self):

@@ -21,8 +21,11 @@ from typing import Any
 import unittest
 
 from pyglove.core import typing as pg_typing
+from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
 from pyglove.core.symbolic import ref
 from pyglove.core.symbolic.base import contains
+from pyglove.core.symbolic.base import from_json
+from pyglove.core.symbolic.base import to_json
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.object import Object
 
@@ -109,14 +112,43 @@ class RefTest(unittest.TestCase):
         """))
 
   def test_to_json(self):
-    with self.assertRaisesRegex(
-        TypeError, '.* cannot be serialized at the moment'):
-      ref.Ref(A(1)).to_json()
+    class B(Object):
+      y: Any
 
+    a = A(1)
+    r1 = ref.Ref(a)
+    r2 = ref.Ref(a)
+    json = to_json(dict(x=r1, y=[B(r2)]))
     self.assertEqual(
-        ref.Ref(A(1)).to_json(save_ref_value=True),
-        A(1).to_json()
+        json,
+        {
+            '$context': {
+                'shared_objects': [
+                    {
+                        '_type': A.__type_name__,
+                        'x': 1
+                    }
+                ]
+            },
+            '$root': {
+                'x': {
+                    '_type': ref.Ref.__type_name__,
+                    'value': {'$ref': 0},
+                },
+                'y': [
+                    {
+                        '_type': B.__type_name__,
+                        'y': {
+                            '_type': ref.Ref.__type_name__,
+                            'value': {'$ref': 0},
+                        }
+                    }
+                ]
+            }
+        }
     )
+    v = from_json(json)
+    self.assertIs(v.x, v.y[0].y)
 
   def test_pickle(self):
     with self.assertRaisesRegex(

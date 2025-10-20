@@ -944,7 +944,11 @@ class DictTest(unittest.TestCase):
     sd = Dict(x=1, y=inferred.ValueFromParentChain())
     self.assertEqual(
         sd.sym_jsonify(),
-        {'x': 1, 'y': inferred.ValueFromParentChain().to_json()},
+        {
+            '__symbolic__': True,
+            'x': 1,
+            'y': inferred.ValueFromParentChain().to_json()
+        },
     )
 
   def test_sym_rebind(self):
@@ -1920,7 +1924,7 @@ class SerializationTest(unittest.TestCase):
     # Key order is preserved.
     self.assertEqual(
         sd.to_json_str(),
-        '{"n_:1": 2, "b": 0, "c": null, "a": "foo"}'
+        '{"__symbolic__": true, "n_:1": 2, "b": 0, "c": null, "a": "foo"}'
     )
     self.assertEqual(base.from_json_str(sd.to_json_str()), sd)
 
@@ -1934,7 +1938,10 @@ class SerializationTest(unittest.TestCase):
             # Frozen field shall not be written.
             ('z', pg_typing.Bool(True).freeze()),
         ]))
-    self.assertEqual(sd.to_json_str(), '{"x": 1, "y": null}')
+    self.assertEqual(
+        sd.to_json_str(),
+        '{"__symbolic__": true, "x": 1, "y": null}'
+    )
 
   def test_serialization_with_converter(self):
 
@@ -1958,10 +1965,12 @@ class SerializationTest(unittest.TestCase):
     pg_typing.register_converter(A, float, convert_fn=lambda x: x.value)
     pg_typing.register_converter(float, A, convert_fn=A)
 
-    self.assertEqual(sd.to_json(), {'x': 1, 'y': 2.0})
+    self.assertEqual(sd.to_json(), {'__symbolic__': True, 'x': 1, 'y': 2.0})
     self.assertEqual(Dict.from_json(sd.to_json(), value_spec=spec), sd)
 
-    self.assertEqual(sd.to_json_str(), '{"x": 1, "y": 2.0}')
+    self.assertEqual(
+        sd.to_json_str(), '{"__symbolic__": true, "x": 1, "y": 2.0}'
+    )
     self.assertEqual(base.from_json_str(sd.to_json_str(), value_spec=spec), sd)
 
   def test_hide_frozen(self):
@@ -1978,6 +1987,7 @@ class SerializationTest(unittest.TestCase):
     self.assertEqual(
         sd.to_json(),
         {
+            '__symbolic__': True,
             'a': {
                 '_type': A.__type_name__
             },
@@ -1986,6 +1996,7 @@ class SerializationTest(unittest.TestCase):
     self.assertEqual(
         sd.to_json(hide_frozen=False),
         {
+            '__symbolic__': True,
             'a': {
                 '_type': A.__type_name__,
                 'x': 1,
@@ -2010,7 +2021,10 @@ class SerializationTest(unittest.TestCase):
             # Frozen field shall not be written.
             ('z', pg_typing.Bool(True).freeze()),
         ]))
-    self.assertEqual(sd.to_json_str(hide_default_values=True), '{"x": 1}')
+    self.assertEqual(
+        sd.to_json_str(hide_default_values=True),
+        '{"__symbolic__": true, "x": 1}'
+    )
 
   def test_use_inferred(self):
     # Schematized dict.
@@ -2023,26 +2037,28 @@ class SerializationTest(unittest.TestCase):
     )
     self.assertEqual(
         sd.to_json_str(),
-        ('{"x": 1, "y": {"x": {"_type": "'
+        ('{"__symbolic__": true, "x": 1, '
+         + '"y": {"__symbolic__": true, "x": {"_type": "'
          + inferred.ValueFromParentChain.__type_name__
          + '"}}}')
     )
     self.assertEqual(
         sd.to_json_str(use_inferred=True),
-        '{"x": 1, "y": {"x": 1}}'
+        '{"__symbolic__": true, "x": 1, "y": {"__symbolic__": true, "x": 1}}'
     )
 
     # Non-schematized dict.
     sd = Dict(x=1, y=Dict(x=inferred.ValueFromParentChain()))
     self.assertEqual(
         sd.to_json_str(),
-        ('{"x": 1, "y": {"x": {"_type": "'
+        ('{"__symbolic__": true, "x": 1, '
+         + '"y": {"__symbolic__": true, "x": {"_type": "'
          + inferred.ValueFromParentChain.__type_name__
          + '"}}}')
     )
     self.assertEqual(
         sd.to_json_str(use_inferred=True),
-        '{"x": 1, "y": {"x": 1}}'
+        '{"__symbolic__": true, "x": 1, "y": {"__symbolic__": true, "x": 1}}'
     )
 
   def test_from_json(self):

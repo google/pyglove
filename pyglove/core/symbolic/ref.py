@@ -138,9 +138,7 @@ class Ref(
     del child_transform
     # Check if the field being assigned could accept the referenced value.
     # We do not do any transformation, thus not passing the child transform.
-    value_spec.apply(
-        self._value,
-        allow_partial=allow_partial)
+    value_spec.apply(self._value, allow_partial=allow_partial)
     return (False, self)
 
   def _sym_clone(self, deep: bool, memo: Any = None) -> 'Ref':
@@ -152,10 +150,20 @@ class Ref(
   def sym_eq(self, other: Any) -> bool:
     return isinstance(other, Ref) and self.value is other.value
 
-  def sym_jsonify(self, *, save_ref_value: bool = False, **kwargs: Any) -> Any:
-    if save_ref_value:
-      return base.to_json(self._value, save_ref_value=save_ref_value, **kwargs)
-    raise TypeError(f'{self!r} cannot be serialized at the moment.')
+  def sym_jsonify(
+      self,
+      *,
+      context: utils.JSONConversionContext,
+      **kwargs: Any
+  ) -> Any:
+    # Disable auto_symbolic for Ref value. This allows Ref to create a sub-tree
+    # for reference sharing.
+    kwargs['auto_symbolic'] = False
+    kwargs['omit_symbolic_marker'] = True
+    return {
+        utils.JSONConvertible.TYPE_NAME_KEY: self.__class__.__type_name__,
+        'value': context.serialize_maybe_shared(self._value, **kwargs)
+    }
 
   def __getstate__(self):
     raise TypeError(f'{self!r} cannot be pickled at the moment.')

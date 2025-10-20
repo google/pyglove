@@ -156,6 +156,8 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         # Not okay:
         d.a.f2.abc = 1
     """
+    # Remove symbolic marker if present.
+    json_value.pop(utils.JSONConvertible.SYMBOLIC_MARKER, None)
     return cls(
         {
             k: base.from_json(
@@ -835,12 +837,15 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       hide_default_values: bool = False,
       exclude_keys: Optional[Sequence[Union[str, int]]] = None,
       use_inferred: bool = False,
+      omit_symbolic_marker: bool = False,
       **kwargs,
   ) -> utils.JSONValueType:
     """Converts current object to a dict with plain Python objects."""
     exclude_keys = set(exclude_keys or [])
+    json_repr = {}
+    if not omit_symbolic_marker:
+      json_repr[utils.JSONConvertible.SYMBOLIC_MARKER] = True
     if self._value_spec and self._value_spec.schema:
-      json_repr = dict()
       matched_keys, _ = self._value_spec.schema.resolve(self.keys())  # pytype: disable=attribute-error
       for key_spec, keys in matched_keys.items():
         # NOTE(daiyip): The key values of frozen field can safely be excluded
@@ -862,20 +867,23 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
                 hide_frozen=hide_frozen,
                 hide_default_values=hide_default_values,
                 use_inferred=use_inferred,
-                **kwargs)
-      return json_repr
+                omit_symbolic_marker=omit_symbolic_marker,
+                **kwargs
+            )
     else:
-      return {
+      json_repr.update({
           k: base.to_json(
               self.sym_inferred(k, default=v) if (
                   use_inferred and isinstance(v, base.Inferential)) else v,
               hide_frozen=hide_frozen,
               hide_default_values=hide_default_values,
               use_inferred=use_inferred,
+              omit_symbolic_marker=omit_symbolic_marker,
               **kwargs)
           for k, v in self.sym_items()
           if k not in exclude_keys
-      }
+      })
+    return json_repr
 
   def custom_apply(
       self,
