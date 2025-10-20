@@ -1229,6 +1229,9 @@ class Schema(utils.Formattable, utils.JSONConvertible):
           f'(parent=\'{root_path}\')'
       )
 
+    # Symbolic.Dict uses `sym_getattr` to support getting symbolic attributes.
+    get_value = getattr(dict_obj, 'sym_getattr', dict_obj.get)
+
     for key_spec, keys in matched_keys.items():
       field = self._fields[key_spec]
       # For missing const keys, we add to keys collection to add missing value.
@@ -1236,7 +1239,7 @@ class Schema(utils.Formattable, utils.JSONConvertible):
         keys.append(str(key_spec))
       for key in keys:
         if dict_obj:
-          value = dict_obj.get(key, utils.MISSING_VALUE)
+          value = get_value(key, utils.MISSING_VALUE)
         else:
           value = utils.MISSING_VALUE
         # NOTE(daiyip): field.default_value may be MISSING_VALUE too

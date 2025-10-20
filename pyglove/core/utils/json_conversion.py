@@ -569,7 +569,7 @@ def resolve_typenames(
       if _resolve_typename(v):
         # Only resolve children when _types in this tree is not resolved
         # previously
-        for x in v.values():
+        for x in getattr(v, 'sym_values', v.values)():
           _visit(x)
 
   _visit(json_value)
