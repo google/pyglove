@@ -946,6 +946,14 @@ class DictTest(unittest.TestCase):
         sd.sym_jsonify(),
         {'x': 1, 'y': inferred.ValueFromParentChain().to_json()},
     )
+    self.assertEqual(
+        sd.sym_jsonify(omit_symbolic_marker=False),
+        {
+            '__symbolic__': True,
+            'x': 1,
+            'y': inferred.ValueFromParentChain().to_json()
+        },
+    )
 
   def test_sym_rebind(self):
     # Refer to RebindTest for more detailed tests.
@@ -1963,6 +1971,24 @@ class SerializationTest(unittest.TestCase):
 
     self.assertEqual(sd.to_json_str(), '{"x": 1, "y": 2.0}')
     self.assertEqual(base.from_json_str(sd.to_json_str(), value_spec=spec), sd)
+
+  def test_auto_symbolic(self):
+    value = base.from_json({'x': 1}, auto_symbolic=True)
+    self.assertIsInstance(value, Dict)
+
+    value = base.from_json({'x': 1}, auto_symbolic=False)
+    self.assertNotIsInstance(value, Dict)
+
+  def test_omit_symbolic_marker(self):
+    sd = Dict(x=1)
+    self.assertEqual(sd.to_json(omit_symbolic_marker=True), {'x': 1})
+    self.assertEqual(
+        sd.to_json(omit_symbolic_marker=False),
+        {'__symbolic__': True, 'x': 1}
+    )
+    sd = base.from_json({'__symbolic__': True, 'x': 1}, auto_symbolic=False)
+    self.assertIsInstance(sd, Dict)
+    self.assertEqual(sd, {'x': 1})
 
   def test_hide_frozen(self):
 

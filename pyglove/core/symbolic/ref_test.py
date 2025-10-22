@@ -21,8 +21,11 @@ from typing import Any
 import unittest
 
 from pyglove.core import typing as pg_typing
+from pyglove.core.symbolic import list as pg_list  # pylint: disable=unused-import
 from pyglove.core.symbolic import ref
 from pyglove.core.symbolic.base import contains
+from pyglove.core.symbolic.base import from_json
+from pyglove.core.symbolic.base import to_json
 from pyglove.core.symbolic.dict import Dict
 from pyglove.core.symbolic.object import Object
 
@@ -32,6 +35,10 @@ class A(Object):
 
 
 class RefTest(unittest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.maxDiff = None
 
   def test_basics(self):
 
@@ -109,14 +116,94 @@ class RefTest(unittest.TestCase):
         """))
 
   def test_to_json(self):
-    with self.assertRaisesRegex(
-        TypeError, '.* cannot be serialized at the moment'):
-      ref.Ref(A(1)).to_json()
+    class B(Object):
+      y: Any
 
-    self.assertEqual(
-        ref.Ref(A(1)).to_json(save_ref_value=True),
-        A(1).to_json()
-    )
+    a = A(1)
+    r1 = ref.Ref(a)
+    r2 = ref.Ref({'z': a})
+    r3 = ref.Ref(Dict(t=r1, p=r2))
+    v = Dict(a=r1, b=[B(r2), [r3], r1])
+    self.assertIs(v.a, v.b[0].y['z'])
+    self.assertIs(v.a, v.b[1][0].t)
+    self.assertIs(v.b[0].y, v.b[1][0].p)
+    self.assertIs(v.a, v.b[2])
+    self.assertIsInstance(v, dict)
+    self.assertIsInstance(v.b[0].y, dict)
+    self.assertNotIsInstance(v.b[0].y, Dict)
+    self.assertIsInstance(v.b[1][0], Dict)
+
+    json = to_json(v)
+    expected = {
+        '__context__': {
+            'shared_objects': [
+                {
+                    '_type': A.__type_name__,
+                    'x': 1
+                },
+                {
+                    'z': {
+                        '__ref__': 0
+                    }
+                }
+            ]
+        },
+        '__root__': {
+            'a': {
+                '_type': ref.Ref.__type_name__,
+                'value': {
+                    '__ref__': 0
+                }
+            },
+            'b': [
+                {
+                    '_type': B.__type_name__,
+                    'y': {
+                        '_type': ref.Ref.__type_name__,
+                        'value': {
+                            '__ref__': 1
+                        }
+                    }
+                },
+                [
+                    {
+                        '_type': ref.Ref.__type_name__,
+                        'value': {
+                            '__symbolic__': True,
+                            't': {
+                                '_type': ref.Ref.__type_name__,
+                                'value': {
+                                    '__ref__': 0
+                                }
+                            },
+                            'p': {
+                                '_type': ref.Ref.__type_name__,
+                                'value': {
+                                    '__ref__': 1
+                                }
+                            }
+                        }
+                    }
+                ],
+                {
+                    '_type': ref.Ref.__type_name__,
+                    'value': {
+                        '__ref__': 0
+                    }
+                }
+            ]
+        }
+    }
+    self.assertEqual(json, expected)
+    v = from_json(json)
+    self.assertIs(v.a, v.b[0].y['z'])
+    self.assertIs(v.a, v.b[1][0].t)
+    self.assertIs(v.b[0].y, v.b[1][0].p)
+    self.assertIs(v.a, v.b[2])
+    self.assertIsInstance(v, dict)
+    self.assertIsInstance(v.b[0].y, dict)
+    self.assertNotIsInstance(v.b[0].y, Dict)
+    self.assertIsInstance(v.b[1][0], Dict)
 
   def test_pickle(self):
     with self.assertRaisesRegex(

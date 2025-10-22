@@ -994,6 +994,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
             self.__class__.__serialization_key__
         )
     }
+    kwargs['omit_symbolic_marker'] = True
     json_dict.update(self._sym_attributes.to_json(**kwargs))
     return json_dict
 

@@ -799,6 +799,10 @@ class ListTest(unittest.TestCase):
     self.assertEqual(
         sl.sym_jsonify(), [0, inferred.ValueFromParentChain().to_json()]
     )
+    self.assertEqual(
+        sl.sym_jsonify(omit_symbolic_marker=False),
+        ['__symbolic__', 0, inferred.ValueFromParentChain().to_json()]
+    )
 
   def test_sym_rebind(self):
     # Refer to RebindTest for more detailed tests.
@@ -1632,6 +1636,25 @@ class SerializationTest(unittest.TestCase):
         ValueError,
         'Tuple should have at least one element besides \'__tuple__\'.'):
       base.from_json_str('["__tuple__"]')
+
+  def test_auto_symbolic(self):
+    value = base.from_json([1, 2, 3], auto_symbolic=True)
+    self.assertIsInstance(value, List)
+
+    value = base.from_json([1, 2, 3], auto_symbolic=False)
+    self.assertNotIsInstance(value, List)
+
+  def test_omit_symbolic_marker(self):
+    sl = List([0])
+    self.assertEqual(sl.to_json(omit_symbolic_marker=True), [0])
+    self.assertEqual(
+        sl.to_json(omit_symbolic_marker=False),
+        ['__symbolic__', 0]
+    )
+    sl = base.from_json(['__symbolic__', 0], auto_symbolic=False)
+    self.assertEqual(sl.to_json(omit_symbolic_marker=True), [0])
+    self.assertIsInstance(sl, List)
+    self.assertEqual(sl, [0])
 
   def test_hide_default_values(self):
     sl = List.partial(

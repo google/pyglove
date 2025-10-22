@@ -1447,6 +1447,7 @@ class DNA(symbolic.Object):
       *,
       allow_partial: bool = False,
       root_path: Optional[utils.KeyPath] = None,
+      **kwargs,
   ) -> 'DNA':
     """Class method that load a DNA from a JSON value.
 
@@ -1454,6 +1455,7 @@ class DNA(symbolic.Object):
       json_value: Input JSON value, only JSON dict is acceptable.
       allow_partial: Whether to allow elements of the list to be partial.
       root_path: KeyPath of loaded object in its object tree.
+      **kwargs: Keyword arguments that will be passed to symbolic.from_json.
 
     Returns:
       A DNA object.
@@ -1463,16 +1465,18 @@ class DNA(symbolic.Object):
       # NOTE(daiyip): DNA.parse will validate the input. Therefore, we can
       # disable runtime type check during constructing the DNA objects.
       with symbolic.enable_type_check(False):
-        dna = DNA.parse(symbolic.from_json(json_value.get('value')))
+        dna = DNA.parse(symbolic.from_json(json_value.get('value'), **kwargs))
         if 'metadata' in json_value:
           dna.rebind(
-              metadata=symbolic.from_json(json_value.get('metadata')),
+              metadata=symbolic.from_json(json_value.get('metadata'), **kwargs),
               raise_on_no_change=False, skip_notification=True)
     else:
       dna = super(DNA, cls).from_json(
           json_value,
           allow_partial=allow_partial,
-          root_path=root_path)  # pytype: disable=bad-return-type
+          root_path=root_path,
+          **kwargs,
+      )  # pytype: disable=bad-return-type
       assert isinstance(dna, DNA)
     if cloneable_metadata_keys:
       dna._cloneable_metadata_keys = set(cloneable_metadata_keys)  # pylint: disable=protected-access

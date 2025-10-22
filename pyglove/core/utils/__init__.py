@@ -74,6 +74,7 @@ modules with the following features:
 from pyglove.core.utils.json_conversion import Nestable
 from pyglove.core.utils.json_conversion import JSONValueType
 
+from pyglove.core.utils.json_conversion import JSONConversionContext
 from pyglove.core.utils.json_conversion import JSONConvertible
 from pyglove.core.utils.json_conversion import from_json
 from pyglove.core.utils.json_conversion import to_json
