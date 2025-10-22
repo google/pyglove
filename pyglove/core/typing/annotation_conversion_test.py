@@ -397,6 +397,9 @@ class ValueSpecFromAnnotationTest(unittest.TestCase):
         ValueSpec.from_annotation(typing.Dict[str, int], True),
         vs.Dict([(ks.StrKey(), vs.Int())]))
     self.assertEqual(
+        ValueSpec.from_annotation(typing.Dict[str, vs.Int()], True),
+        vs.Dict([(ks.StrKey(), vs.Int())]))
+    self.assertEqual(
         ValueSpec.from_annotation(typing.Mapping[str, int], True),
         vs.Dict([(ks.StrKey(), vs.Int())]))
     with self.assertRaisesRegex(

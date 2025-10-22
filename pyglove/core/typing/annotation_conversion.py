@@ -318,6 +318,9 @@ def _value_spec_from_type_annotation(
     parent_module: typing.Optional[types.ModuleType] = None
 ) -> class_schema.ValueSpec:
   """Creates a value spec from type annotation."""
+  if isinstance(annotation, class_schema.ValueSpec):
+    return annotation
+
   if isinstance(annotation, str) and not accept_value_as_annotation:
     annotation = annotation_from_str(annotation, parent_module)
 
@@ -454,7 +457,8 @@ def _value_spec_from_annotation(
   """Creates a value spec from annotation."""
   if isinstance(annotation, class_schema.ValueSpec):
     return annotation
-  elif annotation == inspect.Parameter.empty:
+
+  if annotation == inspect.Parameter.empty:
     return vs.Any()
 
   if annotation is None:
