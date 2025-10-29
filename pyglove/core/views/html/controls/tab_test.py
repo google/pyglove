@@ -154,6 +154,43 @@ class TabControlTest(unittest.TestCase):
       self.assertEqual(len(scripts), 1)
       self.assertEqual(tab.selected, 1)
 
+  def test_remove(self):
+    tabs = [tab_lib.Tab(l, l, name=l) for l in ['a', 'b', 'c', 'd']]
+    tc = tab_lib.TabControl(tabs, selected='c')
+    self.assertEqual([t.name for t in tc.tabs], ['a', 'b', 'c', 'd'])
+    self.assertEqual(tc.selected, 2)
+
+    # Trigger rendering so scripts are tracked.
+    _ = tc.to_html()
+    with tc.track_scripts() as scripts:
+      tc.remove('b')
+      self.assertEqual(len(scripts), 1)
+    self.assertEqual([t.name for t in tc.tabs], ['a', 'c', 'd'])
+    self.assertEqual(tc.selected, 1)
+
+    with tc.track_scripts() as scripts:
+      # Remove currently selected tab 'c'
+      tc.remove('c')
+      # 1 script for remove, 1 for select.
+      self.assertEqual(len(scripts), 2)
+    self.assertEqual([t.name for t in tc.tabs], ['a', 'd'])
+    self.assertEqual(tc.selected, 1)
+
+    with tc.track_scripts() as scripts:
+      tc.remove(1)
+      self.assertEqual(len(scripts), 2)
+    self.assertEqual([t.name for t in tc.tabs], ['a'])
+    self.assertEqual(tc.selected, 0)
+
+    with tc.track_scripts() as scripts:
+      tc.remove('a')
+      self.assertEqual(len(scripts), 1)
+    self.assertEqual(tc.tabs, [])
+    self.assertEqual(tc.selected, 0)
+
+    with self.assertRaisesRegex(ValueError, 'Tab not found'):
+      tc.remove('x')
+
 
 if __name__ == '__main__':
   unittest.main()

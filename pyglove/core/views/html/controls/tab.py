@@ -158,6 +158,39 @@ class TabControl(HtmlControl):
         position='beforebegin',
     )
 
+  def remove(self, index_or_name: Union[int, str]) -> Tab:
+    """Removes a tab identified by index or name."""
+    index = self.indexof(index_or_name)
+    if index == -1:
+      raise ValueError(f'Tab not found: {index_or_name!r}')
+
+    with pg_flags.notify_on_change(False):
+      tab = self.tabs.pop(index)
+
+    self._run_javascript(
+        f"""
+        const button = document.querySelectorAll('#{self.element_id()}-button-group > .tab-button')[{index}];
+        if (button) {{
+          button.remove();
+        }}
+        const content = document.querySelectorAll('#{self.element_id()}-content-group > .tab-content')[{index}];
+        if (content) {{
+          content.remove();
+        }}
+        """
+    )
+
+    if not self.tabs:
+      self._sync_members(selected=0)
+      return tab
+
+    if self.selected == index:
+      new_selected = index - 1 if index == len(self.tabs) else index
+      self.select(max(0, new_selected))
+    elif self.selected > index:
+      self._sync_members(selected=self.selected - 1)
+    return tab
+
   def indexof(self, index_or_name: Union[int, str]) -> int:
     if isinstance(index_or_name, int):
       index = index_or_name
