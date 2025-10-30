@@ -57,7 +57,7 @@ class NextValue(base.Mutator):
   """A mutator to increase current DNA by 1."""
 
   def mutate(self, dna, step):
-    return dna.next_dna()
+    return dna.next_dna() or dna
 
 
 def search_space():
