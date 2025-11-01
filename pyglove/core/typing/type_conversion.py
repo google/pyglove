@@ -15,6 +15,7 @@
 
 import calendar
 import datetime
+import sys
 from typing import Any, Callable, Optional, Tuple, Type, Union
 
 from pyglove.core import utils
@@ -135,9 +136,22 @@ def _register_builtin_converters():
   register_converter(int, float, float)
 
   # int <=> datetime.datetime.
-  register_converter(int, datetime.datetime, lambda x: datetime.datetime.fromtimestamp(x, datetime.UTC))
-  register_converter(datetime.datetime, int,
-                     lambda x: calendar.timegm(x.timetuple()))
+  if sys.version_info >= (3, 11):
+    register_converter(
+        int,
+        datetime.datetime,
+        lambda x: datetime.datetime.fromtimestamp(x, datetime.UTC)
+    )
+  else:
+    register_converter(
+        int, datetime.datetime, datetime.datetime.utcfromtimestamp
+    )
+
+  register_converter(
+      datetime.datetime,
+      int,
+      lambda x: calendar.timegm(x.timetuple())
+  )
 
   # string <=> KeyPath.
   register_converter(str, utils.KeyPath, utils.KeyPath.parse)
