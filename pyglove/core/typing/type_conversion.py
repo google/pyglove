@@ -135,7 +135,7 @@ def _register_builtin_converters():
   register_converter(int, float, float)
 
   # int <=> datetime.datetime.
-  register_converter(int, datetime.datetime, datetime.datetime.utcfromtimestamp)
+  register_converter(int, datetime.datetime, lambda x: datetime.datetime.fromtimestamp(x, datetime.UTC))
   register_converter(datetime.datetime, int,
                      lambda x: calendar.timegm(x.timetuple()))
 

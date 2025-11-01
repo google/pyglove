@@ -34,6 +34,12 @@ class Foo:
 _MODULE = sys.modules[__name__]
 
 
+def typing_forward_ref(name: str) -> typing.ForwardRef:
+  if sys.version_info >= (3, 14):
+    return typing.ForwardRef(name)
+  return typing.ForwardRef(name, False, _MODULE)
+
+
 class AnnotationFromStrTest(unittest.TestCase):
   """Tests for annotation_from_str."""
 
@@ -69,7 +75,7 @@ class AnnotationFromStrTest(unittest.TestCase):
     )
     self.assertEqual(
         annotation_conversion.annotation_from_str('list[Foo.Baz]', _MODULE),
-        list[typing.ForwardRef('Foo.Baz', False, _MODULE)]
+        list[typing_forward_ref('Foo.Baz')]
     )
 
   def test_generic_types(self):
@@ -138,18 +144,12 @@ class AnnotationFromStrTest(unittest.TestCase):
     self.assertEqual(
         annotation_conversion.annotation_from_str(
             'AAA', _MODULE),
-        typing.ForwardRef(
-            'AAA', False, _MODULE
-        )
+        typing_forward_ref('AAA')
     )
     self.assertEqual(
         annotation_conversion.annotation_from_str(
             'typing.List[AAA]', _MODULE),
-        typing.List[
-            typing.ForwardRef(
-                'AAA', False, _MODULE
-            )
-        ]
+        typing.List[typing_forward_ref('AAA')]
     )
 
   def test_reloading(self):
@@ -157,20 +157,12 @@ class AnnotationFromStrTest(unittest.TestCase):
     self.assertEqual(
         annotation_conversion.annotation_from_str(
             'typing.List[Foo]', _MODULE),
-        typing.List[
-            typing.ForwardRef(
-                'Foo', False, _MODULE
-            )
-        ]
+        typing.List[typing_forward_ref('Foo')]
     )
     self.assertEqual(
         annotation_conversion.annotation_from_str(
             'typing.List[Foo.Bar]', _MODULE),
-        typing.List[
-            typing.ForwardRef(
-                'Foo.Bar', False, _MODULE
-            )
-        ]
+        typing.List[typing_forward_ref('Foo.Bar')]
     )
     delattr(_MODULE, '__reloading__')
 

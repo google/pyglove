@@ -506,8 +506,7 @@ class ListTest(unittest.TestCase):
   def test_index(self):
     sl = List([0, 1, 2, 1])
     self.assertEqual(sl.index(1), 1)
-    with self.assertRaisesRegex(
-        ValueError, '3 is not in list'):
+    with self.assertRaisesRegex(ValueError, '.* not in list'):
       _ = sl.index(3)
 
     # Index of inferred value is based on its symbolic form.

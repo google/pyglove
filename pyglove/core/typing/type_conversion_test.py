@@ -130,7 +130,7 @@ class BuiltInConversionsTest(unittest.TestCase):
   def test_datetime_to_int(self):
     """Test built-in converter between int and datetime.datetime."""
     timestamp = calendar.timegm(datetime.datetime.now().timetuple())
-    now = datetime.datetime.utcfromtimestamp(timestamp)
+    now = datetime.datetime.fromtimestamp(timestamp, datetime.UTC)
     self.assertEqual(vs.Object(datetime.datetime).apply(timestamp), now)
     self.assertEqual(vs.Int().apply(now), timestamp)
     self.assertEqual(

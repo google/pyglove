@@ -271,7 +271,8 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assert_conversion_is(typing.List[typing.List[int]])
     self.assert_conversion_is(typing.Annotated[int, 'abc'])
     self.assert_conversion_is(typing.Dict[str, typing.Any])
-    self.assert_conversion_is(typing.Union[int, str])
+    # From Python 3.14, union no longer preserves `is` identity.
+    self.assert_conversion_equal(typing.Union[int, str])
     self.assert_conversion_is(typing.Sequence[int])
     self.assert_conversion_is(typing.Set[int])
     self.assert_conversion_is(typing.FrozenSet[int])
