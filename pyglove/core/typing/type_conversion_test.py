@@ -13,6 +13,7 @@
 # limitations under the License.
 import calendar
 import datetime
+import sys
 import typing
 import unittest
 
@@ -130,12 +131,16 @@ class BuiltInConversionsTest(unittest.TestCase):
   def test_datetime_to_int(self):
     """Test built-in converter between int and datetime.datetime."""
     timestamp = calendar.timegm(datetime.datetime.now().timetuple())
-    now = datetime.datetime.fromtimestamp(timestamp, datetime.UTC)
+    if sys.version_info >= (3, 11):
+      now = datetime.datetime.fromtimestamp(timestamp, datetime.UTC)
+    else:
+      now = datetime.datetime.utcfromtimestamp(timestamp)
     self.assertEqual(vs.Object(datetime.datetime).apply(timestamp), now)
     self.assertEqual(vs.Int().apply(now), timestamp)
     self.assertEqual(
         type_conversion.get_json_value_converter(datetime.datetime)(now),
-        timestamp)
+        timestamp
+    )
 
   def test_keypath_to_str(self):
     """Test built-in converter between string and KeyPath."""
