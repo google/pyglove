@@ -180,6 +180,34 @@ class MemoryFileSystemTest(unittest.TestCase):
     fs.rmdirs(os.path.join(dir_a, 'b/c'))
     self.assertEqual(fs.listdir(dir_a), ['file1'])   # pylint: disable=g-generic-assert
 
+  def test_glob(self):
+    fs = file_system.MemoryFileSystem()
+    fs.mkdirs('/mem/a/b/c')
+    with fs.open('/mem/a/foo.txt', 'w') as f:
+      f.write('foo')
+    with fs.open('/mem/a/bar.json', 'w') as f:
+      f.write('bar')
+    with fs.open('/mem/a/b/baz.txt', 'w') as f:
+      f.write('baz')
+
+    self.assertEqual(
+        sorted(fs.glob('/mem/a/*')),
+        ['/mem/a/b', '/mem/a/b/baz.txt', '/mem/a/b/c',
+         '/mem/a/bar.json', '/mem/a/foo.txt'])
+    self.assertEqual(
+        sorted(fs.glob('/mem/a/*.txt')),
+        ['/mem/a/b/baz.txt', '/mem/a/foo.txt'])
+    self.assertEqual(
+        sorted(fs.glob('/mem/a/b/*')),
+        ['/mem/a/b/baz.txt', '/mem/a/b/c'])
+    self.assertEqual(fs.glob('/mem/a/b/*.txt'), ['/mem/a/b/baz.txt'])
+    self.assertEqual(fs.glob('/mem/a/b/c/*'), [])
+    self.assertEqual(fs.glob('/mem/a/???.txt'), ['/mem/a/foo.txt'])
+    self.assertEqual(fs.glob('/mem/a/bar.*'), ['/mem/a/bar.json'])
+    self.assertEqual(
+        sorted(fs.glob('/mem/a/*.*')),
+        ['/mem/a/b/baz.txt', '/mem/a/bar.json', '/mem/a/foo.txt'])
+
 
 class FileIoApiTest(unittest.TestCase):
 
@@ -217,6 +245,14 @@ class FileIoApiTest(unittest.TestCase):
     file_system.rm(file2)
     self.assertFalse(file_system.path_exists(file2))
 
+    # Test glob with standard file system.
+    glob_dir = os.path.join(tempfile.mkdtemp(), 'glob')
+    file_system.mkdirs(os.path.join(glob_dir, 'a/b'))
+    file_system.writefile(os.path.join(glob_dir, 'a/foo.txt'), 'foo')
+    self.assertEqual(
+        sorted(file_system.glob(os.path.join(glob_dir, 'a/*'))),
+        [os.path.join(glob_dir, 'a/b'), os.path.join(glob_dir, 'a/foo.txt')])
+
   def test_memory_filesystem(self):
     file1 = pathlib.Path('/mem/file1')
     with self.assertRaises(FileNotFoundError):
@@ -247,6 +283,14 @@ class FileIoApiTest(unittest.TestCase):
     self.assertEqual(sorted(file_system.listdir(dir1)), ['file2'])  # pylint: disable=g-generic-assert
     file_system.rm(file2)
     self.assertFalse(file_system.path_exists(file2))
+
+    # Test glob with memory file system.
+    file_system.mkdirs('/mem/g/a/b')
+    file_system.writefile('/mem/g/a/foo.txt', 'foo')
+    file_system.writefile('/mem/g/a/b/bar.txt', 'bar')
+    self.assertEqual(
+        sorted(file_system.glob('/mem/g/a/*')),
+        ['/mem/g/a/b', '/mem/g/a/b/bar.txt', '/mem/g/a/foo.txt'])
 
 
 if __name__ == '__main__':

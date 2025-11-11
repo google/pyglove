@@ -14,8 +14,11 @@
 """Pluggable file system."""
 
 import abc
+import fnmatch
+import glob as std_glob
 import io
 import os
+import re
 from typing import Any, Literal, Optional, Union
 
 
@@ -83,6 +86,10 @@ class FileSystem(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     """Returns True if a path exists."""
+
+  @abc.abstractmethod
+  def glob(self, pattern: Union[str, os.PathLike[str]]) -> list[str]:
+    """Lists all files or sub-directories."""
 
   @abc.abstractmethod
   def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
@@ -176,6 +183,9 @@ class StdFileSystem(FileSystem):
 
   def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     return os.path.exists(path)
+
+  def glob(self, pattern: Union[str, os.PathLike[str]]) -> list[str]:
+    return std_glob.glob(pattern)
 
   def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
     return os.listdir(path)
@@ -285,6 +295,21 @@ class MemoryFileSystem(FileSystem):
 
   def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
     return self._locate(path) is not None
+
+  def glob(self, pattern: Union[str, os.PathLike[str]]) -> list[str]:
+    pattern = resolve_path(pattern)
+    regex = re.compile(fnmatch.translate(pattern))
+
+    results = []
+    def _traverse(node, prefix_parts):
+      for k, v in node.items():
+        path = self._prefix + '/'.join(prefix_parts + [k])
+        if regex.match(path):
+          results.append(path)
+        if isinstance(v, dict):
+          _traverse(v, prefix_parts + [k])
+    _traverse(self._root, [])
+    return results
 
   def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
     d = self._locate(path)
@@ -466,6 +491,11 @@ def rm(path: Union[str, os.PathLike[str]]) -> None:
 def path_exists(path: Union[str, os.PathLike[str]]) -> bool:
   """Returns True if path exists."""
   return _fs.get(path).exists(path)
+
+
+def glob(pattern: Union[str, os.PathLike[str]]) -> list[str]:
+  """Lists all files or sub-directories."""
+  return _fs.get(pattern).glob(pattern)
 
 
 def listdir(
