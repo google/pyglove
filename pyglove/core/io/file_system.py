@@ -119,6 +119,14 @@ class FileSystem(metaclass=abc.ABCMeta):
     """Removes a file based on a path."""
 
   @abc.abstractmethod
+  def rename(
+      self,
+      oldpath: Union[str, os.PathLike[str]],
+      newpath: Union[str, os.PathLike[str]],
+  ) -> None:
+    """Renames a file based on a path."""
+
+  @abc.abstractmethod
   def rmdir(self, path: Union[str, os.PathLike[str]]) -> bool:
     """Removes a directory based on a path."""
 
@@ -205,6 +213,13 @@ class StdFileSystem(FileSystem):
       exist_ok: bool = True,
   ) -> None:
     os.makedirs(path, mode, exist_ok)
+
+  def rename(
+      self,
+      oldpath: Union[str, os.PathLike[str]],
+      newpath: Union[str, os.PathLike[str]],
+  ) -> None:
+    os.rename(oldpath, newpath)
 
   def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     os.remove(path)
@@ -363,6 +378,46 @@ class MemoryFileSystem(FileSystem):
         raise NotADirectoryError(path)
       current = entry
 
+  def rename(
+      self,
+      oldpath: Union[str, os.PathLike[str]],
+      newpath: Union[str, os.PathLike[str]],
+  ) -> None:
+    oldpath_str = resolve_path(oldpath)
+    newpath_str = resolve_path(newpath)
+
+    old_parent_dir, old_name = self._parent_and_name(oldpath_str)
+    entry = old_parent_dir.get(old_name)
+
+    if entry is None:
+      raise FileNotFoundError(oldpath_str)
+
+    new_entry = self._locate(newpath_str)
+    if new_entry is not None:
+      if isinstance(entry, dict):  # oldpath is dir
+        if not isinstance(new_entry, dict):
+          raise NotADirectoryError(
+              f'Cannot rename directory {oldpath_str!r} '
+              f'to non-directory {newpath_str!r}')
+        elif new_entry:
+          raise OSError(f'Directory not empty: {newpath_str!r}')
+        else:
+          self.rmdir(newpath_str)
+      else:  # oldpath is file
+        if isinstance(new_entry, dict):
+          raise IsADirectoryError(
+              f'Cannot rename non-directory {oldpath_str!r} '
+              f'to directory {newpath_str!r}')
+        else:
+          self.rm(newpath_str)
+    elif isinstance(entry, dict) and newpath_str.startswith(oldpath_str + '/'):
+      raise OSError(f'Cannot move directory {oldpath_str!r} '
+                    f'to a subdirectory of itself {newpath_str!r}')
+
+    new_parent_dir, new_name = self._parent_and_name(newpath_str)
+    new_parent_dir[new_name] = entry
+    del old_parent_dir[old_name]
+
   def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     parent_dir, name = self._parent_and_name(path)
     entry = parent_dir.get(name)
@@ -481,6 +536,14 @@ def writefile(
     f.write(content)
   if perms is not None:
     chmod(path, perms)
+
+
+def rename(
+    oldpath: Union[str, os.PathLike[str]],
+    newpath: Union[str, os.PathLike[str]],
+) -> None:
+  """Renames a file."""
+  _fs.get(oldpath).rename(oldpath, newpath)
 
 
 def rm(path: Union[str, os.PathLike[str]]) -> None:

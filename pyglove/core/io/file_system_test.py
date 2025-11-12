@@ -82,6 +82,75 @@ class StdFileSystemTest(unittest.TestCase):
     fs.rmdirs(os.path.join(dir_a, 'b/c'))
     self.assertEqual(sorted(fs.listdir(dir_a)), ['file1'])   # pylint: disable=g-generic-assert
 
+  def test_rename(self):
+    tmp_dir = tempfile.mkdtemp()
+    fs = file_system.StdFileSystem()
+
+    _ = fs.mkdirs(os.path.join(tmp_dir, 'a/b'))
+    file_foo = os.path.join(tmp_dir, 'a/foo.txt')
+    file_bar = os.path.join(tmp_dir, 'a/bar.txt')
+
+    with fs.open(file_foo, 'w') as f:
+      f.write('foo')
+    with fs.open(file_bar, 'w') as f:
+      f.write('bar')
+
+    # Rename file to a new name.
+    file_foo_new = os.path.join(tmp_dir, 'a/foo-new.txt')
+    fs.rename(file_foo, file_foo_new)
+    self.assertFalse(fs.exists(file_foo))
+    self.assertTrue(fs.exists(file_foo_new))
+
+    # Rename file to an existing file name.
+    fs.rename(file_foo_new, file_bar)
+    self.assertFalse(fs.exists(file_foo_new))
+    with fs.open(file_bar, 'r') as f:
+      self.assertEqual(f.read(), 'foo')
+
+    # Rename directory to a new name.
+    dir_b = os.path.join(tmp_dir, 'a/b')
+    dir_c = os.path.join(tmp_dir, 'a/c')
+    fs.rename(dir_b, dir_c)
+    self.assertFalse(fs.exists(dir_b))
+    self.assertTrue(fs.exists(dir_c))
+    self.assertTrue(fs.isdir(dir_c))
+
+    # Rename directory to an existing empty directory.
+    dir_d = os.path.join(tmp_dir, 'a/d')
+    fs.mkdirs(dir_d)
+    fs.rename(dir_c, dir_d)
+    self.assertFalse(fs.exists(dir_c))
+    self.assertTrue(fs.exists(dir_d))
+
+    # Rename directory to a non-empty directory.
+    dir_x = os.path.join(tmp_dir, 'x')
+    dir_a = os.path.join(tmp_dir, 'a')
+    fs.mkdirs(os.path.join(dir_x, 'y'))
+    with self.assertRaises(OSError):
+      fs.rename(dir_a, dir_x)
+    self.assertTrue(fs.exists(dir_a))
+    self.assertTrue(fs.exists(os.path.join(dir_x, 'y')))
+
+    # Errors
+    dir_u = os.path.join(tmp_dir, 'u')
+    dir_u_v = os.path.join(dir_u, 'v')
+    file_u_a = os.path.join(dir_u, 'a.txt')
+    fs.mkdirs(dir_u_v)
+    with fs.open(file_u_a, 'w') as f:
+      f.write('a')
+
+    with self.assertRaises((OSError, NotADirectoryError)):
+      fs.rename(dir_u, file_u_a)
+
+    with self.assertRaises(IsADirectoryError):
+      fs.rename(file_u_a, dir_u_v)
+
+    with self.assertRaises(FileNotFoundError):
+      fs.rename(
+          os.path.join(tmp_dir, 'non-existent'),
+          os.path.join(tmp_dir, 'y')
+      )
+
 
 class MemoryFileSystemTest(unittest.TestCase):
 
@@ -208,6 +277,66 @@ class MemoryFileSystemTest(unittest.TestCase):
         sorted(fs.glob('/mem/a/*.*')),
         ['/mem/a/b/baz.txt', '/mem/a/bar.json', '/mem/a/foo.txt'])
 
+  def test_rename(self):
+    fs = file_system.MemoryFileSystem()
+    fs.mkdirs('/mem/a/b')
+    with fs.open('/mem/a/foo.txt', 'w') as f:
+      f.write('foo')
+    with fs.open('/mem/a/bar.txt', 'w') as f:
+      f.write('bar')
+
+    # Rename file to a new name.
+    fs.rename('/mem/a/foo.txt', '/mem/a/foo-new.txt')
+    self.assertFalse(fs.exists('/mem/a/foo.txt'))
+    self.assertTrue(fs.exists('/mem/a/foo-new.txt'))
+
+    # Rename file to an existing file name.
+    fs.rename('/mem/a/foo-new.txt', '/mem/a/bar.txt')
+    self.assertFalse(fs.exists('/mem/a/foo-new.txt'))
+    with fs.open('/mem/a/bar.txt', 'r') as f:
+      self.assertEqual(f.read(), 'foo')
+
+    # Rename directory to a new name.
+    fs.rename('/mem/a/b', '/mem/a/c')
+    self.assertFalse(fs.exists('/mem/a/b'))
+    self.assertTrue(fs.exists('/mem/a/c'))
+    self.assertTrue(fs.isdir('/mem/a/c'))
+
+    # Rename directory to an existing empty directory.
+    fs.mkdirs('/mem/a/d')
+    fs.rename('/mem/a/c', '/mem/a/d')
+    self.assertFalse(fs.exists('/mem/a/c'))
+    self.assertTrue(fs.exists('/mem/a/d'))
+
+    # Rename directory to a non-empty directory.
+    fs.mkdirs('/mem/x/y')
+    with self.assertRaisesRegex(OSError, "Directory not empty: '/mem/x'"):
+      fs.rename('/mem/a', '/mem/x')
+    self.assertTrue(fs.exists('/mem/a'))
+    self.assertTrue(fs.exists('/mem/x/y'))
+
+    # Errors
+    fs.mkdirs('/mem/u/v')
+    with fs.open('/mem/u/a.txt', 'w') as f:
+      f.write('a')
+
+    with self.assertRaisesRegex(
+        OSError, "Cannot move directory '/mem/u' to a subdirectory of itself"):
+      fs.rename('/mem/u', '/mem/u/v/w')
+
+    with self.assertRaisesRegex(
+        NotADirectoryError,
+        "Cannot rename directory '/mem/u' to non-directory '/mem/u/a.txt'"):
+      fs.rename('/mem/u', '/mem/u/a.txt')
+
+    with self.assertRaisesRegex(
+        IsADirectoryError,
+        "Cannot rename non-directory '/mem/u/a.txt' to directory '/mem/u/v'"):
+      fs.rename('/mem/u/a.txt', '/mem/u/v')
+
+    with self.assertRaises(FileNotFoundError):
+      fs.rename('/mem/non-existent', '/mem/y')
+
 
 class FileIoApiTest(unittest.TestCase):
 
@@ -287,10 +416,11 @@ class FileIoApiTest(unittest.TestCase):
     # Test glob with memory file system.
     file_system.mkdirs('/mem/g/a/b')
     file_system.writefile('/mem/g/a/foo.txt', 'foo')
+    file_system.rename('/mem/g/a/foo.txt', '/mem/g/a/foo2.txt')
     file_system.writefile('/mem/g/a/b/bar.txt', 'bar')
     self.assertEqual(
         sorted(file_system.glob('/mem/g/a/*')),
-        ['/mem/g/a/b', '/mem/g/a/b/bar.txt', '/mem/g/a/foo.txt'])
+        ['/mem/g/a/b', '/mem/g/a/b/bar.txt', '/mem/g/a/foo2.txt'])
 
 
 if __name__ == '__main__':
