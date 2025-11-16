@@ -19,6 +19,7 @@ import glob as std_glob
 import io
 import os
 import re
+import time
 from typing import Any, Literal, Optional, Union
 
 
@@ -152,9 +153,10 @@ def resolve_path(path: Union[str, os.PathLike[str]]) -> str:
 class StdFile(File):
   """The standard file."""
 
-  def __init__(self, file_object) -> None:
+  def __init__(self, file_object, path: Union[str, os.PathLike[str]]) -> None:
     super().__init__()
     self._file_object = file_object
+    self._path = path
 
   def read(self, size: Optional[int] = None) -> Union[str, bytes]:
     return self._file_object.read(size)
@@ -177,6 +179,14 @@ class StdFile(File):
   def close(self) -> None:
     self._file_object.close()
 
+    # For some file systems, the file might not be immediately available
+    # after writing. We retry for a few times to ensure the file is
+    # world-readable.
+    while True:
+      if os.path.exists(self._path):
+        break
+      time.sleep(0.1)
+
 
 class StdFileSystem(FileSystem):
   """The standard file system."""
@@ -184,7 +194,7 @@ class StdFileSystem(FileSystem):
   def open(
       self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
   ) -> File:
-    return StdFile(io.open(path, mode, **kwargs))
+    return StdFile(io.open(path, mode, **kwargs), path)
 
   def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:
     os.chmod(path, mode)
