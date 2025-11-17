@@ -1,2 +1,5 @@
 docstring-parser>=0.12
 termcolor>=1.1.0
+
+# extras:io
+fsspec>=2023.3.0

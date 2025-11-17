@@ -493,6 +493,205 @@ def add_file_system(prefix: str, fs: FileSystem) -> None:
 add_file_system('/mem/', MemoryFileSystem('/mem/'))
 
 
+try:
+  # pylint: disable=g-import-not-at-top
+  # pytype: disable=import-error
+  import fsspec
+  # pytype: enable=import-error
+  # pylint: enable=g-import-not-at-top
+except ImportError:
+  fsspec = None
+
+
+class FsspecFile(File):
+  """File object based on fsspec."""
+
+  def __init__(self, f):
+    self._f = f
+
+  def read(self, size: Optional[int] = None) -> Union[str, bytes]:
+    return self._f.read(size)
+
+  def readline(self) -> Union[str, bytes]:
+    return self._f.readline()
+
+  def write(self, content: Union[str, bytes]) -> None:
+    self._f.write(content)
+
+  def seek(self, offset: int, whence: Literal[0, 1, 2] = 0) -> int:
+    return self._f.seek(offset, whence)
+
+  def tell(self) -> int:
+    return self._f.tell()
+
+  def flush(self) -> None:
+    self._f.flush()
+
+  def close(self) -> None:
+    self._f.close()
+
+
+class FsspecFileSystem(FileSystem):
+  """File system based on fsspec."""
+
+  def open(
+      self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
+  ) -> File:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    return FsspecFile(fsspec.open(path, mode, **kwargs).open())
+
+  def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    if hasattr(fs, 'chmod'):
+      fs.chmod(path, mode)
+
+  def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    return fs.exists(path)
+
+  def glob(self, pattern: Union[str, os.PathLike[str]]) -> list[str]:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(pattern)
+    protocol = fsspec.utils.get_protocol(pattern)
+    return [f'{protocol}:///{r.lstrip("/")}' for r in fs.glob(path)]
+
+  def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    return [os.path.basename(f) for f in fs.ls(path, detail=False)]
+
+  def isdir(self, path: Union[str, os.PathLike[str]]) -> bool:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    return fs.isdir(path)
+
+  def mkdir(
+      self,
+      path: Union[str, os.PathLike[str]], mode: int = 0o777
+  ) -> None:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    fs.mkdir(path)
+
+  def mkdirs(
+      self,
+      path: Union[str, os.PathLike[str]],
+      mode: int = 0o777,
+      exist_ok: bool = True,
+  ) -> None:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    fs.makedirs(path, exist_ok=exist_ok)
+
+  def rm(self, path: Union[str, os.PathLike[str]]) -> None:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    fs.rm(path)
+
+  def rename(
+      self,
+      oldpath: Union[str, os.PathLike[str]],
+      newpath: Union[str, os.PathLike[str]],
+  ) -> None:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, old_path = fsspec.core.url_to_fs(oldpath)
+    fs2, new_path = fsspec.core.url_to_fs(newpath)
+    if fs.__class__ != fs2.__class__:
+      raise ValueError(
+          f'Rename across different filesystems is not supported: '
+          f'{type(fs)} vs {type(fs2)}'
+      )
+    fs.rename(old_path, new_path)
+
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:   # pytype: disable=signature-mismatch
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    fs.rmdir(path)
+
+  def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
+    assert fsspec is not None, '`fsspec` is not installed.'
+    fs, path = fsspec.core.url_to_fs(path)
+    fs.rm(path, recursive=True)
+
+
+class _FsspecUriCatcher(FileSystem):
+  """File system to catch URI paths and redirect to FsspecFileSystem."""
+
+  # Catch all paths that contains '://' but not registered by
+  # available_protocols.
+  _URI_PATTERN = re.compile(r'^[a-zA-Z][a-zA-Z0-9+-.]*://.*')
+
+  def __init__(self):
+    super().__init__()
+    self._std_fs = StdFileSystem()
+    self._fsspec_fs = FsspecFileSystem()
+
+  def get_fs(self, path: Union[str, os.PathLike[str]]) -> FileSystem:
+    if self._URI_PATTERN.match(resolve_path(path)):
+      return self._fsspec_fs
+    return self._std_fs
+
+  def open(
+      self, path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs
+  ) -> File:
+    return self.get_fs(path).open(path, mode, **kwargs)
+
+  def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:
+    self.get_fs(path).chmod(path, mode)
+
+  def exists(self, path: Union[str, os.PathLike[str]]) -> bool:
+    return self.get_fs(path).exists(path)
+
+  def glob(self, pattern: Union[str, os.PathLike[str]]) -> list[str]:
+    return self.get_fs(pattern).glob(pattern)
+
+  def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
+    return self.get_fs(path).listdir(path)
+
+  def isdir(self, path: Union[str, os.PathLike[str]]) -> bool:
+    return self.get_fs(path).isdir(path)
+
+  def mkdir(
+      self,
+      path: Union[str, os.PathLike[str]],
+      mode: int = 0o777
+  ) -> None:
+    self.get_fs(path).mkdir(path, mode)
+
+  def mkdirs(
+      self,
+      path: Union[str, os.PathLike[str]],
+      mode: int = 0o777,
+      exist_ok: bool = True,
+  ) -> None:
+    self.get_fs(path).mkdirs(path, mode, exist_ok)
+
+  def rm(self, path: Union[str, os.PathLike[str]]) -> None:
+    self.get_fs(path).rm(path)
+
+  def rename(
+      self,
+      oldpath: Union[str, os.PathLike[str]],
+      newpath: Union[str, os.PathLike[str]],
+  ) -> None:
+    self.get_fs(oldpath).rename(oldpath, newpath)
+
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:   # pytype: disable=signature-mismatch
+    self.get_fs(path).rmdir(path)
+
+  def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
+    self.get_fs(path).rmdirs(path)
+
+
+if fsspec is not None:
+  fsspec_fs = FsspecFileSystem()
+  for p in fsspec.available_protocols():
+    add_file_system(p + '://', fsspec_fs)
+  add_file_system('', _FsspecUriCatcher())
+
+
 #
 # APIs for file IO.
 #

@@ -16,6 +16,8 @@ import os
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
+import fsspec
 from pyglove.core.io import file_system
 
 
@@ -421,6 +423,121 @@ class FileIoApiTest(unittest.TestCase):
     self.assertEqual(
         sorted(file_system.glob('/mem/g/a/*')),
         ['/mem/g/a/b', '/mem/g/a/b/bar.txt', '/mem/g/a/foo2.txt'])
+
+
+class FsspecFileSystemTest(unittest.TestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.fs = fsspec.filesystem('memory')
+    self.fs.pipe('memory:///a/b/c', b'abc')
+    self.fs.pipe('memory:///a/b/d', b'abd')
+    self.fs.mkdir('memory:///a/e')
+
+  def tearDown(self):
+    super().tearDown()
+    fsspec.filesystem('memory').rm('/', recursive=True)
+
+  def test_read_file(self):
+    self.assertEqual(file_system.readfile('memory:///a/b/c', mode='rb'), b'abc')
+    with file_system.open('memory:///a/b/d', 'rb') as f:
+      self.assertEqual(f.read(), b'abd')
+
+  def test_fsspec_file_ops(self):
+    file_system.writefile('memory:///f', b'hello\nworld\n', mode='wb')
+    with file_system.open('memory:///f', 'rb') as f:
+      self.assertIsInstance(f, file_system.FsspecFile)
+      self.assertEqual(f.readline(), b'hello\n')
+      self.assertEqual(f.tell(), 6)
+      self.assertEqual(f.seek(8), 8)
+      self.assertEqual(f.read(), b'rld\n')
+      f.flush()
+
+  def test_write_file(self):
+    file_system.writefile('memory:///a/b/e', b'abe', mode='wb')
+    self.assertTrue(self.fs.exists('memory:///a/b/e'))
+    self.assertEqual(self.fs.cat('memory:///a/b/e'), b'abe')
+
+  def test_exists(self):
+    self.assertTrue(file_system.path_exists('memory:///a/b/c'))
+    self.assertFalse(file_system.path_exists('memory:///a/b/nonexist'))
+
+  def test_isdir(self):
+    self.assertTrue(file_system.isdir('memory:///a/b'))
+    self.assertTrue(file_system.isdir('memory:///a/e'))
+    self.assertFalse(file_system.isdir('memory:///a/b/c'))
+
+  def test_listdir(self):
+    self.assertCountEqual(file_system.listdir('memory:///a'), ['b', 'e'])
+    self.assertCountEqual(file_system.listdir('memory:///a/b'), ['c', 'd'])
+
+  def test_glob(self):
+    self.assertCountEqual(
+        file_system.glob('memory:///a/b/*'),
+        ['memory:///a/b/c', 'memory:///a/b/d']
+    )
+
+  def test_mkdir(self):
+    file_system.mkdir('memory:///a/f')
+    self.assertTrue(self.fs.isdir('memory:///a/f'))
+
+  def test_mkdirs(self):
+    file_system.mkdirs('memory:///g/h/i')
+    self.assertTrue(self.fs.isdir('memory:///g/h/i'))
+
+  def test_rm(self):
+    file_system.rm('memory:///a/b/c')
+    self.assertFalse(self.fs.exists('memory:///a/b/c'))
+
+  def test_rename(self):
+    file_system.rename('memory:///a/b/c', 'memory:///a/b/c_new')
+    self.assertFalse(self.fs.exists('memory:///a/b/c'))
+    self.assertTrue(self.fs.exists('memory:///a/b/c_new'))
+    with self.assertRaisesRegex(ValueError, 'Rename across different'):
+      file_system.rename('memory:///a/b/c_new', 'file:///a/b/c_d')
+
+  def test_chmod(self):
+    mock_fs = mock.Mock()
+    mock_fs.chmod = mock.Mock()
+    with mock.patch('fsspec.core.url_to_fs', return_value=(mock_fs, 'path')):
+      file_system.chmod('protocol:///path', 0o777)
+      mock_fs.chmod.assert_called_once_with('path', 0o777)
+
+  def test_rmdir(self):
+    file_system.rmdir('memory:///a/e')
+    self.assertFalse(self.fs.exists('memory:///a/e'))
+
+  def test_rmdirs(self):
+    file_system.mkdirs('memory:///x/y/z')
+    self.assertTrue(file_system.isdir('memory:///x/y/z'))
+    file_system.rmdirs('memory:///x')
+    self.assertFalse(file_system.path_exists('memory:///x'))
+
+  def test_fsspec_uri_catcher(self):
+    with mock.patch.object(
+        file_system.FsspecFileSystem, 'exists', return_value=True
+    ) as mock_fsspec_exists:
+      # We use a protocol that is not registered in
+      # fsspec.available_protocols() to make sure _FsspecUriCatcher is used.
+      self.assertTrue(file_system.path_exists('some-proto://foo'))
+      mock_fsspec_exists.assert_called_once_with('some-proto://foo')
+
+    # For full coverage of _FsspecUriCatcher.get_fs returning StdFileSystem,
+    # we need to test a non-URI path that doesn't match other prefixes.
+    # We mock StdFileSystem.exists to check if it's called.
+    with mock.patch.object(
+        file_system.StdFileSystem, 'exists', return_value=True
+    ) as mock_std_exists:
+      self.assertTrue(file_system.path_exists('/foo/bar/baz'))
+      mock_std_exists.assert_called_once_with('/foo/bar/baz')
+
+    with mock.patch.object(
+        file_system.FsspecFileSystem, 'rename', return_value=None
+    ) as mock_fsspec_rename:
+      file_system.rename('some-proto://foo', 'some-proto://bar')
+      mock_fsspec_rename.assert_called_once_with(
+          'some-proto://foo', 'some-proto://bar'
+      )
 
 
 if __name__ == '__main__':
