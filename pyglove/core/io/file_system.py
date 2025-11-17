@@ -19,7 +19,6 @@ import glob as std_glob
 import io
 import os
 import re
-import time
 from typing import Any, Literal, Optional, Union
 
 
@@ -178,14 +177,6 @@ class StdFile(File):
 
   def close(self) -> None:
     self._file_object.close()
-
-    # For some file systems, the file might not be immediately available
-    # after writing. We retry for a few times to ensure the file is
-    # world-readable.
-    while True:
-      if os.path.exists(self._path):
-        break
-      time.sleep(0.1)
 
 
 class StdFileSystem(FileSystem):
