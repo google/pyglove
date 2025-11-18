@@ -2193,6 +2193,11 @@ class ObjectTest(ValueSpecTest):
     self.assertEqual(
         vs.Object(forward_ref('Foo')).forward_refs, set([forward_ref('Foo')]))
 
+  def test_no_type_check_special_handling(self):
+    x = self.A()
+    setattr(x, '__no_type_check__', True)
+    self.assertIs(vs.Object(x).cls, object)
+
   def test_default(self):
     self.assertEqual(vs.Object(self.A).default, typed_missing.MISSING_VALUE)
     a = self.A()

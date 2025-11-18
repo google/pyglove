@@ -14,6 +14,7 @@
 import abc
 import typing
 import unittest
+from pyglove.core.symbolic import unknown_symbols
 from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.utils import json_conversion
 
@@ -308,6 +309,19 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assertEqual(baz1(1), 2)
     self.assertEqual(baz1(1, 2), 3)
 
+    with self.assertRaisesRegex(
+        TypeError, 'Cannot load function .*'):
+      json_conversion.from_json(
+          {'_type': 'function', 'name': 'non_existent_function'}
+      )
+    self.assertEqual(
+        json_conversion.from_json(
+            {'_type': 'function', 'name': 'non_existent_function'},
+            convert_unknown=True
+        ),
+        unknown_symbols.UnknownFunction('non_existent_function')
+    )
+
   def test_json_conversion_for_methods(self):
     # Test class-level method.
     f = json_conversion.from_json(json_conversion.to_json(X.Y.Z.class_method))
@@ -319,6 +333,19 @@ class JSONConvertibleTest(unittest.TestCase):
     with self.assertRaisesRegex(
         ValueError, 'Cannot convert instance method .* to JSON.'):
       json_conversion.to_json(X.Y.Z().instance_method)
+
+    with self.assertRaisesRegex(
+        TypeError, 'Cannot load method .*'):
+      json_conversion.from_json(
+          {'_type': 'method', 'name': 'non_existent_method'}
+      )
+    self.assertEqual(
+        json_conversion.from_json(
+            {'_type': 'method', 'name': 'non_existent_method'},
+            convert_unknown=True
+        ),
+        unknown_symbols.UnknownMethod('non_existent_method')
+    )
 
   def test_json_conversion_for_opaque_objects(self):
     self.assert_conversion_equal(X(1))
@@ -336,12 +363,15 @@ class JSONConvertibleTest(unittest.TestCase):
         ValueError, 'Cannot decode opaque object with pickle.'):
       json_conversion.from_json(json_dict)
 
-  def test_json_conversion_auto_dict(self):
-    # Does not exist.
+  def test_json_conversion_convert_unknown(self):
     self.assertEqual(
         json_conversion.from_json([
             '__tuple__',
             1,
+            {
+                '_type': 'type',
+                'name': 'Unknown type',
+            },
             {
                 '_type': 'Unknown type',
                 'x': [{
@@ -351,13 +381,18 @@ class JSONConvertibleTest(unittest.TestCase):
                     'name': 'builtins.print'
                 }]
             }
-        ], auto_dict=True),
-        (1, {
-            'type_name': 'Unknown type',
-            'x': [{
-                'type_name': 'Unknown type',
-            }, print]
-        })
+        ], convert_unknown=True),
+        (
+            1,
+            unknown_symbols.UnknownType('Unknown type'),
+            unknown_symbols.UnknownTypedObject(
+                type_name='Unknown type',
+                x=[
+                    unknown_symbols.UnknownTypedObject('Unknown type'),
+                    print
+                ]
+            )
+        )
     )
 
   def test_json_conversion_with_bad_types(self):
@@ -383,6 +418,10 @@ class JSONConvertibleTest(unittest.TestCase):
     with self.assertRaisesRegex(
         TypeError, 'Cannot load class .*'):
       json_conversion.from_json({'_type': '__main__.ABC'})
+
+    with self.assertRaisesRegex(
+        TypeError, 'Cannot load type .*'):
+      json_conversion.from_json({'_type': 'type', 'name': '__main__.ABC'})
 
     # Type exist but not a JSONConvertible subclass.
     class A:
@@ -452,6 +491,41 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assertIs(y_prime['t'], y_prime['v'][1])
     self.assertIs(y_prime['u'], y_prime['v'][0])
 
+  def test_json_conversion_with_sharing_convert_unknown(self):
+    self.assertEqual(
+        json_conversion.from_json(
+            {
+                '__context__': {
+                    'shared_objects': [
+                        {
+                            '_type': 'type',
+                            'name': '__main__.ABC',
+                        },
+                        {
+                            '_type': '__main__.ABC',
+                            'x': 1
+                        }
+                    ]
+                },
+                '__root__': [
+                    {
+                        '__ref__': 0
+                    },
+                    {
+                        '__ref__': 1
+                    },
+                ]
+            },
+            convert_unknown=True
+        ),
+        [
+            unknown_symbols.UnknownType('__main__.ABC'),
+            unknown_symbols.UnknownTypedObject(
+                type_name='__main__.ABC',
+                x=1
+            )
+        ]
+    )
 
 if __name__ == '__main__':
   unittest.main()

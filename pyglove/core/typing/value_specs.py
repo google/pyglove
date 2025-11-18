@@ -1930,8 +1930,12 @@ class Object(Generic, ValueSpecBase):
     elif isinstance(t, type):
       if t is object:
         raise TypeError('<class \'object\'> is too general for Object spec.')
+    elif getattr(t, '__no_type_check__', False):
+      t = object
     elif not pg_inspect.is_generic(t):
-      raise TypeError('"cls" for Object spec should be a type or str.')
+      raise TypeError(
+          f'"cls" for Object spec should be a type or str. Encountered: {t!r}.'
+      )
 
     self._forward_ref = forward_ref
     self._type_args = type_args

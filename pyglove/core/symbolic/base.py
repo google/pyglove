@@ -2042,7 +2042,7 @@ def from_json(
     context: Optional[utils.JSONConversionContext] = None,
     auto_symbolic: bool = True,
     auto_import: bool = True,
-    auto_dict: bool = False,
+    convert_unknown: bool = False,
     allow_partial: bool = False,
     root_path: Optional[utils.KeyPath] = None,
     value_spec: Optional[pg_typing.ValueSpec] = None,
@@ -2073,8 +2073,13 @@ def from_json(
       identify its parent module and automatically import it. For example,
       if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
       find the class 'A' within the imported module.
-    auto_dict: If True, dict with '_type' that cannot be loaded will remain
-      as dict, with '_type' renamed to 'type_name'.
+    convert_unknown: If True, when a '_type' is not registered and cannot
+      be imported, PyGlove will create objects of:
+        - `pg.symbolic.UnknownType` for unknown types;
+        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
+        - `pg.symbolic.UnknownFunction` for unknown functions;
+        - `pg.symbolic.UnknownMethod` for unknown methods.
+      If False, TypeError will be raised.
     allow_partial: Whether to allow elements of the list to be partial.
     root_path: KeyPath of loaded object in its object tree.
     value_spec: The value spec for the symbolic list or dict.
@@ -2095,7 +2100,12 @@ def from_json(
   if context is None:
     if (isinstance(json_value, dict) and (
         context_node := json_value.get(utils.JSONConvertible.CONTEXT_KEY))):
-      context = utils.JSONConversionContext.from_json(context_node, **kwargs)
+      context = utils.JSONConversionContext.from_json(
+          context_node,
+          auto_import=auto_import,
+          convert_unknown=convert_unknown,
+          **kwargs
+      )
       json_value = json_value[utils.JSONConvertible.ROOT_VALUE_KEY]
     else:
       context = utils.JSONConversionContext()
@@ -2103,7 +2113,7 @@ def from_json(
   typename_resolved = kwargs.pop('_typename_resolved', False)
   if not typename_resolved:
     json_value = utils.json_conversion.resolve_typenames(
-        json_value, auto_import, auto_dict
+        json_value, auto_import, convert_unknown
     )
 
   def _load_child(k, v):
@@ -2177,7 +2187,7 @@ def from_json_str(
     *,
     context: Optional[utils.JSONConversionContext] = None,
     auto_import: bool = True,
-    auto_dict: bool = False,
+    convert_unknown: bool = False,
     allow_partial: bool = False,
     root_path: Optional[utils.KeyPath] = None,
     value_spec: Optional[pg_typing.ValueSpec] = None,
@@ -2205,8 +2215,13 @@ def from_json_str(
       identify its parent module and automatically import it. For example,
       if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
       find the class 'A' within the imported module.
-    auto_dict: If True, dict with '_type' that cannot be loaded will remain
-      as dict, with '_type' renamed to 'type_name'.
+    convert_unknown: If True, when a '_type' is not registered and cannot
+      be imported, PyGlove will create objects of:
+        - `pg.symbolic.UnknownType` for unknown types;
+        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
+        - `pg.symbolic.UnknownFunction` for unknown functions;
+        - `pg.symbolic.UnknownMethod` for unknown methods.
+      If False, TypeError will be raised.
     allow_partial: If True, allow a partial symbolic object to be created.
       Otherwise error will be raised on partial value.
     root_path: The symbolic path used for the deserialized root object.
@@ -2236,7 +2251,7 @@ def from_json_str(
       _decode_int_keys(json.loads(json_str)),
       context=context,
       auto_import=auto_import,
-      auto_dict=auto_dict,
+      convert_unknown=convert_unknown,
       allow_partial=allow_partial,
       root_path=root_path,
       value_spec=value_spec,

@@ -147,4 +147,11 @@ from pyglove.core.symbolic.list import mark_as_insertion
 from pyglove.core.symbolic.base import WritePermissionError
 from pyglove.core.symbolic.error_info import ErrorInfo
 
+# Unknown symbols.
+from pyglove.core.symbolic.unknown_symbols import UnknownSymbol
+from pyglove.core.symbolic.unknown_symbols import UnknownType
+from pyglove.core.symbolic.unknown_symbols import UnknownFunction
+from pyglove.core.symbolic.unknown_symbols import UnknownMethod
+from pyglove.core.symbolic.unknown_symbols import UnknownTypedObject
+
 # pylint: enable=g-bad-import-order

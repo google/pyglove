@@ -38,6 +38,7 @@ from pyglove.core.symbolic.object import use_init_args as pg_use_init_args
 from pyglove.core.symbolic.origin import Origin
 from pyglove.core.symbolic.pure_symbolic import NonDeterministic
 from pyglove.core.symbolic.pure_symbolic import PureSymbolic
+from pyglove.core.symbolic.unknown_symbols import UnknownTypedObject
 from pyglove.core.views.html import tree_view  # pylint: disable=unused-import
 
 
@@ -3158,7 +3159,7 @@ class SerializationTest(unittest.TestCase):
             Q.partial(P.partial()).to_json_str(), allow_partial=True),
         Q.partial(P.partial()))
 
-  def test_serialization_with_auto_dict(self):
+  def test_serialization_with_convert_unknown(self):
 
     class P(Object):
       auto_register = False
@@ -3181,15 +3182,17 @@ class SerializationTest(unittest.TestCase):
         }
     )
     self.assertEqual(
-        base.from_json_str(Q(P(1), y='foo').to_json_str(), auto_dict=True),
-        {
-            'p': {
-                'type_name': P.__type_name__,
-                'x': 1
-            },
-            'y': 'foo',
-            'type_name': Q.__type_name__,
-        }
+        base.from_json_str(
+            Q(P(1), y='foo').to_json_str(), convert_unknown=True
+        ),
+        UnknownTypedObject(
+            type_name=Q.__type_name__,
+            p=UnknownTypedObject(
+                type_name=P.__type_name__,
+                x=1
+            ),
+            y='foo'
+        )
     )
 
   def test_serialization_with_converter(self):

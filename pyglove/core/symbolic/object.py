@@ -339,7 +339,8 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
     # Set `__serialization_key__` before JSONConvertible.__init_subclass__
     # is called.
-    setattr(cls, '__serialization_key__', cls.__type_name__)
+    if '__serialization_key__' not in cls.__dict__:
+      setattr(cls, '__serialization_key__', cls.__type_name__)
 
     super().__init_subclass__()
 

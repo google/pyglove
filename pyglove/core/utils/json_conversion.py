@@ -685,7 +685,7 @@ def from_json(
     *,
     context: Optional[JSONConversionContext] = None,
     auto_import: bool = True,
-    auto_dict: bool = False,
+    convert_unknown: bool = False,
     **kwargs
 ) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
@@ -697,8 +697,13 @@ def from_json(
       identify its parent module and automatically import it. For example,
       if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
       find the class 'A' within the imported module.
-    auto_dict: If True, dict with '_type' that cannot be loaded will remain
-      as dict, with '_type' renamed to 'type_name'.
+    convert_unknown: If True, when a '_type' is not registered and cannot
+      be imported, PyGlove will create objects of:
+        - `pg.symbolic.UnknownType` for unknown types;
+        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
+        - `pg.symbolic.UnknownFunction` for unknown functions;
+        - `pg.symbolic.UnknownMethod` for unknown methods.
+      If False, TypeError will be raised.
     **kwargs: Keyword arguments that will be passed to JSONConvertible.__init__.
 
   Returns:
@@ -707,14 +712,21 @@ def from_json(
   if context is None:
     if (isinstance(json_value, dict)
         and (context_node := json_value.get(JSONConvertible.CONTEXT_KEY))):
-      context = JSONConversionContext.from_json(context_node, **kwargs)
+      context = JSONConversionContext.from_json(
+          context_node,
+          auto_import=auto_import,
+          convert_unknown=convert_unknown,
+          **kwargs
+      )
       json_value = json_value[JSONConvertible.ROOT_VALUE_KEY]
     else:
       context = JSONConversionContext()
 
   typename_resolved = kwargs.pop('_typename_resolved', False)
   if not typename_resolved:
-    json_value = resolve_typenames(json_value, auto_import, auto_dict)
+    json_value = resolve_typenames(
+        json_value, auto_import=auto_import, convert_unknown=convert_unknown
+    )
 
   def child_from(v):
     return from_json(v, context=context, _typename_resolved=True, **kwargs)
@@ -743,7 +755,7 @@ def from_json(
 def resolve_typenames(
     json_value: JSONValueType,
     auto_import: bool = True,
-    auto_dict: bool = False,
+    convert_unknown: bool = False,
 ) -> JSONValueType:
   """Inplace resolves the "_type" keys with their factories in a JSON tree."""
 
@@ -755,11 +767,11 @@ def resolve_typenames(
       return False
     type_name = v[JSONConvertible.TYPE_NAME_KEY]
     if type_name == 'type':
-      factory_fn = _type_from_json
+      factory_fn = _type_from_json(convert_unknown)
     elif type_name == 'function':
-      factory_fn = _function_from_json
+      factory_fn = _function_from_json(convert_unknown)
     elif type_name == 'method':
-      factory_fn = _method_from_json
+      factory_fn = _method_from_json(convert_unknown)
     else:
       cls = JSONConvertible.class_from_typename(type_name)
       if cls is None:
@@ -768,32 +780,38 @@ def resolve_typenames(
             cls = _load_symbol(type_name)
             assert inspect.isclass(cls), cls
           except (ModuleNotFoundError, AttributeError) as e:
-            if not auto_dict:
+            if not convert_unknown:
               raise TypeError(
                   f'Cannot load class {type_name!r}.\n'
-                  'Try pass `auto_dict=True` to load the object into a dict '
-                  'without depending on the type.'
+                  'Try pass `convert_unknown=True` to load the object into '
+                  '`pg.symbolic.UnknownObject` without depending on the type.'
               ) from e
-        elif not auto_dict:
+        elif not convert_unknown:
           raise TypeError(
               f'Type name \'{type_name}\' is not registered '
               'with a `pg.JSONConvertible` subclass.\n'
-              'Try pass `auto_import=True` to load the type from its module, '
-              'or pass `auto_dict=True` to load the object into a dict '
-              'without depending on the type.'
+              'Try pass `auto_import=True` to load the type from its module.'
           )
 
       factory_fn = getattr(cls, 'from_json', None)
-      if cls is not None and factory_fn is None and not auto_dict:
+      if cls is not None and factory_fn is None and not convert_unknown:
         raise TypeError(
             f'{cls} is not a `pg.JSONConvertible` subclass.'
-            'Try pass `auto_dict=True` to load the object into a dict '
-            'without depending on the type.'
+            'Try pass `convert_unknown=True` to load the object into a '
+            '`pg.symbolic.UnknownObject` without depending on the type.'
         )
 
-      if factory_fn is None and auto_dict:
-        v['type_name'] = type_name
-        v.pop(JSONConvertible.TYPE_NAME_KEY)
+      if factory_fn is None and convert_unknown:
+        type_name = v[JSONConvertible.TYPE_NAME_KEY]
+        def _factory_fn(json_value: Dict[str, Any], **kwargs):
+          del kwargs
+          # See `pg.symbolic.UnknownObject` for details.
+          unknown_object_cls = JSONConvertible.class_from_typename(
+              'unknown_object'
+          )
+          return unknown_object_cls(type_name=type_name, **json_value)  # pytype: disable=wrong-keyword-args
+
+        v[JSONConvertible.TYPE_NAME_KEY] = _factory_fn
         return True
       assert factory_fn is not None
 
@@ -992,39 +1010,79 @@ def _load_symbol(type_name: str) -> Any:
   return symbol
 
 
-def _type_from_json(json_value: Dict[str, str], **kwargs) -> Type[Any]:
+def _type_from_json(convert_unknown: bool) -> Callable[..., Any]:
   """Loads a type from a JSON dict."""
-  del kwargs
-  t = _load_symbol(json_value['name'])
-  if 'args' in json_value:
-    return _bind_type_args(
-        t, from_json(json_value['args'], _typename_resolved=True)
-    )
-  return t
+  def _fn(json_value: Dict[str, str], **kwargs) -> Type[Any]:
+    del kwargs
+    try:
+      t = _load_symbol(json_value['name'])
+      if 'args' in json_value:
+        return _bind_type_args(
+            t, from_json(json_value['args'], _typename_resolved=True)
+        )
+      return t
+    except (ModuleNotFoundError, AttributeError) as e:
+      if not convert_unknown:
+        raise TypeError(
+            f'Cannot load type {json_value["name"]!r}.\n'
+            'Try pass `convert_unknown=True` to load the object '
+            'into `pg.UnknownType` without depending on the type.'
+        ) from e
+      # See `pg.symbolic.UnknownType` for details.
+      json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_type'
+      return from_json(json_value)
+  return _fn
 
 
 def _function_from_json(
-    json_value: Dict[str, str], **kwargs) -> types.FunctionType:
+    convert_unknown: bool
+) -> Callable[..., types.FunctionType]:
   """Loads a function from a JSON dict."""
-  del kwargs
-  function_name = json_value['name']
-  if 'code' in json_value:
-    code = marshal.loads(
-        base64.decodebytes(json_value['code'].encode('utf-8')))
-    defaults = from_json(json_value['defaults'], _typename_resolved=True)
-    return types.FunctionType(
-        code=code,
-        globals=globals(),
-        argdefs=defaults,
-    )
-  else:
-    return _load_symbol(function_name)
+  def _fn(json_value: Dict[str, str], **kwargs) -> types.FunctionType:
+    del kwargs
+    function_name = json_value['name']
+    if 'code' in json_value:
+      code = marshal.loads(
+          base64.decodebytes(json_value['code'].encode('utf-8')))
+      defaults = from_json(json_value['defaults'], _typename_resolved=True)
+      return types.FunctionType(
+          code=code,
+          globals=globals(),
+          argdefs=defaults,
+      )
+    else:
+      try:
+        return _load_symbol(function_name)
+      except (ModuleNotFoundError, AttributeError) as e:
+        if not convert_unknown:
+          raise TypeError(
+              f'Cannot load function {function_name!r}.\n'
+              'Try pass `convert_unknown=True` to load the object into '
+              '`pg.UnknownFunction` without depending on the type.'
+          ) from e
+        json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_function'
+        return from_json(json_value)
+  return _fn
 
 
-def _method_from_json(json_value: Dict[str, str], **kwargs) -> types.MethodType:
+def _method_from_json(
+    convert_unknown: bool
+) -> Callable[..., types.MethodType]:
   """Loads a class method from a JSON dict."""
-  del kwargs
-  return _load_symbol(json_value['name'])
+  def _fn(json_value: Dict[str, str], **kwargs) -> types.MethodType:
+    del kwargs
+    try:
+      return _load_symbol(json_value['name'])
+    except (ModuleNotFoundError, AttributeError) as e:
+      if not convert_unknown:
+        raise TypeError(
+            f'Cannot load method {json_value["name"]!r}.\n'
+            'Try pass `convert_unknown=True` to load the object '
+            'into `pg.UnknownMethod` without depending on the type.'
+        ) from e
+      json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_method'
+      return from_json(json_value)
+  return _fn
 
 
 def _bind_type_args(t, args):
