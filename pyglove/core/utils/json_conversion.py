@@ -21,6 +21,7 @@ import dataclasses
 import importlib
 import inspect
 import marshal
+import msgpack
 import pickle
 import types
 import typing
@@ -380,9 +381,9 @@ def _type_name(
 class _OpaqueObject(JSONConvertible):
   """An JSON converter for opaque Python objects."""
 
-  def __init__(self, value: Any, encoded: bool = False):
+  def __init__(self, value: Any, encoded: bool = False, allow_pickle: bool = False):
     if encoded:
-      value = self.decode(value)
+      value = self.decode(value, allow_pickle=allow_pickle)
     self._value = value
 
   @property
@@ -392,17 +393,25 @@ class _OpaqueObject(JSONConvertible):
 
   def encode(self, value: Any) -> JSONValueType:
     try:
-      return base64.encodebytes(pickle.dumps(value)).decode('utf-8')
+      return base64.encodebytes(msgpack.packb(value)).decode('utf-8')
     except Exception as e:
       raise ValueError(
-          f'Cannot encode opaque object {value!r} with pickle.') from e
+          f'Cannot encode opaque object {value!r} with msgpack.') from e
 
-  def decode(self, json_value: JSONValueType) -> Any:
+  def decode(self, json_value: JSONValueType, allow_pickle: bool = False) -> Any:
     assert isinstance(json_value, str), json_value
+    data = base64.decodebytes(json_value.encode('utf-8'))
+    if data.startswith(b'\x80'):
+      if not allow_pickle:
+        raise RuntimeError(
+            'SECURITY ERROR: Insecure pickle detected in JSON. For security '
+            'reasons, loading is blocked. If you trust the source, use '
+            'allow_pickle=True.')
+      return pickle.loads(data)
     try:
-      return pickle.loads(base64.decodebytes(json_value.encode('utf-8')))
+      return msgpack.unpackb(data)
     except Exception as e:
-      raise ValueError('Cannot decode opaque object with pickle.') from e
+      raise ValueError('Cannot decode opaque object with msgpack.') from e
 
   def to_json(self, **kwargs) -> JSONValueType:
     return self.to_json_dict({
@@ -417,9 +426,9 @@ class _OpaqueObject(JSONConvertible):
       context: Optional['JSONConversionContext'] = None,
       **kwargs
   ) -> Any:
-    del args, context, kwargs
     assert isinstance(json_value, dict) and 'value' in json_value, json_value
-    encoder = cls(json_value['value'], encoded=True)
+    allow_pickle = kwargs.get('allow_pickle', False)
+    encoder = cls(json_value['value'], encoded=True, allow_pickle=allow_pickle)
     return encoder.value
 
 

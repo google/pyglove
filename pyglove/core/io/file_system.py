@@ -836,8 +836,28 @@ if fsspec is not None:
 #
 
 
-def open(path: Union[str, os.PathLike[str]], mode: str = 'r', **kwargs) -> File:  # pylint:disable=redefined-builtin
+def _check_remote_access(
+    path: Union[str, os.PathLike[str]], allow_remote: bool
+) -> None:
+  """Checks if remote access is allowed for a path."""
+  if not allow_remote:
+    path_str = resolve_path(path)
+    if '://' in path_str and not path_str.startswith('file://'):
+      raise RuntimeError(
+          f'SECURITY ERROR: Remote URI loading is blocked for {path_str!r}. '
+          'By default, PyGlove only allows local file access. If you trust '
+          'the source, use allow_remote=True.'
+      )
+
+
+def open(  # pylint:disable=redefined-builtin
+    path: Union[str, os.PathLike[str]],
+    mode: str = 'r',
+    allow_remote: bool = False,
+    **kwargs,
+) -> File:
   """Opens a file with a path."""
+  _check_remote_access(path, allow_remote)
   return _fs.get(path).open(path, mode, **kwargs)
 
 
@@ -850,9 +870,11 @@ def readfile(
     path: Union[str, os.PathLike[str]],
     mode: str = 'r',
     nonexist_ok: bool = False,
+    allow_remote: bool = False,
     **kwargs,
 ) -> Union[bytes, str, None]:
   """Reads content from a file."""
+  _check_remote_access(path, allow_remote)
   try:
     with _fs.get(path).open(path, mode=mode, **kwargs) as f:
       return f.read()
@@ -867,10 +889,12 @@ def writefile(
     content: Union[str, bytes],
     *,
     mode: str = 'w',
-    perms: Optional[int] = 0o664,   # Default to world-readable.
+    perms: Optional[int] = 0o664,  # Default to world-readable.
+    allow_remote: bool = False,
     **kwargs,
 ) -> None:
   """Writes content to a file."""
+  _check_remote_access(path, allow_remote)
   with _fs.get(path).open(path, mode=mode, **kwargs) as f:
     f.write(content)
   if perms is not None:

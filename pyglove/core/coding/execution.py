@@ -17,6 +17,7 @@ import ast
 import contextlib
 import io
 import multiprocessing
+import msgpack
 import pickle
 import queue
 from typing import Any, Callable, Dict, Optional, Union
@@ -187,7 +188,7 @@ def sandbox_call(
     def _run():
       r = func(*args, **kwargs)
       try:
-        return pickle.dumps(r)
+        return msgpack.packb(utils.to_json(r))
       except BaseException as e:
         raise errors.SerializationError(
             f'Cannot serialize sandbox result: {r}', e
@@ -218,7 +219,7 @@ def sandbox_call(
   if isinstance(x, Exception):
     raise x
   try:
-    return pickle.loads(x)
+    return utils.from_json(msgpack.unpackb(x))
   except Exception as e:
     raise errors.SerializationError(
         'Cannot deserialize the output from sandbox.', e

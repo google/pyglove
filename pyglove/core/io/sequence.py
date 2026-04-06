@@ -94,6 +94,7 @@ class SequenceIO(metaclass=abc.ABCMeta):
       perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
+      allow_remote: bool = False,
       **kwargs
   ) -> Sequence:
     """Opens a sequence for reading or writing."""
@@ -148,6 +149,7 @@ def open_sequence(
         Callable[[Union[bytes, str]], Any]
     ] = None,
     make_dirs_if_not_exist: bool = True,
+    allow_remote: bool = False,
 ) -> Sequence:
   """Open sequence for reading or writing.
 
@@ -170,7 +172,8 @@ def open_sequence(
     if make_dirs_if_not_exist:
       file_system.mkdirs(parent_dir, exist_ok=True)
   return _registry.get(path).open(
-      path, mode, perms=perms, serializer=serializer, deserializer=deserializer
+      path, mode, perms=perms, serializer=serializer, deserializer=deserializer,
+      allow_remote=allow_remote,
   )
 
 
@@ -243,6 +246,7 @@ class MemorySequenceIO(SequenceIO):
       perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
+      allow_remote: bool = False,
       **kwargs
   ) -> Sequence:
     """Opens a reader for a sequence."""
@@ -268,11 +272,12 @@ class LineSequence(Sequence):
       perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
+      allow_remote: bool = False,
   ) -> None:
     super().__init__(perms, serializer, deserializer)
     self._path = path
     self._mode = mode
-    self._file = file_system.open(path, mode)
+    self._file = file_system.open(path, mode, allow_remote=allow_remote)
 
   def __len__(self):
     raise NotImplementedError(
@@ -311,9 +316,12 @@ class LineSequenceIO(SequenceIO):
       perms: Optional[int],
       serializer: Optional[Callable[[Any], Union[bytes, str]]],
       deserializer: Optional[Callable[[Union[bytes, str]], Any]],
+      allow_remote: bool = False,
       **kwargs
   ) -> Sequence:
     """Opens a reader for a sequence."""
     del kwargs
-    return LineSequence(path, mode, perms, serializer, deserializer)
+    return LineSequence(
+        path, mode, perms, serializer, deserializer,
+        allow_remote=allow_remote)
 
