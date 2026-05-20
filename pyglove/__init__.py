@@ -32,6 +32,8 @@ from pyglove.ext import *
 
 # Placeholder for Google-internal imports.
 
+import pyglove.dev
+
 # pylint: enable=g-import-not-at-top
 # pylint: enable=reimported
 # pylint: enable=unused-import
