@@ -14,6 +14,7 @@
 import abc
 import typing
 import unittest
+import warnings
 from pyglove.core.symbolic import unknown_symbols
 from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.utils import json_conversion
@@ -49,6 +50,7 @@ class X:
 
 def bar():
   pass
+
 
 T1 = typing.TypeVar('T1')
 T2 = typing.TypeVar('T2')
@@ -95,9 +97,7 @@ class JSONConvertibleTest(unittest.TestCase):
         self.x = x
 
       def to_json(self):
-        return self.__class__.to_json_dict({
-            'x': self.x
-        })
+        return self.__class__.to_json_dict({'x': self.x})
 
       def value(self):
         return self.x
@@ -108,10 +108,12 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assertFalse(json_conversion.JSONConvertible.is_registered(typename(A)))
     self.assertTrue(json_conversion.JSONConvertible.is_registered(typename(B)))
     self.assertIs(
-        json_conversion.JSONConvertible.class_from_typename(typename(B)), B)
+        json_conversion.JSONConvertible.class_from_typename(typename(B)), B
+    )
     self.assertIn(
         (typename(B), B),
-        list(json_conversion.JSONConvertible.registered_types()))
+        list(json_conversion.JSONConvertible.registered_types()),
+    )
 
     class C(B):
       auto_register = False
@@ -120,14 +122,17 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assertFalse(json_conversion.JSONConvertible.is_registered(typename(C)))
 
     with self.assertRaisesRegex(
-        KeyError, 'Type .* has already been registered with class .*'):
+        KeyError, 'Type .* has already been registered with class .*'
+    ):
       json_conversion.JSONConvertible.register(typename(B), C)
 
     json_conversion.JSONConvertible.register(
-        typename(B), C, override_existing=True)
+        typename(B), C, override_existing=True
+    )
     self.assertIn(
         (typename(B), C),
-        list(json_conversion.JSONConvertible.registered_types()))
+        list(json_conversion.JSONConvertible.registered_types()),
+    )
 
     # Test load_types_for_deserialization.
     class D(C):
@@ -138,16 +143,17 @@ class JSONConvertibleTest(unittest.TestCase):
 
     self.assertEqual(
         json_conversion.JSONConvertible._TYPE_REGISTRY._ondemand_registry_stack,
-        []
+        [],
     )
     with json_conversion.JSONConvertible.load_types_for_deserialization(A):
       with json_conversion.JSONConvertible.load_types_for_deserialization(
-          D) as ondemand_registry:
+          D
+      ) as ondemand_registry:
         self.assertEqual(ondemand_registry, {'A': A, 'D': D})
         self.assertIsNotNone(json_conversion.from_json(D(1).to_json()))
     self.assertEqual(
         json_conversion.JSONConvertible._TYPE_REGISTRY._ondemand_registry_stack,
-        []
+        [],
     )
 
   def test_json_conversion(self):
@@ -168,27 +174,34 @@ class JSONConvertibleTest(unittest.TestCase):
 
     typename = lambda cls: f'{cls.__module__}.{cls.__qualname__}'
     json_value = json_conversion.to_json([(T(1), 2), {'y': T(3)}])
-    self.assertEqual(json_value, [
-        ['__tuple__', {'_type': typename(T), 'x': 1}, 2],
-        {'y': {'_type': typename(T), 'x': 3}}
-    ])
-    self.assertEqual(json_conversion.from_json(json_value),
-                     [(T(1), 2), {'y': T(3)}])
+    self.assertEqual(
+        json_value,
+        [
+            ['__tuple__', {'_type': typename(T), 'x': 1}, 2],
+            {'y': {'_type': typename(T), 'x': 3}},
+        ],
+    )
+    self.assertEqual(
+        json_conversion.from_json(json_value), [(T(1), 2), {'y': T(3)}]
+    )
 
     # Omitting default values.
     json_value = json_conversion.to_json([(T(), 2), {'y': T(3)}])
-    self.assertEqual(json_value, [
-        ['__tuple__', {'_type': typename(T)}, 2],
-        {'y': {'_type': typename(T), 'x': 3}}
-    ])
-    self.assertEqual(json_conversion.from_json(json_value),
-                     [(T(), 2), {'y': T(3)}])
+    self.assertEqual(
+        json_value,
+        [
+            ['__tuple__', {'_type': typename(T)}, 2],
+            {'y': {'_type': typename(T), 'x': 3}},
+        ],
+    )
+    self.assertEqual(
+        json_conversion.from_json(json_value), [(T(), 2), {'y': T(3)}]
+    )
 
     # Test module alias.
     json_conversion.JSONConvertible.add_module_alias(T.__module__, 'mymodule')
     self.assertEqual(
-        json_conversion.from_json({'_type': f'mymodule.{T.__qualname__}'}),
-        T()
+        json_conversion.from_json({'_type': f'mymodule.{T.__qualname__}'}), T()
     )
 
   def assert_conversion_is(self, v):
@@ -204,9 +217,7 @@ class JSONConvertibleTest(unittest.TestCase):
       self.x = x
 
     def to_json(self, **kwargs):
-      return self.to_json_dict(
-          dict(x=(self.x, None)), exclude_default=True
-      )
+      return self.to_json_dict(dict(x=(self.x, None)), exclude_default=True)
 
     def __eq__(self, other):
       return isinstance(other, self.__class__) and self.x == other.x
@@ -216,13 +227,11 @@ class JSONConvertibleTest(unittest.TestCase):
 
   def test_json_conversion_with_auto_import(self):
     json_dict = json_conversion.to_json(self.CustomJsonConvertible(1))
-    with self.assertRaisesRegex(
-        TypeError, 'Type name .* is not registered'):
+    with self.assertRaisesRegex(TypeError, 'Type name .* is not registered'):
       json_conversion.from_json(json_dict, auto_import=False)
 
     self.assertEqual(
-        json_conversion.from_json(json_dict),
-        self.CustomJsonConvertible(1)
+        json_conversion.from_json(json_dict), self.CustomJsonConvertible(1)
     )
 
   def test_json_conversion_for_types(self):
@@ -253,7 +262,8 @@ class JSONConvertibleTest(unittest.TestCase):
       pass
 
     with self.assertRaisesRegex(
-        ValueError, 'Cannot convert local class .* to JSON.'):
+        ValueError, 'Cannot convert local class .* to JSON.'
+    ):
       json_conversion.to_json(B)
 
     # Generic types.
@@ -263,7 +273,8 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assert_conversion_is(G4[int, int, int, int])
     with self.assertRaisesRegex(
         NotImplementedError,
-        'Cannot convert generic type with more than 4 type arguments'):
+        'Cannot convert generic type with more than 4 type arguments',
+    ):
       json_conversion.to_json(G5[int, int, int, int, int])
 
   def test_json_conversion_for_annotations(self):
@@ -304,22 +315,22 @@ class JSONConvertibleTest(unittest.TestCase):
     # Locally defined function.
     def baz(x, y=1):
       return x + y
+
     baz1 = json_conversion.from_json(json_conversion.to_json(baz))
     self.assertTrue(pg_inspect.callable_eq(baz1, baz))
     self.assertEqual(baz1(1), 2)
     self.assertEqual(baz1(1, 2), 3)
 
-    with self.assertRaisesRegex(
-        TypeError, 'Cannot load function .*'):
+    with self.assertRaisesRegex(TypeError, 'Cannot load function .*'):
       json_conversion.from_json(
           {'_type': 'function', 'name': 'non_existent_function'}
       )
     self.assertEqual(
         json_conversion.from_json(
             {'_type': 'function', 'name': 'non_existent_function'},
-            convert_unknown=True
+            convert_unknown=True,
         ),
-        unknown_symbols.UnknownFunction('non_existent_function')
+        unknown_symbols.UnknownFunction('non_existent_function'),
     )
 
   def test_json_conversion_for_methods(self):
@@ -331,74 +342,101 @@ class JSONConvertibleTest(unittest.TestCase):
     self.assert_conversion_is(X.Y.Z.static_method)
 
     with self.assertRaisesRegex(
-        ValueError, 'Cannot convert instance method .* to JSON.'):
+        ValueError, 'Cannot convert instance method .* to JSON.'
+    ):
       json_conversion.to_json(X.Y.Z().instance_method)
 
-    with self.assertRaisesRegex(
-        TypeError, 'Cannot load method .*'):
+    with self.assertRaisesRegex(TypeError, 'Cannot load method .*'):
       json_conversion.from_json(
           {'_type': 'method', 'name': 'non_existent_method'}
       )
     self.assertEqual(
         json_conversion.from_json(
             {'_type': 'method', 'name': 'non_existent_method'},
-            convert_unknown=True
+            convert_unknown=True,
         ),
-        unknown_symbols.UnknownMethod('non_existent_method')
+        unknown_symbols.UnknownMethod('non_existent_method'),
     )
 
   def test_json_conversion_for_opaque_objects(self):
-    self.assert_conversion_equal(X(1))
+    # Test that deserialization of opaque objects is disabled by default.
+    json_dict = json_conversion.to_json(X(1))
+    with self.assertRaisesRegex(
+        ValueError, 'Deserializing opaque python objects via pickle is disabled'
+    ):
+      json_conversion.from_json(json_dict)
+
+    # Test that enabling opaque pickle works and issues a warning.
+    with warnings.catch_warnings(record=True) as w:
+      warnings.simplefilter('always')
+      json_conversion.enable_opaque_pickle(True)
+      self.assertEqual(len(w), 1)
+      self.assertIn(
+          'Enabling opaque pickle deserialization is insecure',
+          str(w[0].message),
+      )
+
+    try:
+      self.assert_conversion_equal(X(1))
+    finally:
+      json_conversion.enable_opaque_pickle(False)
 
     class LocalX:
       pass
 
     with self.assertRaisesRegex(
-        ValueError, 'Cannot encode opaque object .* with pickle.'):
+        ValueError, 'Cannot encode opaque object .* with pickle.'
+    ):
       json_conversion.to_json(LocalX())
 
-    json_dict = json_conversion.to_json(X(1))
-    json_dict['value'] = 'abc'
-    with self.assertRaisesRegex(
-        ValueError, 'Cannot decode opaque object with pickle.'):
-      json_conversion.from_json(json_dict)
+    json_conversion.enable_opaque_pickle(True)
+    try:
+      json_dict = json_conversion.to_json(X(1))
+      json_dict['value'] = 'abc'
+      with self.assertRaisesRegex(
+          ValueError, 'Cannot decode opaque object with pickle.'
+      ):
+        json_conversion.from_json(json_dict)
+    finally:
+      json_conversion.enable_opaque_pickle(False)
 
   def test_json_conversion_convert_unknown(self):
     self.assertEqual(
-        json_conversion.from_json([
-            '__tuple__',
-            1,
-            {
-                '_type': 'type',
-                'name': 'Unknown type',
-            },
-            {
-                '_type': 'Unknown type',
-                'x': [{
+        json_conversion.from_json(
+            [
+                '__tuple__',
+                1,
+                {
+                    '_type': 'type',
+                    'name': 'Unknown type',
+                },
+                {
                     '_type': 'Unknown type',
-                }, {
-                    '_type': 'function',
-                    'name': 'builtins.print'
-                }]
-            }
-        ], convert_unknown=True),
+                    'x': [
+                        {
+                            '_type': 'Unknown type',
+                        },
+                        {'_type': 'function', 'name': 'builtins.print'},
+                    ],
+                },
+            ],
+            convert_unknown=True,
+        ),
         (
             1,
             unknown_symbols.UnknownType('Unknown type'),
             unknown_symbols.UnknownTypedObject(
                 type_name='Unknown type',
-                x=[
-                    unknown_symbols.UnknownTypedObject('Unknown type'),
-                    print
-                ]
-            )
-        )
+                x=[unknown_symbols.UnknownTypedObject('Unknown type'), print],
+            ),
+        ),
     )
 
   def test_json_conversion_with_bad_types(self):
     # Bad tuple.
     with self.assertRaisesRegex(
-        ValueError, 'Tuple should have at least one element besides .*'):
+        ValueError, 'Tuple should have at least one element besides .*'
+    ):
       json_conversion.from_json(['__tuple__'])
 
     # Unregistered type without auto_import.
@@ -410,17 +448,16 @@ class JSONConvertibleTest(unittest.TestCase):
               '_type': 'Unknown type',
               'x': [{
                   '_type': 'Unknown type',
-              }]
-          }, auto_import=False
+              }],
+          },
+          auto_import=False,
       )
 
     # Type does not exist.
-    with self.assertRaisesRegex(
-        TypeError, 'Cannot load class .*'):
+    with self.assertRaisesRegex(TypeError, 'Cannot load class .*'):
       json_conversion.from_json({'_type': '__main__.ABC'})
 
-    with self.assertRaisesRegex(
-        TypeError, 'Cannot load type .*'):
+    with self.assertRaisesRegex(TypeError, 'Cannot load type .*'):
       json_conversion.from_json({'_type': 'type', 'name': '__main__.ABC'})
 
     # Type exist but not a JSONConvertible subclass.
@@ -429,67 +466,52 @@ class JSONConvertibleTest(unittest.TestCase):
 
     json_conversion.JSONConvertible.register('__main__.A', A)
     with self.assertRaisesRegex(
-        TypeError, '.* is not a `pg.JSONConvertible` subclass'):
+        TypeError, '.* is not a `pg.JSONConvertible` subclass'
+    ):
       json_conversion.from_json({'_type': '__main__.A'})
 
   def test_json_conversion_with_sharing(self):
+    json_conversion.enable_opaque_pickle(True)
+    try:
 
-    class T(json_conversion.JSONConvertible):
+      class T(json_conversion.JSONConvertible):
 
-      def __init__(self, x=None):
-        self.x = x
+        def __init__(self, x=None):
+          self.x = x
 
-      def to_json(self, **kwargs):
-        return T.to_json_dict(dict(x=(self.x, None)), exclude_default=True)
+        def to_json(self, **kwargs):
+          return T.to_json_dict(dict(x=(self.x, None)), exclude_default=True)
 
-    t = T(1)
-    x = X(1)
-    u = {'x': x}
-    v = [u, t]
-    y = dict(t=t, x=x, u=u, v=v)
-    y_json = json_conversion.to_json(y)
-    x_serialized = json_conversion._OpaqueObject(x).to_json()
-    self.assertEqual(
-        y_json,
-        {
-            '__context__': {
-                'shared_objects': [
-                    {
-                        '_type': json_conversion._type_name(T),
-                        'x': 1
-                    },
-                    x_serialized,
-                    {
-                        'x': {
-                            '__ref__': 1
-                        }
-                    }
-                ]
-            },
-            '__root__': {
-                't': {
-                    '__ref__': 0
-                },
-                'x': {
-                    '__ref__': 1
-                },
-                'u': {
-                    '__ref__': 2
-                },
-                'v': [
-                    {
-                        '__ref__': 2
-                    },
-                    {
-                        '__ref__': 0
-                    }
-                ]
-            }
-        }
-    )
-    y_prime = json_conversion.from_json(y_json)
-    self.assertIs(y_prime['t'], y_prime['v'][1])
-    self.assertIs(y_prime['u'], y_prime['v'][0])
+      t = T(1)
+      x = X(1)
+      u = {'x': x}
+      v = [u, t]
+      y = dict(t=t, x=x, u=u, v=v)
+      y_json = json_conversion.to_json(y)
+      x_serialized = json_conversion._OpaqueObject(x).to_json()
+      self.assertEqual(
+          y_json,
+          {
+              '__context__': {
+                  'shared_objects': [
+                      {'_type': json_conversion._type_name(T), 'x': 1},
+                      x_serialized,
+                      {'x': {'__ref__': 1}},
+                  ]
+              },
+              '__root__': {
+                  't': {'__ref__': 0},
+                  'x': {'__ref__': 1},
+                  'u': {'__ref__': 2},
+                  'v': [{'__ref__': 2}, {'__ref__': 0}],
+              },
+          },
+      )
+      y_prime = json_conversion.from_json(y_json)
+      self.assertIs(y_prime['t'], y_prime['v'][1])
+      self.assertIs(y_prime['u'], y_prime['v'][0])
+    finally:
+      json_conversion.enable_opaque_pickle(False)
 
   def test_json_conversion_with_sharing_convert_unknown(self):
     self.assertEqual(
@@ -501,31 +523,22 @@ class JSONConvertibleTest(unittest.TestCase):
                             '_type': 'type',
                             'name': '__main__.ABC',
                         },
-                        {
-                            '_type': '__main__.ABC',
-                            'x': 1
-                        }
+                        {'_type': '__main__.ABC', 'x': 1},
                     ]
                 },
                 '__root__': [
-                    {
-                        '__ref__': 0
-                    },
-                    {
-                        '__ref__': 1
-                    },
-                ]
+                    {'__ref__': 0},
+                    {'__ref__': 1},
+                ],
             },
-            convert_unknown=True
+            convert_unknown=True,
         ),
         [
             unknown_symbols.UnknownType('__main__.ABC'),
-            unknown_symbols.UnknownTypedObject(
-                type_name='__main__.ABC',
-                x=1
-            )
-        ]
+            unknown_symbols.UnknownTypedObject(type_name='__main__.ABC', x=1),
+        ],
     )
+
 
 if __name__ == '__main__':
   unittest.main()

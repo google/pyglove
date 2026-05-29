@@ -299,6 +299,7 @@ JSONConvertible = utils.JSONConvertible
 DocStr = utils.DocStr
 
 registered_types = utils.registered_types
+enable_opaque_pickle = utils.enable_opaque_pickle
 explicit_method_override = utils.explicit_method_override
 
 is_partial = utils.is_partial

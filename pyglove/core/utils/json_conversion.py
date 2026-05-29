@@ -25,7 +25,7 @@ import pickle
 import types
 import typing
 from typing import Any, Callable, ContextManager, Dict, Iterable, Iterator, List, Optional, Sequence, Set, Tuple, Type, TypeVar, Union
-
+import warnings
 
 # Nestable[T] is a (maybe) nested structure of T, which could be T, a Dict
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
@@ -64,7 +64,7 @@ class _TypeRegistry:
 
   def register(
       self, type_name: str, cls: Type[Any], override_existing: bool = False
-      ) -> None:
+  ) -> None:
     """Register a ``symbolic.Object`` class with a type name.
 
     Args:
@@ -82,13 +82,12 @@ class _TypeRegistry:
     if type_name in self._type_to_cls_map and not override_existing:
       raise KeyError(
           f'Type {type_name!r} has already been registered with class '
-          f'{self._type_to_cls_map[type_name].__name__}.')
+          f'{self._type_to_cls_map[type_name].__name__}.'
+      )
     self._type_to_cls_map[type_name] = cls
 
   def add_module_alias(
-      self,
-      module: str,
-      alias: Union[str, Sequence[str]]
+      self, module: str, alias: Union[str, Sequence[str]]
   ) -> None:
     """Maps a module name to another name. Usually due to rename."""
     if isinstance(alias, str):
@@ -117,8 +116,7 @@ class _TypeRegistry:
     finally:
       self._ondemand_registry_stack.pop()
 
-  def class_from_typename(
-      self, type_name: str) -> Optional[Type[Any]]:
+  def class_from_typename(self, type_name: str) -> Optional[Type[Any]]:
     """Get class from type name."""
     if self._ondemand_registry_stack:
       top_registry = self._ondemand_registry_stack[-1]
@@ -205,7 +203,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
   # When this field is set by users, the converter will be invoked when a
   # complex value cannot be serialized by existing methods.
   TYPE_CONVERTER: Optional[
-      Callable[[Type[Any]], Callable[[Any], JSONValueType]]] = None
+      Callable[[Type[Any]], Callable[[Any], JSONValueType]]
+  ] = None
 
   # Class property that indicates whether to automatically register class
   # for deserialization. Subclass can override.
@@ -225,16 +224,16 @@ class JSONConvertible(metaclass=abc.ABCMeta):
       An instance of cls.
     """
     assert isinstance(json_value, dict)
-    init_args = {k: from_json(v, **kwargs) for k, v in json_value.items()
-                 if k != JSONConvertible.TYPE_NAME_KEY}
+    init_args = {
+        k: from_json(v, **kwargs)
+        for k, v in json_value.items()
+        if k != JSONConvertible.TYPE_NAME_KEY
+    }
     return cls(**init_args)
 
   @abc.abstractmethod
   def to_json(
-      self,
-      *,
-      context: Optional['JSONConversionContext'] = None,
-      **kwargs
+      self, *, context: Optional['JSONConversionContext'] = None, **kwargs
   ) -> JSONValueType:
     """Returns a plain Python value as a representation for this object.
 
@@ -256,8 +255,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
       cls,
       type_name: str,
       subclass: Type['JSONConvertible'],
-      override_existing: bool = False
-      ) -> None:
+      override_existing: bool = False,
+  ) -> None:
     """Registers a class with a type name.
 
     The type name will be used as the key for class lookup during
@@ -267,16 +266,14 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     Args:
       type_name: A global unique string identifier for subclass.
       subclass: A subclass of JSONConvertible.
-      override_existing: If True, override the class if the type name is
-        already present in the registry. Otherwise an error will be raised.
+      override_existing: If True, override the class if the type name is already
+        present in the registry. Otherwise an error will be raised.
     """
     cls._TYPE_REGISTRY.register(type_name, subclass, override_existing)
 
   @classmethod
   def add_module_alias(
-      cls,
-      module: str,
-      alias: Union[str, Sequence[str]]
+      cls, module: str, alias: Union[str, Sequence[str]]
   ) -> None:
     """Adds a module alias so previous serialized objects could be loaded."""
     cls._TYPE_REGISTRY.add_module_alias(module, alias)
@@ -288,7 +285,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
 
   @classmethod
   def class_from_typename(
-      cls, type_name: str) -> Optional[Type['JSONConvertible']]:
+      cls, type_name: str
+  ) -> Optional[Type['JSONConvertible']]:
     """Gets the class for a registered type name.
 
     Args:
@@ -307,9 +305,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
 
   @classmethod
   def load_types_for_deserialization(
-      cls,
-      *types_to_deserialize: Type[Any]
-      ) -> ContextManager[Dict[str, Type[Any]]]:
+      cls, *types_to_deserialize: Type[Any]
+  ) -> ContextManager[Dict[str, Type[Any]]]:
     """Context manager for loading unregistered types for deserialization.
 
     Example::
@@ -342,7 +339,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
       *,
       exclude_default=False,
       exclude_keys: Optional[Set[str]] = None,
-      **kwargs) -> Dict[str, JSONValueType]:
+      **kwargs,
+  ) -> Dict[str, JSONValueType]:
     """Helper method to create JSON dict from class and field."""
     json_dict = {JSONConvertible.TYPE_NAME_KEY: _serialization_key(cls)}
     exclude_keys = exclude_keys or set()
@@ -351,9 +349,11 @@ class JSONConvertible(metaclass=abc.ABCMeta):
         if k not in exclude_keys and v != default:
           json_dict[k] = to_json(v, **kwargs)
     else:
-      json_dict.update(
-          {k: to_json(v, **kwargs) for k, v in fields.items()
-           if k not in exclude_keys})
+      json_dict.update({
+          k: to_json(v, **kwargs)
+          for k, v in fields.items()
+          if k not in exclude_keys
+      })
     return json_dict
 
   def __init_subclass__(cls):
@@ -364,7 +364,8 @@ class JSONConvertible(metaclass=abc.ABCMeta):
 
 
 def _serialization_key(
-    type_or_function: Union[Type[Any], types.FunctionType]) -> str:
+    type_or_function: Union[Type[Any], types.FunctionType],
+) -> str:
   """Returns the ID for a type or function."""
   serializaton_key = getattr(type_or_function, '__serialization_key__', None)
   if serializaton_key is not None:
@@ -372,13 +373,34 @@ def _serialization_key(
   return _type_name(type_or_function)
 
 
-def _type_name(
-    type_or_function: Union[Type[Any], types.FunctionType]) -> str:
+def _type_name(type_or_function: Union[Type[Any], types.FunctionType]) -> str:
   return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
+
+
+_allow_opaque_pickle = False
+
+
+def enable_opaque_pickle(allow: bool = True) -> None:
+  """Enables or disables opaque pickle deserialization."""
+  global _allow_opaque_pickle
+  if allow:
+    warnings.warn(
+        'Enabling opaque pickle deserialization is insecure and can lead to'
+        ' arbitrary code execution. Please use with caution and only on trusted'
+        ' data.',
+        UserWarning,
+        stacklevel=2,
+    )
+    JSONConvertible.register(
+        _serialization_key(_OpaqueObject), _OpaqueObject, override_existing=True
+    )
+  _allow_opaque_pickle = allow
 
 
 class _OpaqueObject(JSONConvertible):
   """An JSON converter for opaque Python objects."""
+
+  auto_register = False
 
   def __init__(self, value: Any, encoded: bool = False):
     if encoded:
@@ -395,19 +417,24 @@ class _OpaqueObject(JSONConvertible):
       return base64.encodebytes(pickle.dumps(value)).decode('utf-8')
     except Exception as e:
       raise ValueError(
-          f'Cannot encode opaque object {value!r} with pickle.') from e
+          f'Cannot encode opaque object {value!r} with pickle.'
+      ) from e
 
   def decode(self, json_value: JSONValueType) -> Any:
     assert isinstance(json_value, str), json_value
+    if not _allow_opaque_pickle:
+      raise ValueError(
+          'Deserializing opaque python objects via pickle is disabled by '
+          'default for security reasons. You can enable it by calling '
+          '`pg.enable_opaque_pickle()`.'
+      )
     try:
       return pickle.loads(base64.decodebytes(json_value.encode('utf-8')))
     except Exception as e:
       raise ValueError('Cannot decode opaque object with pickle.') from e
 
   def to_json(self, **kwargs) -> JSONValueType:
-    return self.to_json_dict({
-        'value': self.encode(self._value)
-    }, **kwargs)
+    return self.to_json_dict({'value': self.encode(self._value)}, **kwargs)
 
   @classmethod
   def from_json(
@@ -415,7 +442,7 @@ class _OpaqueObject(JSONConvertible):
       json_value: JSONValueType,
       *args,
       context: Optional['JSONConversionContext'] = None,
-      **kwargs
+      **kwargs,
   ) -> Any:
     del args, context, kwargs
     assert isinstance(json_value, dict) and 'value' in json_value, json_value
@@ -450,7 +477,9 @@ class JSONConversionContext(JSONConvertible):
     ref_index: int
     ref_count: int
 
-  def __init__(self,) -> None:
+  def __init__(
+      self,
+  ) -> None:
     self._shared_objects: list[JSONConversionContext.ObjectEntry] = []
     self._id_to_shared_object = {}
 
@@ -470,7 +499,7 @@ class JSONConversionContext(JSONConvertible):
       self,
       value: Any,
       json_fn: Optional[Callable[..., JSONValueType]] = None,
-      **kwargs
+      **kwargs,
   ) -> JSONValueType:
     """Track maybe shared objects and returns their JSON representation."""
     if json_fn is None:
@@ -483,9 +512,11 @@ class JSONConversionContext(JSONConvertible):
 
       # It's possible that maybe_shared_json is called recursively on the same
       # object, thus we need to check for self-references explicitly.
-      if (isinstance(serialized, dict)
+      if (
+          isinstance(serialized, dict)
           and JSONConvertible.REF_KEY in serialized
-          and len(serialized) == 1):
+          and len(serialized) == 1
+      ):
         return serialized
 
       shared_object = self.ObjectEntry(
@@ -497,9 +528,7 @@ class JSONConversionContext(JSONConvertible):
       self._shared_objects.append(shared_object)
       self._id_to_shared_object[value_id] = shared_object
     shared_object.ref_count += 1
-    return {
-        JSONConvertible.REF_KEY: shared_object.ref_index
-    }
+    return {JSONConvertible.REF_KEY: shared_object.ref_index}
 
   def _maybe_deref(self, serialized: Any, ref_index_map: dict[int, int]) -> Any:
     """In-place dereference ref-1 shared objects in an object tree.
@@ -586,22 +615,14 @@ class JSONConversionContext(JSONConvertible):
 
 
 def to_json(
-    value: Any,
-    *,
-    context: Optional[JSONConversionContext] = None,
-    **kwargs
+    value: Any, *, context: Optional[JSONConversionContext] = None, **kwargs
 ) -> Any:
   """Serializes a (maybe) JSONConvertible value into a plain Python object.
 
   Args:
-    value: value to serialize. Applicable value types are:
-
-      * Builtin python types: None, bool, int, float, string;
-      * JSONConvertible types;
-      * List types;
-      * Tuple types;
-      * Dict types.
-
+    value: value to serialize. Applicable types are: * Builtin python types:
+      None, bool, int, float, string; * JSONConvertible types; * Listtypes; *
+      Tuple types; * Dict types.
     context: JSON conversion context.
     **kwargs: Keyword arguments to pass to value.to_json if value is
       JSONConvertible.
@@ -621,25 +642,23 @@ def to_json(
   elif isinstance(value, JSONConvertible):
     # Non-symbolic objects serialize by references.
     v = context.serialize_maybe_shared(
-        value,
-        json_fn=getattr(value, 'sym_jsonify', value.to_json),
-        **kwargs
+        value, json_fn=getattr(value, 'sym_jsonify', value.to_json), **kwargs
     )
   elif isinstance(value, list):
     # Standard lists serialize by references.
     v = context.serialize_maybe_shared(
         value,
         json_fn=lambda **kwargs: [to_json(x, **kwargs) for x in value],
-        **kwargs
+        **kwargs,
     )
   elif isinstance(value, dict):
     # Standard dicts serialize by references.
     v = context.serialize_maybe_shared(
         value,
         json_fn=lambda **kwargs: {
-            k: to_json(v, **kwargs) for k, v in value.items()   # pytype: disable=attribute-error
+            k: to_json(v, **kwargs) for k, v in value.items()  # pytype: disable=attribute-error
         },
-        **kwargs
+        **kwargs,
     )
   elif isinstance(value, tuple):
     # Tuples serialize by values.
@@ -663,7 +682,7 @@ def to_json(
   else:
     v, converted = None, False
     if JSONConvertible.TYPE_CONVERTER is not None:
-      converter = JSONConvertible.TYPE_CONVERTER(type(value))   # pylint: disable=not-callable
+      converter = JSONConvertible.TYPE_CONVERTER(type(value))  # pylint: disable=not-callable
       if converter:
         v = to_json(converter(value), context=context, **kwargs)
         converted = True
@@ -672,7 +691,7 @@ def to_json(
       v = context.serialize_maybe_shared(
           value,
           json_fn=lambda **kwargs: _OpaqueObject(value).to_json(**kwargs),
-          **kwargs
+          **kwargs,
       )
 
   if is_root:
@@ -686,7 +705,7 @@ def from_json(
     context: Optional[JSONConversionContext] = None,
     auto_import: bool = True,
     convert_unknown: bool = False,
-    **kwargs
+    **kwargs,
 ) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
 
@@ -694,29 +713,29 @@ def from_json(
     json_value: Input JSON value.
     context: Serialization context.
     auto_import: If True, when a '_type' is not registered, PyGlove will
-      identify its parent module and automatically import it. For example,
-      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
-      find the class 'A' within the imported module.
-    convert_unknown: If True, when a '_type' is not registered and cannot
-      be imported, PyGlove will create objects of:
-        - `pg.symbolic.UnknownType` for unknown types;
-        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
-        - `pg.symbolic.UnknownFunction` for unknown functions;
-        - `pg.symbolic.UnknownMethod` for unknown methods.
-      If False, TypeError will be raised.
+      identify its parent module and automatically import it. For example, if
+      the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and find the
+      class 'A' within the imported module.
+    convert_unknown: If True, when a '_type' is not registered and cannot be
+      imported, PyGlove will create objects of: - `pg.symbolic.UnknownType` for
+      unknown types; - `pg.symbolic.UnknownTypedObject` for objects of unknown
+      types; - `pg.symbolic.UnknownFunction` for unknown functions; -
+      `pg.symbolic.UnknownMethod` for unknown methods. If False, TypeError will
+      be raised.
     **kwargs: Keyword arguments that will be passed to JSONConvertible.__init__.
 
   Returns:
     Deserialized value.
   """
   if context is None:
-    if (isinstance(json_value, dict)
-        and (context_node := json_value.get(JSONConvertible.CONTEXT_KEY))):
+    if isinstance(json_value, dict) and (
+        context_node := json_value.get(JSONConvertible.CONTEXT_KEY)
+    ):
       context = JSONConversionContext.from_json(
           context_node,
           auto_import=auto_import,
           convert_unknown=convert_unknown,
-          **kwargs
+          **kwargs,
       )
       json_value = json_value[JSONConvertible.ROOT_VALUE_KEY]
     else:
@@ -736,8 +755,9 @@ def from_json(
       if len(json_value) < 2:
         raise ValueError(
             f'Tuple should have at least one element '
-            f'besides \'{JSONConvertible.TUPLE_MARKER}\'. '
-            f'Encountered: {json_value}.')
+            f"besides '{JSONConvertible.TUPLE_MARKER}'. "
+            f'Encountered: {json_value}.'
+        )
       return tuple([child_from(v) for v in json_value[1:]])
     return [child_from(v) for v in json_value]
   elif isinstance(json_value, dict):
@@ -788,7 +808,7 @@ def resolve_typenames(
               ) from e
         elif not convert_unknown:
           raise TypeError(
-              f'Type name \'{type_name}\' is not registered '
+              f"Type name '{type_name}' is not registered "
               'with a `pg.JSONConvertible` subclass.\n'
               'Try pass `auto_import=True` to load the type from its module.'
           )
@@ -803,6 +823,7 @@ def resolve_typenames(
 
       if factory_fn is None and convert_unknown:
         type_name = v[JSONConvertible.TYPE_NAME_KEY]
+
         def _factory_fn(json_value: Dict[str, Any], **kwargs):
           del kwargs
           # See `pg.symbolic.UnknownObject` for details.
@@ -858,15 +879,15 @@ def _type_to_json(t: Type[Any]) -> Dict[str, str]:
 def _builtin_function_to_json(f: Any) -> Dict[str, str]:
   return {
       JSONConvertible.TYPE_NAME_KEY: 'function',
-      'name': f'builtins.{f.__name__}'
+      'name': f'builtins.{f.__name__}',
   }
 
 
 def _function_to_json(f: types.FunctionType) -> Dict[str, str]:
   """Converts a function to a JSON dict."""
-  if ('<lambda>' == f.__name__                       # lambda functions.
-      or (f.__code__.co_flags & inspect.CO_NESTED)   # local functions.
-      ):
+  if '<lambda>' == f.__name__ or (  # lambda functions.
+      f.__code__.co_flags & inspect.CO_NESTED
+  ):  # local functions.
     return {
         JSONConvertible.TYPE_NAME_KEY: 'function',
         'name': _type_name(f),
@@ -874,20 +895,14 @@ def _function_to_json(f: types.FunctionType) -> Dict[str, str]:
         'defaults': to_json(f.__defaults__),
     }
 
-  return {
-      JSONConvertible.TYPE_NAME_KEY: 'function',
-      'name': _type_name(f)
-  }
+  return {JSONConvertible.TYPE_NAME_KEY: 'function', 'name': _type_name(f)}
 
 
 def _method_to_json(f: types.MethodType) -> Dict[str, str]:
   """Converts a method to a JSON dict."""
   type_name = _type_name(f)
   if isinstance(f.__self__, type):
-    return {
-        JSONConvertible.TYPE_NAME_KEY: 'method',
-        'name': type_name
-    }
+    return {JSONConvertible.TYPE_NAME_KEY: 'method', 'name': type_name}
   raise ValueError(f'Cannot convert instance method {type_name!r} to JSON.')
 
 
@@ -1012,6 +1027,7 @@ def _load_symbol(type_name: str) -> Any:
 
 def _type_from_json(convert_unknown: bool) -> Callable[..., Any]:
   """Loads a type from a JSON dict."""
+
   def _fn(json_value: Dict[str, str], **kwargs) -> Type[Any]:
     del kwargs
     try:
@@ -1031,19 +1047,22 @@ def _type_from_json(convert_unknown: bool) -> Callable[..., Any]:
       # See `pg.symbolic.UnknownType` for details.
       json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_type'
       return from_json(json_value)
+
   return _fn
 
 
 def _function_from_json(
-    convert_unknown: bool
+    convert_unknown: bool,
 ) -> Callable[..., types.FunctionType]:
   """Loads a function from a JSON dict."""
+
   def _fn(json_value: Dict[str, str], **kwargs) -> types.FunctionType:
     del kwargs
     function_name = json_value['name']
     if 'code' in json_value:
       code = marshal.loads(
-          base64.decodebytes(json_value['code'].encode('utf-8')))
+          base64.decodebytes(json_value['code'].encode('utf-8'))
+      )
       defaults = from_json(json_value['defaults'], _typename_resolved=True)
       return types.FunctionType(
           code=code,
@@ -1062,13 +1081,13 @@ def _function_from_json(
           ) from e
         json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_function'
         return from_json(json_value)
+
   return _fn
 
 
-def _method_from_json(
-    convert_unknown: bool
-) -> Callable[..., types.MethodType]:
+def _method_from_json(convert_unknown: bool) -> Callable[..., types.MethodType]:
   """Loads a class method from a JSON dict."""
+
   def _fn(json_value: Dict[str, str], **kwargs) -> types.MethodType:
     del kwargs
     try:
@@ -1082,6 +1101,7 @@ def _method_from_json(
         ) from e
       json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_method'
       return from_json(json_value)
+
   return _fn
 
 
