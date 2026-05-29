@@ -377,8 +377,41 @@ def _type_name(
   return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
 
 
+# Process-global flag gating opaque-object pickle deserialization.
+# Defaults to False to prevent RCE via crafted JSON.
+_opaque_pickle_enabled = False
+
+
+@contextlib.contextmanager
+def allow_opaque_pickle() -> Iterator[None]:
+  """Context manager that temporarily enables opaque-object pickle deserialization.
+
+  By default, deserializing ``_OpaqueObject`` via ``pg.from_json`` /
+  ``pg.load`` is disabled because it uses ``pickle.loads``, which can
+  execute arbitrary code on untrusted input.
+
+  Use this context manager only when you trust the source of the JSON::
+
+    with json_conversion.allow_opaque_pickle():
+      obj = json_conversion.from_json(trusted_json)
+  """
+  global _opaque_pickle_enabled
+  old = _opaque_pickle_enabled
+  _opaque_pickle_enabled = True
+  try:
+    yield
+  finally:
+    _opaque_pickle_enabled = old
+
+
 class _OpaqueObject(JSONConvertible):
   """An JSON converter for opaque Python objects."""
+
+  # Do NOT auto-register: _OpaqueObject uses pickle.loads internally, which
+  # enables arbitrary code execution. Keeping it out of the type registry
+  # prevents attackers from crafting malicious JSON that triggers pickle
+  # deserialization via pg.from_json / pg.load.
+  auto_register = False
 
   def __init__(self, value: Any, encoded: bool = False):
     if encoded:
@@ -417,6 +450,12 @@ class _OpaqueObject(JSONConvertible):
       context: Optional['JSONConversionContext'] = None,
       **kwargs
   ) -> Any:
+    if not _opaque_pickle_enabled:
+      raise TypeError(
+          'Deserializing _OpaqueObject is disabled by default because it '
+          'uses pickle.loads, which can execute arbitrary code. '
+          'Use json_conversion.allow_opaque_pickle() to opt in.'
+      )
     del args, context, kwargs
     assert isinstance(json_value, dict) and 'value' in json_value, json_value
     encoder = cls(json_value['value'], encoded=True)
@@ -655,7 +694,9 @@ def to_json(
   elif inspect.ismethod(value):
     v = _method_to_json(value)
   # pytype: disable=module-attr
-  elif isinstance(value, typing._Final):  # pylint: disable=protected-access
+  elif (isinstance(value, typing._Final)  # pylint: disable=protected-access
+        or (hasattr(types, 'UnionType')
+            and isinstance(value, types.UnionType))):
     # pytype: enable=module-attr
     v = _annotation_to_json(value)
   elif value is ...:
@@ -914,6 +955,9 @@ _SUPPORTED_ANNOTATIONS = {
     typing.FrozenSet: 'typing.FrozenSet',
     frozenset: 'typing.FrozenSet',
 }
+
+if hasattr(types, 'UnionType'):
+  _SUPPORTED_ANNOTATIONS[types.UnionType] = 'typing.Union'
 
 
 def _annotation_to_json(annotation) -> Dict[str, str]:
