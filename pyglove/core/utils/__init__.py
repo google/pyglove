@@ -79,6 +79,7 @@ from pyglove.core.utils.json_conversion import JSONConvertible
 from pyglove.core.utils.json_conversion import from_json
 from pyglove.core.utils.json_conversion import to_json
 from pyglove.core.utils.json_conversion import registered_types
+from pyglove.core.utils.json_conversion import enable_opaque_pickle
 
 # Handling formatting.
 from pyglove.core.utils.formatting import Formattable
