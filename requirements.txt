@@ -1,4 +1,5 @@
 docstring-parser>=0.12
+msgpack>=1.0.0
 termcolor>=1.1.0
 
 # extras:io

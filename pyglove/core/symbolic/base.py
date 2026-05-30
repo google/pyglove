@@ -2444,9 +2444,10 @@ def open_jsonl(
 def default_load_handler(
     path: str,
     file_format: Literal['json', 'txt'] = 'json',
+    allow_remote: bool = False,
     **kwargs) -> Any:
   """Default load handler from file."""
-  content = pg_io.readfile(path)
+  content = pg_io.readfile(path, allow_remote=allow_remote)
   if file_format == 'json':
     return from_json_str(content, allow_partial=True, **kwargs)
   elif file_format == 'txt':
