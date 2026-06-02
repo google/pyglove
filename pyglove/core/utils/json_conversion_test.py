@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import abc
+import base64
+import copy
+import pickle
 import typing
 import unittest
 from pyglove.core.symbolic import unknown_symbols
@@ -348,6 +351,7 @@ class JSONConvertibleTest(unittest.TestCase):
     )
 
   def test_json_conversion_for_opaque_objects(self):
+    # Default is enabled, round-trip should work.
     self.assert_conversion_equal(X(1))
 
     class LocalX:
@@ -360,7 +364,8 @@ class JSONConvertibleTest(unittest.TestCase):
     json_dict = json_conversion.to_json(X(1))
     json_dict['value'] = 'abc'
     with self.assertRaisesRegex(
-        ValueError, 'Cannot decode opaque object with pickle.'):
+        ValueError, 'Cannot decode opaque object with pickle.'
+    ):
       json_conversion.from_json(json_dict)
 
   def test_json_conversion_convert_unknown(self):
@@ -487,6 +492,7 @@ class JSONConvertibleTest(unittest.TestCase):
             }
         }
     )
+    # Default is enabled, round-trip should work.
     y_prime = json_conversion.from_json(y_json)
     self.assertIs(y_prime['t'], y_prime['v'][1])
     self.assertIs(y_prime['u'], y_prime['v'][0])
@@ -526,6 +532,150 @@ class JSONConvertibleTest(unittest.TestCase):
             )
         ]
     )
+
+  def test_opaque_object_not_in_registry(self):
+    """_OpaqueObject must not be reachable via type registry."""
+    # _OpaqueObject should NOT be auto-registered, preventing attackers from
+    # crafting a JSON payload that triggers pickle.loads on untrusted data.
+    opaque_typename = json_conversion._type_name(json_conversion._OpaqueObject)
+    self.assertFalse(
+        json_conversion.JSONConvertible.is_registered(opaque_typename),
+        f'_OpaqueObject is registered under {opaque_typename!r}. '
+        'This allows RCE via pickle deserialization from untrusted JSON.',
+    )
+
+  def test_opaque_object_rce_blocked_when_disabled(self):
+    """Malicious JSON targeting _OpaqueObject must be rejected when disabled."""
+
+    # Simulate an attacker's payload: a pickle bomb inside _OpaqueObject JSON.
+    class _Canary:
+      triggered = False
+
+      def __reduce__(self):
+        # If this runs, the attacker wins.
+        _Canary.triggered = True
+        return (int, (0,))
+
+    malicious_payload = {
+        '_type': 'pyglove.core.utils.json_conversion._OpaqueObject',
+        'value': base64.encodebytes(pickle.dumps(_Canary())).decode('utf-8'),
+    }
+    # pickle.dumps calls __reduce__ during serialization, so reset the flag
+    # to only detect execution during the deserialization (attack) path.
+    _Canary.triggered = False
+    # When opaque pickle is disabled, deserialization must be rejected.
+    with json_conversion.enable_opaque_pickle(False):
+      with self.assertRaises(TypeError):
+        json_conversion.from_json(malicious_payload)
+    self.assertFalse(
+        _Canary.triggered,
+        'Pickle payload was executed — RCE vulnerability is still present!',
+    )
+
+  def test_opaque_from_json_gate_when_disabled(self):
+    """Direct _OpaqueObject.from_json must be gated when disabled."""
+    x = X(1)
+    opaque = json_conversion._OpaqueObject(x)
+    json_value = opaque.to_json()
+    with json_conversion.enable_opaque_pickle(False):
+      with self.assertRaisesRegex(TypeError, 'disabled'):
+        json_conversion._OpaqueObject.from_json(json_value)
+
+  def test_opaque_from_json_works_by_default(self):
+    """from_json works by default (backward compatible)."""
+    x = X(1)
+    opaque = json_conversion._OpaqueObject(x)
+    json_value = opaque.to_json()
+    result = json_conversion._OpaqueObject.from_json(json_value)
+    self.assertEqual(result, x)
+
+  def test_opaque_from_json_works_inside_allow_context(self):
+    """from_json works when re-enabled inside a disallow scope."""
+    x = X(1)
+    opaque = json_conversion._OpaqueObject(x)
+    json_value = opaque.to_json()
+    with json_conversion.enable_opaque_pickle(False):
+      with json_conversion.enable_opaque_pickle(True):
+        result = json_conversion._OpaqueObject.from_json(json_value)
+    self.assertEqual(result, x)
+
+  def test_enable_opaque_pickle_restores_on_exception(self):
+    """Flag must be restored even if the body raises."""
+    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    try:
+      with json_conversion.enable_opaque_pickle(False):
+        self.assertFalse(json_conversion._opaque_pickle_enabled)
+        raise RuntimeError('simulated crash')
+    except RuntimeError:
+      pass
+    # Flag must be restored to True after exception.
+    self.assertTrue(json_conversion._opaque_pickle_enabled)
+
+  def test_enable_opaque_pickle_nested(self):
+    """Nested context managers must restore correctly."""
+    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    with json_conversion.enable_opaque_pickle(False):
+      self.assertFalse(json_conversion._opaque_pickle_enabled)
+      with json_conversion.enable_opaque_pickle(True):
+        self.assertTrue(json_conversion._opaque_pickle_enabled)
+      # After inner allow exits, flag should be False (outer disallow active).
+      self.assertFalse(json_conversion._opaque_pickle_enabled)
+    # After outer disallow exits, flag must be True.
+    self.assertTrue(json_conversion._opaque_pickle_enabled)
+
+  def test_opaque_rce_blocked_via_auto_import_when_disabled(self):
+    """auto_import must NOT bypass the pickle gate when disabled."""
+    x = X(1)
+    json_dict = json_conversion.to_json(x)
+    # from_json mutates the dict in-place (pops _type), so use copies.
+    # When disabled, even with auto_import=True (default), must fail.
+    with json_conversion.enable_opaque_pickle(False):
+      with self.assertRaises(TypeError):
+        json_conversion.from_json(copy.deepcopy(json_dict))
+    # By default (enabled), it works.
+    result = json_conversion.from_json(copy.deepcopy(json_dict))
+    self.assertEqual(result, x)
+
+  def test_opaque_to_json_always_works(self):
+    """Serialization must never be gated."""
+    # to_json must work even when deserialization is disabled.
+    with json_conversion.enable_opaque_pickle(False):
+      x = X(1)
+      json_dict = json_conversion.to_json(x)
+      self.assertIn('_type', json_dict)
+      opaque_typename = json_conversion._type_name(
+          json_conversion._OpaqueObject
+      )
+      self.assertEqual(json_dict['_type'], opaque_typename)
+      self.assertIn('value', json_dict)
+
+  def test_opaque_rce_blocked_with_nested_payload(self):
+    """Nested malicious _OpaqueObject in a list must be blocked when disabled."""
+    nested_payload = [
+        1,
+        'safe',
+        {
+            '_type': 'pyglove.core.utils.json_conversion._OpaqueObject',
+            'value': base64.encodebytes(pickle.dumps(42)).decode('utf-8'),
+        },
+    ]
+    with json_conversion.enable_opaque_pickle(False):
+      with self.assertRaises(TypeError):
+        json_conversion.from_json(nested_payload)
+
+  def test_opaque_rce_blocked_with_dict_payload(self):
+    """_OpaqueObject inside a dict value must be blocked when disabled."""
+    dict_payload = {
+        'safe_key': 'safe_value',
+        'malicious': {
+            '_type': 'pyglove.core.utils.json_conversion._OpaqueObject',
+            'value': base64.encodebytes(pickle.dumps(42)).decode('utf-8'),
+        },
+    }
+    with json_conversion.enable_opaque_pickle(False):
+      with self.assertRaises(TypeError):
+        json_conversion.from_json(dict_payload)
+
 
 if __name__ == '__main__':
   unittest.main()
