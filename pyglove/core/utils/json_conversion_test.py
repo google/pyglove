@@ -14,9 +14,11 @@
 import abc
 import base64
 import copy
+import json
 import pickle
 import typing
 import unittest
+from pyglove.core import symbolic
 from pyglove.core.symbolic import unknown_symbols
 from pyglove.core.typing import inspect as pg_inspect
 from pyglove.core.utils import json_conversion
@@ -48,6 +50,27 @@ class X:
 
   def __ne__(self, other):
     return not self.__eq__(other)
+
+
+# Module-level sentinel used by the RCE proof-of-concept below. Pickle can only
+# reference (and later invoke) functions by their qualified name, so this must
+# live at module scope.
+_RCE_CANARY_FIRED = []
+
+
+def _rce_canary_callable():
+  """Records that a pickle payload executed during deserialization."""
+  _RCE_CANARY_FIRED.append(True)
+  return 0
+
+
+class _PickleRcePayload:
+  """Reproduces the b/511887449 PoC: a callable fired during unpickling."""
+
+  def __reduce__(self):
+    # On pickle.loads this invokes `_rce_canary_callable()` -- exactly the
+    # arbitrary-code-execution primitive the real Vertex AI NAS exploit abuses.
+    return (_rce_canary_callable, ())
 
 
 def bar():
@@ -351,8 +374,9 @@ class JSONConvertibleTest(unittest.TestCase):
     )
 
   def test_json_conversion_for_opaque_objects(self):
-    # Default is enabled, round-trip should work.
-    self.assert_conversion_equal(X(1))
+    # Opaque round-trip is disabled by default; opt in for this trusted test.
+    with json_conversion.enable_opaque_pickle(True):
+      self.assert_conversion_equal(X(1))
 
     class LocalX:
       pass
@@ -363,10 +387,11 @@ class JSONConvertibleTest(unittest.TestCase):
 
     json_dict = json_conversion.to_json(X(1))
     json_dict['value'] = 'abc'
-    with self.assertRaisesRegex(
-        ValueError, 'Cannot decode opaque object with pickle.'
-    ):
-      json_conversion.from_json(json_dict)
+    with json_conversion.enable_opaque_pickle(True):
+      with self.assertRaisesRegex(
+          ValueError, 'Cannot decode opaque object with pickle.'
+      ):
+        json_conversion.from_json(json_dict)
 
   def test_json_conversion_convert_unknown(self):
     self.assertEqual(
@@ -492,8 +517,9 @@ class JSONConvertibleTest(unittest.TestCase):
             }
         }
     )
-    # Default is enabled, round-trip should work.
-    y_prime = json_conversion.from_json(y_json)
+    # Round-trip needs the trusted opt-in: X serializes via opaque pickle.
+    with json_conversion.enable_opaque_pickle(True):
+      y_prime = json_conversion.from_json(y_json)
     self.assertIs(y_prime['t'], y_prime['v'][1])
     self.assertIs(y_prime['u'], y_prime['v'][0])
 
@@ -581,12 +607,16 @@ class JSONConvertibleTest(unittest.TestCase):
       with self.assertRaisesRegex(TypeError, 'disabled'):
         json_conversion._OpaqueObject.from_json(json_value)
 
-  def test_opaque_from_json_works_by_default(self):
-    """from_json works by default (backward compatible)."""
+  def test_opaque_from_json_blocked_by_default(self):
+    """from_json is blocked by default (secure by default)."""
     x = X(1)
     opaque = json_conversion._OpaqueObject(x)
     json_value = opaque.to_json()
-    result = json_conversion._OpaqueObject.from_json(json_value)
+    with self.assertRaisesRegex(TypeError, 'disabled'):
+      json_conversion._OpaqueObject.from_json(json_value)
+    # The trusted opt-in restores the round-trip.
+    with json_conversion.enable_opaque_pickle(True):
+      result = json_conversion._OpaqueObject.from_json(json_value)
     self.assertEqual(result, x)
 
   def test_opaque_from_json_works_inside_allow_context(self):
@@ -601,39 +631,39 @@ class JSONConvertibleTest(unittest.TestCase):
 
   def test_enable_opaque_pickle_restores_on_exception(self):
     """Flag must be restored even if the body raises."""
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    self.assertFalse(json_conversion._opaque_pickle_enabled)
     try:
-      with json_conversion.enable_opaque_pickle(False):
-        self.assertFalse(json_conversion._opaque_pickle_enabled)
+      with json_conversion.enable_opaque_pickle(True):
+        self.assertTrue(json_conversion._opaque_pickle_enabled)
         raise RuntimeError('simulated crash')
     except RuntimeError:
       pass
-    # Flag must be restored to True after exception.
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    # Flag must be restored to the secure default (False) after exception.
+    self.assertFalse(json_conversion._opaque_pickle_enabled)
 
   def test_enable_opaque_pickle_nested(self):
     """Nested context managers must restore correctly."""
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
-    with json_conversion.enable_opaque_pickle(False):
-      self.assertFalse(json_conversion._opaque_pickle_enabled)
-      with json_conversion.enable_opaque_pickle(True):
-        self.assertTrue(json_conversion._opaque_pickle_enabled)
-      # After inner allow exits, flag should be False (outer disallow active).
-      self.assertFalse(json_conversion._opaque_pickle_enabled)
-    # After outer disallow exits, flag must be True.
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    self.assertFalse(json_conversion._opaque_pickle_enabled)
+    with json_conversion.enable_opaque_pickle(True):
+      self.assertTrue(json_conversion._opaque_pickle_enabled)
+      with json_conversion.enable_opaque_pickle(False):
+        self.assertFalse(json_conversion._opaque_pickle_enabled)
+      # After inner disable exits, flag should be True (outer enable active).
+      self.assertTrue(json_conversion._opaque_pickle_enabled)
+    # After outer enable exits, flag must be the secure default (False).
+    self.assertFalse(json_conversion._opaque_pickle_enabled)
 
-  def test_opaque_rce_blocked_via_auto_import_when_disabled(self):
-    """auto_import must NOT bypass the pickle gate when disabled."""
+  def test_opaque_rce_blocked_via_auto_import_by_default(self):
+    """auto_import must NOT bypass the pickle gate (blocked by default)."""
     x = X(1)
     json_dict = json_conversion.to_json(x)
     # from_json mutates the dict in-place (pops _type), so use copies.
-    # When disabled, even with auto_import=True (default), must fail.
-    with json_conversion.enable_opaque_pickle(False):
-      with self.assertRaises(TypeError):
-        json_conversion.from_json(copy.deepcopy(json_dict))
-    # By default (enabled), it works.
-    result = json_conversion.from_json(copy.deepcopy(json_dict))
+    # By default (disabled), even with auto_import=True (default), must fail.
+    with self.assertRaises(TypeError):
+      json_conversion.from_json(copy.deepcopy(json_dict))
+    # With the trusted opt-in, it works.
+    with json_conversion.enable_opaque_pickle(True):
+      result = json_conversion.from_json(copy.deepcopy(json_dict))
     self.assertEqual(result, x)
 
   def test_opaque_to_json_always_works(self):
@@ -675,6 +705,40 @@ class JSONConvertibleTest(unittest.TestCase):
     with json_conversion.enable_opaque_pickle(False):
       with self.assertRaises(TypeError):
         json_conversion.from_json(dict_payload)
+
+  def test_rce_poc_blocked_by_default_via_public_path(self):
+    """b/511887449: pg.from_json_str must not run pickle by default (RCE)."""
+    # The exact attacker payload shape from the bug report: an _OpaqueObject
+    # whose pickled value executes code on deserialization.
+    payload = {
+        '_type': 'pyglove.core.utils.json_conversion._OpaqueObject',
+        'value': (
+            base64.encodebytes(pickle.dumps(_PickleRcePayload())).decode(
+                'utf-8'
+            )
+        ),
+    }
+    json_str = json.dumps(payload)
+    _RCE_CANARY_FIRED.clear()
+    # Real consumer path used by the exploit: pg.from_json_str is exactly
+    # symbolic.from_json_str. Secure-by-default => it must refuse to unpickle.
+    with self.assertRaises(TypeError):
+      symbolic.from_json_str(json_str)
+    self.assertEqual(
+        _RCE_CANARY_FIRED,
+        [],
+        'pickle.loads executed via pg.from_json_str -- RCE is live at HEAD!',
+    )
+
+  def test_opaque_pickle_round_trip_via_public_path_when_enabled(self):
+    """enable_opaque_pickle(True) restores the trusted round-trip."""
+    x = X(1)
+    json_str = symbolic.to_json_str(x)
+    # Disabled by default; the trusted opt-in re-enables the round-trip on the
+    # real public path.
+    with json_conversion.enable_opaque_pickle(True):
+      restored = symbolic.from_json_str(json_str)
+    self.assertEqual(restored, x)
 
 
 if __name__ == '__main__':
