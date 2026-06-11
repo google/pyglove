@@ -378,30 +378,33 @@ def _type_name(
 
 
 # Process-global flag gating opaque-object pickle deserialization.
-# Defaults to True for backward compatibility.  Security-sensitive contexts
-# (e.g. cloud services handling untrusted JSON) should use
-# enable_opaque_pickle(False) to opt out.
-_opaque_pickle_enabled = True
+# Defaults to False (secure-by-default): deserializing _OpaqueObject runs
+# pickle.loads, which can execute arbitrary code, so untrusted JSON must never
+# trigger it implicitly. Trusted first-party callers that round-trip their own
+# data (e.g. caches, checkpoints, example I/O) must explicitly opt in via
+# enable_opaque_pickle(True) around the trusted (de)serialization boundary.
+_opaque_pickle_enabled = False
 
 
 def enable_opaque_pickle(enable: bool = True) -> ContextManager[None]:
   """Returns a context manager to enable or disable opaque-object pickle.
 
   Deserializing ``_OpaqueObject`` uses ``pickle.loads``, which can execute
-  arbitrary code.  It is enabled by default for backward compatibility.
-  Security-sensitive contexts (e.g. cloud services that process untrusted
-  JSON) should disable it::
+  arbitrary code.  It is therefore disabled by default (secure-by-default):
+  untrusted JSON can never implicitly trigger pickle deserialization. Trusted
+  first-party callers that round-trip their own data must explicitly opt in
+  around the trusted (de)serialization boundary::
 
-    with json_conversion.enable_opaque_pickle(False):
-      obj = json_conversion.from_json(untrusted_json)
+    with json_conversion.enable_opaque_pickle(True):
+      obj = json_conversion.from_json(trusted_json)
 
-  `enable_opaque_pickle` can be nested, e.g. to re-enable pickle for a trusted
-  source inside a disabled scope::
+  `enable_opaque_pickle` can be nested, e.g. to disable pickle again for an
+  untrusted source inside an enabled scope::
 
-    with json_conversion.enable_opaque_pickle(False):
+    with json_conversion.enable_opaque_pickle(True):
       ...
-      with json_conversion.enable_opaque_pickle(True):
-        obj = json_conversion.from_json(trusted_json)
+      with json_conversion.enable_opaque_pickle(False):
+        obj = json_conversion.from_json(untrusted_json)
 
   Args:
     enable: If True, enable opaque-object pickle deserialization in the current
