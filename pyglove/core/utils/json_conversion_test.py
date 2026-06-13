@@ -599,6 +599,29 @@ class JSONConvertibleTest(unittest.TestCase):
         result = json_conversion._OpaqueObject.from_json(json_value)
     self.assertEqual(result, x)
 
+  def test_function_code_deserialization_gated_when_disabled(self):
+    """Inline-code (marshal) function deser must be gated when disabled."""
+    # A lambda serializes via the inline-`code` (marshal.dumps) path.
+    fn = lambda x: x + 1
+    json_value = json_conversion.to_json(fn)
+    self.assertIn('code', json_value)
+    # When opaque pickle is disabled, untrusted JSON must not be turned into an
+    # executable function (the marshal.loads -> FunctionType RCE path).
+    with json_conversion.enable_opaque_pickle(False):
+      with self.assertRaisesRegex(TypeError, 'disabled'):
+        json_conversion.from_json(json_value)
+
+  def test_function_code_deserialization_works_by_default(self):
+    """Inline-code function deser works by default (backward compatible)."""
+    fn = lambda x: x + 1
+    restored = json_conversion.from_json(json_conversion.to_json(fn))
+    self.assertEqual(restored(3), 4)
+    # Re-enabling inside a disabled scope works too.
+    with json_conversion.enable_opaque_pickle(False):
+      with json_conversion.enable_opaque_pickle(True):
+        restored2 = json_conversion.from_json(json_conversion.to_json(fn))
+    self.assertEqual(restored2(3), 4)
+
   def test_enable_opaque_pickle_restores_on_exception(self):
     """Flag must be restored even if the body raises."""
     self.assertTrue(json_conversion._opaque_pickle_enabled)
