@@ -272,6 +272,10 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
   # Disable pytype attribute checking.
   _HAS_DYNAMIC_ATTRIBUTES = True
+  if typing.TYPE_CHECKING:
+
+    def __getattr__(self, name: str) -> typing.Any:
+      ...
 
   # Class property that indicates whether to allow attribute access on symbolic
   # members.
