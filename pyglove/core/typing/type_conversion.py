@@ -159,4 +159,4 @@ def _register_builtin_converters():
 
 
 _register_builtin_converters()
-utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter
+utils.JSONConvertible.TYPE_CONVERTER = get_json_value_converter  # pyrefly: ignore[bad-assignment]

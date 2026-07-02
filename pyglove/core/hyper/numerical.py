@@ -76,7 +76,7 @@ class Float(base.HyperPrimitive):
   def _decode(self) -> float:
     """Decode a DNA into a float value."""
     dna = self._dna
-    if not isinstance(dna.value, float):
+    if not isinstance(dna.value, float):  # pyrefly: ignore[missing-attribute]
       raise ValueError(
           utils.message_on_path(
               f'Expect float value. Encountered: {dna.value}.', self.sym_path

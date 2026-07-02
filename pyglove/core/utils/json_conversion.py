@@ -227,7 +227,7 @@ class JSONConvertible(metaclass=abc.ABCMeta):
     assert isinstance(json_value, dict)
     init_args = {k: from_json(v, **kwargs) for k, v in json_value.items()
                  if k != JSONConvertible.TYPE_NAME_KEY}
-    return cls(**init_args)
+    return cls(**init_args)  # pyrefly: ignore[bad-unpacking]
 
   @abc.abstractmethod
   def to_json(
@@ -354,7 +354,7 @@ class JSONConvertible(metaclass=abc.ABCMeta):
       json_dict.update(
           {k: to_json(v, **kwargs) for k, v in fields.items()
            if k not in exclude_keys})
-    return json_dict
+    return json_dict  # pyrefly: ignore[bad-return]
 
   def __init_subclass__(cls):
     super().__init_subclass__()
@@ -459,7 +459,7 @@ class _OpaqueObject(JSONConvertible):
       raise ValueError('Cannot decode opaque object with pickle.') from e
 
   def to_json(self, **kwargs) -> JSONValueType:
-    return self.to_json_dict({
+    return self.to_json_dict({  # pyrefly: ignore[bad-return]
         'value': self.encode(self._value)
     }, **kwargs)
 
@@ -593,7 +593,7 @@ class JSONConversionContext(JSONConvertible):
         serialized[i] = self._maybe_deref(x, ref_index_map)
     return serialized
 
-  def to_json(self, *, root: Any, **kwargs) -> JSONValueType:
+  def to_json(self, *, root: Any, **kwargs) -> JSONValueType:  # pyrefly: ignore[bad-override]
     """Serializes a root node with the context to JSON value."""
     # `ref_index_map` stores the original index of shared objects to their
     # indices after the ref-1 shared objects are trimmed.
@@ -707,7 +707,7 @@ def to_json(
         to_json(item, context=context, **kwargs) for item in value
     ]
   elif isinstance(value, (type, typing.GenericAlias)):  # pytype: disable=module-attr
-    v = _type_to_json(value)
+    v = _type_to_json(value)  # pyrefly: ignore[bad-argument-type]
   elif inspect.isbuiltin(value):
     v = _builtin_function_to_json(value)
   elif inspect.isfunction(value):
@@ -944,7 +944,7 @@ def _function_to_json(f: types.FunctionType) -> Dict[str, str]:
 
 def _method_to_json(f: types.MethodType) -> Dict[str, str]:
   """Converts a method to a JSON dict."""
-  type_name = _type_name(f)
+  type_name = _type_name(f)  # pyrefly: ignore[bad-argument-type]
   if isinstance(f.__self__, type):
     return {
         JSONConvertible.TYPE_NAME_KEY: 'method',
@@ -978,7 +978,7 @@ _SUPPORTED_ANNOTATIONS = {
 }
 
 if hasattr(types, 'UnionType'):
-  _SUPPORTED_ANNOTATIONS[types.UnionType] = 'typing.Union'
+  _SUPPORTED_ANNOTATIONS[types.UnionType] = 'typing.Union'  # pyrefly: ignore[unsupported-operation]
 
 
 def _annotation_to_json(annotation) -> Dict[str, str]:
@@ -1095,7 +1095,7 @@ def _type_from_json(convert_unknown: bool) -> Callable[..., Any]:
         ) from e
       # See `pg.symbolic.UnknownType` for details.
       json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_type'
-      return from_json(json_value)
+      return from_json(json_value)  # pyrefly: ignore[bad-argument-type]
   return _fn
 
 
@@ -1126,7 +1126,7 @@ def _function_from_json(
               '`pg.UnknownFunction` without depending on the type.'
           ) from e
         json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_function'
-        return from_json(json_value)
+        return from_json(json_value)  # pyrefly: ignore[bad-argument-type]
   return _fn
 
 
@@ -1146,7 +1146,7 @@ def _method_from_json(
             'into `pg.UnknownMethod` without depending on the type.'
         ) from e
       json_value[JSONConvertible.TYPE_NAME_KEY] = 'unknown_method'
-      return from_json(json_value)
+      return from_json(json_value)  # pyrefly: ignore[bad-argument-type]
   return _fn
 
 

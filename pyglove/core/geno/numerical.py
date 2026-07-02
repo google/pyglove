@@ -134,7 +134,7 @@ class Float(DecisionPoint):
     """Returns number of decision points in current space."""
     return 1
 
-  def validate(self, dna: DNA) -> None:
+  def validate(self, dna: DNA) -> None:  # pyrefly: ignore[bad-override]
     """Validate whether a DNA value conforms to this spec."""
     if not isinstance(dna.value, float):
       raise ValueError(

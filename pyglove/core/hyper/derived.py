@@ -94,7 +94,7 @@ class DerivedValue(symbolic.Object, pg_typing.CustomTyping):
   def __call__(self):
     """Generate value by deriving values from reference paths."""
     referenced_values = []
-    for reference_path, (parent, _) in zip(
+    for reference_path, (parent, _) in zip(  # pyrefly: ignore[not-iterable]
         self.reference_paths, self.resolve()):
       referenced_value = reference_path.query(parent)
 
@@ -138,7 +138,7 @@ class ValueReference(DerivedValue):
           f'Argument \'reference_paths\' should have exact 1 '
           f'item. Encountered: {self.reference_paths}')
 
-  def derive(self, referenced_value: Any) -> Any:
+  def derive(self, referenced_value: Any) -> Any:  # pyrefly: ignore[bad-override]
     """Derive value by return a copy of the referenced value."""
     return copy.copy(referenced_value)
 

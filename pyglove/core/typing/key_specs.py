@@ -77,11 +77,11 @@ class ConstStrKey(KeySpecBase, utils.StrKey):
     """Whether can match against an input key."""
     return self._text == key
 
-  def format(self, **kwargs) -> str:
+  def format(self, **kwargs) -> str:  # pyrefly: ignore[bad-override]
     """Format this object."""
     return self._text
 
-  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(text=self._text),
         **kwargs,
@@ -157,14 +157,14 @@ class StrKey(NonConstKey):
     """Returns regular expression of this key spec."""
     return self._regex
 
-  def format(self, **kwargs):
+  def format(self, **kwargs):  # pyrefly: ignore[bad-override]
     """Format this object."""
     return utils.kvlist_str(
         [('regex', getattr(self._regex, 'pattern', None), None)],
         label=self.__class__.__name__,
     )
 
-  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     regex = self._regex.pattern if self._regex is not None else None
     return self.to_json_dict(
         fields=dict(regex=(regex, None)),
@@ -244,11 +244,11 @@ class ListKey(NonConstKey):
     return (isinstance(key, int) and (self._min_value <= key) and
             (not self._max_value or self._max_value > key))
 
-  def format(self, **kwargs):
+  def format(self, **kwargs):  # pyrefly: ignore[bad-override]
     """Format this object."""
     return f'ListKey(min_value={self._min_value}, max_value={self._max_value})'
 
-  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             min_value=(self._min_value, None),
@@ -310,11 +310,11 @@ class TupleKey(NonConstKey):
     """Returns whether this key spec can match against input key."""
     return isinstance(key, int) and (self._index is None or self._index == key)
 
-  def format(self, **kwargs):
+  def format(self, **kwargs):  # pyrefly: ignore[bad-override]
     """Format this object."""
     return 'TupleKey(index={self._index})'
 
-  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(index=(self._index, None)),
         exclude_default=True,
@@ -328,4 +328,4 @@ class TupleKey(NonConstKey):
     return isinstance(other, TupleKey) and self._index == other.index
 
 
-KeySpec.from_str = ConstStrKey
+KeySpec.from_str = ConstStrKey  # pyrefly: ignore[bad-assignment]

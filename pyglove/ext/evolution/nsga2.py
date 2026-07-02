@@ -95,11 +95,11 @@ def nondominated_sort(inputs: List[pg.DNA]) -> List[List[pg.DNA]]:
   queue = []
   for i in range(len(inputs)):
     for j in range(len(inputs)):
-      if dominates(base.get_fitness(inputs[i]),
-                   base.get_fitness(inputs[j])):
+      if dominates(base.get_fitness(inputs[i]),  # pyrefly: ignore[bad-argument-type]
+                   base.get_fitness(inputs[j])):  # pyrefly: ignore[bad-argument-type]
         dependency_graph[i].append(j)
-      elif dominates(base.get_fitness(inputs[j]),
-                     base.get_fitness(inputs[i])):
+      elif dominates(base.get_fitness(inputs[j]),  # pyrefly: ignore[bad-argument-type]
+                     base.get_fitness(inputs[i])):  # pyrefly: ignore[bad-argument-type]
         indegree[i] += 1
     if indegree[i] == 0:
       queue.append(i)
@@ -136,7 +136,7 @@ def crowding_distance_sort(frontier: List[pg.DNA]) -> List[pg.DNA]:
     return frontier
 
   individual_num = len(frontier)
-  objective_num = len(base.get_fitness(frontier[0]))
+  objective_num = len(base.get_fitness(frontier[0]))  # pyrefly: ignore[bad-argument-type]
   distances = [0.0] * individual_num
 
   # dist is an index array, dist[i][j] represents the individual index in the
@@ -145,16 +145,16 @@ def crowding_distance_sort(frontier: List[pg.DNA]) -> List[pg.DNA]:
   for i in range(objective_num):
     # pylint: disable=cell-var-from-loop
     dist[i] = sorted(dist[i],
-                     key=lambda idx: base.get_fitness(frontier[idx])[i])
-    max_value = base.get_fitness(frontier[dist[i][individual_num - 1]])[i]
-    min_value = base.get_fitness(frontier[dist[i][0]])[i]
+                     key=lambda idx: base.get_fitness(frontier[idx])[i])  # pyrefly: ignore[bad-index]
+    max_value = base.get_fitness(frontier[dist[i][individual_num - 1]])[i]  # pyrefly: ignore[bad-index]
+    min_value = base.get_fitness(frontier[dist[i][0]])[i]  # pyrefly: ignore[bad-index]
     for j in range(individual_num):
       if j == 0 or j == individual_num - 1:
         distances[dist[i][j]] = objective_num
       elif max_value > min_value:
         distances[dist[i][j]] += (
-            (base.get_fitness(frontier[dist[i][j + 1]])[i] -
-             base.get_fitness(frontier[dist[i][j - 1]])[i])
+            (base.get_fitness(frontier[dist[i][j + 1]])[i] -  # pyrefly: ignore[bad-index]
+             base.get_fitness(frontier[dist[i][j - 1]])[i])  # pyrefly: ignore[bad-index]
             / (max_value - min_value))
   # Sorts frontier in decreasing order wrt crowding distances.
   idx_arr = list(range(individual_num))

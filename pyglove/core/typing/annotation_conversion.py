@@ -113,7 +113,7 @@ def annotation_from_str(
     type_id = _type_id()
     t = _resolve(type_id)
     if t is typing.Literal:
-      return t[_literal_params()]
+      return t[_literal_params()]  # pyrefly: ignore[invalid-literal]
     elif _match('['):
       arg = _type_arg()
       if not _match(']'):
@@ -284,7 +284,7 @@ def _field_from_annotation(
   else:
     field_spec = (key, annotation, description, metadata or {})
   return class_schema.create_field(
-      field_spec,
+      field_spec,  # pyrefly: ignore[bad-argument-type]
       auto_typing=auto_typing,
       accept_value_as_annotation=False,
       parent_module=parent_module

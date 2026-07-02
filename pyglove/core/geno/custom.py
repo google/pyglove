@@ -34,7 +34,7 @@ from pyglove.core.geno.base import DNA
          'An optional callable object to get the next DNA for current point.'),
         ('random_dna_fn', pg_typing.Callable(
             [
-                pg_typing.Any(),                   # Random module or object.
+                pg_typing.Any(),                   # Random module or object.  # pyrefly: ignore[bad-instantiation]
                 pg_typing.Object(DNA).noneable()   # Previous DNA.
             ],
             returns=pg_typing.Object(DNA)).noneable(),
@@ -117,7 +117,7 @@ class CustomDecisionPoint(DecisionPoint):
     """Returns number of decision points in current space."""
     return 1
 
-  def validate(self, dna: DNA) -> None:
+  def validate(self, dna: DNA) -> None:  # pyrefly: ignore[bad-override]
     """Validate whether a DNA value conforms to this spec."""
     if not isinstance(dna.value, str):
       raise ValueError(

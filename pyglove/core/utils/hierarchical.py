@@ -624,7 +624,7 @@ def merge_tree(dest: Any,
 
   if isinstance(dest, dict) and isinstance(src, dict):
     # Merge dict into dict.
-    return _merge_dict_into_dict(dest, src, merge_fn, root_path)
+    return _merge_dict_into_dict(dest, src, merge_fn, root_path)  # pyrefly: ignore[bad-argument-type]
 
   if isinstance(dest, list) and isinstance(src, dict):
     # Merge (possible) sparse indexed list into a list.

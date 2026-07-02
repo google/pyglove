@@ -102,26 +102,26 @@ class DocStr:
     """Parses a docstring."""
     result = docstring_parser.parse(text, _to_parser_style(style))
     return cls(
-        style=_from_parser_style(result.style),
+        style=_from_parser_style(result.style),  # pyrefly: ignore[bad-argument-type]
         short_description=result.short_description,
         long_description=result.long_description,
         examples=[
-            DocStrExample(description=e.description)
+            DocStrExample(description=e.description)  # pyrefly: ignore[bad-argument-type]
             for e in result.examples
         ],
         args={  # pylint: disable=g-complex-comprehension
             p.arg_name: DocStrArgument(
-                name=p.arg_name, description=p.description,
+                name=p.arg_name, description=p.description,  # pyrefly: ignore[bad-argument-type]
                 type_name=p.type_name, default=p.default,
                 is_optional=p.is_optional)
             for p in result.params
         },
         returns=DocStrReturns(  # pylint: disable=g-long-ternary
             name=result.returns.return_name,
-            description=result.returns.description,
+            description=result.returns.description,  # pyrefly: ignore[bad-argument-type]
             is_yield=result.returns.is_generator) if result.returns else None,
         raises=[
-            DocStrRaises(type_name=r.type_name, description=r.description)
+            DocStrRaises(type_name=r.type_name, description=r.description)  # pyrefly: ignore[bad-argument-type]
             for r in result.raises
         ],
         blank_after_short_description=result.blank_after_short_description)

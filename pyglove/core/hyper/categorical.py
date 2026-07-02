@@ -29,7 +29,7 @@ from pyglove.core.hyper import object_template
     ('num_choices', pg_typing.Int(min_value=0).noneable(),
      ('Number of choices to make. If set to None, any number of choices is '
       'acceptable.')),
-    ('candidates', pg_typing.List(pg_typing.Any()),
+    ('candidates', pg_typing.List(pg_typing.Any()),  # pyrefly: ignore[bad-instantiation]
      ('Candidate values, which may contain nested hyper values.'
       'Candidate can customize its display value (literal) by implementing the '
       '`pg.Formattable` interface.')),
@@ -124,7 +124,7 @@ class Choices(base.HyperPrimitive):
       self, candidate: Any, max_len: int = 120) -> Union[int, float, str]:
     """Returns literal value for candidate."""
     if isinstance(candidate, numbers.Number):
-      return candidate
+      return candidate  # pyrefly: ignore[bad-return]
 
     literal = utils.format(
         candidate,
@@ -142,7 +142,7 @@ class Choices(base.HyperPrimitive):
     dna = self._dna
     if self.num_choices == 1:
       # Single choice.
-      if not isinstance(dna.value, int):
+      if not isinstance(dna.value, int):  # pyrefly: ignore[missing-attribute]
         raise ValueError(
             utils.message_on_path(
                 'Did you forget to specify values for conditional choices?\n'
@@ -163,7 +163,7 @@ class Choices(base.HyperPrimitive):
           geno.DNA(None, dna.children))]
     else:
       # Multi choices.
-      if len(dna.children) != self.num_choices:
+      if len(dna.children) != self.num_choices:  # pyrefly: ignore[missing-attribute]
         raise ValueError(
             utils.message_on_path(
                 'Number of DNA child values does not match the number of '
@@ -173,9 +173,9 @@ class Choices(base.HyperPrimitive):
             )
         )
       if self.choices_distinct or self.choices_sorted:
-        sub_dna_values = [s.value for s in dna]
+        sub_dna_values = [s.value for s in dna]  # pyrefly: ignore[not-iterable]
         if (self.choices_distinct
-            and len(set(sub_dna_values)) != len(dna.children)):
+            and len(set(sub_dna_values)) != len(dna.children)):  # pyrefly: ignore[bad-argument-type]
           raise ValueError(
               utils.message_on_path(
                   'DNA child values should be distinct. '
@@ -192,7 +192,7 @@ class Choices(base.HyperPrimitive):
               )
           )
       choices = []
-      for i, sub_dna in enumerate(dna):
+      for i, sub_dna in enumerate(dna):  # pyrefly: ignore[bad-argument-type]
         if not isinstance(sub_dna.value, int):
           raise ValueError(
               utils.message_on_path(
@@ -372,7 +372,7 @@ class ManyOf(Choices):
     list_spec = typing.cast(
         pg_typing.List,
         pg_typing.ensure_value_spec(
-            value_spec, pg_typing.List(pg_typing.Any()), path))
+            value_spec, pg_typing.List(pg_typing.Any()), path))  # pyrefly: ignore[bad-instantiation]
     if list_spec:
       for i, c in enumerate(self.candidates):
         list_spec.element.value.apply(

@@ -66,7 +66,7 @@ class Random(base.Selector):
     super()._on_bound()
     self._random = random if self.seed is None else random.Random(self.seed)
 
-  def select(self, inputs: List[Any], step: int) -> List[Any]:
+  def select(self, inputs: List[Any], step: int) -> List[Any]:  # pyrefly: ignore[bad-override]
     n = compute_num_output(self.n, len(inputs), step)
     if self.replacement:
       return [self._random.choice(inputs) for _ in range(n)]
@@ -85,7 +85,7 @@ class Random(base.Selector):
      'examples. If None, the selector outputs the same number of examples as '
      'the input.'),
     ('weights', base.operation_spec(
-        pg.typing.Any(), pg.typing.Float(min_value=0.0)),
+        pg.typing.Any(), pg.typing.Float(min_value=0.0)),  # pyrefly: ignore[bad-instantiation]
      'A callable object that takes a list of items as input and returns a list '
      'of float numbers as the weights for each item. Optional keyword '
      'arguments \'global_state\' and \'step\' can be accepted.'),
@@ -116,7 +116,7 @@ class Sample(base.Selector):
      'examples. If None, the selector outputs the same number of examples as '
      'the input.'),
     ('weights', base.operation_spec(
-        pg.typing.Any(), pg.typing.Float(min_value=0.0)),
+        pg.typing.Any(), pg.typing.Float(min_value=0.0)),  # pyrefly: ignore[bad-instantiation]
      'A callable object that takes a list of items as input and returns a list '
      'of float numbers as the weights for each item. Optional keyword '
      'arguments \'global_state\' and \'step\' can be accepted.'),
@@ -180,7 +180,7 @@ class Proportional(base.Selector):
      'examples. If None, the selector outputs the same number of examples as '
      'the input.'),
     ('key', pg.typing.Callable(
-        [pg.typing.Any()], returns=pg.typing.Any()).noneable(),
+        [pg.typing.Any()], returns=pg.typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
      'A callable object as the key argument for sorting the input list. '
      'If None and when the input element type is DNA, the fitness will be '
      'used as `key`.'),
@@ -191,7 +191,7 @@ class Proportional(base.Selector):
 class Top(base.Selector):
   """Top N selector."""
 
-  def select(self, inputs: List[Any], step: int) -> List[Any]:
+  def select(self, inputs: List[Any], step: int) -> List[Any]:  # pyrefly: ignore[bad-override]
     key = self.key
     if key is None and inputs and isinstance(inputs[0], pg.DNA):
       key = base.get_fitness
@@ -217,7 +217,7 @@ class Top(base.Selector):
      'examples. If None, the selector outputs the same number of examples as '
      'the input.'),
     ('key', pg.typing.Callable(
-        [pg.typing.Any()], returns=pg.typing.Any()).noneable(),
+        [pg.typing.Any()], returns=pg.typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
      'A callable object as the key argument for sorting the input list. '
      'If None and when the input element type is DNA, the fitness will be '
      'used as `key`.'),
@@ -228,7 +228,7 @@ class Top(base.Selector):
 class Bottom(base.Selector):
   """Bottom N selector."""
 
-  def select(self, inputs: List[Any], step: int) -> List[Any]:
+  def select(self, inputs: List[Any], step: int) -> List[Any]:  # pyrefly: ignore[bad-override]
     key = self.key
     if key is None and inputs and isinstance(inputs[0], pg.DNA):
       key = base.get_fitness
@@ -256,7 +256,7 @@ class Bottom(base.Selector):
 class First(base.Selector):
   """First N selector."""
 
-  def select(self, inputs: List[Any], step: int) -> List[Any]:
+  def select(self, inputs: List[Any], step: int) -> List[Any]:  # pyrefly: ignore[bad-override]
     return inputs[:compute_num_output(self.n, len(inputs), step)]
 
 
@@ -273,6 +273,6 @@ class First(base.Selector):
 class Last(base.Selector):
   """Last N selector."""
 
-  def select(self, inputs: List[Any], step: int) -> List[Any]:
+  def select(self, inputs: List[Any], step: int) -> List[Any]:  # pyrefly: ignore[bad-override]
     n = compute_num_output(self.n, len(inputs), step)
     return inputs[max(0, len(inputs) - n):]

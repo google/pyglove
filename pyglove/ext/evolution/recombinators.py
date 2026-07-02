@@ -238,7 +238,7 @@ class PointWise(base.Recombinator):
         for old_decision, parent_dict in zip(parent_decisions, parent_dicts):
           if isinstance(dp, pg.geno.Choices) and dp.num_choices > 1:
             for i in range(dp.num_choices):
-              if old_decision is None or old_decision[i] != decision[i]:
+              if old_decision is None or old_decision[i] != decision[i]:  # pyrefly: ignore[bad-index]
                 for child_dp in self._applicable_decision_points(
                     dp.subchoice(i), global_state=global_state, step=step):
                   parent_dict[child_dp] = None
@@ -249,7 +249,7 @@ class PointWise(base.Recombinator):
                 parent_dict[child_dp] = None
           # Update each parent dict for creating a child later.
           parent_dict[dp] = decision
-    return list(set(pg.DNA.from_dict(pd, dna_spec) for pd in parent_dicts))
+    return list(set(pg.DNA.from_dict(pd, dna_spec) for pd in parent_dicts))  # pyrefly: ignore[bad-argument-type]
 
   def applicable_decision_points(
       self,
@@ -338,7 +338,7 @@ class Uniform(PointWise):
         and decision_point.num_choices > 1):
       return _merge_multi_choice(
           decision_point,
-          parent_decisions,
+          parent_decisions,  # pyrefly: ignore[bad-argument-type]
           [1.] * len(parent_decisions),
           self._random)
     else:
@@ -415,11 +415,11 @@ class Sample(PointWise):
         and decision_point.num_choices > 1):
       return _merge_multi_choice(
           decision_point,
-          parent_decisions,
+          parent_decisions,  # pyrefly: ignore[bad-argument-type]
           adjusted_weights,
           self._random)
     else:
-      return self._random.choices(
+      return self._random.choices(  # pyrefly: ignore[bad-return]
           parent_decisions, weights=adjusted_weights, k=1)[0]
 
 
@@ -469,7 +469,7 @@ class Average(Numeric):
       parent_decisions: List[Optional[float]]) -> float:
     del decision_point
     parent_decisions = [d for d in parent_decisions if d is not None]
-    return sum(parent_decisions) / len(parent_decisions)
+    return sum(parent_decisions) / len(parent_decisions)  # pyrefly: ignore[no-matching-overload]
 
 
 @pg.members([
@@ -574,7 +574,7 @@ class SegmentWise(base.Recombinator):
 
     # Find top-level decision points that are independent from each other.
     independent_decision_points = []
-    for dp in dna_spec.decision_points:
+    for dp in dna_spec.decision_points:  # pyrefly: ignore[missing-attribute]
       if dp.parent_choice is None:
         # For multi-choices which have distinct or sorted constraint, treat
         # the multi-choice as an indepedent point, otherwise treat each
@@ -599,8 +599,8 @@ class SegmentWise(base.Recombinator):
         child1[dp] = x[dp] if i % 2 == 0 else y[dp]
         child2[dp] = y[dp] if i % 2 == 0 else x[dp]
       start = cp
-    return [pg.DNA.from_dict(child1, dna_spec),
-            pg.DNA.from_dict(child2, dna_spec)]
+    return [pg.DNA.from_dict(child1, dna_spec),  # pyrefly: ignore[bad-argument-type]
+            pg.DNA.from_dict(child2, dna_spec)]  # pyrefly: ignore[bad-argument-type]
 
   @abc.abstractmethod
   def cutting_indices(
@@ -809,7 +809,7 @@ class Permutation(base.Recombinator):
     # from matched parent DNA trees and use the `where` clause to select
     # permutation points.
     permutation_points = self.where(
-        possible_permutation_points(dna_spec, parents),
+        possible_permutation_points(dna_spec, parents),  # pyrefly: ignore[bad-argument-type]
         global_state=global_state, step=step)
 
     # If there exists any permutation candidate, we random choose one as the
@@ -826,17 +826,17 @@ class Permutation(base.Recombinator):
         # subchoices of a multi-choice.
         permutation_proposals: List[List[int]] = self.permutate(
             permutation_point,
-            [[dna.value for dna in p[permutation_point]] for p in parent_dicts])
+            [[dna.value for dna in p[permutation_point]] for p in parent_dicts])  # pyrefly: ignore[not-iterable]
 
         # For each child proposal, merge it back with each parent's DNA to
         # produce an output. Therefore if there are N parents and M permuation
         # proposals, the maximum number of output is N * M. Duplicates will be
         # removed so it may lead to a smaller number than N * M.
         for parent_dict in parent_dicts:
-          subdna_map = {d.value: d for d in parent_dict[permutation_point]}
+          subdna_map = {d.value: d for d in parent_dict[permutation_point]}  # pyrefly: ignore[not-iterable]
           for proposal in permutation_proposals:
-            parent_dict[permutation_point] = [subdna_map[v] for v in proposal]
-            outputs.append(pg.DNA.from_dict(parent_dict, dna_spec))
+            parent_dict[permutation_point] = [subdna_map[v] for v in proposal]  # pyrefly: ignore[unsupported-operation]
+            outputs.append(pg.DNA.from_dict(parent_dict, dna_spec))  # pyrefly: ignore[bad-argument-type]
       outputs = list(set(outputs))
       return outputs
     return parents
@@ -884,7 +884,7 @@ class PartiallyMapped(Permutation):
     children, assigned, indices = [], [], []
     for i in range(2):
       child = [None] * size
-      child[start:end] = parents[(i + 1) % 2][start:end]
+      child[start:end] = parents[(i + 1) % 2][start:end]  # pyrefly: ignore[unsupported-operation]
       children.append(child)
 
       assigned.append(set(c for c in children[i] if c is not None))
@@ -938,7 +938,7 @@ class Order(Permutation):
     children, crossovered, indices = [], [], []
     for i in range(2):
       child = [None] * size
-      child[start:end] = parents[(i + 1) % 2][start:end]
+      child[start:end] = parents[(i + 1) % 2][start:end]  # pyrefly: ignore[unsupported-operation]
       children.append(child)
 
       crossovered.append(set(c for c in children[i] if c is not None))

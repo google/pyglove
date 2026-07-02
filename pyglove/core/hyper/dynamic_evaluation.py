@@ -224,8 +224,8 @@ class DynamicEvaluationContext:
     # together with process-level dynamic evaluation context.
     _dynamic_evaluation_stack.ensure_thread_safety(self)
 
-    self._hyper_dict = {}
-    with dynamic_evaluate(self.add_decision_point, per_thread=self._per_thread):
+    self._hyper_dict = {}  # pyrefly: ignore[bad-assignment]
+    with dynamic_evaluate(self.add_decision_point, per_thread=self._per_thread):  # pyrefly: ignore[bad-argument-type]
       try:
         # Push current context to dynamic evaluatoin stack so nested context
         # can defer unresolved hyper primitive to current context.
@@ -275,7 +275,7 @@ class DynamicEvaluationContext:
         v = [candidate_values[i] for i in range(hyper_primitive.num_choices)]
       else:
         v = [candidate_values[0]] * hyper_primitive.num_choices
-      hyper_primitive = hyper_primitive.clone(deep=True, override={
+      hyper_primitive = hyper_primitive.clone(deep=True, override={  # pyrefly: ignore[bad-assignment]
           'candidates': list(candidates)
       })
       first_value = v[0] if isinstance(
@@ -292,7 +292,7 @@ class DynamicEvaluationContext:
           f'Found different hyper primitives under the same name {name!r}: '
           f'Instance1={self._name_to_hyper[name]!r}, '
           f'Instance2={hyper_primitive!r}.')
-    self._hyper_dict[name] = hyper_primitive
+    self._hyper_dict[name] = hyper_primitive  # pyrefly: ignore[unsupported-operation]
     self._name_to_hyper[name] = hyper_primitive
     return first_value
 
@@ -331,11 +331,11 @@ class DynamicEvaluationContext:
         used_decision_names.add(name)
         if (not isinstance(hyper_primitive, categorical.Choices)
             or hyper_primitive.num_choices == 1):
-          return decision
+          return decision  # pyrefly: ignore[bad-return]
         assert isinstance(decision, list), (hyper_primitive, decision)
         assert len(decision) == hyper_primitive.num_choices, (
             hyper_primitive, decision)
-        return decision[sub_index]
+        return decision[sub_index]  # pyrefly: ignore[bad-index]
 
       def err_on_unused_decisions():
         if len(used_decision_names) != len(decision_dict):
@@ -359,10 +359,10 @@ class DynamicEvaluationContext:
         else:
           name = f'{hyper_primitive.name}:{sub_index}'
         if name is None or name not in value_context['value_cache']:
-          if value_context['pos'] >= len(decision_list):
+          if value_context['pos'] >= len(decision_list):  # pyrefly: ignore[bad-argument-type]
             raise ValueError(
                 f'No decision is provided for {hyper_primitive!r}.')
-          decision = decision_list[value_context['pos']]
+          decision = decision_list[value_context['pos']]  # pyrefly: ignore[bad-index]
           value_context['pos'] += 1
           if name is not None:
             value_context['value_cache'][name] = decision
@@ -389,8 +389,8 @@ class DynamicEvaluationContext:
         return decision
 
       def err_on_unused_decisions():
-        if value_context['pos'] != len(decision_list):
-          remaining = decision_list[value_context['pos']:]
+        if value_context['pos'] != len(decision_list):  # pyrefly: ignore[bad-argument-type]
+          remaining = decision_list[value_context['pos']:]  # pyrefly: ignore[bad-index]
           raise ValueError(
               f'Found extra decision values that are not used: {remaining!r}')
       return get_decision_by_position, err_on_unused_decisions
@@ -431,7 +431,7 @@ class DynamicEvaluationContext:
         self._decision_getter_and_evaluation_finalizer(decisions))
 
     has_errors = False
-    with dynamic_evaluate(self.evaluate, per_thread=self._per_thread):
+    with dynamic_evaluate(self.evaluate, per_thread=self._per_thread):  # pyrefly: ignore[bad-argument-type]
       try:
         # Set decision getter for current decision.
         self._decision_getter = get_current_decision

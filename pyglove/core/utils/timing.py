@@ -44,7 +44,7 @@ class TimeIt:
       """Returns whether the context has error."""
       return self.error is not None
 
-    def to_json(self, **kwargs) -> Dict[str, Any]:
+    def to_json(self, **kwargs) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
       return self.to_json_dict(
           fields=dict(
               name=(self.name, None),
@@ -95,7 +95,7 @@ class TimeIt:
           assert status.error is not None
           self.error_tags[status.error.tag] += 1
 
-      def to_json(self, **kwargs) -> Dict[str, Any]:
+      def to_json(self, **kwargs) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
         return self.to_json_dict(
             fields=dict(
                 num_started=(self.num_started, 0),
@@ -122,7 +122,7 @@ class TimeIt:
           self.breakdown[k] = TimeIt.StatusSummary.Entry()
         self.breakdown[k].update(v)
 
-    def to_json(self, **kwargs) -> Dict[str, Any]:
+    def to_json(self, **kwargs) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
       return self.to_json_dict(
           fields=dict(
               breakdown=(self.breakdown, {}),

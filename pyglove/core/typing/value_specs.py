@@ -155,7 +155,7 @@ class ValueSpecBase(ValueSpec):
     return self
 
   @property
-  def value_type(self) -> typing.Union[
+  def value_type(self) -> typing.Union[  # pyrefly: ignore[bad-override]
       None,
       typing.Type[typing.Any],
       typing.Tuple[typing.Type[typing.Any], ...]]:  # pyformat: disable
@@ -310,7 +310,7 @@ class ValueSpecBase(ValueSpec):
     if (
         self.type_resolved
         and self.value_type is not None
-        and not pg_inspect.is_instance(value, self.value_type)
+        and not pg_inspect.is_instance(value, self.value_type)  # pyrefly: ignore[bad-argument-type]
     ):
       converter = type_conversion.get_converter(type(value), self.value_type)
       if converter is None:
@@ -328,7 +328,7 @@ class ValueSpecBase(ValueSpec):
     # node (which is in Field.apply), input are in good shape.
     # It also lets users to create complex object types from transform function
     # without downstream constraint.
-    value = self._apply(value, allow_partial, child_transform, root_path)
+    value = self._apply(value, allow_partial, child_transform, root_path)  # pyrefly: ignore[bad-argument-type]
 
     # Validation is applied after transformation.
     self._validate(root_path, value)
@@ -455,7 +455,7 @@ class PrimitiveType(ValueSpecBase):
     del kwargs
     if (not args and self.has_default) or self.frozen:
       return self.default
-    return self.apply(self.value_type(*args))
+    return self.apply(self.value_type(*args))  # pyrefly: ignore[not-callable]
 
 
 class Bool(PrimitiveType):
@@ -483,7 +483,7 @@ class Bool(PrimitiveType):
 
   def __init__(
       self,
-      default: typing.Optional[bool] = MISSING_VALUE,
+      default: typing.Optional[bool] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       is_noneable: bool = False,
       frozen: bool = False,
   ):  # pytype: disable=annotation-type-mismatch
@@ -496,7 +496,7 @@ class Bool(PrimitiveType):
     """
     super().__init__(bool, default, is_noneable=is_noneable, frozen=frozen)
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             default=(self.default, MISSING_VALUE),
@@ -536,7 +536,7 @@ class Str(Generic, PrimitiveType):
 
   def __init__(
       self,
-      default: typing.Optional[str] = MISSING_VALUE,
+      default: typing.Optional[str] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       regex: typing.Optional[str] = None,
       is_noneable: bool = False,
       frozen: bool = False,
@@ -552,7 +552,7 @@ class Str(Generic, PrimitiveType):
     self._regex = re.compile(regex) if regex else None
     super().__init__(str, default, is_noneable=is_noneable, frozen=frozen)
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             default=(self.default, MISSING_VALUE),
@@ -582,14 +582,14 @@ class Str(Generic, PrimitiveType):
     """Returns regular expression for acceptable values."""
     return self._regex
 
-  def _extend(self, base: 'Str') -> None:
+  def _extend(self, base: 'Str') -> None:  # pyrefly: ignore[bad-override]
     """Str specific extend."""
     if not self._regex:
       # NOTE(daiyip): we may want to check if child regex
       # is a stricter form of base regex in future.
       self._regex = base.regex
 
-  def _is_compatible(self, other: 'Str') -> bool:
+  def _is_compatible(self, other: 'Str') -> bool:  # pyrefly: ignore[bad-override]
     """Str specific compatibility check."""
     # NOTE(daiyip): loose the compatibility check for regular expressions,
     # since there is not an easy way for checking the compatibility of two
@@ -624,7 +624,7 @@ class Str(Generic, PrimitiveType):
         **kwargs,
     )
 
-  def _eq(self, other: 'Str') -> bool:
+  def _eq(self, other: 'Str') -> bool:  # pyrefly: ignore[bad-override]
     return self.regex == other.regex
 
   @classmethod
@@ -643,7 +643,7 @@ class Number(Generic, PrimitiveType):
   def __init__(
       self,
       value_type,  # typing.Type[numbers.Number]
-      default: typing.Optional[numbers.Number] = MISSING_VALUE,
+      default: typing.Optional[numbers.Number] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       min_value: typing.Optional[numbers.Number] = None,
       max_value: typing.Optional[numbers.Number] = None,
       is_noneable: bool = False,
@@ -660,7 +660,7 @@ class Number(Generic, PrimitiveType):
       frozen: If True, values other than the default value is not accceptable.
     """
     if (min_value is not None and max_value is not None and
-        min_value > max_value):
+        min_value > max_value):  # pyrefly: ignore[unsupported-operation]
       raise ValueError(
           f'"max_value" must be equal or greater than "min_value". '
           f'Encountered: min_value={min_value}, max_value={max_value}.')
@@ -682,8 +682,8 @@ class Number(Generic, PrimitiveType):
 
   def _validate(self, path: utils.KeyPath, value: numbers.Number) -> None:
     """Validates applied value."""
-    if ((self._min_value is not None and value < self._min_value) or
-        (self._max_value is not None and value > self._max_value)):
+    if ((self._min_value is not None and value < self._min_value) or  # pyrefly: ignore[unsupported-operation]
+        (self._max_value is not None and value > self._max_value)):  # pyrefly: ignore[unsupported-operation]
       raise ValueError(
           utils.message_on_path(
               f'Value {value} is out of range '
@@ -692,13 +692,13 @@ class Number(Generic, PrimitiveType):
           )
       )
 
-  def _extend(self, base: 'Number') -> None:
+  def _extend(self, base: 'Number') -> None:  # pyrefly: ignore[bad-override]
     """Number specific extend."""
     min_value = self._min_value
     if base.min_value is not None:
       if min_value is None:
         min_value = base.min_value
-      elif min_value < base.min_value:
+      elif min_value < base.min_value:  # pyrefly: ignore[unsupported-operation]
         raise TypeError(
             f'{self!r} cannot extend {base!r}: min_value is smaller.'
         )
@@ -707,13 +707,13 @@ class Number(Generic, PrimitiveType):
     if base.max_value is not None:
       if max_value is None:
         max_value = base.max_value
-      elif max_value > base.max_value:
+      elif max_value > base.max_value:  # pyrefly: ignore[unsupported-operation]
         raise TypeError(
             f'{self!r} cannot extend {base!r}: max_value is larger.'
         )
 
     if (min_value is not None and max_value is not None and
-        min_value > max_value):
+        min_value > max_value):  # pyrefly: ignore[unsupported-operation]
       raise TypeError(
           f'{self!r} cannot extend {base!r}: '
           f'min_value ({min_value}) is greater than max_value ({max_value}) '
@@ -721,17 +721,17 @@ class Number(Generic, PrimitiveType):
     self._min_value = min_value
     self._max_value = max_value
 
-  def _is_compatible(self, other: 'Number') -> bool:
+  def _is_compatible(self, other: 'Number') -> bool:  # pyrefly: ignore[bad-override]
     """Number specific compatibility check."""
     if self._min_value is not None:
-      if other.min_value is None or other.min_value < self._min_value:
+      if other.min_value is None or other.min_value < self._min_value:  # pyrefly: ignore[unsupported-operation]
         return False
     if self._max_value is not None:
-      if other.max_value is None or other.max_value > self._max_value:
+      if other.max_value is None or other.max_value > self._max_value:  # pyrefly: ignore[unsupported-operation]
         return False
     return True
 
-  def _eq(self, other: 'Number') -> bool:
+  def _eq(self, other: 'Number') -> bool:  # pyrefly: ignore[bad-override]
     return (self.min_value == other.min_value
             and self.max_value == other.max_value)
 
@@ -758,7 +758,7 @@ class Number(Generic, PrimitiveType):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             default=(self.default, MISSING_VALUE),
@@ -812,7 +812,7 @@ class Int(Number):
 
   def __init__(
       self,
-      default: typing.Optional[int] = MISSING_VALUE,
+      default: typing.Optional[int] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       min_value: typing.Optional[int] = None,
       max_value: typing.Optional[int] = None,
       is_noneable: bool = False,
@@ -827,7 +827,7 @@ class Int(Number):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    super().__init__(int, default, min_value, max_value, is_noneable, frozen)
+    super().__init__(int, default, min_value, max_value, is_noneable, frozen)  # pyrefly: ignore[bad-argument-type]
 
 
 class Float(Number):
@@ -858,7 +858,7 @@ class Float(Number):
 
   def __init__(
       self,
-      default: typing.Optional[float] = MISSING_VALUE,
+      default: typing.Optional[float] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       min_value: typing.Optional[float] = None,
       max_value: typing.Optional[float] = None,
       is_noneable: bool = False,
@@ -873,7 +873,7 @@ class Float(Number):
       is_noneable: If True, None is acceptable.
       frozen: If True, values other than the default value is not accceptable.
     """
-    super().__init__(float, default, min_value, max_value, is_noneable, frozen)
+    super().__init__(float, default, min_value, max_value, is_noneable, frozen)  # pyrefly: ignore[bad-argument-type]
 
 
 class Enum(Generic, PrimitiveType):
@@ -940,7 +940,7 @@ class Enum(Generic, PrimitiveType):
       value_type = str
     self._values = values
     super().__init__(
-        value_type, default, is_noneable=is_noneable, frozen=frozen
+        value_type, default, is_noneable=is_noneable, frozen=frozen  # pyrefly: ignore[bad-argument-type]
     )
 
   def __call__(self, *args, **kwargs) -> typing.Any:
@@ -962,7 +962,7 @@ class Enum(Generic, PrimitiveType):
       if None in self._values:
         self._values.remove(None)
         if self._default is None:
-          self._default = MISSING_VALUE
+          self._default = MISSING_VALUE  # pyrefly: ignore[bad-assignment]
     self._is_noneable = is_noneable
     return self
 
@@ -980,7 +980,7 @@ class Enum(Generic, PrimitiveType):
           )
       )
 
-  def _extend(self, base: 'Enum') -> None:
+  def _extend(self, base: 'Enum') -> None:  # pyrefly: ignore[bad-override]
     """Enum specific extend."""
     for v in self._values:
       try:
@@ -997,7 +997,7 @@ class Enum(Generic, PrimitiveType):
       return True
     return super().is_compatible(other)
 
-  def _is_compatible(self, other: 'Enum') -> bool:
+  def _is_compatible(self, other: 'Enum') -> bool:  # pyrefly: ignore[bad-override]
     """Enum specific compatibility check."""
     for v in other.values:
       if v not in self.values:
@@ -1012,7 +1012,7 @@ class Enum(Generic, PrimitiveType):
       return typing.Any
     return self.value_type
 
-  def _eq(self, other: 'Enum') -> bool:
+  def _eq(self, other: 'Enum') -> bool:  # pyrefly: ignore[bad-override]
     return self.values == other.values
 
   def format(
@@ -1036,7 +1036,7 @@ class Enum(Generic, PrimitiveType):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             default=(self.default, MISSING_VALUE),
@@ -1079,7 +1079,7 @@ class List(Generic, ValueSpecBase):
   def __init__(
       self,
       element_value: ValueSpecOrAnnotation,
-      default: typing.Optional[typing.List[typing.Any]] = MISSING_VALUE,
+      default: typing.Optional[typing.List[typing.Any]] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
@@ -1216,11 +1216,11 @@ class List(Generic, ValueSpecBase):
             )
         )
 
-  def _extend(self, base: 'List') -> None:
+  def _extend(self, base: 'List') -> None:  # pyrefly: ignore[bad-override]
     """List specific extend."""
     self._element.extend(base.element)
 
-  def _is_compatible(self, other: 'List') -> bool:
+  def _is_compatible(self, other: 'List') -> bool:  # pyrefly: ignore[bad-override]
     """List specific compatibility check."""
     if self.max_size is not None:
       if other.max_size is None or other.max_size > self.max_size:
@@ -1231,7 +1231,7 @@ class List(Generic, ValueSpecBase):
     """Annotate with PyType annotation."""
     return typing.List[_any_if_no_annotation(self._element.value.annotation)]
 
-  def _eq(self, other: 'List') -> bool:
+  def _eq(self, other: 'List') -> bool:  # pyrefly: ignore[bad-override]
     return self.element == other.element
 
   def format(
@@ -1258,7 +1258,7 @@ class List(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             element_value=(self._element.value, None),
@@ -1311,7 +1311,7 @@ class Tuple(Generic, ValueSpecBase):
       element_values: typing.Union[
           ValueSpecOrAnnotation, typing.Sequence[ValueSpecOrAnnotation]
       ],
-      default: typing.Optional[typing.Tuple[typing.Any, ...]] = MISSING_VALUE,
+      default: typing.Optional[typing.Tuple[typing.Any, ...]] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       min_size: typing.Optional[int] = None,
       max_size: typing.Optional[int] = None,
       size: typing.Optional[int] = None,
@@ -1438,7 +1438,7 @@ class Tuple(Generic, ValueSpecBase):
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
     if self.fixed_length:
-      return typing.Tuple[tuple([
+      return typing.Tuple[tuple([  # pyrefly: ignore[not-a-type]
           _any_if_no_annotation(elem.value.annotation)
           for elem in self._elements])]       # pytype: disable=invalid-annotation
     else:
@@ -1495,7 +1495,7 @@ class Tuple(Generic, ValueSpecBase):
         for i, v in enumerate(value)
     ])
 
-  def _extend(self, base: 'Tuple') -> None:
+  def _extend(self, base: 'Tuple') -> None:  # pyrefly: ignore[bad-override]
     """Tuple specific extension."""
     if self.fixed_length and base.fixed_length:
       if len(self.elements) != len(base.elements):
@@ -1534,7 +1534,7 @@ class Tuple(Generic, ValueSpecBase):
         self._max_size = base.max_size
       self.elements[0].extend(base.elements[0])
 
-  def _is_compatible(self, other: 'Tuple') -> bool:
+  def _is_compatible(self, other: 'Tuple') -> bool:  # pyrefly: ignore[bad-override]
     """Tuple specific compatibility check."""
     if self.fixed_length and other.fixed_length:
       if len(self.elements) != len(other.elements):
@@ -1597,7 +1597,7 @@ class Tuple(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     if self.fixed_length:
       element_values = [e.value for e in self._elements]
       min_size, max_size = None, None
@@ -1712,7 +1712,7 @@ class Dict(Generic, ValueSpecBase):
             )
         ]
       if not isinstance(schema, Schema):
-        schema = class_schema.create_schema(schema, allow_nonconst_keys=True)
+        schema = class_schema.create_schema(schema, allow_nonconst_keys=True)  # pyrefly: ignore[bad-argument-type]
 
     self._schema = typing.cast(typing.Optional[Schema], schema)
     super().__init__(
@@ -1789,7 +1789,7 @@ class Dict(Generic, ValueSpecBase):
         root_path=root_path
     )
 
-  def _extend(self, base: 'Dict') -> None:
+  def _extend(self, base: 'Dict') -> None:  # pyrefly: ignore[bad-override]
     """Dict specific extension."""
     if base.schema:
       if not self._schema:
@@ -1797,9 +1797,9 @@ class Dict(Generic, ValueSpecBase):
         self._default = copy.deepcopy(base._default)  # pylint: disable=protected-access
       else:
         self._schema.extend(base.schema)
-        self._default = self._schema.apply({}, allow_partial=True)
+        self._default = self._schema.apply({}, allow_partial=True)  # pyrefly: ignore[bad-assignment]
 
-  def _is_compatible(self, other: 'Dict') -> bool:
+  def _is_compatible(self, other: 'Dict') -> bool:  # pyrefly: ignore[bad-override]
     """Dict specific compatibility check."""
     if self._schema:
       if other.schema is None:
@@ -1811,7 +1811,7 @@ class Dict(Generic, ValueSpecBase):
     """Annotate with PyType annotation."""
     return typing.Dict[str, typing.Any]
 
-  def _eq(self, other: 'Dict') -> bool:
+  def _eq(self, other: 'Dict') -> bool:  # pyrefly: ignore[bad-override]
     return self.schema == other.schema
 
   def format(
@@ -1839,7 +1839,7 @@ class Dict(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     fields = dict(
         schema=(self._schema, None),
         transform=(self._transform, None),
@@ -1847,7 +1847,7 @@ class Dict(Generic, ValueSpecBase):
         frozen=(self._frozen, False),
     )
     if not self._use_generated_default:
-      fields['default'] = (self._default, MISSING_VALUE)
+      fields['default'] = (self._default, MISSING_VALUE)  # pyrefly: ignore[bad-assignment]
     return self.to_json_dict(fields=fields, exclude_default=True, **kwargs)
 
   @classmethod
@@ -1940,7 +1940,7 @@ class Object(Generic, ValueSpecBase):
     self._forward_ref = forward_ref
     self._type_args = type_args
     super().__init__(
-        t, default, transform, is_noneable=is_noneable, frozen=frozen
+        t, default, transform, is_noneable=is_noneable, frozen=frozen  # pyrefly: ignore[bad-argument-type]
     )
 
   def __call__(self, *args, **kwargs) -> typing.Any:
@@ -1990,12 +1990,12 @@ class Object(Generic, ValueSpecBase):
       return self
     return super().extend(base)
 
-  def _extend(self, base: 'Object') -> None:
+  def _extend(self, base: 'Object') -> None:  # pyrefly: ignore[bad-override]
     """Object specific extension."""
     if not base.is_compatible(self):
       raise TypeError(f'{self!r} cannot extend {base!r}: incompatible class.')
 
-  def _is_compatible(self, other: 'Object') -> bool:
+  def _is_compatible(self, other: 'Object') -> bool:  # pyrefly: ignore[bad-override]
     """Object specific compatiblity check."""
     # NOTE(daiyip): When either the current spec or the other spec contains
     # unresolved forward declarations, we consider them compatible.
@@ -2014,7 +2014,7 @@ class Object(Generic, ValueSpecBase):
     """Returns the schema of object class if available."""
     return getattr(self.value_type, '__schema__', None)
 
-  def _eq(self, other: 'Object') -> bool:
+  def _eq(self, other: 'Object') -> bool:  # pyrefly: ignore[bad-override]
     """Operator==."""
     if self.type_resolved:
       return self.value_type == other.value_type
@@ -2046,7 +2046,7 @@ class Object(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             t=(self.cls, None),
@@ -2284,7 +2284,7 @@ class Callable(Generic, ValueSpecBase):
           )
       )
 
-  def _extend(self, base: 'Callable') -> None:
+  def _extend(self, base: 'Callable') -> None:  # pyrefly: ignore[bad-override]
     """Callable specific extension."""
     if not self._args:
       self._args = list(base.args)
@@ -2305,7 +2305,7 @@ class Callable(Generic, ValueSpecBase):
       return True
     return super().is_compatible(other)
 
-  def _is_compatible(self, other: 'Callable') -> bool:
+  def _is_compatible(self, other: 'Callable') -> bool:  # pyrefly: ignore[bad-override]
     """Callable specific compatible check."""
     if len(self._args) > len(other.args):
       return False
@@ -2340,7 +2340,7 @@ class Callable(Generic, ValueSpecBase):
       return_value = None
     return typing.Callable[args, return_value]  # pytype: disable=invalid-annotation
 
-  def _eq(self, other: 'Callable') -> bool:
+  def _eq(self, other: 'Callable') -> bool:  # pyrefly: ignore[bad-override]
     return (self._args == other.args
             and self._kw == other.kw
             and self._return_value == other.return_value)
@@ -2369,7 +2369,7 @@ class Callable(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             args=(self._args, []),
@@ -2401,7 +2401,7 @@ class Callable(Generic, ValueSpecBase):
     returns = type_args[1]
     if returns is None:
       returns = type(None)
-    return cls(args=args, returns=returns)
+    return cls(args=args, returns=returns)  # pyrefly: ignore[bad-argument-type]
 
 
 class Functor(Callable):
@@ -2491,7 +2491,7 @@ class Type(Generic, ValueSpecBase):
   def __init__(
       self,
       t: typing.Union[typing.Type[typing.Any], str],
-      default: typing.Type[typing.Any] = MISSING_VALUE,
+      default: typing.Type[typing.Any] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       is_noneable: bool = False,
       frozen: bool = False,
   ):  # pytype: disable=annotation-type-mismatch
@@ -2515,7 +2515,7 @@ class Type(Generic, ValueSpecBase):
     """Returns desired type."""
     if self._forward_ref is not None:
       return self._forward_ref.cls
-    return self._expected_type
+    return self._expected_type  # pyrefly: ignore[bad-return]
 
   @functools.cached_property
   def forward_refs(self) -> typing.Set[class_schema.ForwardRef]:
@@ -2533,7 +2533,7 @@ class Type(Generic, ValueSpecBase):
           )
       )
 
-  def _is_compatible(self, other: 'Type') -> bool:
+  def _is_compatible(self, other: 'Type') -> bool:  # pyrefly: ignore[bad-override]
     """Type specific compatiblity check."""
     # NOTE(daiyip): When either the current spec or the other spec contains
     # unresolved forward declarations, we consider them compatible.
@@ -2541,7 +2541,7 @@ class Type(Generic, ValueSpecBase):
       return True
     return pg_inspect.is_subclass(other.type, self.type)
 
-  def _extend(self, base: 'Type') -> None:
+  def _extend(self, base: 'Type') -> None:  # pyrefly: ignore[bad-override]
     """Type specific extension."""
     if not base.is_compatible(self):
       raise TypeError(f'{self!r} cannot extend {base!r}: incompatible type.')
@@ -2553,7 +2553,7 @@ class Type(Generic, ValueSpecBase):
       expected_type = self._forward_ref.as_annotation()
     return typing.Type[expected_type]  # pytype: disable=invalid-annotation
 
-  def _eq(self, other: 'Type') -> bool:
+  def _eq(self, other: 'Type') -> bool:  # pyrefly: ignore[bad-override]
     """Equals."""
     if self.type_resolved:
       return self.type == other.type
@@ -2581,7 +2581,7 @@ class Type(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             t=(self._expected_type, None),
@@ -3068,10 +3068,10 @@ class Any(ValueSpecBase):
     """Returns type annotation."""
     return self._annotation
 
-  def _eq(self, other: 'Any') -> bool:
+  def _eq(self, other: 'Any') -> bool:  # pyrefly: ignore[bad-override]
     return self.annotation == other.annotation
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             default=(self._default, MISSING_VALUE),
@@ -3141,7 +3141,7 @@ def ensure_value_spec(
     TypeError: When value_spec cannot match src_spec_type.
   """
   if isinstance(value_spec, Union):
-    value_spec = value_spec.get_candidate(src_spec)
+    value_spec = value_spec.get_candidate(src_spec)  # pyrefly: ignore[bad-assignment]
   if isinstance(value_spec, Any):
     return None
   if not src_spec.is_compatible(value_spec):
@@ -3149,7 +3149,7 @@ def ensure_value_spec(
         utils.message_on_path(
             f'Source spec {src_spec} is not compatible with destination '
             f'spec {value_spec}.',
-            root_path,
+            root_path,  # pyrefly: ignore[bad-argument-type]
         )
     )
   return value_spec

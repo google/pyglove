@@ -40,7 +40,7 @@ def _json_schema_from_schema(
 ) -> Dict[str, Any]:
   """Converts a PyGlove schema to JSON schema."""
   title = schema.name.split('.')[-1] if schema.name else None
-  entry = defs.get(title)
+  entry = defs.get(title)  # pyrefly: ignore[bad-argument-type]
   if entry is None:
     # NOTE(daiyip): Add a forward reference to the entry so recursive
     # references can be resolved.
@@ -222,7 +222,7 @@ def _json_schema_from_value_spec(
     else:
       definition = {'anyOf': [definition, nullable]}
     if value_spec.default is None:
-      definition['default'] = None
+      definition['default'] = None  # pyrefly: ignore[unsupported-operation]
   return definition
 
 
@@ -292,7 +292,7 @@ def _canonicalize_schema(
           return defs[ref_key].definition
         else:
           return _canonicalize_schema(
-              defs[ref_key].definition, defs=defs, include_defs=False,
+              defs[ref_key].definition, defs=defs, include_defs=False,  # pyrefly: ignore[bad-argument-type]
               inline_nested_refs=True
           )
     return v
@@ -349,7 +349,7 @@ def _schema_to_json_schema(
       **kwargs
   )
 
-class_schema.ValueSpec.to_json_schema = _value_spec_to_json_schema
+class_schema.ValueSpec.to_json_schema = _value_spec_to_json_schema  # pyrefly: ignore[bad-assignment]
 class_schema.Schema.to_json_schema = _schema_to_json_schema
 
 #
@@ -380,7 +380,7 @@ def _json_schema_to_value_spec(
           'Please make sure classes being referenced are defined '
           'before the referencing classes. '
       )
-    return type_ref
+    return type_ref  # pyrefly: ignore[bad-return]
   type_str = json_schema.get('type')
   default = json_schema.get('default', utils.MISSING_VALUE)
   if type_str is None:
@@ -549,5 +549,5 @@ def _schema_from_json_schema(
   )
 
 
-class_schema.ValueSpec.from_json_schema = _value_spec_from_json_schema
-class_schema.Schema.from_json_schema = _schema_from_json_schema
+class_schema.ValueSpec.from_json_schema = _value_spec_from_json_schema  # pyrefly: ignore[bad-assignment]
+class_schema.Schema.from_json_schema = _schema_from_json_schema  # pyrefly: ignore[bad-assignment]

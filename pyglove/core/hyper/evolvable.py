@@ -181,14 +181,14 @@ symbolic.members([
         pg_typing.Object(symbolic.Symbolic),
         'Symbolic value to involve.',
     ),
-    ('node_transform', pg_typing.Callable([], returns=pg_typing.Any()), ''),
+    ('node_transform', pg_typing.Callable([], returns=pg_typing.Any()), ''),  # pyrefly: ignore[bad-instantiation]
     (
         'weights',
         pg_typing.Callable(
             [
                 pg_typing.Object(MutationType),
                 pg_typing.Object(utils.KeyPath),
-                pg_typing.Any().noneable(),
+                pg_typing.Any().noneable(),  # pyrefly: ignore[bad-instantiation]
                 pg_typing.Object(symbolic.Symbolic),
             ],
             returns=pg_typing.Float(min_value=0.0),

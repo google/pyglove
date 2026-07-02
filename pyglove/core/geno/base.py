@@ -48,7 +48,7 @@ class AttributeDict(dict):
     ),
     (
         'hints',
-        pg_typing.Any(default=None),
+        pg_typing.Any(default=None),  # pyrefly: ignore[bad-instantiation]
         'Hints for DNA generator to consume.',
     ),
 ])
@@ -120,7 +120,7 @@ class DNASpec(symbolic.Object):
       cache = {}
       for dp in self.decision_points:
         if dp.is_categorical and dp.is_subchoice:
-          parent_key = dp.parent_spec.id
+          parent_key = dp.parent_spec.id  # pyrefly: ignore[missing-attribute]
           parent_value = cache.get(parent_key, None)
           if parent_value is None:
             parent_value = []
@@ -204,7 +204,7 @@ class DNASpec(symbolic.Object):
 
   def first_dna(self, attach_spec: bool = True) -> 'DNA':
     """Returns the first DNA in the spec."""
-    return self.next_dna(None, attach_spec)
+    return self.next_dna(None, attach_spec)  # pyrefly: ignore[bad-return]
 
   def next_dna(self,
                dna: Optional['DNA'] = None,
@@ -291,7 +291,7 @@ class DNASpec(symbolic.Object):
     """Returns the parent choice of current space."""
     if self.parent_spec is None:
       return None
-    return self.parent_spec if self.is_space else self.parent_spec.parent_choice
+    return self.parent_spec if self.is_space else self.parent_spec.parent_choice  # pyrefly: ignore[bad-return]
 
   @property
   def id(self) -> utils.KeyPath:
@@ -312,7 +312,7 @@ class DNASpec(symbolic.Object):
       else:
         # Float() or a multi-choice spec of a parent Choice.
         self._id = parent.id + self.location
-    return self._id
+    return self._id  # pyrefly: ignore[bad-return]
 
   def get(
       self, name_or_id: Union[utils.KeyPath, str], default: Any = None
@@ -506,7 +506,7 @@ class DNA(symbolic.Object):
       **kwargs: keyword arguments that will be passed through to
         symbolic.Object.
     """
-    value, children, metadata = self._parse_value_and_children(
+    value, children, metadata = self._parse_value_and_children(  # pyrefly: ignore[bad-unpacking]
         value, children, metadata, spec)
     super().__init__(
         value=value,
@@ -592,7 +592,7 @@ class DNA(symbolic.Object):
     if new_value is None and len(children) == 1:
       c = children[0]
       new_value, children, metadata = c.value, c.children, c.metadata
-    return new_value, children, metadata
+    return new_value, children, metadata  # pyrefly: ignore[bad-return]
 
   def set_metadata(
       self, key: str, value: Any, cloneable: bool = False) -> 'DNA':
@@ -661,7 +661,7 @@ class DNA(symbolic.Object):
     # its presence should always align with parent DNA.
     parent = self.sym_parent.sym_parent
     assert parent is not None
-    return parent
+    return parent  # pyrefly: ignore[bad-return]
 
   @property
   def root(self) -> 'DNA':
@@ -677,7 +677,7 @@ class DNA(symbolic.Object):
   def is_subchoice(self) -> bool:
     """Returns True if current DNA is a subchoice of a multi-choice."""
     self._ensure_dna_spec()
-    return self._spec.is_subchoice
+    return self._spec.is_subchoice  # pyrefly: ignore[missing-attribute]
 
   @property
   def multi_choice_spec(self) -> Optional['DecisionPoint']:
@@ -739,7 +739,7 @@ class DNA(symbolic.Object):
   def decision_ids(self) -> List[utils.KeyPath]:
     """Returns decision IDs."""
     self._ensure_dna_spec()
-    return self._spec.decision_ids
+    return self._spec.decision_ids  # pyrefly: ignore[missing-attribute]
 
   @property
   def named_decisions(self) -> Dict[str, Union['DNA', List['DNA']]]:
@@ -750,7 +750,7 @@ class DNA(symbolic.Object):
           key_type='dna_spec', value_type='dna',
           multi_choice_key='parent',
           include_inactive_decisions=True).items():
-        if spec.name is not None:
+        if spec.name is not None:  # pyrefly: ignore[missing-attribute]
           v = named_decisions.get(spec.name, None)
           if v is None:
             v = dna
@@ -949,9 +949,9 @@ class DNA(symbolic.Object):
     """
     def _get_decision(spec: DNASpec):
       """Gets the decision for DNASpec."""
-      decision = dict_repr.get(spec.id, None)
+      decision = dict_repr.get(spec.id, None)  # pyrefly: ignore[no-matching-overload]
       if decision is None:
-        decision = dict_repr.get(spec, None)
+        decision = dict_repr.get(spec, None)  # pyrefly: ignore[no-matching-overload]
 
       if decision is None and spec.name:
         decision = dict_repr.get(spec.name, None)
@@ -1169,7 +1169,7 @@ class DNA(symbolic.Object):
           if dna.spec.is_subchoice:
             # Append multi-choice values into parent's key.
             if multi_choice_use_parent_as_key:
-              _put(_key(dna.spec.parent_spec), value)
+              _put(_key(dna.spec.parent_spec), value)  # pyrefly: ignore[bad-argument-type]
 
             # Insert subchoice in its own key.
             if _needs_subchoice_key(dna.spec):
@@ -1191,7 +1191,7 @@ class DNA(symbolic.Object):
       return dict_repr
 
     result = dict()
-    for dp in self.spec.decision_points:
+    for dp in self.spec.decision_points:  # pyrefly: ignore[missing-attribute]
       if not filter_fn(dp):
         continue
       if dp.is_categorical and dp.is_subchoice:
@@ -1341,14 +1341,14 @@ class DNA(symbolic.Object):
       if isinstance(decision, DNA):
         dna = decision
       else:
-        if len(decision) != dna_spec.num_choices:
+        if len(decision) != dna_spec.num_choices:  # pyrefly: ignore[bad-argument-type]
           raise ValueError(
               f'Number of DNA child values does not match the number of '
               f'choices. Child values: {decision!r}, '
               f'Choices: {dna_spec.num_choices}, '
               f'Location: {dna_spec.location.path}.')
         children = []
-        for i, choice in enumerate(decision):
+        for i, choice in enumerate(decision):  # pyrefly: ignore[bad-argument-type]
           choice_location = utils.KeyPath(i, dna_spec.location)
           if not isinstance(choice, int):
             raise ValueError(
@@ -1515,7 +1515,7 @@ class DNA(symbolic.Object):
       key = key.id
       return self._decision_by_id[key]
     else:
-      v = self.named_decisions.get(key, None)
+      v = self.named_decisions.get(key, None)  # pyrefly: ignore[no-matching-overload]
       if v is None:
         v = self._decision_by_id[key]
       return v
@@ -1604,12 +1604,12 @@ class DNA(symbolic.Object):
   def next_dna(self) -> Optional['DNA']:
     """Get the next DNA in the spec."""
     self._ensure_dna_spec()
-    return self.spec.next_dna(self)
+    return self.spec.next_dna(self)  # pyrefly: ignore[missing-attribute]
 
   def iter_dna(self):
     """Iterate DNA of the space starting from self."""
     self._ensure_dna_spec()
-    return self.spec.iter_dna(self)
+    return self.spec.iter_dna(self)  # pyrefly: ignore[missing-attribute]
 
   def format(
       self,
@@ -1673,7 +1673,7 @@ class DNA(symbolic.Object):
       RuntimeError: If DNA is not associated with a DNASpec.
     """
     value_type = 'choice_and_literal' if use_literal_values else 'choice'
-    return self.to_dict(value_type=value_type)
+    return self.to_dict(value_type=value_type)  # pyrefly: ignore[bad-return]
 
   def _sym_clone(self, deep: bool, memo: Any = None) -> 'DNA':
     """Override to copy DNASpec."""
@@ -1691,7 +1691,7 @@ class DNA(symbolic.Object):
         metadata[k] = v
     other.rebind(metadata=metadata)
     other._cloneable_metadata_keys = set(self._cloneable_metadata_keys)  # pylint: disable=protected-access
-    return other
+    return other  # pyrefly: ignore[bad-return]
 
   @classmethod
   def from_parameters(cls,
@@ -1715,7 +1715,7 @@ class DNA(symbolic.Object):
       ValueError: If parameters are not aligned with DNA spec.
     """
     del use_literal_values
-    return cls.from_dict(parameters, dna_spec)
+    return cls.from_dict(parameters, dna_spec)  # pyrefly: ignore[bad-argument-type]
 
 
 symbolic.members([
@@ -1737,7 +1737,7 @@ symbolic.members([
     (
         'metadata',
         pg_typing.Dict(
-            [(pg_typing.StrKey(), pg_typing.Any(), 'Key-value pairs.')]
+            [(pg_typing.StrKey(), pg_typing.Any(), 'Key-value pairs.')]  # pyrefly: ignore[bad-instantiation]
         ),
         'Metadata assigned to the DNA.',
     ),

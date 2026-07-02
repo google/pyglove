@@ -50,7 +50,7 @@ class ErrorInfo(metaclass=abc.ABCMeta):
     error_types = []
     while error is not None:
       error_types.append(error.__class__.__name__)
-      error = getattr(error, 'cause', error.__cause__)
+      error = getattr(error, 'cause', error.__cause__)  # pyrefly: ignore[bad-assignment]
     return '.'.join(error_types)
 
   @classmethod
@@ -108,7 +108,7 @@ def catch_errors(
   Yields:
     A CatchErrorsContext object.
   """
-  errors = _parse_error_spec(errors)
+  errors = _parse_error_spec(errors)  # pyrefly: ignore[bad-assignment]
   context = CatchErrorsContext()
   try:
     yield context
@@ -167,16 +167,16 @@ def _parse_error_spec(
   if isinstance(errors, dict):
     return errors
   if not isinstance(errors, (tuple, list)):
-    errors = [errors]
+    errors = [errors]  # pyrefly: ignore[bad-assignment]
   elif (
       isinstance(errors, tuple)
       and len(errors) == 2
       and isinstance(errors[1], str)  # pytype: disable=not-indexable
   ):
-    errors = [errors]
+    errors = [errors]  # pyrefly: ignore[bad-assignment]
 
   error_mapping: Dict[Type[BaseException], List[str]] = {}
-  for error_type in errors:
+  for error_type in errors:  # pyrefly: ignore[not-iterable]
     regex = None
     if isinstance(error_type, tuple):
       if len(error_type) != 2 or not isinstance(error_type[1], str):  # pytype: disable=not-indexable

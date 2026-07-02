@@ -197,11 +197,11 @@ def scaled_average_fitness(inputs: List[Species], step: int) -> List[float]:
   for species in inputs:
     for dna in species.members:
       fitness = base.get_fitness(dna)
-      if global_min is None or global_min > fitness:
+      if global_min is None or global_min > fitness:  # pyrefly: ignore[unsupported-operation]
         global_min = fitness
       examples.append(id(dna))
   assert global_min is not None
-  return [sum([(base.get_fitness(d) - global_min) for d in s.members])
+  return [sum([(base.get_fitness(d) - global_min) for d in s.members])  # pyrefly: ignore[unsupported-operation]
           / float(len(s)) for s in inputs]
 
 
@@ -231,7 +231,7 @@ def _compute_diff(left: pg.DNA, right: pg.DNA) -> Tuple[int, int, int]:
       d += cd
     return (n, w, d)
   else:
-    nl = len(left.to_numbers())
-    nr = len(right.to_numbers())
+    nl = len(left.to_numbers())  # pyrefly: ignore[bad-argument-type]
+    nr = len(right.to_numbers())  # pyrefly: ignore[bad-argument-type]
     n = max(nl, nr)
     return (n, 1, n - 1)

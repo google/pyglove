@@ -295,7 +295,7 @@ class Signature(utils.Formattable):
     if not args:
       return self
 
-    schema = class_schema.create_schema(args, allow_nonconst_keys=True)  # pylint: disable=redefined-outer-name
+    schema = class_schema.create_schema(args, allow_nonconst_keys=True)  # pylint: disable=redefined-outer-name  # pyrefly: ignore[bad-argument-type]
 
     arg_fields: Dict[str, class_schema.Field] = dict()
     varargs_field = None
@@ -326,8 +326,8 @@ class Signature(utils.Formattable):
             extra_arg_names.append(arg_name)
           else:
             raise KeyError(
-                f'{self.id}: found extra symbolic argument {arg_name.text!r}.')
-        arg_fields[arg_name.text] = field
+                f'{self.id}: found extra symbolic argument {arg_name.text!r}.')  # pyrefly: ignore[missing-attribute]
+        arg_fields[arg_name.text] = field  # pyrefly: ignore[missing-attribute]
 
     def update_arg(arg: Argument, field: class_schema.Field):
       """Updates an argument with override field."""
@@ -391,7 +391,7 @@ class Signature(utils.Formattable):
     # Update kwarg.
     if kwarg_field is not None:
       assert self.varkw is not None
-      value_spec = class_schema.ValueSpec.DictType(kwarg_field.value)
+      value_spec = class_schema.ValueSpec.DictType(kwarg_field.value)  # pyrefly: ignore[bad-argument-count]
       self.varkw.value_spec = value_spec
       if kwarg_field.description:
         self.varkw.description = kwarg_field.description
@@ -545,13 +545,13 @@ class Signature(utils.Formattable):
       auto_doc: bool = False,
   ) -> 'Signature':
     """Creates Signature from a callable object."""
-    callable_object = typing.cast(object, callable_object)
+    callable_object = typing.cast(object, callable_object)  # pyrefly: ignore[bad-assignment]
     if not callable(callable_object):
       raise TypeError(f'{callable_object!r} is not callable.')
 
     if isinstance(callable_object, utils.Functor):
-      assert callable_object.__signature__ is not None
-      return callable_object.__signature__
+      assert callable_object.__signature__ is not None  # pyrefly: ignore[missing-attribute]
+      return callable_object.__signature__  # pyrefly: ignore[bad-return]
 
     func = callable_object
     docstr = None
@@ -680,7 +680,7 @@ class Signature(utils.Formattable):
     return cls(
         callable_type=callable_type,
         name=name,
-        module_name=module_name,
+        module_name=module_name,  # pyrefly: ignore[bad-argument-type]
         qualname=qualname,
         description=docstr.short_description if docstr else None,
         args=args,
@@ -815,7 +815,7 @@ def schema(
   return signature(
       cls_or_fn, auto_typing=auto_typing, auto_doc=auto_doc
   ).annotate(
-      args, return_value=returns
+      args, return_value=returns  # pyrefly: ignore[bad-argument-type]
   ).to_schema(
       remove_self=remove_self,
       include_return=include_return,

@@ -239,7 +239,7 @@ def dna_generator(func: Callable[[DNASpec], Iterator[DNA]]):
     """Simple DNA generator."""
 
     def _setup(self):
-      self._iterator = func(self.dna_spec)
+      self._iterator = func(self.dna_spec)  # pyrefly: ignore[bad-argument-type]
       self._error = None
 
     def _propose(self) -> DNA:

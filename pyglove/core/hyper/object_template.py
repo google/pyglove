@@ -154,7 +154,7 @@ class ObjectTemplate(base.HyperValue, utils.Formattable):
     ) -> bool:
       """Extract top-level hyper primitives."""
       if (isinstance(value, base.HyperValue)
-          and (not self._where or self._where(value))):
+          and (not self._where or self._where(value))):  # pyrefly: ignore[bad-argument-type]
         # Apply where clause to child choices.
         if (self._where
             and isinstance(value, base.HyperPrimitive)
@@ -314,13 +314,13 @@ class ObjectTemplate(base.HyperValue, utils.Formattable):
         raise ValueError(
             f'Value is missing from input. Path=\'{path}\'.')
       if (isinstance(template_value, base.HyperValue)
-          and (not self._where or self._where(template_value))):
+          and (not self._where or self._where(template_value))):  # pyrefly: ignore[bad-argument-type]
         children.append(template_value.encode(input_value))
       elif isinstance(template_value, derived.DerivedValue):
         if self._compute_derived:
           referenced_values = [
               reference_path.query(value)
-              for _, reference_path in template_value.resolve()
+              for _, reference_path in template_value.resolve()  # pyrefly: ignore[not-iterable]
           ]
           derived_value = template_value.derive(*referenced_values)
           if derived_value != input_value:

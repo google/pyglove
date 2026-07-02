@@ -65,10 +65,10 @@ class Uniform(base.Mutator):
     else:
       self._random = random.Random(self.seed)
 
-  def mutate(self, dna: pg.DNA, step: int = 0) -> pg.DNA:
+  def mutate(self, dna: pg.DNA, step: int = 0) -> pg.DNA:  # pyrefly: ignore[bad-override]
     """Mutates the DNA at a given step."""
     del step
-    dna = dna.clone(deep=True)  # Prevent overwriting argument.
+    dna = dna.clone(deep=True)  # Prevent overwriting argument.  # pyrefly: ignore[bad-assignment]
     child_nodes, parent_nodes, child_indexes = self._get_relationships(dna)
     if not child_nodes:
       raise RuntimeError(f'Immutable DNA: {dna!r}')
@@ -77,17 +77,17 @@ class Uniform(base.Mutator):
     if parent_node is None:
       # The node mutated ("child") is the root of the DNA tree.
       return pg.random_dna(
-          child_node.spec, self._random, previous_dna=child_node)
+          child_node.spec, self._random, previous_dna=child_node)  # pyrefly: ignore[bad-argument-type]
     else:
       # The node mutated is not the root of the DNA tree.
-      if _node_needs_distinct(child_node.spec):
+      if _node_needs_distinct(child_node.spec):  # pyrefly: ignore[bad-argument-type]
         # The approach taken here is inefficient in the special case when there
         # are many choices. If a random choice is likely to succeed, that
         # scenario can be sped up by redrawing random choices until success.
         # Consider adding a branch to handle that case, depending on need.
 
         # Compute mutated node value, enforcing distinct constraint.
-        distinct_candidates = (set(range(len(child_node.spec.candidates)))
+        distinct_candidates = (set(range(len(child_node.spec.candidates)))  # pyrefly: ignore[missing-attribute]
                                - set([c.value for c in parent_node.children]))
         if distinct_candidates:
           new_child_value = self._random.choice(list(distinct_candidates))
@@ -99,19 +99,19 @@ class Uniform(base.Mutator):
                   # Choice has changed for the new node,
                   # thus previous_dna does not apply.
                   self._random, previous_dna=None)])
-          new_child_node.use_spec(child_node.spec)
+          new_child_node.use_spec(child_node.spec)  # pyrefly: ignore[bad-argument-type]
         else:
           new_child_node = None
       else:
         new_child_node = pg.random_dna(
-            child_node.spec, self._random, previous_dna=child_node)
+            child_node.spec, self._random, previous_dna=child_node)  # pyrefly: ignore[bad-argument-type]
       if new_child_node is not None:
         # NOTE(daiyip): we update the children without invalidating the internal
         # states of the DNA for better performance.
         parent_node.children.rebind(
             {child_index: new_child_node}, skip_notification=True)
-        if _node_needs_sorting(child_node.spec):
-          parent_spec = child_node.spec.parent_spec
+        if _node_needs_sorting(child_node.spec):  # pyrefly: ignore[bad-argument-type]
+          parent_spec = child_node.spec.parent_spec  # pyrefly: ignore[missing-attribute]
           children = sorted(parent_node.children, key=lambda c: c.value)
           # When child choices are reordered, their DNASpec need to be
           # realigned.
@@ -188,15 +188,15 @@ class Swap(base.Mutator):
     else:
       self._random = random.Random(self.seed)
 
-  def mutate(self, dna: pg.DNA, step: int = 0) -> pg.DNA:
+  def mutate(self, dna: pg.DNA, step: int = 0) -> pg.DNA:  # pyrefly: ignore[bad-override]
     """Mutates the DNA. If impossible, returns a clone."""
-    dna = dna.clone(deep=True)  # Prevent overwriting argument.
+    dna = dna.clone(deep=True)  # Prevent overwriting argument.  # pyrefly: ignore[bad-assignment]
     parent_node_candidates = self._get_candidate_nodes(dna)
     self._random.shuffle(parent_node_candidates)
     parent_node = None
     child_indexes = []
     for parent_node in parent_node_candidates:
-      if not parent_node.spec.sorted:
+      if not parent_node.spec.sorted:  # pyrefly: ignore[missing-attribute]
         # If no sorting is required, any swap is valid.
         child_indexes = self._random.sample(range(len(parent_node.children)), 2)
         break  # Found a pair to swap.

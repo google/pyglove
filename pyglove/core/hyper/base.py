@@ -121,7 +121,7 @@ class HyperValue(symbolic.NonDeterministic):  # pytype: disable=ignored-metaclas
       'the same name will refer to the same decision point in the search space '
       'under define-by-run mode. '
       'Please refer to `pg.hyper.trace` for details.')),
-    ('hints', pg_typing.Any(default=None), 'Generator hints')
+    ('hints', pg_typing.Any(default=None), 'Generator hints')  # pyrefly: ignore[bad-instantiation]
 ])
 class HyperPrimitive(symbolic.Object, HyperValue):
   """Base class for hyper primitives.

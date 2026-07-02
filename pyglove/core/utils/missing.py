@@ -33,7 +33,7 @@ class MissingValue(formatting.Formattable, json_conversion.JSONConvertible):
   def __hash__(self) -> int:
     return hash(MissingValue.__module__ + MissingValue.__name__)
 
-  def to_json(self, **kwargs) -> Dict[str, Any]:
+  def to_json(self, **kwargs) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(fields=dict(), **kwargs)
 
 

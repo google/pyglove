@@ -175,7 +175,7 @@ class ForwardRef(utils.Formattable):
         **kwargs,
     )
 
-  def __eq__(self, other: Any) -> bool:
+  def __eq__(self, other: Any) -> bool:  # pyrefly: ignore[bad-return]
     """Operator==."""
     if self is other:
       return True
@@ -773,7 +773,7 @@ class Field(utils.Formattable, utils.JSONConvertible):
     )
 
     if transform_fn:
-      value = transform_fn(root_path, self, value)
+      value = transform_fn(root_path, self, value)  # pyrefly: ignore[bad-argument-type]
     return value
 
   @property
@@ -809,7 +809,7 @@ class Field(utils.Formattable, utils.JSONConvertible):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: Any) -> Dict[str, Any]:
+  def to_json(self, **kwargs: Any) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             key_spec=(self._key, None),
@@ -1297,7 +1297,7 @@ class Schema(utils.Formattable, utils.JSONConvertible):
 
   def __getitem__(self, key: Union[str, KeySpec]) -> Field:
     """Returns field by key."""
-    return self._fields[key]
+    return self._fields[key]  # pyrefly: ignore[bad-index]
 
   def __contains__(self, key: Union[str, KeySpec]) -> bool:
     """Returns if a key or key spec exists in the schema."""
@@ -1308,7 +1308,7 @@ class Schema(utils.Formattable, utils.JSONConvertible):
           default: Optional[Field] = None
           ) -> Optional[Field]:
     """Returns field by key with default value if not found."""
-    return self._fields.get(key, default)
+    return self._fields.get(key, default)  # pyrefly: ignore[no-matching-overload]
 
   def keys(self) -> Iterable[KeySpec]:
     """Return an iteratable of KeySpecs in declaration order."""
@@ -1355,7 +1355,7 @@ class Schema(utils.Formattable, utils.JSONConvertible):
         **kwargs,
     )
 
-  def to_json(self, **kwargs) -> Dict[str, Any]:
+  def to_json(self, **kwargs) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             fields=(list(self._fields.values()), []),

@@ -174,7 +174,7 @@ class Choices(DecisionPoint):
           f'multi-choice. Encountered: {self!r}.')
     if self.num_choices == 1:
       return self
-    return self._subchoice_specs[index]
+    return self._subchoice_specs[index]  # pyrefly: ignore[unsupported-operation]
 
   @property
   def choice_specs(self) -> List['Choices']:
@@ -290,7 +290,7 @@ class Choices(DecisionPoint):
           f'chosen candidate (index={index}).')
     return index
 
-  def validate(self, dna: DNA) -> None:
+  def validate(self, dna: DNA) -> None:  # pyrefly: ignore[bad-override]
     """Validate whether a DNA value conforms to this spec."""
     if self.num_choices == 1:
       # For single choice, choice is decoded from dna.value.
@@ -359,7 +359,7 @@ class Choices(DecisionPoint):
       objects will be returned. Users can call `spec.parent_choice` to access
       the parent multi-choice node.
     """
-    return self._decision_points
+    return self._decision_points  # pyrefly: ignore[bad-return]
 
   @property
   def space_size(self) -> int:
@@ -500,7 +500,7 @@ class Choices(DecisionPoint):
         # from choice [0...i-1], and find remaining choices for choices
         # [i+1...k].
         remaining_choices = min_remaining_choices(
-            prior_choices + [new_choice_dna.value])
+            prior_choices + [new_choice_dna.value])  # pyrefly: ignore[unbound-name]
 
         if remaining_choices is not None:
           subdna_list = choice_dna_list[:choice_id] + [new_choice_dna] + [
@@ -565,7 +565,7 @@ class Choices(DecisionPoint):
         sub_choices = [self]
       else:
         sub_choices = self._subchoice_specs
-      return sub_choices[index]
+      return sub_choices[index]  # pyrefly: ignore[bad-return, unsupported-operation]
     return super().__getitem__(index)
 
   def format(self,

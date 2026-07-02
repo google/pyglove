@@ -145,7 +145,7 @@ class Feedback:
 
   def __call__(self, reward: Union[float, Tuple[float, ...]]):
     """Call to feedback reward."""
-    self._algorithm.feedback(self._dna, reward)
+    self._algorithm.feedback(self._dna, reward)  # pyrefly: ignore[bad-argument-type]
 
   @property
   def dna(self) -> geno.DNA:

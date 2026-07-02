@@ -290,7 +290,7 @@ class KeyPath(formatting.Formattable):
     elif isinstance(other, KeyPathSet):
       other = other.copy()
       other.rebase(self)
-      return other
+      return other  # pyrefly: ignore[bad-return]
     elif not isinstance(other, KeyPath):
       other = KeyPath(other)
     assert isinstance(other, KeyPath)
@@ -537,10 +537,10 @@ class KeyPath(formatting.Formattable):
     def __init__(self, key: Any):
       self.key = key
 
-    def __eq__(self, other: 'KeyPath._KeyComparisonWrapper') -> bool:
+    def __eq__(self, other: 'KeyPath._KeyComparisonWrapper') -> bool:  # pyrefly: ignore[bad-override]
       return self._compare(other, operator.eq)
 
-    def __ne__(self, other: 'KeyPath._KeyComparisonWrapper') -> bool:
+    def __ne__(self, other: 'KeyPath._KeyComparisonWrapper') -> bool:  # pyrefly: ignore[bad-override]
       return self._compare(other, operator.ne)
 
     def __lt__(self, other: 'KeyPath._KeyComparisonWrapper') -> bool:
@@ -806,7 +806,7 @@ class KeyPathSet(formatting.Formattable):
     if isinstance(value, KeyPathSet):
       return value
     if isinstance(value, (list, set, tuple)):
-      return cls(value, include_intermediate=include_intermediate)
+      return cls(value, include_intermediate=include_intermediate)  # pyrefly: ignore[bad-argument-type]
     raise ValueError(
         f'Cannot convert {value!r} to KeyPathSet. '
         f'Expected a list, set, tuple, or KeyPathSet.'

@@ -28,7 +28,7 @@ class Sweeping(DNAGenerator):
 
   def _propose(self) -> DNA:
     """Propose a random DNA."""
-    next_dna = self.dna_spec.next_dna(self._last_proposed_dna)
+    next_dna = self.dna_spec.next_dna(self._last_proposed_dna)  # pyrefly: ignore[missing-attribute]
     if next_dna is None:
       raise StopIteration()
     self._last_proposed_dna = next_dna

@@ -94,7 +94,7 @@ class Lambda(DecisionPointFilter):
 
 # Register typing conversion from function to DecisionPointFilter
 # so users can use lambda functions for where statement.
-pg.typing.register_converter(types.FunctionType, DecisionPointFilter, Lambda)
+pg.typing.register_converter(types.FunctionType, DecisionPointFilter, Lambda)  # pyrefly: ignore[bad-argument-type]
 
 
 class All(DecisionPointFilter):

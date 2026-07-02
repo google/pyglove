@@ -92,11 +92,11 @@ class CustomHyper(base.HyperPrimitive):
   """
 
   def _decode(self):
-    if not isinstance(self.dna.value, str):
+    if not isinstance(self.dna.value, str):  # pyrefly: ignore[missing-attribute]
       raise ValueError(
           f'{self.__class__} expects string type DNA. '
           f'Encountered {self.dna!r}.')
-    return self.custom_decode(self.dna)
+    return self.custom_decode(self.dna)  # pyrefly: ignore[bad-argument-type]
 
   @abc.abstractmethod
   def custom_decode(self, dna: geno.DNA) -> Any:
@@ -129,7 +129,7 @@ class CustomHyper(base.HyperPrimitive):
       raise NotImplementedError(
           f'{self.__class__!r} must implement method `next_dna` to be used in '
           f'dynamic evaluation mode.')
-    return self.next_dna(None)
+    return self.next_dna(None)  # pyrefly: ignore[bad-return]
 
   def next_dna(self, dna: Optional[geno.DNA] = None) -> Optional[geno.DNA]:
     """Subclasses should override this method to support pg.Sweeping."""

@@ -92,11 +92,11 @@ def with_contextual_override(func: Callable[..., Any]) -> Callable[..., Any]:
 
   if inspect.iscoroutinefunction(func):
     async def _func(*args, **kwargs) -> Any:
-      with contextual_override(**current_context):
+      with contextual_override(**current_context):  # pyrefly: ignore[bad-argument-type]
         return await func(*args, **kwargs)
   else:
     def _func(*args, **kwargs) -> Any:
-      with contextual_override(**current_context):
+      with contextual_override(**current_context):  # pyrefly: ignore[bad-argument-type]
         return func(*args, **kwargs)
   return _func
 
@@ -148,5 +148,5 @@ def get_scoped_value(
 ) -> ContextualOverride:
   """Gets the value for requested variable from current scope."""
   scoped_values = getattr(tls, _TLS_KEY_CONTEXTUAL_OVERRIDES, {})
-  return scoped_values.get(var_name, default)
+  return scoped_values.get(var_name, default)  # pyrefly: ignore[bad-return]
 

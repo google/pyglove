@@ -799,7 +799,7 @@ class Evolution(pg.DNAGenerator):
 
     for dna, reward in history:
       self._num_proposals += 1
-      dna.use_spec(self.dna_spec)
+      dna.use_spec(self.dna_spec)  # pyrefly: ignore[bad-argument-type]
       if reward is not None:
         # NOTE(daiyip): There is a possibility that the client has provided the
         # reward to the controller, but the controller process restarted before
@@ -844,7 +844,7 @@ class Identity(Operation):
 
 
 @pg.members([
-    ('fn', operation_spec(pg.typing.Any(), pg.typing.Any()),
+    ('fn', operation_spec(pg.typing.Any(), pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'A callable object that performs the operation.')
 ])
 class Lambda(Operation):
@@ -863,7 +863,7 @@ class Lambda(Operation):
 
 
 @pg.members([
-    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),
+    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'Operation to repeat if the output is the same as the input.'),
     ('max_attempts', scalars.scalar_spec(pg.typing.Int(min_value=1)).noneable(),
      'Maximum attempts to make if the output is the same as the input.')
@@ -892,7 +892,7 @@ class UntilChange(Operation):
 @pg.members([
     ('ops', pg.typing.List(pg.typing.Tuple([
         # An operation candidate.
-        operation_spec(pg.typing.Any(), pg.typing.Any()),
+        operation_spec(pg.typing.Any(), pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
         # The probability of applying the operation.
         scalars.scalar_spec(pg.typing.Float(min_value=0.0, max_value=1.0))])),
      'A list of (operation, probability) tuples, denoting the probability of '
@@ -948,13 +948,13 @@ class Choice(Operation):
 
 @pg.members([
     ('predicate', pg.typing.Callable(
-        [pg.typing.List(pg.typing.Any())], returns=pg.typing.Bool()),
+        [pg.typing.List(pg.typing.Any())], returns=pg.typing.Bool()),  # pyrefly: ignore[bad-instantiation]
      'A callable object that takes the output from previous operation as '
      'input, with optional `global_step` and `step` arguments, to tell which '
      'branch should be enabled.'),
-    ('true_op', operation_spec(pg.typing.Any(), pg.typing.Any()).noneable(),
+    ('true_op', operation_spec(pg.typing.Any(), pg.typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
      'An operation that will be applied when predicate returns True.'),
-    ('false_op', operation_spec(pg.typing.Any(), pg.typing.Any()).noneable(),
+    ('false_op', operation_spec(pg.typing.Any(), pg.typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
      'An operation that will be applied when predicate returns False. '
      'If None, an empty operation will be applied.')
 ])
@@ -997,7 +997,7 @@ class Conditional(Operation):
 
 @pg.members([
     ('ops', pg.typing.List(
-        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),
+        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),  # pyrefly: ignore[bad-instantiation]
      'Child operations.')
 ])
 class Pipeline(Operation):
@@ -1038,7 +1038,7 @@ class Pipeline(Operation):
 
 
 @pg.members([
-    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),
+    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'Operation to pipeline multiple times.'),
     ('k', scalars.scalar_spec(pg.typing.Int()), 'Number of repeats.')
 ])
@@ -1074,7 +1074,7 @@ class Power(Operation):
 
 @pg.members([
     ('ops', pg.typing.List(
-        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),
+        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),  # pyrefly: ignore[bad-instantiation]
      'Child operations.')
 ])
 class Concatenation(Operation):
@@ -1114,7 +1114,7 @@ class Concatenation(Operation):
 
 
 @pg.members([
-    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),
+    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'Operation whose output will be sliced'),
     ('index', scalars.scalar_spec(
         pg.typing.Union([pg.typing.Int(), pg.typing.Object(slice)])),
@@ -1152,7 +1152,7 @@ class Slice(Operation):
 
 
 @pg.members([
-    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),
+    ('op', operation_spec(pg.typing.Any(), pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'Operation to repeat.'),
     ('k', scalars.scalar_spec(pg.typing.Int()), 'Number of repeats.')
 ])
@@ -1193,7 +1193,7 @@ class Repeat(Operation):
 
 @pg.members([
     ('ops', pg.typing.List(
-        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=1),
+        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=1),  # pyrefly: ignore[bad-instantiation]
      'Child operations.')
 ])
 class Union(Operation):
@@ -1239,7 +1239,7 @@ class Union(Operation):
 
 @pg.members([
     ('ops', pg.typing.List(
-        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),
+        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),  # pyrefly: ignore[bad-instantiation]
      'Child operations.')
 ])
 class Intersection(Operation):
@@ -1287,7 +1287,7 @@ class Intersection(Operation):
 
 @pg.members([
     ('ops', pg.typing.List(
-        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),
+        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),  # pyrefly: ignore[bad-instantiation]
      'Child operations.')
 ])
 class Difference(Operation):
@@ -1335,7 +1335,7 @@ class Difference(Operation):
 
 @pg.members([
     ('ops', pg.typing.List(
-        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),
+        operation_spec(pg.typing.Any(), pg.typing.Any()), min_size=2),  # pyrefly: ignore[bad-instantiation]
      'Child operations.')
 ])
 class SymmetricDifference(Operation):
@@ -1382,7 +1382,7 @@ class SymmetricDifference(Operation):
 
 
 @pg.members([
-    ('op', operation_spec(pg.typing.Any()),
+    ('op', operation_spec(pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'Operation to invert.'),
 ])
 class Inversion(Operation):
@@ -1400,7 +1400,7 @@ class Inversion(Operation):
 
 
 @pg.members([
-    ('op', operation_spec(pg.typing.Any()),
+    ('op', operation_spec(pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'Operation to apply to each element.'),
 ])
 class ElementWise(Operation):
@@ -1446,7 +1446,7 @@ class Flatten(Operation):
 
 @pg.members([
     ('key', pg.typing.Str(), 'Key in the global state.'),
-    ('default', pg.typing.List(pg.typing.Any()).noneable(),
+    ('default', pg.typing.List(pg.typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
      'The default value to return when key does not exist. '
      'If None, KeyError will be raised.')
 ])
@@ -1462,7 +1462,7 @@ class GlobalStateGetter(Operation):
 
 @pg.members([
     ('key', pg.typing.Str(), 'Key in the global state.'),
-    ('value', pg.typing.Any().set_default((pg.MISSING_VALUE,)),
+    ('value', pg.typing.Any().set_default((pg.MISSING_VALUE,)),  # pyrefly: ignore[bad-instantiation]
      'A constant value to set. By default the input will be used as the value '
      'to set the global state.')
 ])
