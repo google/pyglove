@@ -102,7 +102,7 @@ class HtmlControl(pg_object.Object):
 
   def _sync_members(self, **fields) -> None:
     """Synchronizes displayed values to members."""
-    self.rebind(fields, skip_notification=True, raise_on_no_change=False)
+    self.rebind(fields, skip_notification=True, raise_on_no_change=False)  # pyrefly: ignore[bad-argument-type]
 
   def _run_javascript(self, code: str, debug: bool = False) -> None:
     """Runs the given JavaScript code."""
@@ -177,9 +177,9 @@ class HtmlControl(pg_object.Object):
   ) -> None:
     """Updates the content of the control."""
     if isinstance(content, str):
-      return self._update_text(content, child)
+      return self._update_text(content, child)  # pyrefly: ignore[bad-return]
     else:
-      return self._update_inner_html(content, child)
+      return self._update_inner_html(content, child)  # pyrefly: ignore[bad-return]
 
   def _update_text(
       self,

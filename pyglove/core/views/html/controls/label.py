@@ -107,7 +107,7 @@ class Label(HtmlControl):
     if link is not None:
       self._sync_members(link=self._update_property('href', link))
     if tooltip is not None:
-      self.tooltip.update(content=tooltip)
+      self.tooltip.update(content=tooltip)  # pyrefly: ignore[missing-attribute]
     if add_class or remove_class:
       css_classes = list(self.css_classes)
       for x in add_class or []:
@@ -120,8 +120,8 @@ class Label(HtmlControl):
       self._sync_members(css_classes=css_classes)
 
 # Register converter for automatic conversion.
-pg_typing.register_converter(str, Label, Label)
-pg_typing.register_converter(Html, Label, Label)
+pg_typing.register_converter(str, Label, Label)  # pyrefly: ignore[bad-argument-type]
+pg_typing.register_converter(Html, Label, Label)  # pyrefly: ignore[bad-argument-type]
 
 
 class Badge(Label):

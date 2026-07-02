@@ -220,7 +220,7 @@ def patcher(
     A decorator that converts a function into a Patcher subclass.
   """
   functor_decorator = symbolic.functor(
-      args,
+      args,  # pyrefly: ignore[bad-argument-type]
       base_class=Patcher,
       auto_typing=auto_typing,
       auto_doc=auto_doc
@@ -259,13 +259,13 @@ def patcher(
 def _is_patcher_target_spec(value_spec):
   """Return True if value_spec can be used for patcher target."""
   return isinstance(
-      value_spec, (pg_typing.Any, pg_typing.Object,
+      value_spec, (pg_typing.Any, pg_typing.Object,  # pyrefly: ignore[invalid-argument]
                    pg_typing.Dict, pg_typing.List, pg_typing.Callable))
 
 
 def _is_patcher_parameter_spec(value_spec, leaf_only=False):
   """Return True if value_spec can be used for patcher parameters."""
-  if isinstance(value_spec, (pg_typing.Any, pg_typing.Str, pg_typing.Bool,
+  if isinstance(value_spec, (pg_typing.Any, pg_typing.Str, pg_typing.Bool,  # pyrefly: ignore[invalid-argument]
                              pg_typing.Int, pg_typing.Float)):
     return True
   elif isinstance(value_spec, pg_typing.Enum):
@@ -427,7 +427,7 @@ def parse_arg(patcher_id: str, arg_name: str,
     # NOTE(daiyip): If string type value needs literal 'None' or 'none', they
     # can quote the string with "".
     arg = None
-  elif isinstance(value_spec, (pg_typing.Any, pg_typing.Str)):
+  elif isinstance(value_spec, (pg_typing.Any, pg_typing.Str)):  # pyrefly: ignore[invalid-argument]
     if len(arg_str) > 1:
       begin_quote = (arg_str[0] == '"')
       end_quote = (arg_str[-1] == '"')

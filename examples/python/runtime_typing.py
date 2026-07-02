@@ -26,11 +26,11 @@ class Foo(pg.Object):
       'Field z',                    # Field docstring.
       dict(p=1)                     # Meta-data
   ]
-  p: pg.typing.Enum[['foo', 'bar', 'baz']] = 'baz'
+  p: pg.typing.Enum[['foo', 'bar', 'baz']] = 'baz'  # pyrefly: ignore[unknown-name]
   q: pg.typing.Dict[{
-      'a': int | None,
-      'b': pg.typing.Int[0, 100],
-      'c': pg.typing.Tuple[int, ...]
+      'a': int | None,  # pyrefly: ignore[unknown-name]
+      'b': pg.typing.Int[0, 100],  # pyrefly: ignore[unknown-name]
+      'c': pg.typing.Tuple[int, ...]  # pyrefly: ignore[unknown-name]
   }] = dict(a=1, b=10, c=(1, 2))
 
 

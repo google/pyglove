@@ -221,7 +221,7 @@ class _InMemoryResult(Result):
     self._metadata[key] = value
 
   @property
-  def last_updated(self) -> Optional[datetime.datetime]:
+  def last_updated(self) -> Optional[datetime.datetime]:  # pyrefly: ignore[bad-override]
     """Last update time."""
     return self._last_update_time
 
@@ -298,7 +298,7 @@ class _InMemoryBackend(backend.Backend):
     super().__init__()
 
     if name is None or name not in _in_memory_results:
-      study = _InMemoryResult(name, num_examples)
+      study = _InMemoryResult(name, num_examples)  # pyrefly: ignore[bad-argument-type]
       if name is not None:
         _in_memory_results[name] = study
     else:
@@ -380,7 +380,7 @@ class _InMemoryBackend(backend.Backend):
     return self._create_feedback(self._study, trial)
 
   @classmethod
-  def poll_result(cls, name: str) -> Result:
+  def poll_result(cls, name: str) -> Result:  # pyrefly: ignore[bad-override]
     """Gets tuning result by a unique tuning identifier."""
     if name not in _in_memory_results:
       raise ValueError(f'Result {name!r} does not exist.')

@@ -72,7 +72,7 @@ class CodeError(RuntimeError):
       r.write('\n\n')
       r.write(textwrap.indent(
           utils.colored(
-              self.code_lines(self.lineno - 1, self.end_lineno), 'magenta'),
+              self.code_lines(self.lineno - 1, self.end_lineno), 'magenta'),  # pyrefly: ignore[bad-argument-type]
           ' ' * 2
       ))
       r.write('\n')

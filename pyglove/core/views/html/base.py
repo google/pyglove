@@ -150,7 +150,7 @@ class Html(base.Content):
       scripts: JavaScript scripts to include.
     """
     super().__init__(
-        *content,
+        *content,  # pyrefly: ignore[bad-argument-type]
         style_files=Html.StyleFiles(*(style_files or [])),
         styles=Html.Styles(*(styles or [])),
         script_files=Html.ScriptFiles(*(script_files or [])),
@@ -163,22 +163,22 @@ class Html(base.Content):
   @property
   def styles(self) -> 'Html.Styles':
     """Returns the styles to include in the HTML."""
-    return self._shared_parts['styles']
+    return self._shared_parts['styles']  # pyrefly: ignore[bad-return]
 
   @property
   def style_files(self) -> 'Html.StyleFiles':
     """Returns the style files to link to."""
-    return self._shared_parts['style_files']
+    return self._shared_parts['style_files']  # pyrefly: ignore[bad-return]
 
   @property
   def scripts(self) -> 'Html.Scripts':
     """Returns the scripts to include in the HTML."""
-    return self._shared_parts['scripts']
+    return self._shared_parts['scripts']  # pyrefly: ignore[bad-return]
 
   @property
   def script_files(self) -> 'Html.ScriptFiles':
     """Returns the script files to link to."""
-    return self._shared_parts['script_files']
+    return self._shared_parts['script_files']  # pyrefly: ignore[bad-return]
 
   @property
   def head_section(self) -> str:
@@ -266,17 +266,17 @@ class Html(base.Content):
     )
 
   @classmethod
-  def from_value(
+  def from_value(  # pyrefly: ignore[bad-override]
       cls,
       value: WritableTypes,
       copy: bool = False
   ) -> Union['Html', None]:
     return typing.cast(
-        Html, super().from_value(value, copy=copy)
+        Html, super().from_value(value, copy=copy)  # pyrefly: ignore[bad-argument-type]
     )
 
   @classmethod
-  def _to_content(
+  def _to_content(  # pyrefly: ignore[bad-override]
       cls, value: WritableTypes
   ) -> Union['Html', str, None]:
     if callable(value):
@@ -325,7 +325,7 @@ class Html(base.Content):
 
     # Write the open tag.
     css_classes = cls.concate(css_classes)
-    options = cls.concate(options)
+    options = cls.concate(options)  # pyrefly: ignore[bad-argument-type]
     styles = cls.style_str(styles)
     s.write(
         f'<{tag}',
@@ -344,7 +344,7 @@ class Html(base.Content):
         for child in utils.flatten(inner_html).values():
           s.write(child)
       else:
-        s.write(inner_html)
+        s.write(inner_html)  # pyrefly: ignore[bad-argument-type]
 
     # Write the closing tag.
     s.write(f'</{tag}>')

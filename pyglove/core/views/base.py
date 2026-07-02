@@ -658,8 +658,9 @@ class View(metaclass=abc.ABCMeta):
       raise ValueError(
           f'`VIEW_ID` must be set for non-abstract View subclass {cls!r}.'
       )
-    if cls.VIEW_ID == cls.__base__.VIEW_ID:
+    if cls.VIEW_ID == cls.__base__.VIEW_ID:  # pyrefly: ignore[missing-attribute]
       raise ValueError(
+          # pyrefly: ignore[missing-attribute]
           f'The `VIEW_ID` {cls.VIEW_ID!r} is the same as the base class '
           f'{cls.__base__.__name__}. Please choose a different ID.'
       )

@@ -89,7 +89,7 @@ def tsp(cities: List[City], num_trials: int = 500) -> Route:
 
   print(f'Best route length: {min_len}.')
   print(best_route)
-  return best_route
+  return best_route  # pyrefly: ignore[bad-return]
 
 
 def main():

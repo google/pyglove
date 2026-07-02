@@ -74,7 +74,7 @@ class Measurement(_DataEntity):
      'All reported measurements.'),
     ('metadata',
      pg_typing.Dict(
-         [(pg_typing.StrKey(), pg_typing.Any(),
+         [(pg_typing.StrKey(), pg_typing.Any(),  # pyrefly: ignore[bad-instantiation]
            'Serializable key value pairs as metadata.')]),
      'Trial metadata.'),
     ('related_links',
@@ -263,7 +263,7 @@ class Feedback(metaclass=abc.ABCMeta):
         metrics[k] = v
       reward = metrics.pop('reward', None)
     elif reward is not None:
-      reward = float(reward)
+      reward = float(reward)  # pyrefly: ignore[bad-argument-type]
 
     for metric_name in metrics_to_optimize:
       if metric_name == 'reward':
@@ -416,7 +416,7 @@ class Feedback(metaclass=abc.ABCMeta):
       error_stack = traceback.format_exc()
       logging.warning('Skipping trial on unhandled exception: %s', error_stack)
       self.skip(error_stack)
-    return utils.catch_errors(exceptions, skip_on_exception)
+    return utils.catch_errors(exceptions, skip_on_exception)  # pyrefly: ignore[bad-argument-type]
 
   @contextlib.contextmanager
   def ignore_race_condition(self):

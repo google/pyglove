@@ -32,7 +32,7 @@ def one_max(search_space, search_algorithm, num_trials=200):
     if best_reward is None or best_reward < reward:
       best_sequence, best_reward = sequence, reward
     feedback(reward)
-  print(f'Best sequence: {list(best_sequence)} (sum={best_reward})')
+  print(f'Best sequence: {list(best_sequence)} (sum={best_reward})')  # pyrefly: ignore[bad-argument-type]
 
 
 def one_max_with_builtin_primitive(n: int):

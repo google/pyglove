@@ -72,10 +72,10 @@ def patch_on_key(
   Returns:
     `src` after being patched.
   """
-  regex = re.compile(regex)
+  regex = re.compile(regex)  # pyrefly: ignore[bad-assignment]
   return _conditional_patch(
       src,
-      lambda k, v, p: k and regex.match(str(k.key)),
+      lambda k, v, p: k and regex.match(str(k.key)),  # pyrefly: ignore[bad-argument-type, missing-attribute]
       value,
       value_fn,
       skip_notification)
@@ -108,9 +108,9 @@ def patch_on_path(
   Returns:
     `src` after being patched.
   """
-  regex = re.compile(regex)
+  regex = re.compile(regex)  # pyrefly: ignore[bad-assignment]
   return _conditional_patch(
-      src, lambda k, v, p: regex.match(str(k)),
+      src, lambda k, v, p: regex.match(str(k)),  # pyrefly: ignore[missing-attribute]
       value, value_fn, skip_notification)
 
 

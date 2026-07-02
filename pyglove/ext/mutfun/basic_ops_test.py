@@ -58,8 +58,8 @@ class AddTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 1 + 2 + 1)
 
   def test_operator_overload(self):
-    self.assertTrue(pg.eq(1 + base.Var('x'), basic_ops.Add(1, base.Var('x'))))
-    self.assertTrue(pg.eq(base.Var('x') + 1, basic_ops.Add(base.Var('x'), 1)))
+    self.assertTrue(pg.eq(1 + base.Var('x'), basic_ops.Add(1, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
+    self.assertTrue(pg.eq(base.Var('x') + 1, basic_ops.Add(base.Var('x'), 1)))  # pyrefly: ignore[unsupported-operation]
 
 
 class SubstractTest(unittest.TestCase):
@@ -82,9 +82,9 @@ class SubstractTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(1 - base.Var('x'), basic_ops.Substract(1, base.Var('x'))))
+        pg.eq(1 - base.Var('x'), basic_ops.Substract(1, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
     self.assertTrue(
-        pg.eq(base.Var('x') - 1, basic_ops.Substract(base.Var('x'), 1)))
+        pg.eq(base.Var('x') - 1, basic_ops.Substract(base.Var('x'), 1)))  # pyrefly: ignore[unsupported-operation]
 
 
 class MultiplyTest(unittest.TestCase):
@@ -107,9 +107,9 @@ class MultiplyTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(2 * base.Var('x'), basic_ops.Multiply(2, base.Var('x'))))
+        pg.eq(2 * base.Var('x'), basic_ops.Multiply(2, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
     self.assertTrue(
-        pg.eq(base.Var('x') * 2, basic_ops.Multiply(base.Var('x'), 2)))
+        pg.eq(base.Var('x') * 2, basic_ops.Multiply(base.Var('x'), 2)))  # pyrefly: ignore[unsupported-operation]
 
 
 class DivideTest(unittest.TestCase):
@@ -135,9 +135,9 @@ class DivideTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(2 / base.Var('x'), basic_ops.Divide(2, base.Var('x'))))
+        pg.eq(2 / base.Var('x'), basic_ops.Divide(2, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
     self.assertTrue(
-        pg.eq(base.Var('x') / 2, basic_ops.Divide(base.Var('x'), 2)))
+        pg.eq(base.Var('x') / 2, basic_ops.Divide(base.Var('x'), 2)))  # pyrefly: ignore[unsupported-operation]
 
 
 class FloorDivideTest(unittest.TestCase):
@@ -164,9 +164,9 @@ class FloorDivideTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(2 // base.Var('x'), basic_ops.FloorDivide(2, base.Var('x'))))
+        pg.eq(2 // base.Var('x'), basic_ops.FloorDivide(2, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
     self.assertTrue(
-        pg.eq(base.Var('x') // 2, basic_ops.FloorDivide(base.Var('x'), 2)))
+        pg.eq(base.Var('x') // 2, basic_ops.FloorDivide(base.Var('x'), 2)))  # pyrefly: ignore[unsupported-operation]
 
 
 class ModTest(unittest.TestCase):
@@ -191,8 +191,8 @@ class ModTest(unittest.TestCase):
     self.assertEqual(x.evaluate(variables), 2 % (3 + 1))
 
   def test_operator_overload(self):
-    self.assertTrue(pg.eq(2 % base.Var('x'), basic_ops.Mod(2, base.Var('x'))))
-    self.assertTrue(pg.eq(base.Var('x') % 2, basic_ops.Mod(base.Var('x'), 2)))
+    self.assertTrue(pg.eq(2 % base.Var('x'), basic_ops.Mod(2, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
+    self.assertTrue(pg.eq(base.Var('x') % 2, basic_ops.Mod(base.Var('x'), 2)))  # pyrefly: ignore[unsupported-operation]
 
 
 class PowerTest(unittest.TestCase):
@@ -218,9 +218,9 @@ class PowerTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(2 ** base.Var('x'), basic_ops.Power(2, base.Var('x'))))
+        pg.eq(2 ** base.Var('x'), basic_ops.Power(2, base.Var('x'))))  # pyrefly: ignore[unsupported-operation]
     self.assertTrue(
-        pg.eq(base.Var('x') ** 2, basic_ops.Power(base.Var('x'), 2)))
+        pg.eq(base.Var('x') ** 2, basic_ops.Power(base.Var('x'), 2)))  # pyrefly: ignore[unsupported-operation]
 
 
 class GreaterThanTest(unittest.TestCase):
@@ -255,11 +255,11 @@ class GreaterThanTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(base.Var('x') > 1, basic_ops.GreaterThan(base.Var('x'), 1))
+        pg.eq(base.Var('x') > 1, basic_ops.GreaterThan(base.Var('x'), 1))  # pyrefly: ignore[unsupported-operation]
     )
     self.assertTrue(
         pg.eq(
-            base.Var('x') > base.Var('y'),
+            base.Var('x') > base.Var('y'),  # pyrefly: ignore[unsupported-operation]
             basic_ops.GreaterThan(base.Var('x'), base.Var('y')),
         )
     )
@@ -287,11 +287,11 @@ class LessThanTest(unittest.TestCase):
 
   def test_operator_overload(self):
     self.assertTrue(
-        pg.eq(base.Var('x') < 1, basic_ops.LessThan(base.Var('x'), 1))
+        pg.eq(base.Var('x') < 1, basic_ops.LessThan(base.Var('x'), 1))  # pyrefly: ignore[unsupported-operation]
     )
     self.assertTrue(
         pg.eq(
-            base.Var('x') < base.Var('y'),
+            base.Var('x') < base.Var('y'),  # pyrefly: ignore[unsupported-operation]
             basic_ops.LessThan(base.Var('x'), base.Var('y')),
         )
     )

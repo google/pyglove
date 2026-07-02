@@ -39,8 +39,8 @@ def make_function(
     return_annotation = '->_return_type'
   else:
     return_annotation = ''
-  args = ', '.join(args)
-  body = '\n'.join(f'  {line}' for line in body)
+  args = ', '.join(args)  # pyrefly: ignore[bad-assignment]
+  body = '\n'.join(f'  {line}' for line in body)  # pyrefly: ignore[bad-assignment]
   fn_def = f' def {name}({args}){return_annotation}:\n{body}'
   local_vars = ', '.join(exec_locals.keys())
   fn_def = f'def _make_fn({local_vars}):\n{fn_def}\n return {name}'

@@ -75,15 +75,15 @@ def download_and_prep_data() -> Tuple[np.ndarray,
 def build_model(inputs, hparams):
   """Build model from hyper-parameters."""
   if hparams.use_conv_net:
-    x = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, 28, 28, 1)))(inputs)
+    x = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, 28, 28, 1)))(inputs)  # pyrefly: ignore[not-callable]
     x = tf.keras.layers.Conv2D(filters=hparams.filters,
                                kernel_size=hparams.kernel_size,
                                activation=hparams.activation)(x)
-    x = tf.keras.layers.Flatten()(x)
+    x = tf.keras.layers.Flatten()(x)  # pyrefly: ignore[not-callable]
   else:
-    x = tf.keras.layers.Flatten()(inputs)
-    x = tf.keras.layers.Dense(hparams.units, activation=hparams.activation)(x)
-  return tf.keras.layers.Dense(10, activation='softmax')(x)
+    x = tf.keras.layers.Flatten()(inputs)  # pyrefly: ignore[not-callable]
+    x = tf.keras.layers.Dense(hparams.units, activation=hparams.activation)(x)  # pyrefly: ignore[not-callable]
+  return tf.keras.layers.Dense(10, activation='softmax')(x)  # pyrefly: ignore[not-callable]
 
 
 def train_and_eval(model_builder, input_data, num_epochs=10) -> float:

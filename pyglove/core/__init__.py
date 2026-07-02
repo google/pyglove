@@ -331,7 +331,7 @@ to_html_str = views.to_html_str
 # circular dependency between `pyglove.core.views.html` and
 # `pyglove.core.symbolic`.
 from pyglove.core.views.html import controls
-views.html.controls = controls
+views.html.controls = controls  # pyrefly: ignore[missing-attribute]
 
 
 #

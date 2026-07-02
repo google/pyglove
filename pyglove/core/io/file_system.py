@@ -212,7 +212,7 @@ class StdFileSystem(FileSystem):
     return os.path.exists(path)
 
   def glob(self, pattern: Union[str, os.PathLike[str]]) -> list[str]:
-    return std_glob.glob(pattern)
+    return std_glob.glob(pattern)  # pyrefly: ignore[bad-return, bad-specialization]
 
   def listdir(self, path: Union[str, os.PathLike[str]]) -> list[str]:
     return os.listdir(path)

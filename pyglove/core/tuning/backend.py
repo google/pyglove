@@ -75,13 +75,13 @@ class Backend(metaclass=abc.ABCMeta):
       A `pg.tuning.Backend` object.
     """
     return cls(     # pytype: disable=wrong-keyword-args
-        name=name,
-        group=group,
-        dna_spec=dna_spec,
-        algorithm=algorithm,
-        metrics_to_optimize=metrics_to_optimize,
-        early_stopping_policy=early_stopping_policy,
-        num_examples=num_examples,
+        name=name,  # pyrefly: ignore[unexpected-keyword]
+        group=group,  # pyrefly: ignore[unexpected-keyword]
+        dna_spec=dna_spec,  # pyrefly: ignore[unexpected-keyword]
+        algorithm=algorithm,  # pyrefly: ignore[unexpected-keyword]
+        metrics_to_optimize=metrics_to_optimize,  # pyrefly: ignore[unexpected-keyword]
+        early_stopping_policy=early_stopping_policy,  # pyrefly: ignore[unexpected-keyword]
+        num_examples=num_examples,  # pyrefly: ignore[unexpected-keyword]
         **kwargs)
 
   @classmethod
@@ -139,4 +139,4 @@ def poll_result(
     backend: Optional[str] = None,
     **kwargs) -> Result:
   """Gets tuning result by name."""
-  return get_backend_cls(backend).poll_result(name, **kwargs)
+  return get_backend_cls(backend).poll_result(name, **kwargs)  # pyrefly: ignore[bad-argument-type]

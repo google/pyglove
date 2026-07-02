@@ -186,8 +186,8 @@ class Code(pg.Object):
     """
     parent_func = self.parent_func()
     var_producers: Dict[str, Set[SymbolDefinition]] = {
-        arg: set() for arg in parent_func.args}
-    var_producers[parent_func.name] = set()
+        arg: set() for arg in parent_func.args}  # pyrefly: ignore[missing-attribute]
+    var_producers[parent_func.name] = set()  # pyrefly: ignore[missing-attribute]
 
     def analyze_var_producers(k: pg.KeyPath, v: Any, p: pg.Symbolic):
       del k, p
@@ -210,6 +210,7 @@ class Code(pg.Object):
     for var_name in self.input_vars():
       if var_name not in var_producers:
         raise ValueError(
+            # pyrefly: ignore[missing-attribute]
             f'Undefined variable {repr(var_name)} found in function '
             f'\'{parent_func.name}\' line#{self.line_number()}')
       dependencies.update(var_producers[var_name])
@@ -282,7 +283,7 @@ class SymbolDefinition(Code):
 
 def instruction_operrand():
   """Returns value spec for instruction operrand."""
-  return pg.typing.Any()
+  return pg.typing.Any()  # pyrefly: ignore[bad-instantiation]
 
 
 @pg.members([

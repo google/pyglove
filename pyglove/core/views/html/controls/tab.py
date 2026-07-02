@@ -87,7 +87,7 @@ class TabControl(HtmlControl):
   ):
     if tabs:
       tabs = [t for t in pg_utils.flatten(tabs).values() if t is not None]
-    selected = self._find_tab_index(tabs, selected)
+    selected = self._find_tab_index(tabs, selected)  # pyrefly: ignore[bad-argument-type]
     if selected == -1:
       selected = 0
     super().__init__(

@@ -252,8 +252,8 @@ def sample(space: Union[HyperValue,
 
   # Create and set up the backend.
   metrics_to_optimize = metrics_to_optimize or ['reward']
-  backend = backend_lib.get_backend_cls(backend).create(
-      name, group, dna_spec, algorithm, metrics_to_optimize,
+  backend = backend_lib.get_backend_cls(backend).create(  # pyrefly: ignore[bad-argument-type, bad-assignment]
+      name, group, dna_spec, algorithm, metrics_to_optimize,  # pyrefly: ignore[bad-argument-type]
       early_stopping_policy, num_examples, **kwargs)
 
   while True:

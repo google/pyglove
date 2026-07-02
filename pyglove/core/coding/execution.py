@@ -125,7 +125,7 @@ def evaluate(
         # Refer to https://stackoverflow.com/questions/
         # 73940751/why-cant-i-call-a-function-from-another-function-using-exec
         # for more details.
-        exec(compile(code_block, '', mode='exec'), global_vars)  # pylint: disable=exec-used
+        exec(compile(code_block, '', mode='exec'), global_vars)  # pylint: disable=exec-used  # pyrefly: ignore[bad-argument-type]
 
         # Evaluate the last expression.
         result = eval(  # pylint: disable=eval-used
@@ -138,7 +138,7 @@ def evaluate(
         global_vars[result_var] = result
     else:
       try:
-        exec(compile(code_block, '', mode='exec'), global_vars)  # pylint: disable=exec-used
+        exec(compile(code_block, '', mode='exec'), global_vars)  # pylint: disable=exec-used  # pyrefly: ignore[bad-argument-type]
       except BaseException as e:
         raise errors.CodeError(code, e) from e
       global_vars[RESULT_KEY] = list(global_vars.values())[-1]

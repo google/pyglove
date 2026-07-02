@@ -39,7 +39,7 @@ class Operator(base.Instruction):
 
 
 @pg.members([
-    ('x', pg.typing.Any())
+    ('x', pg.typing.Any())  # pyrefly: ignore[bad-instantiation]
 ])
 class UnaryOperator(Operator):
   """Base class for unary math operations."""
@@ -53,7 +53,7 @@ class UnaryOperator(Operator):
 
   def evaluate(self, context: Dict[str, Any]) -> Any:
     assert self.OPERATOR_FN is not None, self.__class__
-    return self.OPERATOR_FN(base.evaluate(self.x, context))  # pylint: disable=not-callable
+    return self.OPERATOR_FN(base.evaluate(self.x, context))  # pylint: disable=not-callable  # pyrefly: ignore[bad-argument-count]
 
 
 class Negate(UnaryOperator):
@@ -64,8 +64,8 @@ class Negate(UnaryOperator):
 
 
 @pg.members([
-    ('x', pg.typing.Any()),
-    ('y', pg.typing.Any()),
+    ('x', pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
+    ('y', pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
 ])
 class BinaryOperator(Operator):
   """Base class for binary math operations."""
@@ -83,56 +83,56 @@ class BinaryOperator(Operator):
     assert self.OPERATOR_FN is not None, self.__class__
     return self.OPERATOR_FN(                # pylint: disable=not-callable
         base.evaluate(self.x, context),
-        base.evaluate(self.y, context))
+        base.evaluate(self.y, context))  # pyrefly: ignore[bad-argument-count]
 
 
 class Add(BinaryOperator):
   """Add operator."""
   ORDER = 3
   OPERATOR_STR = '+'
-  OPERATOR_FN = lambda cls, x, y: x + y
+  OPERATOR_FN = lambda cls, x, y: x + y  # pyrefly: ignore[bad-assignment]
 
 
 class Substract(BinaryOperator):
   """Substract operator."""
   ORDER = 3
   OPERATOR_STR = '-'
-  OPERATOR_FN = lambda cls, x, y: x - y
+  OPERATOR_FN = lambda cls, x, y: x - y  # pyrefly: ignore[bad-assignment]
 
 
 class Multiply(BinaryOperator):
   """Multiply operator."""
   ORDER = 4
   OPERATOR_STR = '*'
-  OPERATOR_FN = lambda cls, x, y: x * y
+  OPERATOR_FN = lambda cls, x, y: x * y  # pyrefly: ignore[bad-assignment]
 
 
 class Divide(BinaryOperator):
   """Divide operator."""
   ORDER = 4
   OPERATOR_STR = '/'
-  OPERATOR_FN = lambda cls, x, y: x / y
+  OPERATOR_FN = lambda cls, x, y: x / y  # pyrefly: ignore[bad-assignment]
 
 
 class FloorDivide(BinaryOperator):
   """Floor divide operator."""
   ORDER = 4
   OPERATOR_STR = '//'
-  OPERATOR_FN = lambda cls, x, y: x // y
+  OPERATOR_FN = lambda cls, x, y: x // y  # pyrefly: ignore[bad-assignment]
 
 
 class Mod(BinaryOperator):
   """Mod operator."""
   ORDER = 4
   OPERATOR_STR = '%'
-  OPERATOR_FN = lambda cls, x, y: x % y
+  OPERATOR_FN = lambda cls, x, y: x % y  # pyrefly: ignore[bad-assignment]
 
 
 class Power(BinaryOperator):
   """Power operator."""
   ORDER = 6
   OPERATOR_STR = '**'
-  OPERATOR_FN = lambda cls, x, y: x ** y
+  OPERATOR_FN = lambda cls, x, y: x ** y  # pyrefly: ignore[bad-assignment]
 
 
 class GreaterThan(BinaryOperator):
@@ -140,7 +140,7 @@ class GreaterThan(BinaryOperator):
 
   ORDER = 2
   OPERATOR_STR = '>'
-  OPERATOR_FN = lambda cls, x, y: x > y
+  OPERATOR_FN = lambda cls, x, y: x > y  # pyrefly: ignore[bad-assignment]
 
 
 class Equals(BinaryOperator):
@@ -148,7 +148,7 @@ class Equals(BinaryOperator):
 
   ORDER = 3
   OPERATOR_STR = '=='
-  OPERATOR_FN = lambda cls, x, y: x == y
+  OPERATOR_FN = lambda cls, x, y: x == y  # pyrefly: ignore[bad-assignment]
 
 
 class NotEquals(BinaryOperator):
@@ -156,7 +156,7 @@ class NotEquals(BinaryOperator):
 
   ORDER = 3
   OPERATOR_STR = '!='
-  OPERATOR_FN = lambda cls, x, y: x != y
+  OPERATOR_FN = lambda cls, x, y: x != y  # pyrefly: ignore[bad-assignment]
 
 
 class LessThan(BinaryOperator):
@@ -164,7 +164,7 @@ class LessThan(BinaryOperator):
 
   ORDER = 2
   OPERATOR_STR = '<'
-  OPERATOR_FN = lambda cls, x, y: x < y
+  OPERATOR_FN = lambda cls, x, y: x < y  # pyrefly: ignore[bad-assignment]
 
 
 # NOTE(daiyip): This enables users to apply common operators to symbolic

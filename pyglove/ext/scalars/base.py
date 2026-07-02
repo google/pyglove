@@ -147,7 +147,7 @@ class Scalar(pg.Object):
 
 
 @pg.members([
-    ('fn', scalar_spec(pg.typing.Any()),
+    ('fn', scalar_spec(pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
      'A callable that takes an integer as input and output a value.')
 ], init_arg_list=['fn'])
 class Lambda(Scalar):
@@ -158,7 +158,7 @@ class Lambda(Scalar):
 
 
 @pg.members([
-    ('value', pg.typing.Any(), 'Value for the constant.')
+    ('value', pg.typing.Any(), 'Value for the constant.')  # pyrefly: ignore[bad-instantiation]
 ])
 class Constant(Scalar):
   """A constant number."""

@@ -73,7 +73,7 @@ DEFAULT_REPORTING_EPOCH = dict(tss=200, sss=90)
 VALIDATION_SET_REPORTING_EPOCH = 12
 
 
-@pg.functor([
+@pg.functor([  # pyrefly: ignore[bad-argument-type]
     ('ops', pg.typing.List(pg.typing.Str())),
     ('num_nodes', pg.typing.Int())
 ])
@@ -89,7 +89,7 @@ def model_tss_spc(ops, num_nodes):
   return '+'.join(nodes)
 
 
-@pg.functor([
+@pg.functor([  # pyrefly: ignore[bad-argument-type]
     ('channels', pg.typing.List(pg.typing.Int()))
 ])
 def model_sss_spc(channels):

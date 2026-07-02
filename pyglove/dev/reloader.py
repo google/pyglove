@@ -93,7 +93,7 @@ def reload(
         modules[i] = importlib.import_module(m)
 
     # Step 2: Compute and reload dependencies.
-    for m in module_dependencies(modules, transitive=True, filter=filter_fn):
+    for m in module_dependencies(modules, transitive=True, filter=filter_fn):  # pyrefly: ignore[bad-argument-type]
       if verbose:
         print(f'Reloading [{m.__name__}]...')
       _ = _reload(m)
@@ -103,7 +103,7 @@ def reload(
     for m in modules:
       if verbose:
         print(f'Reloading [{m.__name__}]...')
-      reloaded_modules.append(_reload(m))
+      reloaded_modules.append(_reload(m))  # pyrefly: ignore[bad-argument-type]
 
   elapse = time.time() - start_time
   print(f'Sync completed in {elapse:.2f} seconds.')
@@ -155,7 +155,7 @@ def module_dependencies(
           dependencies.append(dependency)
 
   if not isinstance(module, (list, tuple)):
-    module = [module]
+    module = [module]  # pyrefly: ignore[bad-assignment]
 
   for m in module:
     _visit(m, 0)

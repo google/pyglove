@@ -95,5 +95,5 @@ class Tooltip(HtmlControl):
 
 
 # Register converter for automatic conversion.
-pg_typing.register_converter(str, Tooltip, Tooltip)
-pg_typing.register_converter(Html, Tooltip, Tooltip)
+pg_typing.register_converter(str, Tooltip, Tooltip)  # pyrefly: ignore[bad-argument-type]
+pg_typing.register_converter(Html, Tooltip, Tooltip)  # pyrefly: ignore[bad-argument-type]

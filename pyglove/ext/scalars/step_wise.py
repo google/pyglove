@@ -29,7 +29,7 @@ from pyglove.ext.scalars import base
         pg.typing.Tuple([
             pg.typing.Union([pg.typing.Int(min_value=0),
                              pg.typing.Float(min_value=0.)]),
-            base.scalar_spec(pg.typing.Any())
+            base.scalar_spec(pg.typing.Any())  # pyrefly: ignore[bad-instantiation]
         ]), min_size=1),
      ('All the phases in the schedule. Each item in the list is a tuple of '
       '`(length of phase, scheduled value)`. The length of phase can be an '

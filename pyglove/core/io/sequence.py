@@ -250,7 +250,7 @@ class MemorySequenceIO(SequenceIO):
     if 'w' in mode:
       self._root[path] = []
     return MemorySequence(
-        path, mode, self._root[path],
+        path, mode, self._root[path],  # pyrefly: ignore[bad-argument-type]
         perms=perms, serializer=serializer, deserializer=deserializer
     )
 
@@ -285,10 +285,10 @@ class LineSequence(Sequence):
       line = self._file.readline()
       if not line:
         break
-      yield line.rstrip('\n')
+      yield line.rstrip('\n')  # pyrefly: ignore[bad-argument-type]
 
   def _add(self, record: Union[str, bytes]) -> None:
-    self._file.write(record.rstrip('\n'))
+    self._file.write(record.rstrip('\n'))  # pyrefly: ignore[bad-argument-type]
     self._file.write('\n')
 
   def flush(self) -> None:
@@ -315,5 +315,5 @@ class LineSequenceIO(SequenceIO):
   ) -> Sequence:
     """Opens a reader for a sequence."""
     del kwargs
-    return LineSequence(path, mode, perms, serializer, deserializer)
+    return LineSequence(path, mode, perms, serializer, deserializer)  # pyrefly: ignore[bad-argument-type]
 

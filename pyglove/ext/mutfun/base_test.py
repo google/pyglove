@@ -22,8 +22,8 @@ from pyglove.ext.mutfun import base
 
 
 @pg.members([
-    ('x', pg.typing.Any()),
-    ('y', pg.typing.Any())
+    ('x', pg.typing.Any()),  # pyrefly: ignore[bad-instantiation]
+    ('y', pg.typing.Any())  # pyrefly: ignore[bad-instantiation]
 ])
 class Xor(base.Instruction):
 

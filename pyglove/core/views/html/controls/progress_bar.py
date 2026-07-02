@@ -48,7 +48,7 @@ class SubProgress(HtmlControl):
   @functools.cached_property
   def parent(self) -> Optional['ProgressBar']:
     """Returns the parent progress bar."""
-    return self.sym_ancestor(
+    return self.sym_ancestor(  # pyrefly: ignore[bad-return]
         lambda x: isinstance(x, ProgressBar)
     )
 
@@ -87,7 +87,7 @@ class SubProgress(HtmlControl):
           value=value, skip_notification=True, raise_on_no_change=False
       )
     self._update_style(dict(width=self.width))
-    self.parent.update()
+    self.parent.update()  # pyrefly: ignore[missing-attribute]
 
 
 @pg_object.use_init_args(
