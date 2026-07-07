@@ -46,7 +46,7 @@ class UnknownType(UnknownSymbol):
     json_dict = {'_type': 'type', 'name': self.name}
     if self.args:
       json_dict['args'] = utils.to_json(self.args, **kwargs)
-    return json_dict
+    return json_dict  # pyrefly: ignore[bad-return]
 
   def format(
       self,

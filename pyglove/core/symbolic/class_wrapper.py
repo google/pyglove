@@ -147,7 +147,7 @@ class _SubclassedWrapperBase(ClassWrapper):
 
       # We do not extend existing schema which is inherited from the base
       # class.
-      cls.update_schema(arg_fields, init_arg_list=init_arg_list, extend=False)
+      cls.update_schema(arg_fields, init_arg_list=init_arg_list, extend=False)  # pyrefly: ignore[bad-argument-type]
     else:
       assert hasattr(cls, '__orig_init__')
 
@@ -202,7 +202,7 @@ class _SubclassedWrapperBase(ClassWrapper):
         assert arg_name in kwargs
         list_args.append(kwargs.pop(arg_name))
       list_args.extend(varargs)
-    self._init_user_cls(*list_args, **kwargs)
+    self._init_user_cls(*list_args, **kwargs)  # pyrefly: ignore[bad-unpacking]
 
   def __post_init__(self):
     """Post initialization when class is being used as dataclass."""
@@ -235,7 +235,7 @@ def _subclassed_wrapper(
         'ClassWrapperMeta',
         (user_cls.__class__, wrapper_base_cls.__class__), {})
 
-  class SubclassedWrapper(
+  class SubclassedWrapper(  # pyrefly: ignore[invalid-inheritance]
       user_cls, wrapper_base_cls, metaclass=wrapper_metaclass):
     """Class wrapper bound to a user class."""
     sym_wrapped_cls = user_cls
@@ -425,7 +425,7 @@ def wrap(
     # Replace schema instead of extending it.
     init_arg_list, arg_fields = _extract_init_signature(
         cls, init_args, auto_doc=auto_doc, auto_typing=auto_typing)
-    cls.update_schema(arg_fields, init_arg_list=init_arg_list, extend=False)
+    cls.update_schema(arg_fields, init_arg_list=init_arg_list, extend=False)  # pyrefly: ignore[bad-argument-type]
     cls.register_for_deserialization(serialization_key, additional_keys)
 
   if override:
@@ -568,7 +568,7 @@ def _extract_init_signature(
     arg_fields = []
   else:
     signature = pg_typing.Signature.from_signature(
-        inspect.signature(init_method),
+        inspect.signature(init_method),  # pyrefly: ignore[bad-argument-type]
         name=cls.__name__,
         callable_type=pg_typing.CallableType.METHOD,
         module_name=cls.__module__,

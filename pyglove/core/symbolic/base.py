@@ -527,7 +527,7 @@ class Symbolic(
     """Returns the containing symbolic object."""
     return getattr(self, '_sym_parent')
 
-  def sym_setparent(self, parent: 'Symbolic'):
+  def sym_setparent(self, parent: 'Symbolic'):  # pyrefly: ignore[bad-override]
     """Sets the parent of current node in the symbolic tree."""
     self._set_raw_attr('_sym_parent', parent)
 
@@ -549,7 +549,7 @@ class Symbolic(
     if self.sym_path != path:
       old_path = self.sym_path
       self._set_raw_attr('_sym_path', path)
-      self._update_children_paths(old_path, path)
+      self._update_children_paths(old_path, path)  # pyrefly: ignore[bad-argument-type]
 
   def sym_rebind(
       self,
@@ -565,7 +565,7 @@ class Symbolic(
     """Mutates the sub-nodes of current object. Please see `rebind`."""
     assert Symbolic.DictType is not None
     if callable(path_value_pairs):
-      path_value_pairs = get_rebind_dict(path_value_pairs, self)
+      path_value_pairs = get_rebind_dict(path_value_pairs, self)  # pyrefly: ignore[bad-assignment]
     elif path_value_pairs is None:
       path_value_pairs = {}
     elif isinstance(path_value_pairs, Symbolic.DictType):
@@ -585,7 +585,7 @@ class Symbolic(
 
     if not path_value_pairs and raise_on_no_change:
       raise ValueError(self._error_message('There are no values to rebind.'))
-    updates = self._sym_rebind(path_value_pairs)
+    updates = self._sym_rebind(path_value_pairs)  # pyrefly: ignore[bad-argument-type]
     if skip_notification is None:
       skip_notification = not flags.is_change_notification_enabled()
     if not skip_notification:
@@ -600,7 +600,7 @@ class Symbolic(
     assert deep or not memo
     new_value = self._sym_clone(deep, memo)
     if override:
-      new_value.sym_rebind(override, raise_on_no_change=False)
+      new_value.sym_rebind(override, raise_on_no_change=False)  # pyrefly: ignore[bad-argument-type]
     if flags.is_tracking_origin():
       new_value.sym_setorigin(self, 'deepclone' if deep else 'clone')
     return new_value
@@ -1417,7 +1417,7 @@ def traverse(
           preorder_action = TraverseAction.STOP
           break
     elif isinstance(x, Symbolic.ObjectType):  # pytype: disable=wrong-arg-types
-      for k, v in x.sym_items():
+      for k, v in x.sym_items():  # pyrefly: ignore[missing-attribute]
         if not traverse(
             v,
             preorder_visitor_fn,
@@ -2134,7 +2134,7 @@ def from_json(
                 'Tuple should have at least one element '
                 f"besides '{utils.JSONConvertible.TUPLE_MARKER}'. "
                 f'Encountered: {json_value}',
-                root_path,
+                root_path,  # pyrefly: ignore[bad-argument-type]
             )
         )
       return tuple(_load_child(i, v) for i, v in enumerate(json_value[1:]))
@@ -2436,7 +2436,7 @@ def open_jsonl(
       path,
       mode,
       serializer=to_json_str,
-      deserializer=from_json_str,
+      deserializer=from_json_str,  # pyrefly: ignore[bad-argument-type]
       **kwargs
   )
 
@@ -2448,7 +2448,7 @@ def default_load_handler(
   """Default load handler from file."""
   content = pg_io.readfile(path)
   if file_format == 'json':
-    return from_json_str(content, allow_partial=True, **kwargs)
+    return from_json_str(content, allow_partial=True, **kwargs)  # pyrefly: ignore[bad-argument-type]
   elif file_format == 'txt':
     return content
   else:
@@ -2527,7 +2527,7 @@ def symbolic_transform_fn(allow_partial: bool):
     elif isinstance(value, list):
       value_spec = pg_typing.ensure_value_spec(
           field.value,
-          pg_typing.List(pg_typing.Any()).noneable(),
+          pg_typing.List(pg_typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
           path
       )
       value = Symbolic.ListType(   # pytype: disable=not-callable  # pylint: disable=not-callable

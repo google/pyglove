@@ -236,7 +236,7 @@ class Functor(pg_object.Object, utils.Functor):
     # member overrides from the arguments during functor call.
     self._tls = threading.local() if self.is_subclassed_functor() else None
 
-  def _sym_inferred(self, key: str, **kwargs: Any) -> Any:
+  def _sym_inferred(self, key: str, **kwargs: Any) -> Any:  # pyrefly: ignore[bad-override]
     """Overrides method to allow member overrides during call."""
     if self._tls is not None:
       overrides = getattr(self._tls, Functor._TLS_OVERRIDE_MEMBERS_KEY, {})
@@ -264,8 +264,8 @@ class Functor(pg_object.Object, utils.Functor):
       if len(relative_path) != 1:
         continue
       arg_name = str(relative_path)
-      if update.field.default_value == update.new_value:
-        if update.field.value.has_default:
+      if update.field.default_value == update.new_value:  # pyrefly: ignore[missing-attribute]
+        if update.field.value.has_default:  # pyrefly: ignore[missing-attribute]
           self._default_args.add(arg_name)
         self._non_default_args.discard(arg_name)
       else:
@@ -562,7 +562,7 @@ def functor(
         **kwargs,
     )
   return lambda fn: functor_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
-      fn, args, returns,
+      fn, args, returns,  # pyrefly: ignore[bad-argument-type]
       base_class=base_class,
       add_to_registry=True,
       **kwargs)
@@ -658,7 +658,7 @@ def functor_class(
   if not inspect.isfunction(func):
     raise TypeError(f'{func!r} is not a function.')
 
-  class _Functor(base_class or Functor):
+  class _Functor(base_class or Functor):  # pyrefly: ignore[invalid-inheritance]
     """Functor wrapper for input function."""
 
     # The schema for function-based Functor will be inferred from the function

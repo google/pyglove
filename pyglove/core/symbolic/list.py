@@ -355,9 +355,9 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
 
     # Apply the updates in reverse order, so the operated path will not alter
     # from insertions and deletions.
-    path_value_pairs = sorted(
+    path_value_pairs = sorted(  # pyrefly: ignore[bad-assignment]
         path_value_pairs.items(), key=lambda x: x[0], reverse=True)
-    for k, v in path_value_pairs:
+    for k, v in path_value_pairs:  # pyrefly: ignore[not-iterable]
       update = self._set_item_of_current_tree(k, v)
       if update is not None:
         updates.append(update)
@@ -366,7 +366,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     updates.reverse()
     return updates
 
-  def _sym_nondefault(self) -> Dict[int, Any]:
+  def _sym_nondefault(self) -> Dict[int, Any]:  # pyrefly: ignore[bad-override]
     """Returns non-default values."""
     non_defaults = dict()
     for idx, elem in self.sym_items():
@@ -516,9 +516,9 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
   def __getitem__(self, index) -> Any:
     """Gets the item at a given position."""
     if isinstance(index, numbers.Integral):
-      if index < -len(self) or index >= len(self):
+      if index < -len(self) or index >= len(self):  # pyrefly: ignore[unsupported-operation]
         raise IndexError('list index out of range')
-      return self.sym_inferred(index)
+      return self.sym_inferred(index)  # pyrefly: ignore[bad-argument-type]
     elif isinstance(index, slice):
       return [self[i] for i in range(*self._parse_slice(index))]
     else:
@@ -568,18 +568,18 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       if flags.is_change_notification_enabled() and updates:
         self._notify_field_updates(updates)
     elif isinstance(index, numbers.Integral):
-      if index < -len(self) or index >= len(self):
+      if index < -len(self) or index >= len(self):  # pyrefly: ignore[unsupported-operation]
         raise IndexError(
             f'list assignment index out of range. '
             f'Length={len(self)}, index={index}')
-      update = self._set_item_without_permission_check(index, value)
+      update = self._set_item_without_permission_check(index, value)  # pyrefly: ignore[bad-argument-type]
       if flags.is_change_notification_enabled() and update:
         self._notify_field_updates([update])
     else:
       raise TypeError(
           f'list assignment index must be an integer. Encountered {index!r}.')
 
-  def __delitem__(self, index: int) -> None:
+  def __delitem__(self, index: int) -> None:  # pyrefly: ignore[bad-override]
     """Delete an item from the List."""
     if base.treats_as_sealed(self):
       raise base.WritePermissionError('Cannot delete item from a sealed List.')
@@ -615,7 +615,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     concatenated.extend(other)
     return concatenated
 
-  def __mul__(self, n: int) -> 'List':
+  def __mul__(self, n: int) -> 'List':  # pyrefly: ignore[bad-override]
     """Returns a repeated Lit of self."""
     result = List()
     for _ in range(n):
@@ -624,7 +624,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       result.use_value_spec(self._value_spec)
     return result
 
-  def __rmul__(self, n: int) -> 'List':
+  def __rmul__(self, n: int) -> 'List':  # pyrefly: ignore[bad-override]
     """Returns a repeated Lit of self."""
     return self.__mul__(n)
 
@@ -643,7 +643,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     if flags.is_change_notification_enabled() and update:
       self._notify_field_updates([update])
 
-  def insert(self, index: int, value: Any) -> None:
+  def insert(self, index: int, value: Any) -> None:  # pyrefly: ignore[bad-override]
     """Inserts an item at a given position."""
     if base.treats_as_sealed(self):
       raise base.WritePermissionError(
@@ -656,7 +656,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
     if flags.is_change_notification_enabled() and update:
       self._notify_field_updates([update])
 
-  def pop(self, index: int = -1) -> Any:
+  def pop(self, index: int = -1) -> Any:  # pyrefly: ignore[bad-override]
     """Pop an item and return its value."""
     if index < -len(self) or index >= len(self):
       raise IndexError('pop index out of range')

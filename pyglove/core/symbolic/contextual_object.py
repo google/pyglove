@@ -125,7 +125,7 @@ class ContextualObject(pg_object.Object):
     super()._on_bound()
     self._contextual_overrides = threading.local()
 
-  def _sym_inferred(self, key: str, **kwargs):
+  def _sym_inferred(self, key: str, **kwargs):  # pyrefly: ignore[bad-override]
     """Override to allow attribute to access scoped value.
 
     Args:

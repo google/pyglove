@@ -150,7 +150,7 @@ class Ref(
   def sym_eq(self, other: Any) -> bool:
     return isinstance(other, Ref) and self.value is other.value
 
-  def sym_jsonify(
+  def sym_jsonify(  # pyrefly: ignore[bad-override]
       self,
       *,
       context: utils.JSONConversionContext,

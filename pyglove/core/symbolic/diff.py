@@ -337,9 +337,9 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
 # since we need to access Diff.MISSING as the default value for `left` and
 # `right`.
 pg_object.members([
-    ('left', pg_typing.Any(default=Diff.MISSING),
+    ('left', pg_typing.Any(default=Diff.MISSING),  # pyrefly: ignore[bad-instantiation]
      'The left-hand object being compared.'),
-    ('right', pg_typing.Any(default=Diff.MISSING),
+    ('right', pg_typing.Any(default=Diff.MISSING),  # pyrefly: ignore[bad-instantiation]
      'The right-hand object being compared.'),
     ('children', pg_typing.Dict([
         (pg_typing.StrKey(), pg_typing.Object(Diff), 'Child node.')

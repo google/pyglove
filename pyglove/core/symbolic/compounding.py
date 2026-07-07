@@ -180,7 +180,7 @@ def compound_class(
       if isinstance(self._sym_decomposed, Symbolic):
         self._sym_decomposed.sym_setparent(new_parent)
 
-    def _sym_inferred(self, key: str, **kwargs) -> Any:
+    def _sym_inferred(self, key: str, **kwargs) -> Any:  # pyrefly: ignore[bad-override]
       # Bypass the user base' `_sym_inferred` if it's overriden.
       return Compound._sym_inferred(self, key, **kwargs)
 
@@ -303,5 +303,5 @@ def compound(
     assert args is None
     return compound_class(base_class, add_to_registry=True, **kwargs)
   return lambda fn: compound_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
-      fn, base_class, args, add_to_registry=True, **kwargs
+      fn, base_class, args, add_to_registry=True, **kwargs  # pyrefly: ignore[bad-argument-type]
   )

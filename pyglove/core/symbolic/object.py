@@ -93,7 +93,7 @@ class ObjectMeta(abc.ABCMeta):
 
     metadata['init_arg_list'] = init_arg_list
     schema = pg_typing.create_schema(
-        fields=fields,
+        fields=fields,  # pyrefly: ignore[bad-argument-type]
         base_schema_list=[cls.__schema__] if extend else [],
         allow_nonconst_keys=True,
         metadata=metadata,
@@ -104,7 +104,7 @@ class ObjectMeta(abc.ABCMeta):
     # Update abstract methods.
     # abc.update_abstractmethods is only available in Python 3.10 and above.
     if sys.version_info >= (3, 10):
-      abc.update_abstractmethods(cls)
+      abc.update_abstractmethods(cls)  # pyrefly: ignore[bad-argument-type]
     elif cls.allow_symbolic_attribute:
       abstract_methods = getattr(cls, '__abstractmethods__', frozenset())
       new_abstract_methods = []
@@ -131,7 +131,7 @@ class ObjectMeta(abc.ABCMeta):
     # Register class with 'type' property.
     for key in serialization_keys:
       utils.JSONConvertible.register(
-          key, cls, flags.is_repeated_class_registration_allowed()
+          key, cls, flags.is_repeated_class_registration_allowed()  # pyrefly: ignore[bad-argument-type]
       )
 
   def _infer_fields_from_annotations(cls) -> List[pg_typing.Field]:
@@ -362,7 +362,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
 
       new_fields = user_cls._infer_fields_from_annotations()
       cls_schema = pg_typing.create_schema(
-          new_fields,
+          new_fields,  # pyrefly: ignore[bad-argument-type]
           base_schema_list=base_schema_list,
           allow_nonconst_keys=True,
           metadata={},
@@ -389,7 +389,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     schema.set_name(cls.__type_name__)
     docstr = utils.docstr(cls)
     if docstr:
-      schema.set_description(docstr.description)
+      schema.set_description(docstr.description)  # pyrefly: ignore[bad-argument-type]
 
     def _formalize_field(path: utils.KeyPath, node: Any) -> bool:
       """Formalize field."""
@@ -886,14 +886,14 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
                           sealed=self._sealed,
                           **kwargs)  # pytype: disable=not-instantiable
 
-  def _sym_missing(self) -> Dict[str, Any]:
+  def _sym_missing(self) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     """Returns missing values."""
     # Invalidate the cache of child attributes' missing values before calling
     # `Dict.sym_missing`.
     setattr(self._sym_attributes, '_sym_missing_values', None)
     return self._sym_attributes.sym_missing(flatten=False)
 
-  def _sym_nondefault(self) -> Dict[str, Any]:
+  def _sym_nondefault(self) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     """Returns non-default values."""
     # Invalidate the cache of child attributes' non-default values before
     # calling `Dict.sym_nondefault`.
@@ -1001,7 +1001,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     }
     kwargs['omit_symbolic_marker'] = True
     json_dict.update(self._sym_attributes.to_json(**kwargs))
-    return json_dict
+    return json_dict  # pyrefly: ignore[bad-return]
 
   def format(self,
              compact: bool = False,

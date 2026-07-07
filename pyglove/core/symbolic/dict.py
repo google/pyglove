@@ -248,13 +248,13 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     # NOTE(daiyip): values in kwargs is prior to dict_obj.
     dict_obj = dict_obj or {}
     for k, v in kwargs.items():
-      dict_obj[k] = v
+      dict_obj[k] = v  # pyrefly: ignore[unsupported-operation]
 
     iter_items = getattr(dict_obj, 'sym_items', dict_obj.items)
     if value_spec:
       if pass_through:
         for k, v in iter_items():
-          super().__setitem__(k, self._relocate_if_symbolic(k, v))
+          super().__setitem__(k, self._relocate_if_symbolic(k, v))  # pyrefly: ignore[bad-argument-type]
 
         # NOTE(daiyip): when pass_through is on, we simply trust input
         # dict is validated and filled with values of their final form (
@@ -263,11 +263,11 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         self._value_spec = value_spec
       else:
         for k, v in iter_items():
-          super().__setitem__(k, self._formalized_value(k, None, v))
+          super().__setitem__(k, self._formalized_value(k, None, v))  # pyrefly: ignore[bad-argument-type]
         self.use_value_spec(value_spec, allow_partial)
     else:
       for k, v in iter_items():
-        self._set_item_without_permission_check(k, v)
+        self._set_item_without_permission_check(k, v)  # pyrefly: ignore[bad-argument-type]
 
     # NOTE(daiyip): We set onchange callback at the end of init to avoid
     # triggering during initialization.
@@ -365,7 +365,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """
     missing = dict()
     if self._value_spec and self._value_spec.schema:
-      matched_keys, _ = self._value_spec.schema.resolve(self.keys())
+      matched_keys, _ = self._value_spec.schema.resolve(self.keys())  # pyrefly: ignore[bad-argument-type]
       for key_spec, keys in matched_keys.items():
         field = self._value_spec.schema[key_spec]
         assert keys or isinstance(key_spec, pg_typing.NonConstKey), key_spec
@@ -392,7 +392,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     non_defaults = dict()
     if self._value_spec is not None and self._value_spec.schema:
       dict_schema = self._value_spec.schema
-      matched_keys, _ = dict_schema.resolve(self.keys())
+      matched_keys, _ = dict_schema.resolve(self.keys())  # pyrefly: ignore[bad-argument-type]
       for key_spec, keys in matched_keys.items():
         value_spec = dict_schema[key_spec].value
         for key in keys:
@@ -547,7 +547,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     field = None
     if self._value_spec and self._value_spec.schema:
-      field = self._value_spec.schema.get_field(key)
+      field = self._value_spec.schema.get_field(key)  # pyrefly: ignore[bad-argument-type]
       if not field:
         if (self.sym_parent is not None
             and self.sym_parent.sym_path == self.sym_path):
@@ -816,7 +816,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       value = default
     return value
 
-  def update(
+  def update(  # pyrefly: ignore[bad-override]
       self,
       other: Union[
           None,
@@ -829,7 +829,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     updates = dict(other) if other else {}
     updates.update(kwargs)
     self.rebind(
-        updates, raise_on_no_change=False, skip_notification=True)
+        updates, raise_on_no_change=False, skip_notification=True)  # pyrefly: ignore[bad-argument-type]
 
   def sym_jsonify(
       self,
@@ -841,7 +841,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       **kwargs,
   ) -> utils.JSONValueType:
     """Converts current object to a dict with plain Python objects."""
-    exclude_keys = set(exclude_keys or [])
+    exclude_keys = set(exclude_keys or [])  # pyrefly: ignore[bad-assignment]
     json_repr = {}
     if not omit_symbolic_marker:
       json_repr[utils.JSONConvertible.SYMBOLIC_MARKER] = True
@@ -854,7 +854,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         if hide_frozen and field.frozen:
           continue
         for key in keys:
-          if key not in exclude_keys:
+          if key not in exclude_keys:  # pyrefly: ignore[not-iterable]
             value = self.sym_getattr(key)
             if use_inferred and isinstance(value, base.Inferential):
               value = self.sym_inferred(key, default=value)
@@ -881,7 +881,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
               omit_symbolic_marker=omit_symbolic_marker,
               **kwargs)
           for k, v in self.sym_items()
-          if k not in exclude_keys
+          if k not in exclude_keys  # pyrefly: ignore[not-iterable]
       })
     return json_repr
 
@@ -1021,7 +1021,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           if i != 0 and extra_blankline_for_field_docstr:
             s.append('\n')
           description = typing.cast(pg_typing.Field, f).description
-          for line in description.split('\n'):
+          for line in description.split('\n'):  # pyrefly: ignore[missing-attribute]
             s.append(_indent(f'# {line}\n', root_indent + 1))
         v_str = utils.format(
             v,
