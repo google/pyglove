@@ -47,8 +47,26 @@ class ErrorInfo(metaclass=abc.ABCMeta):
 
   @classmethod
   def _compute_tag(cls, error: BaseException):
+    """Returns a dotted tag of exception class names from the cause chain.
+
+    Walks up the exception cause chain (``.cause`` falling back to
+    ``__cause__``), collecting each exception class name, guarding against
+    cycles.
+
+    Args:
+      error: The exception whose cause chain is walked.
+
+    Returns:
+      The exception class names joined by '.'.
+    """
     error_types = []
-    while error is not None:
+    # Guard against cyclic cause chains (e.g. ``e.__cause__ is e`` or
+    # ``a.cause -> b.cause -> a``). Without this, the loop never terminates and
+    # ``error_types`` grows without bound, exhausting memory (OOM). Tracking the
+    # identities of visited exceptions bounds the walk to distinct exceptions.
+    seen = set()
+    while error is not None and id(error) not in seen:
+      seen.add(id(error))
       error_types.append(error.__class__.__name__)
       error = getattr(error, 'cause', error.__cause__)  # pyrefly: ignore[bad-assignment]
     return '.'.join(error_types)

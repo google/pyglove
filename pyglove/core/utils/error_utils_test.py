@@ -72,5 +72,44 @@ class CatchErrorsTest(unittest.TestCase):
         pass
 
 
+class _CyclicError(Exception):
+  """Exception exposing a settable ``cause`` attribute for chain-walk tests."""
+
+  def __init__(self, message: str):
+    super().__init__(message)
+    self.cause = None
+
+
+class ComputeTagTest(unittest.TestCase):
+  """Regression tests for ErrorInfo._compute_tag cause-chain traversal."""
+
+  def test_linear_chain(self):
+    # Acyclic chains are fully traversed (backward-compatible behavior).
+    a = _CyclicError('a')
+    b = _CyclicError('b')
+    a.cause = b
+    b.cause = None
+    self.assertEqual(
+        error_utils.ErrorInfo._compute_tag(a),
+        '_CyclicError._CyclicError',
+    )
+
+  def test_self_cycle_terminates(self):
+    # Previously looped forever, growing a list until OOM.
+    e = _CyclicError('boom')
+    e.cause = e
+    self.assertEqual(error_utils.ErrorInfo._compute_tag(e), '_CyclicError')
+
+  def test_two_node_cycle_terminates(self):
+    a = _CyclicError('a')
+    b = _CyclicError('b')
+    a.cause = b
+    b.cause = a
+    self.assertEqual(
+        error_utils.ErrorInfo._compute_tag(a),
+        '_CyclicError._CyclicError',
+    )
+
+
 if __name__ == '__main__':
   unittest.main()
