@@ -17,6 +17,7 @@ import abc
 import base64
 import collections
 import contextlib
+import contextvars
 import dataclasses
 import importlib
 import inspect
@@ -377,11 +378,20 @@ def _type_name(
   return f'{type_or_function.__module__}.{type_or_function.__qualname__}'
 
 
-# Process-global flag gating opaque-object pickle deserialization.
-# Defaults to True for backward compatibility.  Security-sensitive contexts
-# (e.g. cloud services handling untrusted JSON) should use
-# enable_opaque_pickle(False) to opt out.
-_opaque_pickle_enabled = True
+# Flag gating opaque-object pickle deserialization.
+#
+# Backed by a `contextvars.ContextVar` (NOT a plain module global) so the state
+# is isolated per-thread and per-async-context. This is security-critical:
+# `enable_opaque_pickle(False)` is used as a hardening guard by multi-threaded
+# untrusted callers (e.g. the Vertex JMS server) and by the `trusted=False`
+# `_hardened_scope` below. A plain module global would let a concurrent
+# `enable_opaque_pickle(True)` / trusted=True deserialization on another thread
+# re-enable opaque pickle mid-flight and defeat the guard (b/522141119). A
+# ContextVar gives each thread/context its own value (default True for backward
+# compatibility), so scopes on different threads cannot clobber each other.
+_opaque_pickle_enabled: 'contextvars.ContextVar[bool]' = contextvars.ContextVar(
+    '_opaque_pickle_enabled', default=True
+)
 
 
 def enable_opaque_pickle(enable: bool = True) -> ContextManager[None]:
@@ -415,14 +425,23 @@ def enable_opaque_pickle(enable: bool = True) -> ContextManager[None]:
 
 @contextlib.contextmanager
 def _opaque_pickle_scope(enable: bool) -> Iterator[None]:
-  """Context manager that sets the opaque-pickle flag within a scope."""
-  global _opaque_pickle_enabled
-  old = _opaque_pickle_enabled
-  _opaque_pickle_enabled = enable
+  """Context manager that sets the opaque-pickle flag within a scope.
+
+  The flag is stored in a `contextvars.ContextVar`, so `.set()` returns a token
+  that `.reset()` uses to restore the previous value. Unlike a mutable module
+  global, this is thread- and coroutine-safe: concurrent scopes on different
+  threads/contexts each see only their own value and cannot clobber one
+  another's save/restore (b/522141119).
+
+  Args:
+    enable: If True, enable opaque-object pickle deserialization in the current
+      scope. Otherwise, disable it.
+  """
+  token = _opaque_pickle_enabled.set(enable)
   try:
     yield
   finally:
-    _opaque_pickle_enabled = old
+    _opaque_pickle_enabled.reset(token)
 
 
 class _OpaqueObject(JSONConvertible):
@@ -471,7 +490,7 @@ class _OpaqueObject(JSONConvertible):
       context: Optional['JSONConversionContext'] = None,
       **kwargs
   ) -> Any:
-    if not _opaque_pickle_enabled:
+    if not _opaque_pickle_enabled.get():
       raise TypeError(
           'Deserializing _OpaqueObject is disabled because it '
           'uses pickle.loads, which can execute arbitrary code. '
@@ -748,7 +767,8 @@ def from_json(
     context: Optional[JSONConversionContext] = None,
     auto_import: bool = True,
     convert_unknown: bool = False,
-    **kwargs
+    trusted: bool = True,
+    **kwargs,
 ) -> Any:
   """Deserializes a (maybe) JSONConvertible value from JSON value.
 
@@ -756,21 +776,46 @@ def from_json(
     json_value: Input JSON value.
     context: Serialization context.
     auto_import: If True, when a '_type' is not registered, PyGlove will
-      identify its parent module and automatically import it. For example,
-      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
-      find the class 'A' within the imported module.
-    convert_unknown: If True, when a '_type' is not registered and cannot
-      be imported, PyGlove will create objects of:
-        - `pg.symbolic.UnknownType` for unknown types;
-        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
-        - `pg.symbolic.UnknownFunction` for unknown functions;
-        - `pg.symbolic.UnknownMethod` for unknown methods.
-      If False, TypeError will be raised.
+      identify its parent module and automatically import it. For example, if
+      the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and find the
+      class 'A' within the imported module.
+    convert_unknown: If True, when a '_type' is not registered and cannot be
+      imported, PyGlove will create objects of: - `pg.symbolic.UnknownType` for
+      unknown types; - `pg.symbolic.UnknownTypedObject` for objects of unknown
+      types; - `pg.symbolic.UnknownFunction` for unknown functions; -
+      `pg.symbolic.UnknownMethod` for unknown methods. If False, TypeError will
+      be raised.
+    trusted: If True (default, backward-compatible), the input JSON is treated
+      as coming from a trusted source and arbitrary symbol resolution
+      (`function`/`method`/`type` gadgets, `auto_import` via `_load_symbol`, and
+      opaque-object pickle) is allowed. If False, the input is treated as
+      untrusted so symbol resolution is restricted to the registry allowlist
+      only and opaque-object pickle is disabled. See b/522141119.
     **kwargs: Keyword arguments that will be passed to JSONConvertible.__init__.
 
   Returns:
     Deserialized value.
   """
+  # Security umbrella (b/522141119): under `trusted=False`, restrict symbol
+  # resolution to the registry allowlist only (force `auto_import=False`, which
+  # blocks the `_load_symbol` fallback) and disable opaque-object pickle. We
+  # re-enter once inside the hardened opaque-pickle scope (via the private
+  # `_hardened_scope` marker, mirroring the existing `_typename_resolved`
+  # convention) so the scope spans the whole recursive deserialization.
+  hardened = kwargs.pop('_hardened_scope', False)
+  if not trusted:
+    auto_import = False
+    if not hardened:
+      with enable_opaque_pickle(False):
+        return from_json(
+            json_value,
+            context=context,
+            auto_import=False,
+            convert_unknown=convert_unknown,
+            trusted=False,
+            _hardened_scope=True,
+            **kwargs,
+        )
   if context is None:
     if (isinstance(json_value, dict)
         and (context_node := json_value.get(JSONConvertible.CONTEXT_KEY))):
@@ -787,7 +832,10 @@ def from_json(
   typename_resolved = kwargs.pop('_typename_resolved', False)
   if not typename_resolved:
     json_value = resolve_typenames(
-        json_value, auto_import=auto_import, convert_unknown=convert_unknown
+        json_value,
+        auto_import=auto_import,
+        convert_unknown=convert_unknown,
+        trusted=trusted,
     )
 
   def child_from(v):
@@ -818,8 +866,26 @@ def resolve_typenames(
     json_value: JSONValueType,
     auto_import: bool = True,
     convert_unknown: bool = False,
+    trusted: bool = True,
 ) -> JSONValueType:
-  """Inplace resolves the "_type" keys with their factories in a JSON tree."""
+  """Inplace resolves the "_type" keys with their factories in a JSON tree.
+
+  Args:
+    json_value: The JSON tree to resolve in place.
+    auto_import: If True, unregistered `_type` names are resolved by importing
+      their module (`_load_symbol`). Forced to False when `trusted` is False.
+    convert_unknown: If True, unresolvable types are converted to `Unknown*`
+      placeholders instead of raising.
+    trusted: If False (untrusted input), the `function`/`method`/`type` symbol
+      resolvers are rejected and `auto_import` is forced off so only the
+      registry allowlist is used. See b/522141119.
+
+  Returns:
+    The resolved JSON tree.
+  """
+  if not trusted:
+    # Untrusted input: never import arbitrary modules/symbols; registry only.
+    auto_import = False
 
   def _resolve_typename(v: Dict[str, Any]) -> bool:
     """Returns True if the subtree is resolved for the first time."""
@@ -829,11 +895,11 @@ def resolve_typenames(
       return False
     type_name = v[JSONConvertible.TYPE_NAME_KEY]
     if type_name == 'type':
-      factory_fn = _type_from_json(convert_unknown)
+      factory_fn = _type_from_json(convert_unknown, trusted=trusted)
     elif type_name == 'function':
-      factory_fn = _function_from_json(convert_unknown)
+      factory_fn = _function_from_json(convert_unknown, trusted=trusted)
     elif type_name == 'method':
-      factory_fn = _method_from_json(convert_unknown)
+      factory_fn = _method_from_json(convert_unknown, trusted=trusted)
     else:
       cls = JSONConvertible.class_from_typename(type_name)
       if cls is None:
@@ -1075,10 +1141,20 @@ def _load_symbol(type_name: str) -> Any:
   return symbol
 
 
-def _type_from_json(convert_unknown: bool) -> Callable[..., Any]:
+def _type_from_json(
+    convert_unknown: bool, trusted: bool = True
+) -> Callable[..., Any]:
   """Loads a type from a JSON dict."""
   def _fn(json_value: Dict[str, str], **kwargs) -> Type[Any]:
     del kwargs
+    if not trusted:
+      raise TypeError(
+          "Symbol resolution of _type='type' "
+          f'(name={json_value.get("name")!r}) is disabled under '
+          'trusted=False because it imports and can execute arbitrary code '
+          'during deserialization; pass trusted=True to opt in for trusted '
+          'input. See b/522141119.'
+      )
     try:
       t = _load_symbol(json_value['name'])
       if 'args' in json_value:
@@ -1100,11 +1176,21 @@ def _type_from_json(convert_unknown: bool) -> Callable[..., Any]:
 
 
 def _function_from_json(
-    convert_unknown: bool
+    convert_unknown: bool, trusted: bool = True
 ) -> Callable[..., types.FunctionType]:
   """Loads a function from a JSON dict."""
   def _fn(json_value: Dict[str, str], **kwargs) -> types.FunctionType:
     del kwargs
+    if not trusted:
+      # Blocks both the `_load_symbol` branch and the `marshal.loads`/'code'
+      # bytecode branch below (the raise precedes both).
+      raise TypeError(
+          "Symbol resolution of _type='function' "
+          f'(name={json_value.get("name")!r}) is disabled under '
+          'trusted=False because it imports/materializes and can execute '
+          'arbitrary code during deserialization; pass trusted=True to opt '
+          'in for trusted input. See b/522141119.'
+      )
     function_name = json_value['name']
     if 'code' in json_value:
       code = marshal.loads(
@@ -1131,11 +1217,19 @@ def _function_from_json(
 
 
 def _method_from_json(
-    convert_unknown: bool
+    convert_unknown: bool, trusted: bool = True
 ) -> Callable[..., types.MethodType]:
   """Loads a class method from a JSON dict."""
   def _fn(json_value: Dict[str, str], **kwargs) -> types.MethodType:
     del kwargs
+    if not trusted:
+      raise TypeError(
+          "Symbol resolution of _type='method' "
+          f'(name={json_value.get("name")!r}) is disabled under '
+          'trusted=False because it imports and can execute arbitrary code '
+          'during deserialization; pass trusted=True to opt in for trusted '
+          'input. See b/522141119.'
+      )
     try:
       return _load_symbol(json_value['name'])
     except (ModuleNotFoundError, AttributeError) as e:

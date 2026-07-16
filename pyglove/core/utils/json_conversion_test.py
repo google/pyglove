@@ -13,7 +13,10 @@
 # limitations under the License.
 import abc
 import base64
+import collections
 import copy
+import marshal
+import os
 import pickle
 import typing
 import unittest
@@ -601,27 +604,27 @@ class JSONConvertibleTest(unittest.TestCase):
 
   def test_enable_opaque_pickle_restores_on_exception(self):
     """Flag must be restored even if the body raises."""
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    self.assertTrue(json_conversion._opaque_pickle_enabled.get())
     try:
       with json_conversion.enable_opaque_pickle(False):
-        self.assertFalse(json_conversion._opaque_pickle_enabled)
+        self.assertFalse(json_conversion._opaque_pickle_enabled.get())
         raise RuntimeError('simulated crash')
     except RuntimeError:
       pass
     # Flag must be restored to True after exception.
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    self.assertTrue(json_conversion._opaque_pickle_enabled.get())
 
   def test_enable_opaque_pickle_nested(self):
     """Nested context managers must restore correctly."""
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    self.assertTrue(json_conversion._opaque_pickle_enabled.get())
     with json_conversion.enable_opaque_pickle(False):
-      self.assertFalse(json_conversion._opaque_pickle_enabled)
+      self.assertFalse(json_conversion._opaque_pickle_enabled.get())
       with json_conversion.enable_opaque_pickle(True):
-        self.assertTrue(json_conversion._opaque_pickle_enabled)
+        self.assertTrue(json_conversion._opaque_pickle_enabled.get())
       # After inner allow exits, flag should be False (outer disallow active).
-      self.assertFalse(json_conversion._opaque_pickle_enabled)
+      self.assertFalse(json_conversion._opaque_pickle_enabled.get())
     # After outer disallow exits, flag must be True.
-    self.assertTrue(json_conversion._opaque_pickle_enabled)
+    self.assertTrue(json_conversion._opaque_pickle_enabled.get())
 
   def test_opaque_rce_blocked_via_auto_import_when_disabled(self):
     """auto_import must NOT bypass the pickle gate when disabled."""
@@ -675,6 +678,135 @@ class JSONConvertibleTest(unittest.TestCase):
     with json_conversion.enable_opaque_pickle(False):
       with self.assertRaises(TypeError):
         json_conversion.from_json(dict_payload)
+
+
+class _TrustRegistered(json_conversion.JSONConvertible):
+  """A registered JSONConvertible used to verify registry-only deserialization."""
+
+  def __init__(self, x):
+    self.x = x
+
+  def to_json(self, **kwargs):
+    return self.to_json_dict({'x': self.x}, **kwargs)
+
+  def __eq__(self, other):
+    return isinstance(other, _TrustRegistered) and self.x == other.x
+
+
+class TrustedDeserializationTest(unittest.TestCase):
+  """Tests for the `trusted` parameter of `from_json` (b/522141119)."""
+
+  # --- (a) trusted=True (default) stays byte-for-byte backward compatible. ---
+
+  def test_trusted_true_default_deserializes_registered_class(self):
+    obj = _TrustRegistered(7)
+    self.assertEqual(
+        json_conversion.from_json(copy.deepcopy(json_conversion.to_json(obj))),
+        obj,
+    )
+
+  def test_trusted_true_roundtrips_function(self):
+    payload = {'_type': 'function', 'name': 'os.getpid'}
+    self.assertIs(json_conversion.from_json(dict(payload)), os.getpid)
+
+  def test_trusted_true_roundtrips_type(self):
+    payload = {'_type': 'type', 'name': 'collections.OrderedDict'}
+    self.assertIs(
+        json_conversion.from_json(dict(payload)), collections.OrderedDict
+    )
+
+  def test_trusted_true_roundtrips_method(self):
+    payload = {'_type': 'method', 'name': 'collections.OrderedDict.fromkeys'}
+    # Bound built-in methods create a fresh wrapper object per access, so
+    # compare by equality (same __self__/__func__) rather than identity.
+    self.assertEqual(
+        json_conversion.from_json(dict(payload)),
+        collections.OrderedDict.fromkeys,
+    )
+
+  # --- (b) trusted=False must not break legitimate registry deserialization. -
+
+  def test_trusted_false_deserializes_registered_class(self):
+    obj = _TrustRegistered(9)
+    self.assertEqual(
+        json_conversion.from_json(
+            copy.deepcopy(json_conversion.to_json(obj)), trusted=False
+        ),
+        obj,
+    )
+
+  # --- trusted=False rejects the three gadget resolvers. ---
+
+  def test_trusted_false_blocks_function(self):
+    payload = {'_type': 'function', 'name': 'os.system'}
+    with self.assertRaisesRegex(TypeError, 'trusted=False'):
+      json_conversion.from_json(dict(payload), trusted=False)
+
+  def test_trusted_false_blocks_method(self):
+    payload = {'_type': 'method', 'name': 'os.system'}
+    with self.assertRaisesRegex(TypeError, 'trusted=False'):
+      json_conversion.from_json(dict(payload), trusted=False)
+
+  def test_trusted_false_blocks_type(self):
+    payload = {'_type': 'type', 'name': 'posix.system'}
+    with self.assertRaisesRegex(TypeError, 'trusted=False'):
+      json_conversion.from_json(dict(payload), trusted=False)
+
+  # --- (c) trusted=False blocks the marshal 'code' bytecode branch. ---
+
+  def test_trusted_false_blocks_marshal_code_branch(self):
+    code = base64.encodebytes(marshal.dumps((lambda: 0).__code__)).decode(
+        'utf-8'
+    )
+    payload = {
+        '_type': 'function',
+        'name': 'evil',
+        'code': code,
+        'defaults': [],
+    }
+    with self.assertRaisesRegex(TypeError, 'trusted=False'):
+      json_conversion.from_json(dict(payload), trusted=False)
+
+  # --- (c) trusted=False forces auto_import off (_load_symbol fallback). ---
+
+  def test_trusted_false_blocks_auto_import_fallback(self):
+    # Unregistered class name; trusted=True would auto_import it, trusted=False
+    # must reject it as unregistered without importing anything.
+    payload = {'_type': 'this.module.does.not.exist.SomeClass'}
+    with self.assertRaises(TypeError):
+      json_conversion.from_json(dict(payload), trusted=False)
+
+  def test_resolve_typenames_trusted_false_forces_auto_import_off(self):
+    # Even when auto_import=True is explicitly requested, trusted=False wins.
+    with self.assertRaises(TypeError):
+      json_conversion.resolve_typenames(
+          {'_type': 'this.module.does.not.exist.SomeClass'},
+          auto_import=True,
+          trusted=False,
+      )
+
+  # --- trusted=False is a complete umbrella: opaque pickle also blocked. ---
+
+  def test_trusted_false_blocks_opaque_pickle(self):
+    d = json_conversion.to_json(X(1))
+    with self.assertRaises(TypeError):
+      json_conversion.from_json(copy.deepcopy(d), trusted=False)
+    # trusted=True (default) still round-trips the opaque object.
+    self.assertEqual(json_conversion.from_json(copy.deepcopy(d)), X(1))
+
+  # --- (d) nested / recursive payloads are blocked too. ---
+
+  def test_trusted_false_blocks_nested_gadget(self):
+    payload = {
+        'safe': [1, 2, {'deep': {'_type': 'function', 'name': 'os.system'}}],
+    }
+    with self.assertRaisesRegex(TypeError, 'trusted=False'):
+      json_conversion.from_json(dict(payload), trusted=False)
+
+  def test_trusted_default_is_true(self):
+    # Backward-compatibility guarantee: the default must remain trusted=True.
+    payload = {'_type': 'function', 'name': 'os.getpid'}
+    self.assertIs(json_conversion.from_json(dict(payload)), os.getpid)
 
 
 if __name__ == '__main__':

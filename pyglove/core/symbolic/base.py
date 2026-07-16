@@ -2046,6 +2046,7 @@ def from_json(
     allow_partial: bool = False,
     root_path: Optional[utils.KeyPath] = None,
     value_spec: Optional[pg_typing.ValueSpec] = None,
+    trusted: bool = True,
     **kwargs,
 ) -> Any:
   """Deserializes a (maybe) symbolic value from JSON value.
@@ -2067,22 +2068,26 @@ def from_json(
     json_value: Input JSON value.
     context: JSON conversion context.
     auto_symbolic: If True, list and dict will be automatically converted to
-      `pg.List` and `pg.Dict`. Otherwise, they will be plain lists
-      and dicts.
+      `pg.List` and `pg.Dict`. Otherwise, they will be plain lists and dicts.
     auto_import: If True, when a '_type' is not registered, PyGlove will
-      identify its parent module and automatically import it. For example,
-      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
-      find the class 'A' within the imported module.
-    convert_unknown: If True, when a '_type' is not registered and cannot
-      be imported, PyGlove will create objects of:
-        - `pg.symbolic.UnknownType` for unknown types;
-        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
-        - `pg.symbolic.UnknownFunction` for unknown functions;
-        - `pg.symbolic.UnknownMethod` for unknown methods.
-      If False, TypeError will be raised.
+      identify its parent module and automatically import it. For example, if
+      the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and find the
+      class 'A' within the imported module.
+    convert_unknown: If True, when a '_type' is not registered and cannot be
+      imported, PyGlove will create objects of: - `pg.symbolic.UnknownType` for
+      unknown types; - `pg.symbolic.UnknownTypedObject` for objects of unknown
+      types; - `pg.symbolic.UnknownFunction` for unknown functions; -
+      `pg.symbolic.UnknownMethod` for unknown methods. If False, TypeError will
+      be raised.
     allow_partial: Whether to allow elements of the list to be partial.
     root_path: KeyPath of loaded object in its object tree.
     value_spec: The value spec for the symbolic list or dict.
+    trusted: If True (default, backward-compatible), the input JSON is treated
+      as coming from a trusted source and arbitrary symbol resolution
+      (`function`/`method`/`type` gadgets, `auto_import` via `_load_symbol`, and
+      opaque-object pickle) is allowed. If False, the input is treated as
+      untrusted so symbol resolution is restricted to the registry allowlist
+      only and opaque-object pickle is disabled. See b/522141119.
     **kwargs: Allow passing through keyword arguments to from_json of specific
       types.
 
@@ -2096,6 +2101,31 @@ def from_json(
   assert Symbolic.DictType is not None
   if isinstance(json_value, Symbolic):
     return json_value
+
+  # Security umbrella (b/522141119): under `trusted=False`, restrict symbol
+  # resolution to the registry allowlist only (force `auto_import=False`) and
+  # disable opaque-object pickle. Re-enter once inside the hardened
+  # opaque-pickle scope (via the private `_hardened_scope` marker, mirroring the
+  # existing `_typename_resolved` convention) so the scope spans the whole
+  # recursive deserialization.
+  hardened = kwargs.pop('_hardened_scope', False)
+  if not trusted:
+    auto_import = False
+    if not hardened:
+      with utils.json_conversion.enable_opaque_pickle(False):
+        return from_json(
+            json_value,
+            context=context,
+            auto_symbolic=auto_symbolic,
+            auto_import=False,
+            convert_unknown=convert_unknown,
+            allow_partial=allow_partial,
+            root_path=root_path,
+            value_spec=value_spec,
+            trusted=False,
+            _hardened_scope=True,
+            **kwargs,
+        )
 
   if context is None:
     if (isinstance(json_value, dict) and (
@@ -2113,7 +2143,7 @@ def from_json(
   typename_resolved = kwargs.pop('_typename_resolved', False)
   if not typename_resolved:
     json_value = utils.json_conversion.resolve_typenames(
-        json_value, auto_import, convert_unknown
+        json_value, auto_import, convert_unknown, trusted=trusted
     )
 
   def _load_child(k, v):
@@ -2191,6 +2221,7 @@ def from_json_str(
     allow_partial: bool = False,
     root_path: Optional[utils.KeyPath] = None,
     value_spec: Optional[pg_typing.ValueSpec] = None,
+    trusted: bool = True,
     **kwargs,
 ) -> Any:
   """Deserialize (maybe) symbolic object from JSON string.
@@ -2212,20 +2243,23 @@ def from_json_str(
     json_str: JSON string.
     context: JSON conversion context.
     auto_import: If True, when a '_type' is not registered, PyGlove will
-      identify its parent module and automatically import it. For example,
-      if the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and
-      find the class 'A' within the imported module.
-    convert_unknown: If True, when a '_type' is not registered and cannot
-      be imported, PyGlove will create objects of:
-        - `pg.symbolic.UnknownType` for unknown types;
-        - `pg.symbolic.UnknownTypedObject` for objects of unknown types;
-        - `pg.symbolic.UnknownFunction` for unknown functions;
-        - `pg.symbolic.UnknownMethod` for unknown methods.
-      If False, TypeError will be raised.
+      identify its parent module and automatically import it. For example, if
+      the type is 'foo.bar.A', PyGlove will try to import 'foo.bar' and find the
+      class 'A' within the imported module.
+    convert_unknown: If True, when a '_type' is not registered and cannot be
+      imported, PyGlove will create objects of: - `pg.symbolic.UnknownType` for
+      unknown types; - `pg.symbolic.UnknownTypedObject` for objects of unknown
+      types; - `pg.symbolic.UnknownFunction` for unknown functions; -
+      `pg.symbolic.UnknownMethod` for unknown methods. If False, TypeError will
+      be raised.
     allow_partial: If True, allow a partial symbolic object to be created.
       Otherwise error will be raised on partial value.
     root_path: The symbolic path used for the deserialized root object.
     value_spec: The value spec for the symbolic list or dict.
+    trusted: If True (default, backward-compatible), arbitrary symbol resolution
+      and opaque-object pickle are allowed. If False, the input is treated as
+      untrusted so symbol resolution is restricted to the registry allowlist
+      only and opaque-object pickle is disabled. See b/522141119.
     **kwargs: Additional keyword arguments that will be passed to
       ``pg.from_json``.
 
@@ -2255,7 +2289,8 @@ def from_json_str(
       allow_partial=allow_partial,
       root_path=root_path,
       value_spec=value_spec,
-      **kwargs
+      trusted=trusted,
+      **kwargs,
   )
 
 
