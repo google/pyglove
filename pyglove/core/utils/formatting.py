@@ -17,7 +17,7 @@ import abc
 import enum
 import io
 import sys
-from typing import Any, Callable, ContextManager, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, ClassVar, ContextManager, Dict, List, Optional, Sequence, Set, Tuple
 from pyglove.core.utils import thread_local
 
 
@@ -55,10 +55,12 @@ class Formattable(metaclass=abc.ABCMeta):
   """
 
   # Additional format keyword arguments for `__str__`.
-  __str_format_kwargs__ = dict(compact=False, verbose=True)
+  __str_format_kwargs__: ClassVar[Dict[str, Any]] = dict(
+      compact=False, verbose=True
+  )
 
   # Additional format keyword arguments for `__repr__`.
-  __repr_format_kwargs__ = dict(compact=True)
+  __repr_format_kwargs__: ClassVar[Dict[str, Any]] = dict(compact=True)
 
   @abc.abstractmethod
   def format(self,

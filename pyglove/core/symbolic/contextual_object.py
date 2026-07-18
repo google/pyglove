@@ -46,7 +46,7 @@ print(a.y) # 3. (Accessing parent's y)
 """
 
 import threading
-from typing import Annotated, Any, ContextManager, Dict, Optional, Type
+from typing import Annotated, Any, ClassVar, ContextManager, Dict, Optional, Type
 from pyglove.core import utils as pg_utils
 from pyglove.core.symbolic import base
 from pyglove.core.symbolic import inferred as pg_inferred
@@ -109,13 +109,13 @@ class ContextualObject(pg_object.Object):
   """
 
   # Override __repr__ format to use inferred values when available.
-  __repr_format_kwargs__ = dict(
+  __repr_format_kwargs__: ClassVar[Dict[str, Any]] = dict(
       compact=True,
       use_inferred=True,
   )
 
   # Override __str__ format to use inferred values when available.
-  __str_format_kwargs__ = dict(
+  __str_format_kwargs__: ClassVar[Dict[str, Any]] = dict(
       compact=False,
       verbose=False,
       use_inferred=True,
