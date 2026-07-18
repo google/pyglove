@@ -397,10 +397,11 @@ _opaque_pickle_enabled: 'contextvars.ContextVar[bool]' = contextvars.ContextVar(
 def enable_opaque_pickle(enable: bool = True) -> ContextManager[None]:
   """Returns a context manager to enable or disable opaque-object pickle.
 
-  Deserializing ``_OpaqueObject`` uses ``pickle.loads``, which can execute
-  arbitrary code.  It is enabled by default for backward compatibility.
+  Deserializing ``_OpaqueObject`` uses ``pickle.loads`` and deserializing a
+  function from inline ``code`` uses ``marshal.loads``; both can execute
+  arbitrary code.  They are enabled by default for backward compatibility.
   Security-sensitive contexts (e.g. cloud services that process untrusted
-  JSON) should disable it::
+  JSON) should disable them::
 
     with json_conversion.enable_opaque_pickle(False):
       obj = json_conversion.from_json(untrusted_json)
@@ -1193,6 +1194,13 @@ def _function_from_json(
       )
     function_name = json_value['name']
     if 'code' in json_value:
+      if not _opaque_pickle_enabled:
+        raise TypeError(
+            'Deserializing a function from inline code is disabled because it '
+            'uses `marshal.loads`, which can execute arbitrary code when the '
+            'JSON comes from an untrusted source. '
+            'Use json_conversion.enable_opaque_pickle() to opt in.'
+        )
       code = marshal.loads(
           base64.decodebytes(json_value['code'].encode('utf-8')))
       defaults = from_json(json_value['defaults'], _typename_resolved=True)
