@@ -258,7 +258,7 @@ def sample(space: Union[HyperValue,
 
   while True:
     try:
-      feedback = backend.next()
+      feedback = backend.next()  # pyrefly: ignore[missing-attribute]
       dna = feedback.dna
       reward = dna.metadata.get('reward')
       if reward is None:
