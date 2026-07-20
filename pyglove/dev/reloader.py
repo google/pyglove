@@ -102,7 +102,7 @@ def reload(
     reloaded_modules = []
     for m in modules:
       if verbose:
-        print(f'Reloading [{m.__name__}]...')
+        print(f'Reloading [{m.__name__}]...')  # pyrefly: ignore[missing-attribute]
       reloaded_modules.append(_reload(m))  # pyrefly: ignore[bad-argument-type]
 
   elapse = time.time() - start_time
