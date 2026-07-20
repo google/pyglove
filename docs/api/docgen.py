@@ -162,7 +162,7 @@ class Api(metaclass=abc.ABCMeta):
       return ''
     if isinstance(self, Leaf):
       dir_segments.pop(-1)
-    return os.path.join(self.source_category, *dir_segments)
+    return os.path.join(self.source_category, *dir_segments)  # pyrefly: ignore[no-matching-overload]
 
   @property
   @abc.abstractmethod

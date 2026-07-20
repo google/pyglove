@@ -100,7 +100,7 @@ def get_git_location(module_name, entity_name):
   except TypeError:
     # e.g. target is constant number, etc.
     return None
-  file = os.path.relpath(file, os.path.abspath('..'))
+  file = os.path.relpath(file, os.path.abspath('..'))  # pyrefly: ignore[no-matching-overload]
   if not file.startswith('pyglove'):
     return None
   start, end = lines[1], lines[1] + len(lines[0]) - 1
