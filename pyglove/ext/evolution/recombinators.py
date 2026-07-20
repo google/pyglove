@@ -826,14 +826,14 @@ class Permutation(base.Recombinator):
         # subchoices of a multi-choice.
         permutation_proposals: List[List[int]] = self.permutate(
             permutation_point,
-            [[dna.value for dna in p[permutation_point]] for p in parent_dicts])  # pyrefly: ignore[not-iterable]
+            [[dna.value for dna in p[permutation_point]] for p in parent_dicts])  # pyrefly: ignore[missing-attribute, not-iterable]
 
         # For each child proposal, merge it back with each parent's DNA to
         # produce an output. Therefore if there are N parents and M permuation
         # proposals, the maximum number of output is N * M. Duplicates will be
         # removed so it may lead to a smaller number than N * M.
         for parent_dict in parent_dicts:
-          subdna_map = {d.value: d for d in parent_dict[permutation_point]}  # pyrefly: ignore[not-iterable]
+          subdna_map = {d.value: d for d in parent_dict[permutation_point]}  # pyrefly: ignore[missing-attribute, not-iterable]
           for proposal in permutation_proposals:
             parent_dict[permutation_point] = [subdna_map[v] for v in proposal]  # pyrefly: ignore[unsupported-operation]
             outputs.append(pg.DNA.from_dict(parent_dict, dna_spec))  # pyrefly: ignore[bad-argument-type]
