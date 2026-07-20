@@ -218,7 +218,7 @@ def _json_schema_from_value_spec(
   if not ignore_nonable and value_spec.is_noneable:
     nullable = {'type': 'null'}
     if 'anyOf' in definition:
-      definition['anyOf'].append(nullable)
+      definition['anyOf'].append(nullable)  # pyrefly: ignore[missing-attribute]
     else:
       definition = {'anyOf': [definition, nullable]}
     if value_spec.default is None:
