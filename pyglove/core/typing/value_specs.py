@@ -2031,7 +2031,7 @@ class Object(Generic, ValueSpecBase):
     if self._forward_ref is not None:
       name = self._forward_ref.name
     else:
-      name = self._value_type.__name__
+      name = self._value_type.__name__  # pyrefly: ignore[missing-attribute]
     return utils.kvlist_str(
         [
             ('', utils.RawText(name), None),
