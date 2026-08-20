@@ -290,6 +290,23 @@ class MemoryFileSystemTest(unittest.TestCase):
     fs.rmdirs(os.path.join(dir_a, 'b/c'))
     self.assertEqual(fs.listdir(dir_a), ['file1'])   # pylint: disable=g-generic-assert
 
+  def test_internal_path_prefix_stripping(self):
+    fs = file_system.MemoryFileSystem()
+    # Path components beginning with the same characters as the ``/mem/``
+    # prefix (e.g. ``m`` or ``e``) must not be stripped away.
+    fs.mkdirs('/mem/models/a')
+    fs.mkdirs('/mem/eval/b')
+    self.assertEqual(sorted(fs.listdir('/mem')), ['eval', 'models'])
+    self.assertTrue(fs.exists('/mem/models/a'))
+    self.assertTrue(fs.exists('/mem/eval/b'))
+
+    # Paths whose first component starts with prefix characters must not
+    # collide with shorter paths.
+    fs.mkdirs('/mem/odels/c')
+    self.assertTrue(fs.exists('/mem/odels/c'))
+    self.assertEqual(
+        sorted(fs.listdir('/mem')), ['eval', 'models', 'odels'])
+
   def test_glob(self):
     fs = file_system.MemoryFileSystem()
     fs.mkdirs('/mem/a/b/c')
