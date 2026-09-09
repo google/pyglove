@@ -466,7 +466,7 @@ def wrap_module(
   origin_cls_to_wrap_cls = {}
   for symbol_name in (names or dir(module)):
     s = getattr(module, symbol_name)
-    if inspect.isclass(s) and (not where or where(s)):
+    if inspect.isclass(s) and (not where or where(s)):  # pyrefly: ignore[bad-argument-type]
       # NOTE(daiyip): It's possible that a name under a module is an alias for
       # another class. In such case, we do not create duplicated wrappers but
       # shares the same wrapper classes with different names.

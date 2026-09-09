@@ -1348,7 +1348,7 @@ class DNA(symbolic.Object):
               f'Choices: {dna_spec.num_choices}, '
               f'Location: {dna_spec.location.path}.')
         children = []
-        for i, choice in enumerate(decision):  # pyrefly: ignore[bad-argument-type]
+        for i, choice in enumerate(decision):  # pyrefly: ignore[bad-argument-type, not-iterable]
           choice_location = utils.KeyPath(i, dna_spec.location)
           if not isinstance(choice, int):
             raise ValueError(
