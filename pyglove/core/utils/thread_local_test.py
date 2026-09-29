@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import asyncio
 import threading
 import time
 import unittest
@@ -19,161 +20,389 @@ from pyglove.core.utils import thread_local
 
 
 class ThreadLocalTest(unittest.TestCase):
-  """Tests for `pg.symbolic.thread_local`."""
+    """Tests for `pg.symbolic.thread_local`."""
 
-  def assert_thread_func(self, funcs, period_in_second=1):
-    has_errors = [True] * len(funcs)
-    def repeat_for_period(func, i):
-      def _fn():
-        begin = time.time()
-        while True:
-          func()
-          if time.time() - begin > period_in_second:
-            break
-        has_errors[i] = False
-      return _fn
+    def assert_thread_func(self, funcs, period_in_second=1):
+        has_errors = [True] * len(funcs)
 
-    threads = [threading.Thread(target=repeat_for_period(f, i))
-               for i, f in enumerate(funcs)]
-    for t in threads:
-      t.start()
-    for t in threads:
-      t.join()
-    self.assertFalse(any(has_error for has_error in has_errors))
+        def repeat_for_period(func, i):
+            def _fn():
+                begin = time.time()
+                while True:
+                    func()
+                    if time.time() - begin > period_in_second:
+                        break
+                has_errors[i] = False
 
-  def test_set_get_has_delete(self):
-    k, v = 'x', 1
-    self.assertFalse(thread_local.thread_local_has(k))
-    thread_local.thread_local_set(k, v)
-    self.assertTrue(thread_local.thread_local_has(k))
-    self.assertEqual(thread_local.thread_local_get(k), v)
-    thread_local.thread_local_del(k)
-    self.assertFalse(thread_local.thread_local_has(k))
+            return _fn
 
-    self.assertFalse(thread_local.thread_local_has('y'))
-    with self.assertRaisesRegex(
-        ValueError, 'Key .* does not exist in thread-local storage'):
-      thread_local.thread_local_get('abc')
+        threads = [
+            threading.Thread(target=repeat_for_period(f, i))
+            for i, f in enumerate(funcs)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertFalse(any(has_error for has_error in has_errors))
 
-    # Test thread locality.
-    def thread_fun(i):
-      def _fn():
-        self.assertFalse(thread_local.thread_local_has('x'))
-        thread_local.thread_local_set('x', i)
-        self.assertTrue(thread_local.thread_local_has('x'))
-        self.assertEqual(thread_local.thread_local_get('x'), i)
-        thread_local.thread_local_del('x')
-        self.assertFalse(thread_local.thread_local_has('x'))
-      return _fn
-    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
-
-  def test_thread_local_value_scope(self):
-    thread_local.thread_local_set('y', 2)
-    with thread_local.thread_local_value_scope('y', 1, None):
-      self.assertEqual(thread_local.thread_local_get('y'), 1)
-    self.assertEqual(thread_local.thread_local_get('y'), 2)
-
-    # Test thread locality.
-    def thread_fun(i):
-      def _fn():
-        with thread_local.thread_local_value_scope('y', i, None):
-          self.assertEqual(thread_local.thread_local_get('y'), i)
-        self.assertFalse(thread_local.thread_local_has('y'))
-      return _fn
-    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
-
-  def test_thread_local_arg_scope(self):
-    with thread_local.thread_local_arg_scope('arg_scope', x=1, y=2):
-      self.assertEqual(
-          thread_local.thread_local_kwargs('arg_scope'), dict(x=1, y=2)
-      )
-      with thread_local.thread_local_arg_scope('arg_scope', y=3, z=4):
-        self.assertEqual(
-            thread_local.thread_local_kwargs('arg_scope'), dict(x=1, y=3, z=4)
-        )
-      self.assertEqual(
-          thread_local.thread_local_kwargs('arg_scope'), dict(x=1, y=2)
-      )
-    self.assertEqual(thread_local.thread_local_kwargs('arg_scope'), dict())
-
-    # Test thread locality.
-    def thread_fun(i):
-      def _fn():
-        with thread_local.thread_local_arg_scope('arg_scope', x=i):
-          self.assertEqual(
-              thread_local.thread_local_kwargs('arg_scope'), dict(x=i)
-          )
-        self.assertEqual(thread_local.thread_local_kwargs('arg_scope'), dict())
-
-      return _fn
-
-    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
-
-  def test_thread_local_increment_decrement(self):
-    k = 'z'
-    self.assertEqual(thread_local.thread_local_increment(k, 5), 6)
-    self.assertEqual(thread_local.thread_local_increment(k), 7)
-    self.assertEqual(thread_local.thread_local_decrement(k), 6)
-    thread_local.thread_local_del(k)
-    self.assertEqual(thread_local.thread_local_increment(k), 1)
-    thread_local.thread_local_del(k)
-
-    # Test thread locality.
-    def thread_fun(_):
-      def _fn():
-        self.assertEqual(thread_local.thread_local_increment(k), 1)
-        self.assertEqual(thread_local.thread_local_increment(k), 2)
-        self.assertEqual(thread_local.thread_local_increment(k), 3)
+    def test_set_get_has_delete(self):
+        k, v = "x", 1
+        self.assertFalse(thread_local.thread_local_has(k))
+        thread_local.thread_local_set(k, v)
+        self.assertTrue(thread_local.thread_local_has(k))
+        self.assertEqual(thread_local.thread_local_get(k), v)
         thread_local.thread_local_del(k)
-      return _fn
-    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+        self.assertFalse(thread_local.thread_local_has(k))
 
-  def test_thread_local_push_peak_pop(self):
-    k = 'p'
-    self.assertFalse(thread_local.thread_local_has(k))
-    thread_local.thread_local_push(k, 1)
-    self.assertEqual(thread_local.thread_local_get(k), [1])
-    self.assertEqual(thread_local.thread_local_peek(k), 1)
-    thread_local.thread_local_push(k, 2)
-    self.assertEqual(thread_local.thread_local_get(k), [1, 2])
-    self.assertEqual(thread_local.thread_local_peek(k), 2)
-    self.assertEqual(thread_local.thread_local_pop(k), 2)
-    self.assertEqual(thread_local.thread_local_get(k), [1])
-    self.assertEqual(thread_local.thread_local_peek(k), 1)
-    self.assertEqual(thread_local.thread_local_pop(k), 1)
+        self.assertFalse(thread_local.thread_local_has("y"))
+        with self.assertRaisesRegex(
+            ValueError, "Key .* does not exist in thread-local storage"
+        ):
+            thread_local.thread_local_get("abc")
 
-    with self.assertRaisesRegex(
-        ValueError, 'Stack associated with key .* does not exist'
-    ):
-      thread_local.thread_local_peek(k)
-    self.assertEqual(thread_local.thread_local_peek(k, -1), -1)
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                self.assertFalse(thread_local.thread_local_has("x"))
+                thread_local.thread_local_set("x", i)
+                self.assertTrue(thread_local.thread_local_has("x"))
+                self.assertEqual(thread_local.thread_local_get("x"), i)
+                thread_local.thread_local_del("x")
+                self.assertFalse(thread_local.thread_local_has("x"))
 
-    with self.assertRaisesRegex(IndexError, 'pop from empty list'):
-      thread_local.thread_local_pop(k)
+            return _fn
 
-    self.assertEqual(thread_local.thread_local_pop(k, -1), -1)
-    with self.assertRaisesRegex(
-        ValueError, 'Key .* does not exist in thread-local storage'):
-      thread_local.thread_local_pop('unknown_key')
-    self.assertEqual(
-        thread_local.thread_local_pop('unknown_key', 0), 0)
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 
-    thread_local.thread_local_set('q', 1)
-    with self.assertRaisesRegex(
-        TypeError, 'Key .* from thread-local storage is not a list'):
-      thread_local.thread_local_pop('q')
+    def test_thread_local_value_scope(self):
+        thread_local.thread_local_set("y", 2)
+        with thread_local.thread_local_value_scope("y", 1, None):
+            self.assertEqual(thread_local.thread_local_get("y"), 1)
+        self.assertEqual(thread_local.thread_local_get("y"), 2)
 
-    # Test thread locality.
-    def thread_fun(i):
-      def _fn():
-        thread_local.thread_local_push(k, i)
-        thread_local.thread_local_push(k, i + 1)
-        self.assertEqual(thread_local.thread_local_pop(k), i + 1)
-        self.assertEqual(thread_local.thread_local_pop(k), i)
-        self.assertEqual(thread_local.thread_local_get(k), [])
-      return _fn
-    self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                with thread_local.thread_local_value_scope("y", i, None):
+                    self.assertEqual(thread_local.thread_local_get("y"), i)
+                self.assertFalse(thread_local.thread_local_has("y"))
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_thread_local_arg_scope(self):
+        with thread_local.thread_local_arg_scope("arg_scope", x=1, y=2):
+            self.assertEqual(
+                thread_local.thread_local_kwargs("arg_scope"), dict(x=1, y=2)
+            )
+            with thread_local.thread_local_arg_scope("arg_scope", y=3, z=4):
+                self.assertEqual(
+                    thread_local.thread_local_kwargs("arg_scope"), dict(x=1, y=3, z=4)
+                )
+            self.assertEqual(
+                thread_local.thread_local_kwargs("arg_scope"), dict(x=1, y=2)
+            )
+        self.assertEqual(thread_local.thread_local_kwargs("arg_scope"), dict())
+
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                with thread_local.thread_local_arg_scope("arg_scope", x=i):
+                    self.assertEqual(
+                        thread_local.thread_local_kwargs("arg_scope"), dict(x=i)
+                    )
+                self.assertEqual(thread_local.thread_local_kwargs("arg_scope"), dict())
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_thread_local_increment_decrement(self):
+        k = "z"
+        self.assertEqual(thread_local.thread_local_increment(k, 5), 6)
+        self.assertEqual(thread_local.thread_local_increment(k), 7)
+        self.assertEqual(thread_local.thread_local_decrement(k), 6)
+        thread_local.thread_local_del(k)
+        self.assertEqual(thread_local.thread_local_increment(k), 1)
+        thread_local.thread_local_del(k)
+
+        # Test thread locality.
+        def thread_fun(_):
+            def _fn():
+                self.assertEqual(thread_local.thread_local_increment(k), 1)
+                self.assertEqual(thread_local.thread_local_increment(k), 2)
+                self.assertEqual(thread_local.thread_local_increment(k), 3)
+                thread_local.thread_local_del(k)
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_thread_local_push_peak_pop(self):
+        k = "p"
+        self.assertFalse(thread_local.thread_local_has(k))
+        thread_local.thread_local_push(k, 1)
+        self.assertEqual(thread_local.thread_local_get(k), [1])
+        self.assertEqual(thread_local.thread_local_peek(k), 1)
+        thread_local.thread_local_push(k, 2)
+        self.assertEqual(thread_local.thread_local_get(k), [1, 2])
+        self.assertEqual(thread_local.thread_local_peek(k), 2)
+        self.assertEqual(thread_local.thread_local_pop(k), 2)
+        self.assertEqual(thread_local.thread_local_get(k), [1])
+        self.assertEqual(thread_local.thread_local_peek(k), 1)
+        self.assertEqual(thread_local.thread_local_pop(k), 1)
+
+        with self.assertRaisesRegex(
+            ValueError, "Stack associated with key .* does not exist"
+        ):
+            thread_local.thread_local_peek(k)
+        self.assertEqual(thread_local.thread_local_peek(k, -1), -1)
+
+        with self.assertRaisesRegex(IndexError, "pop from empty list"):
+            thread_local.thread_local_pop(k)
+
+        self.assertEqual(thread_local.thread_local_pop(k, -1), -1)
+        with self.assertRaisesRegex(
+            ValueError, "Key .* does not exist in thread-local storage"
+        ):
+            thread_local.thread_local_pop("unknown_key")
+        self.assertEqual(thread_local.thread_local_pop("unknown_key", 0), 0)
+
+        thread_local.thread_local_set("q", 1)
+        with self.assertRaisesRegex(
+            TypeError, "Key .* from thread-local storage is not a list"
+        ):
+            thread_local.thread_local_pop("q")
+
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                thread_local.thread_local_push(k, i)
+                thread_local.thread_local_push(k, i + 1)
+                self.assertEqual(thread_local.thread_local_pop(k), i + 1)
+                self.assertEqual(thread_local.thread_local_pop(k), i)
+                self.assertEqual(thread_local.thread_local_get(k), [])
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
 
 
-if __name__ == '__main__':
-  unittest.main()
+class ContextLocalTest(unittest.TestCase):
+    """Tests for `pg.utils.context_local_*`.
+
+    `context_local_*` mirrors the `thread_local_*` API above, but is isolated
+    per-thread AND per-`asyncio.Task`, so it also covers the coroutine-based
+    concurrency case that plain `threading.local` cannot.
+    """
+
+    def assert_thread_func(self, funcs, period_in_second=1):
+        has_errors = [True] * len(funcs)
+
+        def repeat_for_period(func, i):
+            def _fn():
+                begin = time.time()
+                while True:
+                    func()
+                    if time.time() - begin > period_in_second:
+                        break
+                has_errors[i] = False
+
+            return _fn
+
+        threads = [
+            threading.Thread(target=repeat_for_period(f, i))
+            for i, f in enumerate(funcs)
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        self.assertFalse(any(has_error for has_error in has_errors))
+
+    def assert_asyncio_task_func(self, async_funcs):
+        async def main():
+            await asyncio.gather(*[f() for f in async_funcs])
+
+        asyncio.run(main())
+
+    def test_set_get_has_delete(self):
+        k, v = "x", 1
+        self.assertFalse(thread_local.context_local_has(k))
+        thread_local.context_local_set(k, v)
+        self.assertTrue(thread_local.context_local_has(k))
+        self.assertEqual(thread_local.context_local_get(k), v)
+        thread_local.context_local_del(k)
+        self.assertFalse(thread_local.context_local_has(k))
+
+        self.assertFalse(thread_local.context_local_has("y"))
+        with self.assertRaisesRegex(
+            ValueError, "Key .* does not exist in context-local storage"
+        ):
+            thread_local.context_local_get("abc")
+
+        with self.assertRaisesRegex(KeyError, "y"):
+            thread_local.context_local_del("y")
+
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                self.assertFalse(thread_local.context_local_has("x"))
+                thread_local.context_local_set("x", i)
+                self.assertTrue(thread_local.context_local_has("x"))
+                self.assertEqual(thread_local.context_local_get("x"), i)
+                thread_local.context_local_del("x")
+                self.assertFalse(thread_local.context_local_has("x"))
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_asyncio_task_locality(self):
+        # Regression coverage for the motivating case: sibling `asyncio.Task`s
+        # running on the *same* thread/event loop must not see each other's
+        # writes, even though `threading.local` would consider them identical.
+        async def task_fun(i):
+            self.assertFalse(thread_local.context_local_has("x"))
+            thread_local.context_local_set("x", i)
+            await asyncio.sleep(0)  # Yield so sibling tasks interleave.
+            self.assertEqual(thread_local.context_local_get("x"), i)
+            thread_local.context_local_del("x")
+            self.assertFalse(thread_local.context_local_has("x"))
+
+        self.assert_asyncio_task_func([lambda i=i: task_fun(i) for i in range(20)])
+
+    def test_context_local_value_scope(self):
+        thread_local.context_local_set("y", 2)
+        with thread_local.context_local_value_scope("y", 1, None):
+            self.assertEqual(thread_local.context_local_get("y"), 1)
+        self.assertEqual(thread_local.context_local_get("y"), 2)
+        thread_local.context_local_del("y")
+
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                with thread_local.context_local_value_scope("y", i, None):
+                    self.assertEqual(thread_local.context_local_get("y"), i)
+                self.assertFalse(thread_local.context_local_has("y"))
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_context_local_arg_scope(self):
+        with thread_local.context_local_arg_scope("arg_scope", x=1, y=2):
+            self.assertEqual(
+                thread_local.context_local_kwargs("arg_scope"), dict(x=1, y=2)
+            )
+            with thread_local.context_local_arg_scope("arg_scope", y=3, z=4):
+                self.assertEqual(
+                    thread_local.context_local_kwargs("arg_scope"), dict(x=1, y=3, z=4)
+                )
+            self.assertEqual(
+                thread_local.context_local_kwargs("arg_scope"), dict(x=1, y=2)
+            )
+        self.assertEqual(thread_local.context_local_kwargs("arg_scope"), dict())
+
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                with thread_local.context_local_arg_scope("arg_scope", x=i):
+                    self.assertEqual(
+                        thread_local.context_local_kwargs("arg_scope"), dict(x=i)
+                    )
+                self.assertEqual(thread_local.context_local_kwargs("arg_scope"), dict())
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_context_local_increment_decrement(self):
+        k = "z"
+        self.assertEqual(thread_local.context_local_increment(k, 5), 6)
+        self.assertEqual(thread_local.context_local_increment(k), 7)
+        self.assertEqual(thread_local.context_local_decrement(k), 6)
+        thread_local.context_local_del(k)
+        self.assertEqual(thread_local.context_local_increment(k), 1)
+        thread_local.context_local_del(k)
+
+        # Test thread locality.
+        def thread_fun(_):
+            def _fn():
+                self.assertEqual(thread_local.context_local_increment(k), 1)
+                self.assertEqual(thread_local.context_local_increment(k), 2)
+                self.assertEqual(thread_local.context_local_increment(k), 3)
+                thread_local.context_local_del(k)
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_context_local_push_peek_pop(self):
+        k = "p"
+        self.assertFalse(thread_local.context_local_has(k))
+        thread_local.context_local_push(k, 1)
+        self.assertEqual(thread_local.context_local_get(k), [1])
+        self.assertEqual(thread_local.context_local_peek(k), 1)
+        thread_local.context_local_push(k, 2)
+        self.assertEqual(thread_local.context_local_get(k), [1, 2])
+        self.assertEqual(thread_local.context_local_peek(k), 2)
+        self.assertEqual(thread_local.context_local_pop(k), 2)
+        self.assertEqual(thread_local.context_local_get(k), [1])
+        self.assertEqual(thread_local.context_local_peek(k), 1)
+        self.assertEqual(thread_local.context_local_pop(k), 1)
+        thread_local.context_local_del(k)
+
+        with self.assertRaisesRegex(
+            ValueError, "Stack associated with key .* does not exist"
+        ):
+            thread_local.context_local_peek(k)
+        self.assertEqual(thread_local.context_local_peek(k, -1), -1)
+
+        with self.assertRaisesRegex(
+            ValueError, "Key .* does not exist in context-local storage"
+        ):
+            thread_local.context_local_pop(k)
+        self.assertEqual(thread_local.context_local_pop(k, -1), -1)
+
+        thread_local.context_local_set("q", 1)
+        with self.assertRaisesRegex(
+            TypeError, "Key .* from context-local storage is not a list"
+        ):
+            thread_local.context_local_pop("q")
+        thread_local.context_local_del("q")
+
+        # Test thread locality.
+        def thread_fun(i):
+            def _fn():
+                thread_local.context_local_push(k, i)
+                thread_local.context_local_push(k, i + 1)
+                self.assertEqual(thread_local.context_local_pop(k), i + 1)
+                self.assertEqual(thread_local.context_local_pop(k), i)
+                self.assertEqual(thread_local.context_local_get(k), [])
+
+            return _fn
+
+        self.assert_thread_func([thread_fun(i) for i in range(5)], 2)
+
+    def test_asyncio_task_push_pop_locality(self):
+        k = "p2"
+
+        async def task_fun(i):
+            thread_local.context_local_push(k, i)
+            await asyncio.sleep(0)  # Yield so sibling tasks interleave pushes.
+            thread_local.context_local_push(k, i + 100)
+            await asyncio.sleep(0)
+            # If storage were shared across tasks (as a mutable list would be
+            # under naive contextvars usage), this task's stack could contain
+            # entries pushed by sibling tasks.
+            self.assertEqual(thread_local.context_local_pop(k), i + 100)
+            self.assertEqual(thread_local.context_local_pop(k), i)
+
+        self.assert_asyncio_task_func([lambda i=i: task_fun(i) for i in range(20)])
+
+
+if __name__ == "__main__":
+    unittest.main()
