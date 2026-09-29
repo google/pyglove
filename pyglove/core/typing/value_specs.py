@@ -1229,7 +1229,7 @@ class List(Generic, ValueSpecBase):
 
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
-    return typing.List[_any_if_no_annotation(self._element.value.annotation)]
+    return typing.List[_any_if_no_annotation(self._element.value.annotation)]  # pyrefly: ignore[invalid-annotation]
 
   def _eq(self, other: 'List') -> bool:  # pyrefly: ignore[bad-override]
     return self.element == other.element
@@ -1438,7 +1438,7 @@ class Tuple(Generic, ValueSpecBase):
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
     if self.fixed_length:
-      return typing.Tuple[tuple([  # pyrefly: ignore[not-a-type]
+      return typing.Tuple[tuple([  # pyrefly: ignore[invalid-annotation, not-a-type]
           _any_if_no_annotation(elem.value.annotation)
           for elem in self._elements])]       # pytype: disable=invalid-annotation
     else:
