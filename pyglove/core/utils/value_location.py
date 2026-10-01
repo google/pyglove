@@ -14,6 +14,7 @@
 """Handling locations in a hierarchical object."""
 
 import abc
+import collections.abc
 import copy as copy_lib
 import operator
 from typing import Any, Callable, Iterable, Iterator, List, Optional, Union
@@ -359,12 +360,12 @@ class KeyPath(formatting.Formattable):
           v = src.sym_getattr(key)
         return self._query(key_pos + 1, v, use_inferred)
     elif hasattr(src, '__getitem__'):
-      if isinstance(key, int):
+      if isinstance(key, int) and not isinstance(src, collections.abc.Mapping):
         if not hasattr(src, '__len__'):
           raise KeyError(
               f'Cannot query index ({key}) on object ({src!r}): '
               f'\'__len__\' does not exist.')
-        if key < len(src):
+        if -len(src) <= key < len(src):
           return self._query(key_pos + 1, src[key], use_inferred)
       else:
         if not hasattr(src, '__contains__'):
