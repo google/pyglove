@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import pathlib
 import tempfile
 import unittest
 from pyglove.core.io import sequence as sequence_io
@@ -21,6 +22,24 @@ import pyglove.core.symbolic as pg_symbolic
 
 
 class LineSequenceIOTest(unittest.TestCase):
+
+  def test_current_directory_file(self):
+    original_dir = os.getcwd()
+    with tempfile.TemporaryDirectory() as tmp_dir:
+      try:
+        os.chdir(tmp_dir)
+        for path in ('records.jsonl', pathlib.Path('path_records.jsonl')):
+          with self.subTest(path=path):
+            with pg_symbolic.open_jsonl(path, 'w') as writer:
+              writer.add({'value': 1})
+            with pg_symbolic.open_jsonl(path, 'a') as writer:
+              writer.add({'value': 2})
+            with pg_symbolic.open_jsonl(path) as reader:
+              self.assertEqual(
+                  list(iter(reader)), [{'value': 1}, {'value': 2}]
+              )
+      finally:
+        os.chdir(original_dir)
 
   def test_read_write(self):
     tmp_dir = tempfile.gettempdir()
