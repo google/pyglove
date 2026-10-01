@@ -18,7 +18,6 @@ import contextlib
 import dataclasses
 import inspect
 import re
-import sys
 import traceback
 from typing import Callable, Dict, List, Optional, Sequence, Tuple, Type, Union
 
@@ -79,7 +78,7 @@ class ErrorInfo(metaclass=abc.ABCMeta):
         tag=cls._compute_tag(error),
         description=str(error),
         stacktrace=''.join(
-            traceback.format_exception(*sys.exc_info())
+            traceback.format_exception(type(error), error, error.__traceback__)
         )
     )
 
