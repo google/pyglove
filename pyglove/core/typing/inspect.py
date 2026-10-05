@@ -228,7 +228,7 @@ def callable_eq(
   if inspect.isfunction(x) and inspect.isfunction(y):
     return _code_eq(x.__code__, y.__code__)
   elif inspect.ismethod(x) and inspect.ismethod(y):
-    return _code_eq(x.__code__, y.__code__) and x.__self__ is y.__self__  # pytype: disable=attribute-error
+    return _code_eq(x.__code__, y.__code__) and x.__self__ is y.__self__
   return x == y
 
 

@@ -137,7 +137,7 @@ class Space(DNASpec):
     """
     return not self.elements
 
-  def validate(self, dna: DNA) -> None:  # pytype: disable=signature-mismatch
+  def validate(self, dna: DNA) -> None:  # pyrefly: ignore[bad-override]
     """Validate whether a DNA value conforms to this spec."""
     if not self.elements and (dna.value is not None or dna.children):
       raise ValueError(
@@ -235,7 +235,7 @@ class Space(DNASpec):
     """Operator [] to return element by index or sub-DNASpec by name."""
     if isinstance(index, (int, slice)):
       return self.elements[index]
-    return super().__getitem__(index)  # pytype:disable=unsupported-operands
+    return super().__getitem__(index)
 
   def __iter__(self):
     """Operator iter."""

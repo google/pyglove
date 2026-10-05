@@ -75,7 +75,7 @@ class ErrorInfo(metaclass=abc.ABCMeta):
   def from_exception(cls, error: BaseException) -> 'ErrorInfo':
     """Creates an error info from an exception."""
     assert cls._IMPLEMENTATION is not None, 'ErrorInfo is not implemented.'
-    return cls._IMPLEMENTATION(   # pytype: disable=wrong-arg-types
+    return cls._IMPLEMENTATION(
         tag=cls._compute_tag(error),
         description=str(error),
         stacktrace=''.join(
@@ -189,15 +189,15 @@ def _parse_error_spec(
   elif (
       isinstance(errors, tuple)
       and len(errors) == 2
-      and isinstance(errors[1], str)  # pytype: disable=not-indexable
+      and isinstance(errors[1], str)
   ):
-    errors = [errors]  # pyrefly: ignore[bad-assignment]
+    errors = [errors]
 
   error_mapping: Dict[Type[BaseException], List[str]] = {}
   for error_type in errors:  # pyrefly: ignore[not-iterable]
     regex = None
     if isinstance(error_type, tuple):
-      if len(error_type) != 2 or not isinstance(error_type[1], str):  # pytype: disable=not-indexable
+      if len(error_type) != 2 or not isinstance(error_type[1], str):
         raise TypeError(
             'Each error specification should be either an Exception type or '
             'a tuple of Exception type and error message (regular expression) '

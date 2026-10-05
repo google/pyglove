@@ -21,7 +21,7 @@ from pyglove.core.utils import json_conversion
 class MissingValue(formatting.Formattable, json_conversion.JSONConvertible):
   """Value placeholder for an unassigned attribute."""
 
-  def format(self, *args, **kwargs):  # pytype: disable=signature-mismatch
+  def format(self, *args, **kwargs):
     return 'MISSING_VALUE'
 
   def __ne__(self, other: Any) -> bool:

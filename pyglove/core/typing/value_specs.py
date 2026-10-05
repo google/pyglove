@@ -60,7 +60,7 @@ class GenericMeta(abc.ABCMeta):
   def __getitem__(cls, type_args: typing.Any) -> typing.Any:
     if not isinstance(type_args, tuple):
       type_args = (type_args,)
-    generic = cls.with_type_args(type_args)  # pytype: disable=attribute-error
+    generic = cls.with_type_args(type_args)  # pyrefly: ignore[missing-attribute]
     if typing.TYPE_CHECKING and isinstance(generic, ValueSpec):
       return generic.annotation
     return generic
@@ -148,7 +148,7 @@ class ValueSpecBase(ValueSpec):
     """Marks None is acceptable and returns `self`."""
     self._is_noneable = is_noneable
     if is_noneable:
-      if use_none_as_default and not self.has_default:  # pytype: disable=attribute-error
+      if use_none_as_default and not self.has_default:
         self.set_default(None, False)
     elif self.default is None:
       self.set_default(MISSING_VALUE, False)
@@ -243,7 +243,7 @@ class ValueSpecBase(ValueSpec):
     if not base.is_noneable and self._is_noneable:
       raise TypeError(f'{self!r} cannot extend {base!r}: '
                       f'None is not allowed in base spec.')
-    self._extend(base)  # pytype: disable=wrong-arg-types  # always-use-return-annotations
+    self._extend(base)  # pyrefly: ignore[bad-argument-type]
     return self
 
   def _extend(self, base: ValueSpec) -> None:
@@ -486,7 +486,7 @@ class Bool(PrimitiveType):
       default: typing.Optional[bool] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -540,7 +540,7 @@ class Str(Generic, PrimitiveType):
       regex: typing.Optional[str] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -648,7 +648,7 @@ class Number(Generic, PrimitiveType):
       max_value: typing.Optional[numbers.Number] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -780,7 +780,7 @@ class Number(Generic, PrimitiveType):
           f'Encountered: {type_args!r}'
       )
     # pylint: disable=no-value-for-parameter
-    return cls(min_value=type_args[0], max_value=type_args[1])  # pytype: disable=missing-parameter
+    return cls(min_value=type_args[0], max_value=type_args[1])  # pyrefly: ignore[missing-argument]
     # pylint: enable=no-value-for-parameter
 
 
@@ -817,7 +817,7 @@ class Int(Number):
       max_value: typing.Optional[int] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -863,7 +863,7 @@ class Float(Number):
       max_value: typing.Optional[float] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -1088,7 +1088,7 @@ class List(Generic, ValueSpecBase):
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -1154,12 +1154,12 @@ class List(Generic, ValueSpecBase):
   @property
   def min_size(self) -> int:
     """Returns max size of the list."""
-    return self._element.key.min_value  # pytype: disable=attribute-error  # bind-properties
+    return self._element.key.min_value  # pyrefly: ignore[missing-attribute]
 
   @property
   def max_size(self) -> typing.Optional[int]:
     """Returns max size of the list."""
-    return self._element.key.max_value  # pytype: disable=attribute-error  # bind-properties
+    return self._element.key.max_value  # pyrefly: ignore[missing-attribute]
 
   def _apply(
       self,
@@ -1320,7 +1320,7 @@ class Tuple(Generic, ValueSpecBase):
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -1438,11 +1438,11 @@ class Tuple(Generic, ValueSpecBase):
   def _annotate(self) -> typing.Any:
     """Annotate with PyType annotation."""
     if self.fixed_length:
-      return typing.Tuple[tuple([  # pyrefly: ignore[invalid-annotation, not-a-type]
+      return typing.Tuple[tuple([  # pyrefly: ignore[invalid-annotation]
           _any_if_no_annotation(elem.value.annotation)
-          for elem in self._elements])]       # pytype: disable=invalid-annotation
+          for elem in self._elements])]
     else:
-      return typing.Tuple[self._elements[0].value.annotation, ...]  # pytype: disable=invalid-annotation
+      return typing.Tuple[self._elements[0].value.annotation, ...]
 
   def __len__(self) -> int:
     """Returns length of this tuple."""
@@ -1680,7 +1680,7 @@ class Dict(Generic, ValueSpecBase):
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -1906,7 +1906,7 @@ class Object(Generic, ValueSpecBase):
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -2110,7 +2110,7 @@ class Callable(Generic, ValueSpecBase):
       callable_type: typing.Optional[typing.Type[typing.Any]] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor."""
     args = args or []
     kw = kw or []
@@ -2251,7 +2251,7 @@ class Callable(Generic, ValueSpecBase):
           )
       elif signature.varkw:
         assert isinstance(signature.varkw.value_spec, Dict), signature.varkw
-        varkw_value_spec = signature.varkw.value_spec.schema.dynamic_field.value   # pytype: disable=attribute-error
+        varkw_value_spec = signature.varkw.value_spec.schema.dynamic_field.value  # pyrefly: ignore[missing-attribute]
         if not varkw_value_spec.is_compatible(src_spec):
           raise TypeError(
               utils.message_on_path(
@@ -2338,7 +2338,7 @@ class Callable(Generic, ValueSpecBase):
       return_value = _any_if_no_annotation(self._return_value.annotation)
     else:
       return_value = None
-    return typing.Callable[args, return_value]  # pytype: disable=invalid-annotation
+    return typing.Callable[args, return_value]  # pyrefly: ignore[bad-specialization, not-a-type]
 
   def _eq(self, other: 'Callable') -> bool:  # pyrefly: ignore[bad-override]
     return (self._args == other.args
@@ -2444,7 +2444,7 @@ class Functor(Callable):
       ] = None,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor."""
     super().__init__(
         args=args,
@@ -2494,7 +2494,7 @@ class Type(Generic, ValueSpecBase):
       default: typing.Type[typing.Any] = MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     forward_ref = None
     if isinstance(t, str):
       forward_ref = class_schema.ForwardRef(_get_spec_callsite_module(), t)
@@ -2551,7 +2551,7 @@ class Type(Generic, ValueSpecBase):
     expected_type = self._expected_type
     if self._forward_ref is not None:
       expected_type = self._forward_ref.as_annotation()
-    return typing.Type[expected_type]  # pytype: disable=invalid-annotation
+    return typing.Type[expected_type]  # pyrefly: ignore[not-a-type]
 
   def _eq(self, other: 'Type') -> bool:  # pyrefly: ignore[bad-override]
     """Equals."""
@@ -2603,9 +2603,6 @@ class Type(Generic, ValueSpecBase):
     return cls(t=type_args[0])
 
 
-# pytype: disable=attribute-error
-
-
 class Union(Generic, ValueSpecBase):
   """Value spec for Union.
 
@@ -2636,7 +2633,7 @@ class Union(Generic, ValueSpecBase):
       default: typing.Any = MISSING_VALUE,
       is_noneable: bool = False,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:
@@ -2718,7 +2715,7 @@ class Union(Generic, ValueSpecBase):
     # NOTE(daiyip): Override `value_type` property to delay the type resolution
     # when forward declaration is invovled.
     if self._value_type is None or not self.forward_refs:
-      return self._value_type
+      return self._value_type  # pyrefly: ignore[bad-return]
 
     value_types = set()
     for c in self._candidates:
@@ -2833,7 +2830,7 @@ class Union(Generic, ValueSpecBase):
         f'{value!r} does not match any candidate of {self!r}.'
     )
 
-  def _extend(self, base: 'Union') -> None:
+  def _extend(self, base: 'Union') -> None:  # pyrefly: ignore[bad-override]
     """Union specific extension."""
     def _base_candidate(c, v):
       """Find a non-Union base spec from `v` for a input spec `c`."""
@@ -2875,7 +2872,7 @@ class Union(Generic, ValueSpecBase):
     candidates = tuple([
         _any_if_no_annotation(c.annotation) for c in self._candidates
     ])
-    return typing.Union[candidates]
+    return typing.Union[candidates]  # pyrefly: ignore[not-a-type]
 
   def format(
       self,
@@ -2900,7 +2897,7 @@ class Union(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:
+  def to_json(self, **kwargs: typing.Any) -> typing.Dict[str, typing.Any]:  # pyrefly: ignore[bad-override]
     return self.to_json_dict(
         fields=dict(
             candidates=(self._candidates, None),
@@ -2912,7 +2909,7 @@ class Union(Generic, ValueSpecBase):
         **kwargs,
     )
 
-  def _eq(self, other: 'Union') -> bool:
+  def _eq(self, other: 'Union') -> bool:  # pyrefly: ignore[bad-override]
     if len(self.candidates) != len(other.candidates):
       return False
     for sc in self.candidates:
@@ -2939,8 +2936,6 @@ class Union(Generic, ValueSpecBase):
     if noneable:
       v = v.noneable()
     return v
-
-# pytype: enable=attribute-error
 
 
 class GenericTypeAlias(Generic):
@@ -3013,7 +3008,7 @@ class Any(ValueSpecBase):
           typing.Callable[[typing.Any], typing.Any]
       ] = None,
       frozen: bool = False,
-  ):  # pytype: disable=annotation-type-mismatch
+  ):
     """Constructor.
 
     Args:

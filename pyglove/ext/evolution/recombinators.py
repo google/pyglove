@@ -329,7 +329,7 @@ class Uniform(PointWise):
     super()._on_bound()
     self._random = random if self.seed is None else random.Random(self.seed)
 
-  def merge(  # pytype: disable=signature-mismatch
+  def merge(  # pyrefly: ignore[bad-override]
       self,
       decision_point: pg.geno.DecisionPoint,
       parent_decisions: List[Union[int, List[int], float, None]]
@@ -403,7 +403,7 @@ class Sample(PointWise):
     super()._on_input(inputs)
     self._parent_weights = self._weights(inputs)
 
-  def merge(    # pytype: disable=signature-mismatch
+  def merge(  # pyrefly: ignore[bad-override]
       self,
       decision_point: pg.geno.DecisionPoint,
       parent_decisions: List[Union[int, List[int], float, None]]
@@ -445,7 +445,7 @@ class Numeric(PointWise):
     children = pg.evolution.recombinators.Average()(parents)
   """
 
-  def applicable_decision_points(    # pytype: disable=signature-mismatch
+  def applicable_decision_points(  # pyrefly: ignore[bad-override]
       self, dna_spec: pg.geno.DNASpec) -> List[pg.geno.DecisionPoint]:
     return [dp for dp in dna_spec.decision_points
             if isinstance(dp, pg.geno.Float)]
@@ -463,7 +463,7 @@ class Average(Numeric):
   https://link.springer.com/content/pdf/10.1007/s00500-006-0049-7.pdf
   """
 
-  def merge(   # pytype: disable=signature-mismatch
+  def merge(  # pyrefly: ignore[bad-override]
       self,
       decision_point: pg.geno.DecisionPoint,
       parent_decisions: List[Optional[float]]) -> float:
@@ -504,7 +504,7 @@ class WeightedAverage(Numeric):
     super()._on_input(inputs)
     self._parent_weights = self._weights(inputs)
 
-  def merge(   # pytype: disable=signature-mismatch
+  def merge(  # pyrefly: ignore[bad-override]
       self,
       decision_point: pg.geno.Float,
       parent_decisions: List[Optional[float]]) -> float:

@@ -57,7 +57,7 @@ if typing.TYPE_CHECKING:
       ...  # pylint: disable=pointless-statement
 
     def __call__(self, func: _GenericCallable) -> _GenericCallable:
-      ...  # pytype: disable=bad-return-type  # pylint: disable=pointless-statement
+      ...  # pylint: disable=pointless-statement
 
 else:
   Decorator = lambda d: d

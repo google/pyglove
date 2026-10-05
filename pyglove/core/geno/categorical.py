@@ -379,7 +379,7 @@ class Choices(DecisionPoint):
             return 0
           elif len(s) == 1:
             assert not self.distinct
-            return s[0] ** k  # pytype: disable=bad-return-type
+            return s[0] ** k
           elif self.distinct and self.sorted:
             # When choice is distinct and sorted, current chosen item
             # must appear at the front.
@@ -396,10 +396,10 @@ class Choices(DecisionPoint):
             size = 0
             for i in range(k + 1):
               size += (s[0] ** i) * _space_size(s[1:], k - i)
-            return size  # pytype: disable=bad-return-type  # always-use-return-annotations
+            return size
           else:
             # When choice is neither distinct nor sorted,
-            return _space_size(s, 1) ** k  # pytype: disable=bad-return-type  # always-use-return-annotations
+            return _space_size(s, 1) ** k
         self._space_size = _space_size(sub_space_sizes, self.num_choices)
     return self._space_size
 

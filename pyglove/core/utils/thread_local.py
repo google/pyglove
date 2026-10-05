@@ -111,7 +111,7 @@ def thread_local_increment(key: str, default_initial_value: int = 0) -> int:
 
 def thread_local_decrement(
     key: str,
-    default_initial_value: int = _RAISE_IF_NOT_FOUND  # pytype: disable=annotation-type-mismatch
+    default_initial_value: int = _RAISE_IF_NOT_FOUND  # pyrefly: ignore[bad-function-definition]
     ) -> int:
   """Increment an integer identified by key."""
   return thread_local_map(

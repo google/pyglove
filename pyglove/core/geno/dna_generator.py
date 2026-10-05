@@ -85,7 +85,7 @@ class DNAGenerator(symbolic.Object):
   @property
   def needs_feedback(self) -> bool:
     """Returns True if the DNAGenerator needs feedback."""
-    return self._feedback.__code__ is not DNAGenerator._feedback.__code__  # pytype: disable=attribute-error
+    return self._feedback.__code__ is not DNAGenerator._feedback.__code__
 
   @property
   def dna_spec(self) -> Optional[DNASpec]:

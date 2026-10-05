@@ -89,7 +89,7 @@ def _json_schema_from_schema(
     return {'$ref': f'#/$defs/{title}'}
   else:
     assert entry.definition is not None
-    return entry.definition   # pytype: disable=bad-return-type
+    return entry.definition
 
 
 def _json_schema_from_value_spec(

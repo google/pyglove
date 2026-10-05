@@ -204,7 +204,7 @@ class TimeIt:
       return 0
     if self._end_time is None:
       return time.time() - self._start_time
-    return self._end_time - self._start_time  # pytype: disable=unsupported-operands
+    return self._end_time - self._start_time
 
   def status(self) -> Dict[str, Status]:
     """Gets the status of all `timeit` under this context."""

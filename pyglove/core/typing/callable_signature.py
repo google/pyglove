@@ -106,14 +106,10 @@ class Argument:
     if param.default != inspect.Parameter.empty:
       value_spec.set_default(param.default)
 
-    # pytype: disable=wrong-arg-count
-    # pytype: disable=not-instantiable
     if param.kind == inspect.Parameter.VAR_POSITIONAL:
-      value_spec = class_schema.ValueSpec.ListType(value_spec, default=[])
+      value_spec = class_schema.ValueSpec.ListType(value_spec, default=[])  # pyrefly: ignore[bad-argument-count, unexpected-keyword]
     elif param.kind == inspect.Parameter.VAR_KEYWORD:
-      value_spec = class_schema.ValueSpec.DictType(value_spec)
-    # pytype: enable=wrong-arg-count
-    # pytype: enable=not-instantiable
+      value_spec = class_schema.ValueSpec.DictType(value_spec)  # pyrefly: ignore[bad-argument-count]
     return cls(
         param.name,
         Argument.Kind.from_parameter(param),
@@ -125,7 +121,7 @@ class Argument:
     """Converts current argument to a pg.typing.Field object."""
     if self.kind == Argument.Kind.VAR_KEYWORD:
       key = ks.StrKey()
-      value = self.value_spec.schema.dynamic_field.value  # pytype: disable=attribute-error
+      value = self.value_spec.schema.dynamic_field.value  # pyrefly: ignore[missing-attribute]
     else:
       key = ks.ConstStrKey(self.name)
       value = self.value_spec
@@ -208,7 +204,7 @@ class Signature(utils.Formattable):
       if arg.name == name:
         return arg.value_spec
     if self.varkw is not None:
-      return self.varkw.value_spec.schema.dynamic_field.value   # pytype: disable=attribute-error
+      return self.varkw.value_spec.schema.dynamic_field.value  # pyrefly: ignore[missing-attribute]
     return None
 
   @property
@@ -498,7 +494,7 @@ class Signature(utils.Formattable):
           vararg_name,
           Argument.Kind.VAR_POSITIONAL,
           get_arg_spec(vararg_name)
-      )  # pytype: disable=attribute-error
+      )
 
     # Prepare keyword-only arguments.
     existing_names = set(arg_names)
@@ -514,15 +510,11 @@ class Signature(utils.Formattable):
               Argument(str(key), Argument.Kind.KEYWORD_ONLY, field.value)
           )
         else:
-          # pytype: disable=not-instantiable
-          # pytype: disable=wrong-arg-count
           varkw = Argument(
               schema.metadata.get('varkw_name', None) or 'kwargs',
               Argument.Kind.VAR_KEYWORD,
-              class_schema.ValueSpec.DictType(field.value)
+              class_schema.ValueSpec.DictType(field.value)  # pyrefly: ignore[bad-argument-count]
           )
-          # pytype: enable=wrong-arg-count
-          # pytype: enable=not-instantiable
 
     return Signature(
         callable_type=CallableType.FUNCTION,
@@ -749,7 +741,7 @@ class Signature(utils.Formattable):
       ), self.varkw
       _append_arg(
           self.varkw.name,
-          self.varkw.value_spec.schema.dynamic_field.value,   # pytype: disable=attribute-error
+          self.varkw.value_spec.schema.dynamic_field.value,  # pyrefly: ignore[missing-attribute]
           arg_prefix='**'
       )
 

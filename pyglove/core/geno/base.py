@@ -284,7 +284,7 @@ class DNASpec(symbolic.Object):
     # For child specs of Choices, `self.sym_parent` points to
     #   `Choices.candidates` or `Choices._subchoice_specs`.
     assert self.sym_parent.sym_parent is not None
-    return self.sym_parent.sym_parent  # pytype: disable=bad-return-type
+    return self.sym_parent.sym_parent  # pyrefly: ignore[bad-return]
 
   @property
   def parent_choice(self) -> Optional['DecisionPoint']:
@@ -1348,7 +1348,7 @@ class DNA(symbolic.Object):
               f'Choices: {dna_spec.num_choices}, '
               f'Location: {dna_spec.location.path}.')
         children = []
-        for i, choice in enumerate(decision):  # pyrefly: ignore[bad-argument-type, not-iterable]
+        for i, choice in enumerate(decision):  # pyrefly: ignore[not-iterable]
           choice_location = utils.KeyPath(i, dna_spec.location)
           if not isinstance(choice, int):
             raise ValueError(
@@ -1476,7 +1476,7 @@ class DNA(symbolic.Object):
           allow_partial=allow_partial,
           root_path=root_path,
           **kwargs,
-      )  # pytype: disable=bad-return-type
+      )
       assert isinstance(dna, DNA)
     if cloneable_metadata_keys:
       dna._cloneable_metadata_keys = set(cloneable_metadata_keys)  # pylint: disable=protected-access

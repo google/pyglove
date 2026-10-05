@@ -182,7 +182,7 @@ class ForwardRef(utils.Formattable):
     elif isinstance(other, ForwardRef):
       return self.module is other.module and self.qualname == other.qualname
     elif inspect.isclass(other):
-      return self.resolved and self.cls is other  # pytype: disable=bad-return-type
+      return self.resolved and self.cls is other
 
   def __ne__(self, other: Any) -> bool:
     """Operator!=."""
@@ -1593,7 +1593,7 @@ def _normalize_field_defs(
       if not isinstance(v, (tuple, list)):
         v = (v,)
       normalized_fields.append(tuple([k] + list(v)))
-    return normalized_fields    # pytype: disable=bad-return-type
+    return normalized_fields
   elif not isinstance(fields, list):
     raise TypeError(
         'Schema definition should be a dict of field names to their '

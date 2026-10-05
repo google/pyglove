@@ -100,7 +100,7 @@ pg.typing.register_converter(types.FunctionType, DecisionPointFilter, Lambda)  #
 class All(DecisionPointFilter):
   """Include all decision points."""
 
-  def call(  # pytype: disable=signature-mismatch
+  def call(  # pyrefly: ignore[bad-override]
       self,
       decision_points: List[pg.geno.DecisionPoint]
       ) -> List[pg.geno.DecisionPoint]:
@@ -122,7 +122,7 @@ class Any(DecisionPointFilter):
     super()._on_bound()
     self._random = random if self.seed is None else random.Random(self.seed)
 
-  def call(  # pytype: disable=signature-mismatch
+  def call(  # pyrefly: ignore[bad-override]
       self,
       decision_points: List[pg.geno.DecisionPoint],
       step: int

@@ -199,8 +199,8 @@ def annotation_from_str(
 
     def _as_forward_ref() -> typing.ForwardRef:
       if sys.version_info >= (3, 14):
-        return typing.ForwardRef(type_id)  # pytype: disable=not-callable
-      return typing.ForwardRef(type_id, False, parent_module)  # pytype: disable=not-callable
+        return typing.ForwardRef(type_id)
+      return typing.ForwardRef(type_id, False, parent_module)  # pyrefly: ignore[bad-argument-count]
 
     def _resolve_name(name: str, parent_obj: typing.Any):
       if name == 'None':

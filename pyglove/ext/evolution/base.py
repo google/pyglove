@@ -839,7 +839,7 @@ class Evolution(pg.DNAGenerator):
 class Identity(Operation):
   """Returns the input itself."""
 
-  def call(self, inputs: List[Any]) -> List[Any]:    # pytype: disable=signature-mismatch
+  def call(self, inputs: List[Any]) -> List[Any]:  # pyrefly: ignore[bad-override]
     return inputs
 
 
@@ -1428,7 +1428,7 @@ class ElementWise(Operation):
 class Flatten(Operation):
   """Flatten elements from the input."""
 
-  def call(self, inputs: List[Any]) -> List[Any]:    # pytype: disable=signature-mismatch
+  def call(self, inputs: List[Any]) -> List[Any]:  # pyrefly: ignore[bad-override]
     return self._flatten_list(inputs, 0, [])
 
   def _flatten_list(
@@ -1453,7 +1453,7 @@ class Flatten(Operation):
 class GlobalStateGetter(Operation):
   """Returns a key in the `global_state` as output."""
 
-  def call(self, inputs: List[Any], global_state: pg.geno.AttributeDict):    # pytype: disable=signature-mismatch
+  def call(self, inputs: List[Any], global_state: pg.geno.AttributeDict):  # pyrefly: ignore[bad-override]
     del inputs
     if self.default is None:
       return global_state[self.key]
@@ -1469,7 +1469,7 @@ class GlobalStateGetter(Operation):
 class GlobalStateSetter(Operation):
   """Set the value for a key in `global_state` and return an empty list."""
 
-  def call(self, inputs: List[Any], global_state: pg.geno.AttributeDict):   # pytype: disable=signature-mismatch
+  def call(self, inputs: List[Any], global_state: pg.geno.AttributeDict):  # pyrefly: ignore[bad-override]
     value = self.value
     if value == (pg.MISSING_VALUE,):
       value = inputs

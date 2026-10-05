@@ -32,7 +32,7 @@ from typing import Any, Callable, ContextManager, Dict, Iterable, Iterator, List
 # a List or a Tuple of Nestable[T]. We use a Union to fool PyType checker to
 # make Nestable[T] a valid type annotation without type check.
 T = TypeVar('T')
-Nestable = Union[Any, T]  # pytype: disable=not-supported-yet
+Nestable = Union[Any, T]
 
 # pylint: disable=invalid-name
 JSONPrimitiveType = Union[int, float, bool, str]
@@ -716,7 +716,7 @@ def to_json(
     v = context.serialize_maybe_shared(
         value,
         json_fn=lambda **kwargs: {
-            k: to_json(v, **kwargs) for k, v in value.items()   # pytype: disable=attribute-error
+            k: to_json(v, **kwargs) for k, v in value.items()
         },
         **kwargs
     )
@@ -725,7 +725,7 @@ def to_json(
     v = [JSONConvertible.TUPLE_MARKER] + [
         to_json(item, context=context, **kwargs) for item in value
     ]
-  elif isinstance(value, (type, typing.GenericAlias)):  # pytype: disable=module-attr
+  elif isinstance(value, (type, typing.GenericAlias)):
     v = _type_to_json(value)  # pyrefly: ignore[bad-argument-type]
   elif inspect.isbuiltin(value):
     v = _builtin_function_to_json(value)
@@ -733,11 +733,9 @@ def to_json(
     v = _function_to_json(value)
   elif inspect.ismethod(value):
     v = _method_to_json(value)
-  # pytype: disable=module-attr
   elif isinstance(value, typing._Final) or (  # pylint: disable=protected-access
       hasattr(types, 'UnionType') and isinstance(value, types.UnionType)
   ):
-    # pytype: enable=module-attr
     v = _annotation_to_json(value)
   elif value is ...:
     v = {JSONConvertible.TYPE_NAME_KEY: 'type', 'name': 'builtins.Ellipsis'}
@@ -937,7 +935,7 @@ def resolve_typenames(
           unknown_object_cls = JSONConvertible.class_from_typename(
               'unknown_object'
           )
-          return unknown_object_cls(type_name=type_name, **json_value)  # pytype: disable=wrong-keyword-args
+          return unknown_object_cls(type_name=type_name, **json_value)  # pyrefly: ignore[not-callable, unexpected-keyword]
 
         v[JSONConvertible.TYPE_NAME_KEY] = _factory_fn
         return True

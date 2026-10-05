@@ -148,5 +148,5 @@ def get_scoped_value(
 ) -> ContextualOverride:
   """Gets the value for requested variable from current scope."""
   scoped_values = getattr(tls, _TLS_KEY_CONTEXTUAL_OVERRIDES, {})
-  return scoped_values.get(var_name, default)  # pyrefly: ignore[bad-return]
+  return scoped_values.get(var_name, default)
 

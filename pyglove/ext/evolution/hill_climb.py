@@ -41,7 +41,7 @@ def hill_climb(mutator=mutators.Uniform(),
     An `Evolution` object.
   """
   return base.Evolution(
-      selectors.Top(1) >> (mutator * batch_size),   # pytype: disable=unsupported-operands
+      selectors.Top(1) >> (mutator * batch_size),
       population_init=(pg.geno.Random(seed), init_population_size),
       population_update=selectors.Top(1))
 
