@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import tempfile
 import unittest
@@ -70,6 +71,44 @@ class LineSequenceIOTest(unittest.TestCase):
       ):
         f.add('baz')
       self.assertEqual(list(iter(f)), ['foo', 'bar'])
+
+  def test_write_and_append_binary_records(self):
+    with tempfile.TemporaryDirectory() as directory:
+      path = os.path.join(directory, 'records.bin')
+      with sequence_io.open_sequence(path, 'wb') as f:
+        f.add(b'foo\nbar\n')
+        f.add(b'')
+        f.add(b'non-utf8: \xff')
+        f.flush()
+      with sequence_io.open_sequence(path, 'ab') as f:
+        f.add(b'last\n')
+      with open(path, 'rb') as f:
+        self.assertEqual(f.read(), b'foo\nbar\n\nnon-utf8: \xff\nlast\n')
+
+  def test_read_binary_records(self):
+    with tempfile.TemporaryDirectory() as directory:
+      path = os.path.join(directory, 'records.bin')
+      with open(path, 'wb') as f:
+        f.write(b'foo\n\nnon-utf8: \xff\nlast')
+      with sequence_io.open_sequence(path, 'rb') as f:
+        self.assertEqual(
+            list(iter(f)), [b'foo', b'', b'non-utf8: \xff', b'last']
+        )
+
+  def test_binary_serializer_round_trip(self):
+    records = [{'response': 'caf\u00e9'}, {'score': 0.5}]
+    with tempfile.TemporaryDirectory() as directory:
+      path = os.path.join(directory, 'records.bin')
+      with sequence_io.open_sequence(
+          path, 'wb',
+          serializer=lambda record: json.dumps(record).encode('utf-8'),
+      ) as f:
+        for record in records:
+          f.add(record)
+      with sequence_io.open_sequence(
+          path, 'rb', deserializer=json.loads,
+      ) as f:
+        self.assertEqual(list(iter(f)), records)
 
 
 class MemorySequenceIOTest(unittest.TestCase):
