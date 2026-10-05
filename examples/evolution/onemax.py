@@ -56,7 +56,7 @@ def one_max_with_custom_primitive(n: int):
 
   class MutateOneBit(pg.evolution.Mutator):
 
-    def mutate(self, dna: pg.DNA):  # pytype: disable=signature-mismatch  # overriding-parameter-count-checks
+    def mutate(self, dna: pg.DNA):  # pyrefly: ignore[bad-override]
       bitstr = dna.value
       index = random.randint(0, len(dna.value) - 1)
       new_bitstr = (

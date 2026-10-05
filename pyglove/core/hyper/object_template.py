@@ -391,9 +391,9 @@ class ObjectTemplate(base.HyperValue, utils.Formattable):
       dna = self.encode(value)
       return (True, dna)
     except ValueError:
-      return (False, None)  # pytype: disable=bad-return-type
+      return (False, None)  # pyrefly: ignore[bad-return]
     except KeyError:
-      return (False, None)  # pytype: disable=bad-return-type
+      return (False, None)  # pyrefly: ignore[bad-return]
 
   def __eq__(self, other):
     """Operator ==."""

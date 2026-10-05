@@ -226,7 +226,7 @@ class Content(utils.Formattable, metaclass=abc.ABCMeta):
 
     def __copy__(self) -> 'Content.SharedParts':
       """Returns a copy of the shared parts."""
-      return self.__class__(self)   # pytype: disable=not-instantiable
+      return self.__class__(self)
 
     def __eq__(self, other: Any):
       if not isinstance(other, self.__class__):
@@ -409,7 +409,7 @@ class Content(utils.Formattable, metaclass=abc.ABCMeta):
       if copy:
         return copy_lib.deepcopy(value)
       return value
-    return cls(value)   # pytype: disable=not-instantiable
+    return cls(value)
 
   @classmethod
   def _to_content(cls, value: WritableTypes) -> Union['Content', str, None]:

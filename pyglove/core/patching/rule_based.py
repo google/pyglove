@@ -381,7 +381,7 @@ def parse_uri(uri: str) -> Tuple[str, List[str], Dict[str, str]]:
 
   if not _ID_REGEX.match(name):
     raise ValueError(f'{name!r} is not a valid Patcher name.')
-  return name, args, kwargs    # pytype: disable=bad-return-type
+  return name, args, kwargs
 
 
 def parse_args(signature: pg_typing.Signature,

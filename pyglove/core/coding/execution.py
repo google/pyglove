@@ -97,13 +97,13 @@ def evaluate(
   global_vars, orig_global_vars = ctx, ctx.copy()
 
   # No code.
-  if not code_block.body:   # pytype: disable=attribute-error
+  if not code_block.body:  # pyrefly: ignore[missing-attribute]
     return {} if outputs_intermediate else None
 
   stdout = io.StringIO()
   with contextlib.redirect_stdout(stdout):
-    if hasattr(code_block.body[-1], 'value'):   # pytype: disable=attribute-error
-      last_expr = code_block.body.pop()  # pytype: disable=attribute-error
+    if hasattr(code_block.body[-1], 'value'):  # pyrefly: ignore[bad-index]
+      last_expr = code_block.body.pop()  # pyrefly: ignore[missing-attribute]
       result_vars = [RESULT_KEY]
 
       if isinstance(last_expr, ast.Assign):
@@ -111,7 +111,7 @@ def evaluate(
           if isinstance(name_node, ast.Name):
             result_vars.append(name_node.id)
 
-      last_expr = ast.Expression(last_expr.value)  # pytype: disable=attribute-error
+      last_expr = ast.Expression(last_expr.value)
 
       try:
         # Execute the lines before the last expression.

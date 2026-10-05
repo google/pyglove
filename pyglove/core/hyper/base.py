@@ -23,7 +23,7 @@ from pyglove.core import typing as pg_typing
 from pyglove.core import utils
 
 
-class HyperValue(symbolic.NonDeterministic):  # pytype: disable=ignored-metaclass
+class HyperValue(symbolic.NonDeterministic):
   """Base class for a hyper value.
 
   Hyper value represents a space of objects, which is essential for

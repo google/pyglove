@@ -249,7 +249,7 @@ class StdFileSystem(FileSystem):
   def rm(self, path: Union[str, os.PathLike[str]]) -> None:
     os.remove(path)
 
-  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pytype: disable=signature-mismatch
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pyrefly: ignore[bad-override]
     os.rmdir(path)
 
   def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
@@ -481,7 +481,7 @@ class MemoryFileSystem(FileSystem):
       raise IsADirectoryError(path)
     del parent_dir[name]
 
-  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pytype: disable=signature-mismatch
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pyrefly: ignore[bad-override]
     parent_dir, name = self._parent_and_name(path)
     entry = parent_dir.get(name)
     if entry is None:
@@ -579,9 +579,7 @@ add_file_system('/mem/', MemoryFileSystem('/mem/'))
 
 try:
   # pylint: disable=g-import-not-at-top
-  # pytype: disable=import-error
-  import fsspec
-  # pytype: enable=import-error
+  import fsspec  # pyrefly: ignore[missing-import]
   # pylint: enable=g-import-not-at-top
 except ImportError:
   fsspec = None
@@ -705,7 +703,7 @@ class FsspecFileSystem(FileSystem):
       )
     fs.rename(old_path, new_path)
 
-  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:   # pytype: disable=signature-mismatch
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pyrefly: ignore[bad-override]
     assert fsspec is not None, '`fsspec` is not installed.'
     fs, path = fsspec.core.url_to_fs(path)
     fs.rmdir(path)
@@ -810,7 +808,7 @@ class _FsspecUriCatcher(FileSystem):
   ) -> None:
     self.get_fs(oldpath).rename(oldpath, newpath)
 
-  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:   # pytype: disable=signature-mismatch
+  def rmdir(self, path: Union[str, os.PathLike[str]]) -> None:  # pyrefly: ignore[bad-override]
     self.get_fs(path).rmdir(path)
 
   def rmdirs(self, path: Union[str, os.PathLike[str]]) -> None:
@@ -954,4 +952,4 @@ def rmdir(path: Union[str, os.PathLike[str]]) -> bool:
 
 def rmdirs(path: Union[str, os.PathLike[str]]) -> bool:
   """Removes a directory chain until a parent directory is not empty."""
-  return _fs.get(path).rmdirs(path)  # pytype: disable=bad-return-type
+  return _fs.get(path).rmdirs(path)  # pyrefly: ignore[bad-return]

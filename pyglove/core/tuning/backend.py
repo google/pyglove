@@ -74,7 +74,7 @@ class Backend(metaclass=abc.ABCMeta):
     Returns:
       A `pg.tuning.Backend` object.
     """
-    return cls(     # pytype: disable=wrong-keyword-args
+    return cls(
         name=name,  # pyrefly: ignore[unexpected-keyword]
         group=group,  # pyrefly: ignore[unexpected-keyword]
         dna_spec=dna_spec,  # pyrefly: ignore[unexpected-keyword]

@@ -52,9 +52,9 @@ def make_scalar(value: Any) -> 'Scalar':
   if isinstance(value, Scalar):
     return value
   elif callable(value):
-    return Lambda(value)    # pytype: disable=bad-return-type
+    return Lambda(value)
   else:
-    return Constant(value)  # pytype: disable=bad-return-type
+    return Constant(value)
 
 
 class Scalar(pg.Object):
@@ -296,7 +296,7 @@ class Division(BinaryOp):
 class Mod(BinaryOp):
   """Mod operation."""
 
-  def operate(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def operate(  # pyrefly: ignore[bad-override]
       self, x: int, y: int) -> int:
     return x % y
 

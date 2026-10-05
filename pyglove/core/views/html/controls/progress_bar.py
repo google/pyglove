@@ -42,7 +42,7 @@ class SubProgress(HtmlControl):
   interactive = True
 
   def _on_parent_change(self, *args, **kwargs):
-    super()._on_parent_change(*args, **kwargs)  # pytype: disable=attribute-error
+    super()._on_parent_change(*args, **kwargs)
     self.__dict__.pop('parent', None)
 
   @functools.cached_property

@@ -192,7 +192,7 @@ class Choices(base.HyperPrimitive):
               )
           )
       choices = []
-      for i, sub_dna in enumerate(dna):  # pyrefly: ignore[bad-argument-type, not-iterable]
+      for i, sub_dna in enumerate(dna):  # pyrefly: ignore[not-iterable]
         if not isinstance(sub_dna.value, int):
           raise ValueError(
               utils.message_on_path(

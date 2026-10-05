@@ -27,7 +27,6 @@ Html = base.Html
 HtmlView = base.HtmlView
 
 
-# pytype: disable=annotation-type-mismatch
 
 
 class HtmlTreeView(HtmlView):
@@ -210,7 +209,7 @@ class HtmlTreeView(HtmlView):
       summary_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = None,
+      ] = None,  # pyrefly: ignore[bad-function-definition]
       # Content settings.
       key_style: Union[
           Literal['label', 'summary'],
@@ -219,7 +218,7 @@ class HtmlTreeView(HtmlView):
       key_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = None,
+      ] = None,  # pyrefly: ignore[bad-function-definition]
       include_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
@@ -402,7 +401,7 @@ class HtmlTreeView(HtmlView):
     if summary is None:
       content = Html.from_value(content)
       assert content is not None
-      return debug_info + content
+      return debug_info + content  # pyrefly: ignore[bad-return]
 
     collapse_details = self.should_collapse(
         value, name=name, parent=parent, root_path=root_path,
@@ -415,7 +414,7 @@ class HtmlTreeView(HtmlView):
             debug_info,
             content,
         ],
-        options=[None if collapse_details else 'open'],
+        options=[None if collapse_details else 'open'],  # pyrefly: ignore[bad-argument-type]
         css_classes=[
             'pyglove',
             self.css_class_name(value),
@@ -449,7 +448,7 @@ class HtmlTreeView(HtmlView):
       root_path: KeyPath,
       parent: Any,
       collapse_level: Optional[int] = 1,
-      uncollapse: Union[KeyPathSet, base.NodeFilter] = None,
+      uncollapse: Union[KeyPathSet, base.NodeFilter] = None,  # pyrefly: ignore[bad-function-definition]
   ) -> bool:
     """Returns True if the object should be collapsed.
 
@@ -534,7 +533,7 @@ class HtmlTreeView(HtmlView):
       summary_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = None,
+      ] = None,  # pyrefly: ignore[bad-function-definition]
       max_summary_len_for_str: int = 80,
       enable_summary_for_str: bool = True,
       enable_key_tooltip: bool = True,
@@ -596,7 +595,7 @@ class HtmlTreeView(HtmlView):
 
     if name is not None:
       summary_color = self.get_color(
-          summary_color, root_path + name, value, parent
+          summary_color, root_path + name, value, parent  # pyrefly: ignore[bad-argument-type]
       )
     else:
       summary_color = (None, None)
@@ -685,7 +684,7 @@ class HtmlTreeView(HtmlView):
       key_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = None,
+      ] = None,  # pyrefly: ignore[bad-function-definition]
       enable_key_tooltip: bool = True,
       key_tooltip_fn: Optional[Callable[..., Html]] = None,
       **kwargs,
@@ -711,8 +710,8 @@ class HtmlTreeView(HtmlView):
     """
     del kwargs
     key_tooltip_fn = key_tooltip_fn or self.tooltip
-    key_color = self.get_color(key_color, root_path, value, parent)
-    return (
+    key_color = self.get_color(key_color, root_path, value, parent)  # pyrefly: ignore[bad-argument-type]
+    return (  # pyrefly: ignore[missing-attribute]
         # Key span.
         Html.element(
             'span',
@@ -792,7 +791,7 @@ class HtmlTreeView(HtmlView):
       key_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = None,
+      ] = None,  # pyrefly: ignore[bad-function-definition]
       include_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
@@ -887,7 +886,7 @@ class HtmlTreeView(HtmlView):
           max_summary_len_for_str=max_summary_len_for_str
       )
     return self.complex_value(
-        items,
+        items,  # pyrefly: ignore[bad-argument-type]
         name=name,
         parent=value,
         root_path=root_path,
@@ -1000,7 +999,7 @@ class HtmlTreeView(HtmlView):
       key_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]]
-      ] = None,
+      ] = None,  # pyrefly: ignore[bad-function-definition]
       include_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
@@ -1179,7 +1178,7 @@ class HtmlTreeView(HtmlView):
         for k in summary_keys:
           child_path = root_path + k
           child_kwargs = self.get_child_kwargs(
-              inherited_kwargs, child_config, k, root_path
+              inherited_kwargs, child_config, k, root_path  # pyrefly: ignore[bad-argument-type]
           )
           s.write(render_child_value(k, kv[k], child_path, child_kwargs))
           has_child = True
@@ -1191,7 +1190,7 @@ class HtmlTreeView(HtmlView):
           v = kv[k]
           child_path = root_path + k
           child_kwargs = self.get_child_kwargs(
-              inherited_kwargs, child_config, k, root_path
+              inherited_kwargs, child_config, k, root_path  # pyrefly: ignore[bad-argument-type]
           )
           key_cell = render_child_key(child_path, v, parent, child_kwargs)
           value_cell = render_child_value(None, v, child_path, child_kwargs)
@@ -1330,7 +1329,7 @@ class HtmlTreeView(HtmlView):
     if not child_config:
       return call_kwargs
 
-    child_kwargs = child_config.get(
+    child_kwargs = child_config.get(  # pyrefly: ignore[no-matching-overload]
         child_key, child_config.get('__default__', None)
     )
     if not child_kwargs:
@@ -1340,44 +1339,42 @@ class HtmlTreeView(HtmlView):
         call_kwargs, child_kwargs, root_path + child_key,
     )
 
-  # pytype: disable=annotation-type-mismatch
   @staticmethod
   def get_passthrough_kwargs(
       *,
-      enable_summary: Optional[bool] = utils.MISSING_VALUE,
-      enable_summary_for_str: bool = utils.MISSING_VALUE,
-      max_summary_len_for_str: int = utils.MISSING_VALUE,
-      enable_summary_tooltip: bool = utils.MISSING_VALUE,
+      enable_summary: Optional[bool] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      enable_summary_for_str: bool = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      max_summary_len_for_str: int = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      enable_summary_tooltip: bool = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       key_style: Union[
           Literal['label', 'summary'],
           Callable[[KeyPath, Any, Any], Literal['label', 'summary']],
-      ] = utils.MISSING_VALUE,
+      ] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       key_color: Union[
           Tuple[Optional[str], Optional[str]],
           Callable[[KeyPath, Any, Any], Tuple[Optional[str], Optional[str]]],
-      ] = utils.MISSING_VALUE,
+      ] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       include_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
           None,
-      ] = utils.MISSING_VALUE,
+      ] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       exclude_keys: Union[
           Iterable[Union[int, str]],
           Callable[[KeyPath, Any, Any], Iterable[Union[int, str]]],
           None,
-      ] = utils.MISSING_VALUE,
-      enable_key_tooltip: bool = utils.MISSING_VALUE,
+      ] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      enable_key_tooltip: bool = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       uncollapse: Union[
           KeyPathSet, base.NodeFilter, None
-      ] = utils.MISSING_VALUE,
-      extra_flags: Optional[Dict[str, Any]] = utils.MISSING_VALUE,
-      highlight: Optional[base.NodeFilter] = utils.MISSING_VALUE,
-      lowlight: Optional[base.NodeFilter] = utils.MISSING_VALUE,
-      debug: bool = utils.MISSING_VALUE,
+      ] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      extra_flags: Optional[Dict[str, Any]] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      highlight: Optional[base.NodeFilter] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      lowlight: Optional[base.NodeFilter] = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
+      debug: bool = utils.MISSING_VALUE,  # pyrefly: ignore[bad-function-definition]
       remove: Optional[Iterable[str]] = None,
       **kwargs,
   ):
-    # pytype: enable=annotation-type-mismatch
     """Gets the rendering arguments to pass through to the child nodes."""
     del kwargs
     passthrough_kwargs = dict(
@@ -1409,7 +1406,7 @@ class HtmlTreeView(HtmlView):
     if remove:
       return {
           k: v for k, v in passthrough_kwargs.items()
-          if k not in remove  # pytype: disable=unsupported-operands
+          if k not in remove
       }
     return passthrough_kwargs
 
@@ -1514,4 +1511,3 @@ class HtmlTreeView(HtmlView):
     assert isinstance(color, tuple) and len(color) == 2, color
     return color
 
-# pytype: enable=annotation-type-mismatch

@@ -606,7 +606,7 @@ class _InMemoryDistributionValue(DistributionValue):
       return 0.0
 
     if numpy is not None:
-      return numpy.percentile(self._data, n)  # pytype: disable=attribute-error
+      return numpy.percentile(self._data, n)
 
     sorted_data = sorted(self._data)
     index = (n / 100) * (len(sorted_data) - 1)

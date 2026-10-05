@@ -223,10 +223,8 @@ def adhoc_import(
 
 def adhoc_import_lib():
   try:
-    _ = get_ipython()  # pytype: disable=name-error
-    # pytype: disable=import-error
-    from colabtools import adhoc_import as import_lib   # pylint: disable=g-import-not-at-top
-    # pytype: enable=import-error
+    _ = get_ipython()  # pyrefly: ignore[unknown-name]
+    from colabtools import adhoc_import as import_lib   # pylint: disable=g-import-not-at-top  # pyrefly: ignore[missing-import]
     return import_lib
   except NameError:
     return None
