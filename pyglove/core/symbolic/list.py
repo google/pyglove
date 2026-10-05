@@ -317,7 +317,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
         (self.__class__, tuple([base.sym_hash(e) for e in self.sym_values()]))
     )
 
-  def _sym_getattr(self, key: int) -> Any:   # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def _sym_getattr(self, key: int) -> Any:  # pyrefly: ignore[bad-override]
     """Gets symbolic attribute by index."""
     return super().__getitem__(key)
 
@@ -397,7 +397,7 @@ class List(list, base.Symbolic, pg_typing.CustomTyping):
       if isinstance(item, base.TopologyAware):
         item.sym_setpath(utils.KeyPath(idx, new_path))
 
-  def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def _set_item_without_permission_check(  # pyrefly: ignore[bad-override]
       self, key: int, value: Any) -> Optional[base.FieldUpdate]:
     """Set or add an item without permission check."""
     assert isinstance(key, numbers.Integral), key

@@ -450,7 +450,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Returns the field definition for a symbolic attribute."""
     if self._value_spec is None or self._value_spec.schema is None:
       return None
-    return self._value_spec.schema.get_field(key)  # pytype: disable=attribute-error
+    return self._value_spec.schema.get_field(key)  # pyrefly: ignore[bad-argument-type]
 
   def sym_hasattr(self, key: Union[str, int]) -> bool:
     """Tests if a symbolic attribute exists."""
@@ -463,7 +463,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
         yield key
     else:
       traversed = set()
-      for key_spec in self._value_spec.schema.keys():  # pytype: disable=attribute-error
+      for key_spec in self._value_spec.schema.keys():
         if isinstance(key_spec, pg_typing.ConstStrKey) and key_spec in self:
           yield key_spec.text
           traversed.add(key_spec.text)
@@ -501,7 +501,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
          tuple([(k, base.sym_hash(v)) for k, v in self.sym_items()
                 if v != pg_typing.MISSING_VALUE])))
 
-  def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def _sym_getattr(
       self, key: Union[str, int]) -> Any:
     """Gets symbolic attribute by key."""
     return super().__getitem__(key)
@@ -534,7 +534,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
       if isinstance(v, base.TopologyAware):
         v.sym_setpath(utils.KeyPath(k, new_path))
 
-  def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def _set_item_without_permission_check(
       self, key: Union[str, int], value: Any) -> Optional[base.FieldUpdate]:
     """Set item without permission check."""
     if not isinstance(key, (str, int)):
@@ -756,16 +756,16 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     """Iterate keys in field declaration order."""
     return self.sym_keys()
 
-  def keys(self) -> Iterator[Union[str, int]]:  # pytype: disable=signature-mismatch
+  def keys(self) -> Iterator[Union[str, int]]:  # pyrefly: ignore[bad-override]
     """Returns an iterator of keys in current dict."""
     return self.sym_keys()
 
-  def items(self) -> Iterator[Tuple[Union[str, int], Any]]:  # pytype: disable=signature-mismatch
+  def items(self) -> Iterator[Tuple[Union[str, int], Any]]:  # pyrefly: ignore[bad-override]
     """Returns an iterator of (key, value) items in current dict."""
     for k, v in self.sym_items():
       yield k, self._infer_if_applicable(v)
 
-  def values(self) -> Iterator[Any]:  # pytype: disable=signature-mismatch
+  def values(self) -> Iterator[Any]:  # pyrefly: ignore[bad-override]
     """Returns an iterator of values in current dict.."""
     for v in self.sym_values():
       yield self._infer_if_applicable(v)
@@ -824,7 +824,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
           Iterable[Tuple[Union[str, int], Any]]
       ] = None,
       **kwargs
-  ) -> None:  # pytype: disable=signature-mismatch
+  ) -> None:
     """Update Dict with the same semantic as update on standard dict."""
     updates = dict(other) if other else {}
     updates.update(kwargs)
@@ -846,7 +846,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
     if not omit_symbolic_marker:
       json_repr[utils.JSONConvertible.SYMBOLIC_MARKER] = True
     if self._value_spec and self._value_spec.schema:
-      matched_keys, _ = self._value_spec.schema.resolve(self.keys())  # pytype: disable=attribute-error
+      matched_keys, _ = self._value_spec.schema.resolve(self.keys())  # pyrefly: ignore[bad-argument-type]
       for key_spec, keys in matched_keys.items():
         # NOTE(daiyip): The key values of frozen field can safely be excluded
         # since they will be the same for a class.
@@ -957,7 +957,7 @@ class Dict(dict, base.Symbolic, pg_typing.CustomTyping):
 
     field_list = []
     if self._value_spec and self._value_spec.schema:
-      matched_keys, unmatched = self._value_spec.schema.resolve(self.keys())  # pytype: disable=attribute-error
+      matched_keys, unmatched = self._value_spec.schema.resolve(self.keys())  # pyrefly: ignore[bad-argument-type]
       assert not unmatched
       for key_spec, keys in matched_keys.items():
         for key in keys:

@@ -302,6 +302,6 @@ def compound(
   if inspect.isfunction(base_class):
     assert args is None
     return compound_class(base_class, add_to_registry=True, **kwargs)
-  return lambda fn: compound_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
+  return lambda fn: compound_class(  # pylint: disable=g-long-lambda
       fn, base_class, args, add_to_registry=True, **kwargs  # pyrefly: ignore[bad-argument-type]
   )

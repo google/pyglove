@@ -144,7 +144,6 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
           **kwargs,
       )
 
-  # pytype: disable=annotation-type-mismatch
   def _html_tree_view_summary(
       self,
       *,
@@ -154,7 +153,6 @@ class Diff(PureSymbolic, pg_object.Object, tree_view.HtmlTreeView.Extension):
       max_summary_len_for_str: int = 80,
       **kwargs,
     ) -> Optional[tree_view.Html]:
-    # pytype: enable=annotation-type-mismatch
     if not bool(self):
       v = self.value
       if (isinstance(v, (int, float, bool, type(None)))

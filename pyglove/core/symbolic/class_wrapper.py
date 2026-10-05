@@ -568,7 +568,7 @@ def _extract_init_signature(
     arg_fields = []
   else:
     signature = pg_typing.Signature.from_signature(
-        inspect.signature(init_method),  # pyrefly: ignore[bad-argument-type]
+        inspect.signature(init_method),
         name=cls.__name__,
         callable_type=pg_typing.CallableType.METHOD,
         module_name=cls.__module__,

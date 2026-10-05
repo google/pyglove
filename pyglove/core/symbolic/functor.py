@@ -561,7 +561,7 @@ def functor(
         add_to_registry=True,
         **kwargs,
     )
-  return lambda fn: functor_class(  # pylint: disable=g-long-lambda  # pytype: disable=wrong-arg-types
+  return lambda fn: functor_class(  # pylint: disable=g-long-lambda
       fn, args, returns,  # pyrefly: ignore[bad-argument-type]
       base_class=base_class,
       add_to_registry=True,
@@ -713,4 +713,4 @@ def as_functor(
   Returns:
     Functor object from input function.
   """
-  return functor_class(func)(ignore_extra_args=ignore_extra_args)  # pytype: disable=not-instantiable
+  return functor_class(func)(ignore_extra_args=ignore_extra_args)

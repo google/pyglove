@@ -680,7 +680,7 @@ class Symbolic(
     not including the stack frame inside ``sym_setorigin``.
     """
     if self.sym_origin is not None:
-      current_source = self.sym_origin.source  # pytype: disable=attribute-error  # always-use-property-annotation
+      current_source = self.sym_origin.source
       if current_source is not None and current_source is not source:
         raise ValueError(
             f'Cannot set the origin with a different source value. '
@@ -1416,7 +1416,7 @@ def traverse(
         ):
           preorder_action = TraverseAction.STOP
           break
-    elif isinstance(x, Symbolic.ObjectType):  # pytype: disable=wrong-arg-types
+    elif isinstance(x, Symbolic.ObjectType):  # pyrefly: ignore[bad-argument-type]
       for k, v in x.sym_items():  # pyrefly: ignore[missing-attribute]
         if not traverse(
             v,
@@ -1521,7 +1521,7 @@ def query(
         custom_selector, auto_typing=False, auto_doc=False
     )
     if len(signature.args) == 2:
-      select_fn = lambda k, v, p: custom_selector(k, v)  # pytype: disable=wrong-arg-count
+      select_fn = lambda k, v, p: custom_selector(k, v)  # pyrefly: ignore[bad-argument-count]
     elif len(signature.args) == 3:
       select_fn = custom_selector
     else:
@@ -1532,7 +1532,7 @@ def query(
     if where is not None:
       signature = pg_typing.signature(where)
       if len(signature.args) == 1:
-        where_fn = lambda v, p: where(v)  # pytype: disable=wrong-arg-count
+        where_fn = lambda v, p: where(v)  # pyrefly: ignore[bad-argument-count]
       elif len(signature.args) == 2:
         where_fn = where
       else:
@@ -1545,14 +1545,14 @@ def query(
     def select_fn(k, v, p):
       if regex is not None and not regex.match(str(k)):
         return False
-      return where_fn(v, p)  # pytype: disable=wrong-arg-count
+      return where_fn(v, p)  # pyrefly: ignore[bad-argument-count]
 
   results = {}
 
   def _preorder_visitor(
       path: utils.KeyPath, v: Any, parent: Any
   ) -> TraverseAction:
-    if select_fn(path, v, parent):  # pytype: disable=wrong-arg-count
+    if select_fn(path, v, parent):  # pyrefly: ignore[bad-argument-count]
       results[str(path)] = v
       return TraverseAction.ENTER if enter_selected else TraverseAction.CONTINUE
     return TraverseAction.ENTER
@@ -1827,7 +1827,7 @@ def sym_hash(x: Any) -> int:
   if inspect.isfunction(x):
     return hash(x.__code__.co_code)
   if inspect.ismethod(x):
-    return hash((sym_hash(x.__self__), x.__code__.co_code))  # pytype: disable=attribute-error
+    return hash((sym_hash(x.__self__), x.__code__.co_code))
   return hash(x)
 
 
@@ -2171,7 +2171,7 @@ def from_json(
     if json_value and json_value[0] == utils.JSONConvertible.SYMBOLIC_MARKER:
       auto_symbolic = True
     if auto_symbolic:
-      from_json_fn = Symbolic.ListType.from_json  # pytype: disable=attribute-error
+      from_json_fn = Symbolic.ListType.from_json  # pyrefly: ignore[missing-attribute]
     else:
       from_json_fn = utils.from_json
     return from_json_fn(
@@ -2193,7 +2193,7 @@ def from_json(
           utils.JSONConvertible.SYMBOLIC_MARKER, auto_symbolic
       )
       if auto_symbolic:
-        return Symbolic.DictType.from_json(   # pytype: disable=attribute-error
+        return Symbolic.DictType.from_json(
             json_value,
             context=context,
             value_spec=value_spec,
@@ -2549,7 +2549,7 @@ def symbolic_transform_fn(allow_partial: bool):
       value_spec = pg_typing.ensure_value_spec(
           field.value, pg_typing.Dict().noneable(), path
       )
-      value = Symbolic.DictType(   # pytype: disable=not-callable  # pylint: disable=not-callable
+      value = Symbolic.DictType(   # pylint: disable=not-callable  # pyrefly: ignore[not-callable]
           value,
           value_spec=value_spec,
           allow_partial=allow_partial,
@@ -2565,7 +2565,7 @@ def symbolic_transform_fn(allow_partial: bool):
           pg_typing.List(pg_typing.Any()).noneable(),  # pyrefly: ignore[bad-instantiation]
           path
       )
-      value = Symbolic.ListType(   # pytype: disable=not-callable  # pylint: disable=not-callable
+      value = Symbolic.ListType(   # pylint: disable=not-callable  # pyrefly: ignore[not-callable]
           value,
           value_spec=value_spec,
           allow_partial=allow_partial,

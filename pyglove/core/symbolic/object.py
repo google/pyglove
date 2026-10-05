@@ -66,11 +66,11 @@ class ObjectMeta(abc.ABCMeta):
     """
     # Formalize schema first.
     if schema is not None:
-      schema = cls._normalize_schema(schema)  # pytype: disable=attribute-error
+      schema = cls._normalize_schema(schema)  # pyrefly: ignore[missing-attribute]
       setattr(cls, '__schema__', schema)
       setattr(cls, '__sym_fields', pg_typing.Dict(schema))
 
-    cls._on_schema_update()  # pytype: disable=attribute-error
+    cls._on_schema_update()  # pyrefly: ignore[missing-attribute]
 
   def update_schema(
       cls,
@@ -136,11 +136,11 @@ class ObjectMeta(abc.ABCMeta):
 
   def _infer_fields_from_annotations(cls) -> List[pg_typing.Field]:
     """Infers symbolic fields from class annotations."""
-    if not cls.infer_symbolic_fields_from_annotations:  # pytype: disable=attribute-error
+    if not cls.infer_symbolic_fields_from_annotations:  # pyrefly: ignore[missing-attribute]
       return []
 
     # Trigger event so users could modify annotations.
-    cls._begin_annotation_inference()  # pytype: disable=attribute-error
+    cls._begin_annotation_inference()  # pyrefly: ignore[missing-attribute]
 
     # NOTE(daiyip): refer to https://docs.python.org/3/howto/annotations.html.
     if hasattr(inspect, 'get_annotations'):
@@ -184,7 +184,7 @@ class ObjectMeta(abc.ABCMeta):
       fields.append(field)
 
     # Trigger event so subclass could modify the fields.
-    fields = cls._end_annotation_inference(fields)  # pytype: disable=attribute-error
+    fields = cls._end_annotation_inference(fields)  # pyrefly: ignore[missing-attribute]
     return fields
 
   def _update_default_values_from_class_attributes(
@@ -861,7 +861,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     if old_parent is not parent:
       self._on_parent_change(old_parent, parent)
 
-  def _sym_getattr(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def _sym_getattr(  # pyrefly: ignore[bad-override]
       self, key: str) -> Any:
     """Get symbolic field by key."""
     return self._sym_attributes.sym_getattr(key)
@@ -884,7 +884,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
       kwargs[k] = v
     return self.__class__(allow_partial=self._allow_partial,
                           sealed=self._sealed,
-                          **kwargs)  # pytype: disable=not-instantiable
+                          **kwargs)
 
   def _sym_missing(self) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
     """Returns missing values."""
@@ -913,7 +913,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     self._sym_attributes.sym_setpath(new_path)
     self._on_path_change(old_path, new_path)
 
-  def _set_item_without_permission_check(  # pytype: disable=signature-mismatch  # overriding-parameter-type-checks
+  def _set_item_without_permission_check(  # pyrefly: ignore[bad-override]
       self, key: str, value: Any) -> Optional[base.FieldUpdate]:
     """Set item without permission check."""
     return self._sym_attributes._set_item_without_permission_check(key, value)  # pylint: disable=protected-access
@@ -925,7 +925,7 @@ class Object(base.Symbolic, metaclass=ObjectMeta):
     For pg.Object, this return True only when _on_change is overridden
     from subclass.
     """
-    return self._on_change.__code__ is not Object._on_change.__code__  # pytype: disable=attribute-error
+    return self._on_change.__code__ is not Object._on_change.__code__
 
   def _init_kwargs(self) -> typing.Dict[str, Any]:
     kwargs = super()._init_kwargs()
