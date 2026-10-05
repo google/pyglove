@@ -42,6 +42,26 @@ class ErrorInfoTest(unittest.TestCase):
     self.assertEqual(error_info.description, 'Bad call to `foo`')
     self.assertIn('Traceback (most recent call last)', error_info.stacktrace)
 
+  def test_from_exception_after_handler(self):
+    saved_error = None
+    try:
+      raise ValueError('saved error')
+    except ValueError as e:
+      saved_error = e
+
+    info = error_info_lib.ErrorInfo.from_exception(saved_error)
+    self.assertIn('Traceback (most recent call last)', info.stacktrace)
+    self.assertIn('ValueError: saved error', info.stacktrace)
+
+  def test_from_exception_ignores_unrelated_active_error(self):
+    error = ValueError('requested error')
+    try:
+      raise TypeError('unrelated error')
+    except TypeError:
+      info = error_info_lib.ErrorInfo.from_exception(error)
+
+    self.assertEqual(info.stacktrace, 'ValueError: requested error\n')
+
   def test_to_json(self):
     error_info = error_info_lib.ErrorInfo(
         tag='ValueError.ZeroDivisionError',
