@@ -311,7 +311,16 @@ class MemoryFileSystem(FileSystem):
     self._prefix = prefix
 
   def _internal_path(self, path: Union[str, os.PathLike[str]]) -> str:
-    return '/' + resolve_path(path).lstrip(self._prefix)
+    path = resolve_path(path)
+    # ``str.lstrip`` treats its argument as a set of characters, so it must not
+    # be used here: it would incorrectly strip path components that begin with
+    # the same characters as the prefix (e.g. ``/mem/models`` -> ``odels``).
+    if path.startswith(self._prefix):
+      path = path[len(self._prefix):]
+    elif path == self._prefix.rstrip('/'):
+      # ``/mem`` (the prefix without the trailing slash) refers to the root.
+      path = ''
+    return '/' + path
 
   def _locate(self, path: Union[str, os.PathLike[str]]) -> Any:
     current = self._root
