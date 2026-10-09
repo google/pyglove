@@ -338,6 +338,10 @@ class MemoryFileSystem(FileSystem):
 
     if file is None:
       raise FileNotFoundError(path)
+    if 'w' in mode:
+      file.seek(0)
+      file._buffer.truncate(0)  # pylint: disable=protected-access
+      file.mtime = datetime.datetime.now().timestamp()
     return file
 
   def chmod(self, path: Union[str, os.PathLike[str]], mode: int) -> None:

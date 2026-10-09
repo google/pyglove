@@ -219,6 +219,26 @@ class MemoryFileSystemTest(unittest.TestCase):
     fs.rm(file1)
     self.assertFalse(fs.exists(file1))
 
+  def test_write_truncates_existing_file(self):
+    for mode, original, replacement in [('w', 'hello', 'x'),
+                                        ('wb', b'hello', b'x')]:
+      with self.subTest(mode=mode):
+        fs = file_system.MemoryFileSystem()
+        path = '/mem/file'
+        with fs.open(path, mode) as f:
+          f.write(original)
+        ctime = fs.getctime(path)
+        with fs.open(path, mode) as f:
+          self.assertEqual(f.tell(), 0)
+          f.write(replacement)
+        with fs.open(path, 'rb' if 'b' in mode else 'r') as f:
+          self.assertEqual(f.read(), replacement)
+        with fs.open(path, mode):
+          pass
+        with fs.open(path, 'rb' if 'b' in mode else 'r') as f:
+          self.assertEqual(f.read(), original[:0])
+        self.assertEqual(fs.getctime(path), ctime)
+
   def test_file_system(self):
     fs = file_system.MemoryFileSystem()
 
