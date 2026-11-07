@@ -247,6 +247,7 @@ class MemorySequenceIO(SequenceIO):
   ) -> Sequence:
     """Opens a reader for a sequence."""
     del kwargs
+    path = file_system.resolve_path(path)
     if 'w' in mode:
       self._root[path] = []
     return MemorySequence(
