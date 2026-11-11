@@ -860,6 +860,50 @@ def from_json(
   return json_value
 
 
+def _resolve_shared_refs(
+    json_value: Any, context: Optional[JSONConversionContext]
+) -> Any:
+  """Returns `json_value` with its shared references replaced by their values.
+
+  Left as is, for the caller to handle as before: values that are already
+  deserialized (e.g. symbolic ones), nested documents with their own
+  `__context__`, and references that `context` cannot resolve.
+
+  Args:
+    json_value: A JSON tree whose `_type` keys may already be resolved.
+    context: The context that the references index into. If it is None or holds
+      no shared object, `json_value` is returned as is.
+
+  Returns:
+    `json_value` itself if no reference is replaced, otherwise a copy in which
+    only the lists and dicts on the way to a replaced reference are new.
+  """
+  if context is None or not context.next_shared_index():
+    return json_value
+  if isinstance(json_value, JSONConvertible):
+    return json_value
+  if isinstance(json_value, dict):
+    if json_value.get(JSONConvertible.CONTEXT_KEY):
+      return json_value
+    if JSONConvertible.REF_KEY in json_value:
+      try:
+        return context.get_shared(json_value[JSONConvertible.REF_KEY]).value
+      except (IndexError, TypeError):
+        return json_value
+    resolved = {
+        k: _resolve_shared_refs(v, context) for k, v in json_value.items()
+    }
+    if all(resolved[k] is v for k, v in json_value.items()):
+      return json_value
+    return resolved
+  if isinstance(json_value, list):
+    resolved = [_resolve_shared_refs(v, context) for v in json_value]
+    if all(r is v for r, v in zip(resolved, json_value)):
+      return json_value
+    return resolved
+  return json_value
+
+
 def resolve_typenames(
     json_value: JSONValueType,
     auto_import: bool = True,
@@ -930,11 +974,13 @@ def resolve_typenames(
       if factory_fn is None and convert_unknown:
         type_name = v[JSONConvertible.TYPE_NAME_KEY]
         def _factory_fn(json_value: Dict[str, Any], **kwargs):
-          del kwargs
           # See `pg.symbolic.UnknownObject` for details.
           unknown_object_cls = JSONConvertible.class_from_typename(
               'unknown_object'
           )
+          # The constructor converts the fields without the caller's context,
+          # so their shared references are resolved against it here.
+          json_value = _resolve_shared_refs(json_value, kwargs.get('context'))
           return unknown_object_cls(type_name=type_name, **json_value)  # pyrefly: ignore[not-callable, unexpected-keyword]
 
         v[JSONConvertible.TYPE_NAME_KEY] = _factory_fn

@@ -536,6 +536,98 @@ class JSONConvertibleTest(unittest.TestCase):
         ]
     )
 
+  def test_json_conversion_convert_unknown_with_shared_ref(self):
+    # The references inside an unknown-typed object can only be resolved
+    # through the caller's context.
+    self.assertEqual(
+        json_conversion.from_json(
+            {
+                '__context__': {'shared_objects': [[1, 2]]},
+                '__root__': {
+                    '_type': '__main__.ABC',
+                    'x': {'__ref__': 0},
+                    'y': [{'z': {'__ref__': 0}}],
+                    'w': {'_type': '__main__.DEF', 'v': {'__ref__': 0}},
+                },
+            },
+            convert_unknown=True,
+        ),
+        unknown_symbols.UnknownTypedObject(
+            type_name='__main__.ABC',
+            x=[1, 2],
+            y=[{'z': [1, 2]}],
+            w=unknown_symbols.UnknownTypedObject(
+                type_name='__main__.DEF', v=[1, 2]
+            ),
+        ),
+    )
+
+  def test_json_conversion_convert_unknown_keeps_nested_context(self):
+    # A nested document resolves its references against its own context.
+    self.assertEqual(
+        json_conversion.from_json(
+            {
+                '__context__': {'shared_objects': [['outer']]},
+                '__root__': [
+                    {'__ref__': 0},
+                    {
+                        '_type': '__main__.ABC',
+                        'x': {
+                            '__context__': {'shared_objects': [['inner']]},
+                            '__root__': {'y': {'__ref__': 0}},
+                        },
+                    },
+                ],
+            },
+            convert_unknown=True,
+        ),
+        [
+            ['outer'],
+            unknown_symbols.UnknownTypedObject(
+                type_name='__main__.ABC', x={'y': ['inner']}
+            ),
+        ],
+    )
+
+  def test_json_conversion_convert_unknown_with_unresolvable_ref(self):
+    with self.assertRaises(IndexError):
+      json_conversion.from_json(
+          {
+              '__context__': {'shared_objects': [['outer']]},
+              '__root__': {'_type': '__main__.ABC', 'x': {'__ref__': 1}},
+          },
+          convert_unknown=True,
+      )
+
+  def test_json_conversion_convert_unknown_uses_constructor_only(self):
+    # Fields named like the constructor's arguments bind to them.
+    v = json_conversion.from_json(
+        {'_type': '__main__.ABC', 'allow_partial': True, 'x': 1},
+        convert_unknown=True,
+    )
+    self.assertTrue(v.allow_partial)
+    self.assertNotIn('allow_partial', v.sym_init_args)
+    v = json_conversion.from_json(
+        {'_type': '__main__.ABC', 'sealed': True, 'x': 1},
+        convert_unknown=True,
+    )
+    self.assertTrue(v.is_sealed)
+    self.assertNotIn('sealed', v.sym_init_args)
+    with self.assertRaisesRegex(TypeError, "multiple values .* 'type_name'"):
+      json_conversion.from_json(
+          {'_type': '__main__.ABC', 'type_name': 'x'}, convert_unknown=True
+      )
+
+    # The caller's keyword arguments do not reach the object.
+    v = json_conversion.from_json(
+        {'_type': '__main__.ABC', 'x': 1},
+        convert_unknown=True,
+        allow_partial=True,
+        y=2,
+    )
+    self.assertFalse(v.allow_partial)
+    self.assertNotIn('y', v.sym_init_args)
+
   def test_opaque_object_not_in_registry(self):
     """_OpaqueObject must not be reachable via type registry."""
     # _OpaqueObject should NOT be auto-registered, preventing attackers from

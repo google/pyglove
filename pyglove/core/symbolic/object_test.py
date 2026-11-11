@@ -3195,6 +3195,44 @@ class SerializationTest(unittest.TestCase):
         )
     )
 
+  def test_serialization_with_convert_unknown_and_shared_refs(self):
+
+    class P(Object):
+      auto_register = False
+      x: Any
+
+    class Q(Object):
+      p: Any
+      y: Any
+
+    # A shared object referenced from inside and outside an object whose class
+    # is unavailable, as in checkpoints written by other binaries.
+    self.assertEqual(
+        base.from_json(
+            {
+                '__context__': {'shared_objects': [[1, 2]]},
+                '__root__': {
+                    '_type': Q.__type_name__,
+                    'p': {'_type': P.__type_name__, 'x': {'__ref__': 0}},
+                    'y': {'__ref__': 0},
+                },
+            },
+            convert_unknown=True,
+        ),
+        Q(UnknownTypedObject(type_name=P.__type_name__, x=[1, 2]), y=[1, 2]),
+    )
+
+  def test_serialization_with_convert_unknown_ignores_caller_flags(self):
+    # Objects of unknown types are built by their constructor alone, so they
+    # get neither the caller's flags nor their location in the tree.
+    v = base.from_json(
+        ['__tuple__', {'_type': 'pyglove.core.symbolic.object_test.ABC', 'x': 1}],
+        convert_unknown=True,
+        allow_partial=True,
+    )
+    self.assertFalse(v[0].allow_partial)
+    self.assertTrue(v[0].sym_path.is_root)
+
   def test_serialization_with_converter(self):
 
     c = self._C(self._X(1), y=True)
