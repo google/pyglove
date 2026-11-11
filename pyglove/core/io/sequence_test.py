@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import os
+import pathlib
 import tempfile
 import unittest
 from pyglove.core.io import sequence as sequence_io
@@ -73,6 +74,25 @@ class LineSequenceIOTest(unittest.TestCase):
 
 
 class MemorySequenceIOTest(unittest.TestCase):
+
+  def test_pathlike_and_string_share_records(self):
+    path = pathlib.Path('pathlike-records.mem')
+    with sequence_io.open_sequence(
+        path, 'w', make_dirs_if_not_exist=False) as writer:
+      writer.add('first')
+    with sequence_io.open_sequence(
+        str(path), 'a', make_dirs_if_not_exist=False) as writer:
+      writer.add('second')
+    for reader_path in (path, str(path)):
+      with self.subTest(reader_path=reader_path):
+        with sequence_io.open_sequence(reader_path) as reader:
+          self.assertEqual(list(reader), ['first', 'second'])
+
+    with sequence_io.open_sequence(
+        str(path), 'w', make_dirs_if_not_exist=False) as writer:
+      writer.add('replacement')
+    with sequence_io.open_sequence(path) as reader:
+      self.assertEqual(list(reader), ['replacement'])
 
   def test_read_write(self):
     with sequence_io.open_sequence('/file1.mem@123', 'w') as f:
