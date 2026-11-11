@@ -447,6 +447,17 @@ class MemoryFileSystem(FileSystem):
       raise FileNotFoundError(oldpath_str)
 
     new_entry = self._locate(newpath_str)
+    if isinstance(entry, dict) and (
+        new_entry is None or isinstance(new_entry, dict)
+    ):
+      # Ignore empty components as _locate does, before removing a destination.
+      old_parts = [x for x in oldpath_str.split('/') if x]
+      new_parts = [x for x in newpath_str.split('/') if x]
+      if (len(new_parts) > len(old_parts)
+          and new_parts[:len(old_parts)] == old_parts):
+        raise OSError(f'Cannot move directory {oldpath_str!r} '
+                      f'to a subdirectory of itself {newpath_str!r}')
+
     if new_entry is not None:
       if isinstance(entry, dict):  # oldpath is dir
         if not isinstance(new_entry, dict):
@@ -464,10 +475,6 @@ class MemoryFileSystem(FileSystem):
               f'to directory {newpath_str!r}')
         else:
           self.rm(newpath_str)
-    elif isinstance(entry, dict) and newpath_str.startswith(oldpath_str + '/'):
-      raise OSError(f'Cannot move directory {oldpath_str!r} '
-                    f'to a subdirectory of itself {newpath_str!r}')
-
     new_parent_dir, new_name = self._parent_and_name(newpath_str)
     new_parent_dir[new_name] = entry
     del old_parent_dir[old_name]

@@ -378,6 +378,40 @@ class MemoryFileSystemTest(unittest.TestCase):
     with self.assertRaises(FileNotFoundError):
       fs.rename('/mem/non-existent', '/mem/y')
 
+  def test_rename_directory_into_descendant(self):
+    for oldpath, newpath in [
+        ('/mem/investigation', '/mem/investigation/child'),
+        ('/mem/investigation', '/mem/investigation/child/grandchild'),
+        ('/mem//investigation', '/mem/investigation/child'),
+        ('/mem/investigation', '/mem//investigation/child'),
+        (pathlib.PurePosixPath('/mem/investigation'),
+         pathlib.PurePosixPath('/mem/investigation/child')),
+    ]:
+      with self.subTest(oldpath=oldpath, newpath=newpath):
+        fs = file_system.MemoryFileSystem()
+        fs.mkdirs(newpath)
+        with fs.open('/mem/investigation/data.txt', 'w') as f:
+          f.write('payload')
+
+        with self.assertRaises(OSError):
+          fs.rename(oldpath, newpath)
+
+        self.assertTrue(fs.isdir(oldpath))
+        self.assertTrue(fs.isdir(newpath))
+        self.assertEqual(fs.listdir(newpath), [])
+        with fs.open('/mem/investigation/data.txt') as f:
+          self.assertEqual(f.read(), 'payload')
+
+  def test_rename_directory_with_shared_name_prefix(self):
+    fs = file_system.MemoryFileSystem()
+    fs.mkdirs('/mem/a')
+    with fs.open('/mem/a/data.txt', 'w') as f:
+      f.write('payload')
+    fs.rename('/mem/a', '/mem/ab')
+    self.assertFalse(fs.exists('/mem/a'))
+    with fs.open('/mem/ab/data.txt') as f:
+      self.assertEqual(f.read(), 'payload')
+
   def test_copy(self):
     fs = file_system.MemoryFileSystem()
     fs.mkdirs('/mem/a')
