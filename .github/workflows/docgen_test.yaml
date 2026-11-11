@@ -12,14 +12,19 @@ jobs:
   test-ubuntu:
     name: "documentation generation on ${{ matrix.python-version }} on ${{ matrix.os }}"
     runs-on: "${{ matrix.os }}"
+    permissions:
+      contents: read  # actions/checkout
+      statuses: write  # "Report success or failure as github status"
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.11"]
         os: [ubuntu-latest]
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3.7.0
+      with:
+        persist-credentials: false
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4.9.1
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -38,8 +43,10 @@ jobs:
     - name: Report success or failure as github status
       if: always()
       shell: bash
+      env:
+        JOB_STATUS: ${{ job.status }}
       run: |
-        status="${{ job.status }}"
+        status="$JOB_STATUS"
         lowercase_status=$(echo $status | tr '[:upper:]' '[:lower:]')
         curl -sS --request POST \
         --url https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.sha }} \

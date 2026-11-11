@@ -405,7 +405,11 @@ def get_api(pg) -> Module:
         if (inspect.ismodule(child)
             and '.'.join(child_path.keys[1:]) in MODULES_TO_DOCUMENT):
           child_api = get_api_from_module(child, child_path)
-        if inspect.isclass(child):
+        # `typing.Any` is a class since Python 3.11. Skip it, as the
+        # `typing._Final` check below skips other typing objects.
+        if child is typing.Any:
+          pass
+        elif inspect.isclass(child):
           child_api = Class(
               child.__name__, f'{child.__module__}.{child.__name__}')
         elif inspect.isfunction(child):
