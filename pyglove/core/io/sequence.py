@@ -167,7 +167,7 @@ def open_sequence(
   """
   if 'w' in mode or 'a' in mode:
     parent_dir = os.path.dirname(path)
-    if make_dirs_if_not_exist:
+    if make_dirs_if_not_exist and parent_dir:
       file_system.mkdirs(parent_dir, exist_ok=True)
   return _registry.get(path).open(
       path, mode, perms=perms, serializer=serializer, deserializer=deserializer
