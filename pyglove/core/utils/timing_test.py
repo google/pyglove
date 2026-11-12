@@ -110,6 +110,21 @@ class TimeItTest(unittest.TestCase):
     self.assertTrue(r['node.child.grandchild'].has_error)
     self.assertTrue(t2.has_error)
 
+  def test_restored_summary_accepts_new_error_tags(self):
+    summary = timing.TimeIt.StatusSummary()
+    for exc in (ValueError('first'), TypeError('second'), ValueError('third')):
+      with self.assertRaises(type(exc)):
+        with timing.timeit('node') as t:
+          raise exc
+      summary.aggregate(t.status())
+      summary = timing.TimeIt.StatusSummary.from_json(summary.to_json())
+
+    entry = summary.breakdown['node']
+    self.assertEqual(entry.num_started, 3)
+    self.assertEqual(entry.num_ended, 3)
+    self.assertEqual(entry.num_failed, 3)
+    self.assertEqual(entry.error_tags, {'ValueError': 2, 'TypeError': 1})
+
   def test_timeit_summary(self):
     summary = timing.TimeIt.StatusSummary()
     self.assertFalse(summary)

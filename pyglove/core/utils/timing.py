@@ -93,7 +93,8 @@ class TimeIt:
         if status.has_error:
           self.num_failed += 1
           assert status.error is not None
-          self.error_tags[status.error.tag] += 1
+          tag = status.error.tag
+          self.error_tags[tag] = self.error_tags.get(tag, 0) + 1
 
       def to_json(self, **kwargs) -> Dict[str, Any]:  # pyrefly: ignore[bad-override]
         return self.to_json_dict(
