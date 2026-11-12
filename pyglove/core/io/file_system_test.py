@@ -195,6 +195,26 @@ class StdFileSystemTest(unittest.TestCase):
 
 class MemoryFileSystemTest(unittest.TestCase):
 
+  def test_paths_beneath_a_file_do_not_exist(self):
+    for mode, content in [('w', 'hello'), ('wb', b'hello')]:
+      with self.subTest(mode=mode):
+        fs = file_system.MemoryFileSystem()
+        fs.mkdirs('/mem/a')
+        with fs.open('/mem/a/file.txt', mode) as f:
+          f.write(content)
+
+        for path in ['/mem/a/file.txt/child',
+                     '/mem/a/file.txt/child/grandchild']:
+          with self.subTest(path=path):
+            self.assertFalse(fs.exists(path))
+            self.assertFalse(fs.isdir(path))
+
+        self.assertTrue(fs.exists('/mem/a/file.txt'))
+        self.assertFalse(fs.isdir('/mem/a/file.txt'))
+        self.assertTrue(fs.isdir('/mem/a'))
+        with fs.open('/mem/a/file.txt') as f:
+          self.assertEqual(f.read(), content)
+
   def test_file(self):
     fs = file_system.MemoryFileSystem()
 

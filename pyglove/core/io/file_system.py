@@ -318,7 +318,7 @@ class MemoryFileSystem(FileSystem):
     for x in self._internal_path(path).split('/'):
       if not x:
         continue
-      if x not in current:
+      if not isinstance(current, dict) or x not in current:
         return None
       current = current[x]
     return current
