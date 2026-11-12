@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import collections
 import unittest
 from pyglove.core.utils import formatting
 from pyglove.core.utils import value_location
@@ -407,6 +408,30 @@ class KeyPathTest(unittest.TestCase):
     assert_exists('a[1].d[1]', src, True)
     assert_exists('c', src, False)
     assert_exists('b.c', src, False)
+
+  def test_query_integer_mapping_keys(self):
+    for key in (100, -100):
+      with self.subTest(key=key):
+        source = {key: {'value': 42}}
+        path = KeyPath([key, 'value'])
+        self.assertEqual(path.query(source), 42)
+        self.assertEqual(path.query(collections.UserDict(source)), 42)
+        self.assertTrue(path.exists(source))
+        self.assertEqual(path.get(source, 'missing'), 42)
+        self.assertFalse(KeyPath(key + 1).exists(source))
+        self.assertEqual(KeyPath(key + 1).get(source, 'missing'), 'missing')
+
+  def test_query_negative_sequence_indices(self):
+    for source in ([1, 2], (1, 2), []):
+      with self.subTest(source=source):
+        if source:
+          self.assertEqual(KeyPath(-1).query(source), 2)
+          self.assertEqual(KeyPath(-len(source)).query(source), 1)
+        missing = KeyPath(-len(source) - 1)
+        with self.assertRaises(KeyError):
+          missing.query(source)
+        self.assertFalse(missing.exists(source))
+        self.assertEqual(missing.get(source, 'missing'), 'missing')
 
   def test_message_on_path(self):
     self.assertEqual(value_location.message_on_path('hi.', None), 'hi.')
