@@ -273,6 +273,7 @@ class LineSequence(Sequence):
     self._path = path
     self._mode = mode
     self._file = file_system.open(path, mode)
+    self._newline = b'\n' if 'b' in mode else '\n'
 
   def __len__(self):
     raise NotImplementedError(
@@ -285,11 +286,13 @@ class LineSequence(Sequence):
       line = self._file.readline()
       if not line:
         break
-      yield line.rstrip('\n')  # pyrefly: ignore[bad-argument-type]
+      yield line.rstrip(self._newline)  # pyrefly: ignore[bad-argument-type]
 
   def _add(self, record: Union[str, bytes]) -> None:
-    self._file.write(record.rstrip('\n'))  # pyrefly: ignore[bad-argument-type]
-    self._file.write('\n')
+    self._file.write(
+        record.rstrip(self._newline)  # pyrefly: ignore[bad-argument-type]
+    )
+    self._file.write(self._newline)
 
   def flush(self) -> None:
     self._file.flush()
