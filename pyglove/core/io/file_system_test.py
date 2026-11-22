@@ -378,6 +378,36 @@ class MemoryFileSystemTest(unittest.TestCase):
     with self.assertRaises(FileNotFoundError):
       fs.rename('/mem/non-existent', '/mem/y')
 
+  def test_rename_same_file(self):
+    fs = file_system.MemoryFileSystem()
+    fs.mkdirs('/mem/a')
+    path = '/mem/a/foo.txt'
+    with fs.open(path, 'w') as f:
+      f.write('foo')
+
+    fs.rename(path, path)
+
+    with fs.open(path) as f:
+      self.assertEqual(f.read(), 'foo')
+
+  def test_rename_same_directory(self):
+    for children in ([], ['b']):
+      with self.subTest(children=children):
+        fs = file_system.MemoryFileSystem()
+        fs.mkdirs('/mem/a')
+        for child in children:
+          fs.mkdir('/mem/a/' + child)
+
+        fs.rename('/mem/a', '/mem/a')
+
+        self.assertTrue(fs.isdir('/mem/a'))
+        self.assertEqual(fs.listdir('/mem/a'), children)
+
+  def test_rename_same_missing_path(self):
+    fs = file_system.MemoryFileSystem()
+    with self.assertRaises(FileNotFoundError):
+      fs.rename('/mem/missing', '/mem/missing')
+
   def test_copy(self):
     fs = file_system.MemoryFileSystem()
     fs.mkdirs('/mem/a')

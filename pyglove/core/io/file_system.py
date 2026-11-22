@@ -447,6 +447,8 @@ class MemoryFileSystem(FileSystem):
       raise FileNotFoundError(oldpath_str)
 
     new_entry = self._locate(newpath_str)
+    if new_entry is entry:
+      return
     if new_entry is not None:
       if isinstance(entry, dict):  # oldpath is dir
         if not isinstance(new_entry, dict):
