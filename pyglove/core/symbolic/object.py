@@ -28,6 +28,14 @@ from pyglove.core.symbolic import dict as pg_dict
 from pyglove.core.symbolic import flags
 
 
+if sys.version_info >= (3, 11):
+  _dataclass_transform = typing.dataclass_transform
+else:
+  def _dataclass_transform():
+    return lambda cls: cls
+
+
+@_dataclass_transform()
 class ObjectMeta(abc.ABCMeta):
   """Meta class for pg.Object."""
 
@@ -153,6 +161,8 @@ class ObjectMeta(abc.ABCMeta):
       if attr_name == '__kwargs__':
         # __kwargs__ is speical annotation for enabling keyword arguments.
         key = pg_typing.StrKey()
+        if typing.get_origin(attr_annotation) is typing.ClassVar:
+          attr_annotation = typing.get_args(attr_annotation)[0]
       elif not attr_name.isupper() and not attr_name.startswith('_'):
         key = pg_typing.ConstStrKey(attr_name)
       else:
